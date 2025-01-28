@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Any, Optional, Union
+from typing import Callable, Any, Optional, Union, cast
+from functools import partial
 
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Element, Document
@@ -8,6 +9,7 @@ from sycamore.llms.prompts import (
     EntityExtractorZeroShotGuidancePrompt,
     EntityExtractorFewShotGuidancePrompt,
 )
+from sycamore.llms.prompts.prompts import ElementListIterPrompt, ElementListPrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base_llm import LLMMap
 from sycamore.transforms.map import Map
@@ -116,9 +118,70 @@ class OpenAIEntityExtractor(EntityExtractor):
         assert llm is not None, "Could not find an LLM to use"
         if self._prompt_template is not None:
             prompt = EntityExtractorFewShotGuidancePrompt
-            prompt = prompt.set(examples=self._prompt_template)
+            prompt = cast(ElementListPrompt, prompt.set(examples=self._prompt_template))
         else:
             prompt = EntityExtractorZeroShotGuidancePrompt
+
+        def postprocess(d: Document, i: int) -> Document:
+            return d
+
+        if self._tokenizer is not None:
+            prompt.render_document = partial(ElementListIterPrompt.render_document, prompt)  # type: ignore
+
+            def elt_list_ctor(elts: list[Element]) -> str:
+                combined_text = ""
+                for element in elts:
+                    if "type" in element:
+                        combined_text += f"Element type: {element['type']}\n"
+                    if "page_number" in element["properties"]:
+                        combined_text += f"Page_number: {element['properties']['page_number']}\n"
+                    if "_element_index" in element["properties"]:
+                        combined_text += f"Element_index: {element['properties']['_element_index']}\n"
+                    combined_text += f"Text: {element.field_to_value(self._field)}\n"
+                return combined_text
+
+            if self._prompt_formatter is not element_list_formatter:
+                prompt = prompt.set(element_list_constructor=self._prompt_formatter)
+            else:
+                prompt = prompt.set(element_list_constructor=elt_list_ctor)
+
+            def eb(elts: list[Element]) -> list[list[Element]]:
+                curr_tks = 0
+                curr_batch = []
+                batches = []
+                source_indices = set()
+                for e in elts:
+                    eltl = prompt.element_list_constructor([e])
+                    tks = len(self._tokenizer.tokenize(eltl))
+                    if tks + curr_tks > self._max_tokens:
+                        batches.append(curr_batch)
+                        curr_tks = tks
+                        curr_batch = [e]
+                        source_indices = {e.element_index}
+                        e.properties[f"{self._entity_name}_source_element_index"] = source_indices
+                    else:
+                        e.properties[f"{self._entity_name}_source_element_index"] = source_indices
+                        source_indices.add(e.element_index)
+                        curr_batch.append(e)
+                        curr_tks += tks
+                batches.append(curr_batch)
+                return batches
+
+            setattr(prompt, "element_batcher", eb)
+            prompt.is_done = lambda s: s != "None"
+            print(prompt.__dict__)
+
+            def postprocess(d: Document, i: int) -> Document:
+                last_club = set()
+                source_key = f"{self._entity_name}_source_element_index"
+                for e in d.elements:
+                    if e.properties[source_key] != last_club:
+                        i -= 1
+                        last_club = e.properties[source_key]
+                    if i == -1:
+                        break
+                d.properties[source_key] = last_club
+                return d
 
         def elt_sorter(elts: list[Element]) -> list[Element]:
             sorter_inner = make_element_sorter_fn(self._field, self._similarity_query, self._similarity_scorer)
@@ -127,10 +190,11 @@ class OpenAIEntityExtractor(EntityExtractor):
             return dummy_doc.elements
 
         prompt = prompt.set(element_select=lambda e: elt_sorter(e)[: self._num_of_elements])
-        prompt = prompt.set(element_list_constructor=lambda e: self._prompt_formatter(e, self._field))
+        if self._tokenizer is None:
+            prompt = prompt.set(element_list_constructor=lambda e: self._prompt_formatter(e, self._field))
         prompt = prompt.set(entity=self._entity_name)
 
-        llm_map = LLMMap(child, prompt, self._entity_name, llm, **kwargs)
+        llm_map = LLMMap(child, prompt, self._entity_name, llm, postprocess_fn=postprocess, **kwargs)
         return llm_map
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)

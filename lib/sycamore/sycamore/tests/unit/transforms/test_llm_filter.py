@@ -27,7 +27,9 @@ tokenizer_doc = [
             Element(properties={"_element_index": 1}, text_representation="third element"),  # llm_filter result = 2
             Element(
                 properties={"_element_index": 2},
-                text_representation="very long element with many words that might exceed token limit",
+                text_representation="very long element with many words that might exceed token limit."
+                " Specifically, it has so many words that even with the additional contextualization"
+                " like 'Element type' and 'page number' it still overflows",
             ),  # llm_filter result = 5
         ],
     ),

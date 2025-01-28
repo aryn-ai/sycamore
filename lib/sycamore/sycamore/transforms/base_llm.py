@@ -12,16 +12,18 @@ def _infer_prompts(
     llm: LLM,
     llm_mode: LLMMode,
     is_done: Callable[[str], bool] = lambda s: True,
-) -> list[str]:
+) -> list[tuple[str, int]]:
     if llm_mode == LLMMode.SYNC:
         res = []
         for piter in prompts:
             s = ""
+            i = -1
             for p in piter:
+                i += 1
                 s = llm.generate(prompt=p)
                 if is_done(s):
                     break
-            res.append(s)
+            res.append((s, i))
         return res
     elif llm_mode == LLMMode.ASYNC:
         raise NotImplementedError("Haven't done async yet")
@@ -37,6 +39,7 @@ class LLMMap(MapBatch):
     the document.
 
     Args:
+
         child: Child node in the sycamore execution graph
         prompt: The SycamorePrompt to use to render each document.
             Must implement the ``render_document`` method.
@@ -45,6 +48,11 @@ class LLMMap(MapBatch):
         llm: The llm to use for inference.
         llm_mode: How to call the llm - sync/async/batch. All LLMs do not
             necessarily implement all options.
+        postprocess_fn: function to call on documents after performing the
+            llm inference. If the prompt rendered into multiple RenderedPrompts,
+            ``i`` is the index of the RenderedPrompt that succeeded; if the
+            prompt rendered into an empty list, ``i`` is -1; and otherwise
+            ``i`` is 0
 
     Example:
          .. code-block:: python
@@ -65,6 +73,7 @@ class LLMMap(MapBatch):
         output_field: str,
         llm: LLM,
         llm_mode: LLMMode = LLMMode.SYNC,
+        postprocess_fn: Callable[[Document, int], Document] = lambda d, i: d,
         **kwargs,
     ):
         self._prompt = prompt
@@ -72,15 +81,19 @@ class LLMMap(MapBatch):
         self._output_field = output_field
         self._llm = llm
         self._llm_mode = llm_mode
+        self._postprocess_fn = postprocess_fn
         super().__init__(child, f=self.llm_map, **kwargs)
 
     def llm_map(self, documents: list[Document]) -> list[Document]:
         rendered = [self._prompt.render_document(d) for d in documents]
         rendered = _as_sequences(rendered)
         results = _infer_prompts(rendered, self._llm, self._llm_mode, self._prompt.is_done)
-        for d, r in zip(documents, results):
+        postprocessed = []
+        for d, (r, i) in zip(documents, results):
             d.properties[self._output_field] = r
-        return documents
+            new_d = self._postprocess_fn(d, i)
+            postprocessed.append(new_d)
+        return postprocessed
 
     def _validate_prompt(self):
         doc = Document()

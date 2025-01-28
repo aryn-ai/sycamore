@@ -1,19 +1,13 @@
 from typing import Optional
 import logging
 from unittest.mock import MagicMock
-from dataclasses import asdict
 
 import sycamore
 from sycamore.context import Context, OperationTypes, ExecMode
 from sycamore.data import Document, Element
-from sycamore.transforms import ExtractEntity
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import LLM
 from sycamore.llms.prompts import RenderedPrompt
-from sycamore.llms.prompts.default_prompts import (
-    EntityExtractorFewShotGuidancePrompt,
-    EntityExtractorZeroShotGuidancePrompt,
-)
 from sycamore.tests.unit.test_docset import TestSimilarityScorer, MockTokenizer
 from sycamore.tests.unit.test_docset import MockLLM as docsetMockLLM
 from sycamore.tests.unit.transforms.test_llm_filter import tokenizer_doc

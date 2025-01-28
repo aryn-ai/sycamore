@@ -1,0 +1,81 @@
+{
+    "status": [
+        "Incremental status will be shown here during execution.",
+        "Until you get a line that matches '  ]\n', you can convert the partial",
+        "output to a json document by appending '\"\"]}' to the partial output.",
+        "",
+        "T+   0.00: Server version aryn-partitioner-0.20250122.214644 Model version 1.4",
+        "T+   0.00: Received request with aryn_call_id=ef874bd3-052d-4889-93ec-5c0aabe52169",
+        "T+   0.00: Waiting for scheduling",
+        "T+   0.00: Preprocessing document",
+        "T+   0.00: Done preprocessing document",
+        "T+   0.24: Completed work on page 1",
+        "T+   0.31: Completed work on page 2",
+        ""
+    ],
+    "status_code": 200,
+    "elements": [
+        {
+            "type": "Image",
+            "bbox": [
+                0.509236894087358,
+                0.4050663847081801,
+                0.9102112926136363,
+                0.5719264849494485
+            ],
+            "properties": {
+                "score": 0.6749350428581238,
+                "image_size": null,
+                "image_mode": null,
+                "image_format": null,
+                "page_number": 1
+            },
+            "text_representation": "Rotation Test \n This is sideways! \n  \n"
+        },
+        {
+            "type": "Image",
+            "bbox": [
+                0.08446529612821692,
+                0.6502498002485796,
+                0.6053998161764705,
+                0.7817662464488636
+            ],
+            "properties": {
+                "score": 0.4510251581668854,
+                "image_size": null,
+                "image_mode": null,
+                "image_format": null,
+                "page_number": 2
+            },
+            "text_representation": "Rotation Test \n This is upside-Down! \n  \n"
+        },
+        {
+            "type": "Text",
+            "bbox": [
+                0.09905881096335019,
+                0.6606139026988637,
+                0.20984014174517462,
+                0.6747579678622159
+            ],
+            "properties": {
+                "score": 0.4541931748390198,
+                "page_number": 2
+            },
+            "text_representation": "Rotation Test \n"
+        },
+        {
+            "type": "Text",
+            "bbox": [
+                0.09752255608053768,
+                0.6977392578125,
+                0.2741366397633272,
+                0.7121780118075284
+            ],
+            "properties": {
+                "score": 0.4705822765827179,
+                "page_number": 2
+            },
+            "text_representation": "This is upside-Down! \n"
+        }
+    ]
+}

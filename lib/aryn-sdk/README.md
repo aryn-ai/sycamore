@@ -96,3 +96,77 @@ pil_img = convert_image_element(image_elts[0])
 jpg_bytes = convert_image_element(image_elts[1], format='JPEG')
 png_str = convert_image_element(image_elts[2], format="PNG", b64encode=True)
 ```
+
+### Async Aryn DocParse
+
+#### Single Job Example
+```python
+import time
+from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result
+
+with open("my-favorite-pdf.pdf", "rb") as f:
+    response = partition_file_async_submit(
+        f,
+        use_ocr=True,
+        extract_table_structure=True,
+    )
+
+job_id = response["job_id"]
+
+# Poll for the results
+while True:
+    result = partition_file_async_result(job_id)
+    if result["status"] != "pending":
+        break
+    time.sleep(5)
+```
+
+Optionally, you can also set a webhook for Aryn to call when your job is completed:
+
+```python
+partition_file_async_submit("path/to/my/file.docx", webhook_url="https://example.com/alert")
+```
+
+Aryn will POST a request containing a body like the below:
+```json
+{"done": [{"job_id": "aryn:j-47gpd3604e5tz79z1jro5fc"}]}
+```
+
+#### Multi-Job Example
+
+```python
+import logging
+import time
+from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result
+
+files = [open("file1.pdf", "rb"), open("file2.docx", "rb")]
+job_ids = [None] * len(files)
+for i, f in enumerate(files):
+    try:
+        job_ids[i] = partition_file_async_submit(f)["job_id"]
+    except Exception as e:
+        logging.warning(f"Failed to submit {f}: {e}")
+
+results = [None] * len(files)
+for i, job_id in enumerate(job_ids):
+    while True:
+        result = partition_file_async_result(job_id)
+        if result["status"] != "pending":
+            break
+        time.sleep(5)
+    results[i] = result
+```
+
+#### Cancelling an async job
+
+```python
+from aryn_sdk.partition import partition_file_async_submit, partition_file_async_cancel
+        job_id = partition_file_async_submit(
+                    "path/to/file.pdf",
+                    use_ocr=True,
+                    extract_table_structure=True,
+                    extract_images=True,
+                )["job_id"]
+
+        partition_file_async_cancel(job_id)
+```

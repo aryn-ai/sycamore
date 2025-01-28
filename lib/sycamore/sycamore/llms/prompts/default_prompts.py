@@ -1,10 +1,7 @@
-from dataclasses import dataclass
 import logging
 from abc import ABC
-from typing import Any, Optional, Type, ClassVar, Callable
+from typing import Any, Optional, Type
 
-from sycamore.data.element import Element
-from sycamore.data.document import Document
 from sycamore.schema import Schema
 from sycamore.llms.prompts.prompts import ElementListPrompt, ElementPrompt, StaticPrompt
 

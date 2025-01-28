@@ -50,7 +50,7 @@ def test_cached_bedrock(tmp_path: Path):
     # assert result is cached
     assert cache.get(key).get("result")["output"] == res
     assert cache.get(key).get("prompt") == prompt
-    assert cache.get(key).get("prompt.response_format") == None
+    assert cache.get(key).get("prompt.response_format") is None
     assert cache.get(key).get("llm_kwargs") == {}
     assert cache.get(key).get("model_name") == BedrockModels.CLAUDE_3_HAIKU.value.name
 

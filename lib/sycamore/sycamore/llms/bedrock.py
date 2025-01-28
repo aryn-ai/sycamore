@@ -115,6 +115,7 @@ class Bedrock(LLM):
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }
+        self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
         self._llm_cache_set(prompt, llm_kwargs, ret)
         return ret
 

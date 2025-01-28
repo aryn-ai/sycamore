@@ -110,17 +110,3 @@ def test_positional_args_and_context_args():
 
     # Combine positional and kwarg
     assert "a b" == two_positional_args_method_with_kwargs("a", some_other_arg="b", context=context)
-
-
-def test_positional_args_and_context_args_f_with_kwargs():
-    context = Context(
-        params={"default": {"some_other_arg": "Aryn2", "some_unrelated_arg": "ArynZ"}}, exec_mode=ExecMode.LOCAL
-    )
-    # Pickup 'some_other_arg' from context
-    assert "a Aryn2" == two_positional_args_method_with_kwargs(some_function_arg="a", context=context)
-
-    # Should ignore context vars because of kwargs
-    assert "a b" == two_positional_args_method_with_kwargs(some_function_arg="a", some_other_arg="b", context=context)
-
-    # Combine positional and kwarg
-    assert "a b" == two_positional_args_method_with_kwargs("a", some_other_arg="b", context=context)

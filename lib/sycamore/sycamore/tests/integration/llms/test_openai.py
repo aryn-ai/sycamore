@@ -4,12 +4,10 @@ import pytest
 
 from sycamore.llms import OpenAI, OpenAIModels, OpenAIClientWrapper
 from sycamore.llms.openai import OpenAIModel, OpenAIClientType
-from sycamore.llms.prompts.default_prompts import SimplePrompt
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage, StaticPrompt
 from sycamore.utils.cache import DiskCache
 
 from pydantic import BaseModel
-from openai.lib._parsing import type_to_response_format_param
 
 
 # Note: These tests expect you to have OPENAI_API_KEY set in your environment.
@@ -58,7 +56,7 @@ def test_cached_openai(tmp_path: Path):
     # assert result is cached
     assert cache.get(key).get("result") == res
     assert cache.get(key).get("prompt") == prompt
-    assert cache.get(key).get("prompt.response_format") == None
+    assert cache.get(key).get("prompt.response_format") is None
     assert cache.get(key).get("llm_kwargs") == {}
     assert cache.get(key).get("model_name") == "gpt-3.5-turbo"
 
@@ -88,7 +86,7 @@ def test_cached_guidance(tmp_path: Path):
     assert isinstance(cache.get(key), dict)
     assert cache.get(key).get("result") == res
     assert cache.get(key).get("prompt") == prompt
-    assert cache.get(key).get("prompt.response_format") == None
+    assert cache.get(key).get("prompt.response_format") is None
     assert cache.get(key).get("llm_kwargs") is None
     assert cache.get(key).get("model_name") == "gpt-3.5-turbo"
 

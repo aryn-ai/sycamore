@@ -19,7 +19,6 @@ from sycamore.transforms import (
     Embed,
     Partitioner,
     Summarize,
-    ExtractEntity,
     FlatMap,
     Map,
     MapBatch,

@@ -5,7 +5,8 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from PIL import Image
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
+from datetime import datetime
 
 from openai import AzureOpenAI as AzureOpenAIClient
 from openai import AsyncAzureOpenAI as AsyncAzureOpenAIClient
@@ -19,10 +20,9 @@ from openai.lib._parsing import type_to_response_format_param
 import pydantic
 
 from sycamore.llms.llms import LLM
-from sycamore.llms.prompts import SimplePrompt, RenderedPrompt
+from sycamore.llms.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data_url
-
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +291,15 @@ class OpenAI(LLM):
     def format_image(self, image: Image.Image) -> dict[str, Any]:
         return {"type": "image_url", "image_url": {"url": base64_data_url(image)}}
 
+    def validate_tokens(self, completion) -> Tuple[int, int]:
+        if completion.usage is not None:
+            completion_tokens = completion.usage.completion_tokens or 0
+            prompt_tokens = completion.usage.prompt_tokens or 0
+        else:
+            completion_tokens = 0
+            prompt_tokens = 0
+        return completion_tokens, prompt_tokens
+
     def _convert_response_format(self, llm_kwargs: Optional[Dict]) -> Optional[Dict]:
         """Convert the response_format parameter to the appropriate OpenAI format."""
         if llm_kwargs is None:
@@ -363,26 +372,41 @@ class OpenAI(LLM):
         kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
         logging.debug("OpenAI prompt: %s", kwargs)
         if self.is_chat_mode():
+            starttime = datetime.now()
             completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
             logging.debug("OpenAI completion: %s", completion)
-            return completion.choices[0].message.content
+            wall_latency = datetime.now() - starttime
+            response_text = completion.choices[0].message.content
         else:
+            starttime = datetime.now()
             completion = self.client_wrapper.get_client().completions.create(model=self._model_name, **kwargs)
             logging.debug("OpenAI completion: %s", completion)
-            return completion.choices[0].text
+            wall_latency = datetime.now() - starttime
+            response_text = completion.choices[0].text
+
+        completion_tokens, prompt_tokens = self.validate_tokens(completion)
+        self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
+        if not response_text:
+            raise ValueError("OpenAI returned empty response")
+        return response_text
 
     def _generate_using_openai_structured(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
         try:
             kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
             if self.is_chat_mode():
+                starttime = datetime.now()
                 completion = self.client_wrapper.get_client().beta.chat.completions.parse(
                     model=self._model_name, **kwargs
                 )
+                completion_tokens, prompt_tokens = self.validate_tokens(completion)
+                wall_latency = datetime.now() - starttime
+                response_text = completion.choices[0].message.content
+                self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
             else:
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
                 # completion = self.client_wrapper.get_client().beta.completions.parse(model=self._model_name, **kwargs)
-            assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
-            return completion.choices[0].message.content
+            assert response_text is not None, "OpenAI refused to respond to the query"
+            return response_text
         except Exception as e:
             # OpenAI will not respond in two scenarios:
             # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
@@ -407,16 +431,29 @@ class OpenAI(LLM):
 
     async def _generate_awaitable_using_openai(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
         kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
+        starttime = datetime.now()
         if self.is_chat_mode():
             completion = await self.client_wrapper.get_async_client().chat.completions.create(
                 model=self._model_name, **kwargs
             )
-            return completion.choices[0].message.content
+            response_text = completion.choices[0].message.content
         else:
             completion = await self.client_wrapper.get_async_client().completions.create(
                 model=self._model_name, **kwargs
             )
-            return completion.choices[0].text
+            response_text = completion.choices[0].text
+            wall_latency = datetime.now() - starttime
+            response_text = completion.choices[0].message.content
+
+        if completion.usage is not None:
+            completion_tokens = completion.usage.completion_tokens or 0
+            prompt_tokens = completion.usage.prompt_tokens or 0
+        else:
+            completion_tokens = 0
+            prompt_tokens = 0
+
+        self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
+        return response_text
 
     async def _generate_awaitable_using_openai_structured(
         self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]
@@ -424,16 +461,18 @@ class OpenAI(LLM):
         try:
             kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
             if self.is_chat_mode():
+                starttime = datetime.now()
                 completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
                     model=self._model_name, **kwargs
                 )
+                wall_latency = datetime.now() - starttime
             else:
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
-                # completion = await self.client_wrapper.get_async_client().beta.completions.parse(
-                #     model=self._model_name, **kwargs
-                # )
-            assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
-            return completion.choices[0].message.content
+            response_text = completion.choices[0].message.content
+            assert response_text is not None, "OpenAI refused to respond to the query"
+            completion_tokens, prompt_tokens = self.validate_tokens(completion)
+            self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
+            return response_text
         except Exception as e:
             # OpenAI will not respond in two scenarios:
             # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)

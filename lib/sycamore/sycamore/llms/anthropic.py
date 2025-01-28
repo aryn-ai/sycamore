@@ -7,7 +7,6 @@ from PIL import Image
 
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import RenderedPrompt
-from sycamore.llms.prompts.default_prompts import SimplePrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data
 from sycamore.utils.import_utils import requires_modules
@@ -61,7 +60,7 @@ def get_generate_kwargs(prompt: RenderedPrompt, llm_kwargs: Optional[dict] = Non
     # roles, so we break the messages into groups of consecutive user/assistant
     # messages, treating "system" as "user". Then crunch each group down to a single
     # message to ensure alternation.
-    message_groups = []
+    message_groups = []  # type: ignore
     last_role = None
 
     for m in prompt.messages:
@@ -86,7 +85,7 @@ def get_generate_kwargs(prompt: RenderedPrompt, llm_kwargs: Optional[dict] = Non
                 contents.append(
                     {  # type: ignore
                         "type": "image",
-                        "source": {
+                        "source": {  # type: ignore
                             "type": "base64",
                             "media_type": "image/png",
                             "data": base64_data(im),
@@ -166,7 +165,6 @@ class Anthropic(LLM):
         response = self._client.messages.create(model=self.model.value, **kwargs)
 
         wall_latency = datetime.now() - start
-
         in_tokens = response.usage.input_tokens
         out_tokens = response.usage.output_tokens
         output = response.content[0].text
@@ -177,7 +175,7 @@ class Anthropic(LLM):
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }
-
+        self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
         self._llm_cache_set(prompt, llm_kwargs, ret)

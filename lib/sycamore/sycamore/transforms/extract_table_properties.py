@@ -87,7 +87,9 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
                         "text": (
                             prompt_LLM
                             if prompt_LLM is not None
-                            else ExtractTablePropertiesPrompt.user + f"\n CSV: {ele.text_representation}"  # type: ignore[operator] # thinks ETPP.user could be None
+                            else (
+                                ExtractTablePropertiesPrompt.user + f"\n CSV: {ele.text_representation}"  # type: ignore
+                            )  # type ignore - thinks ETPP.user could be None
                         ),
                     },
                     llm.format_image(img),

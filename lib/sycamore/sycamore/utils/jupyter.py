@@ -38,7 +38,7 @@ def bound_memory(gb: int = 4) -> None:
     import resource
 
     # Works on Linux, not on macOS.
-    limit_bytes: int = gb * 1024 * 1024
+    limit_bytes: int = gb * 1024 * 1024 * 1024
     resource.setrlimit(resource.RLIMIT_DATA, (limit_bytes, resource.RLIM_INFINITY))
 
 

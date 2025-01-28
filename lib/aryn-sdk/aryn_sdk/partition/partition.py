@@ -13,7 +13,6 @@ from collections import OrderedDict
 from PIL import Image
 import base64
 import io
-from importlib.metadata import version
 
 # URL for Aryn DocParse
 ARYN_DOCPARSE_URL = "https://api.aryn.cloud/v1/document/partition"
@@ -22,6 +21,7 @@ _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.INFO)
 _logger.addHandler(logging.StreamHandler(sys.stderr))
 
+g_version = "0.1.11"
 
 class PartitionError(Exception):
     def __init__(self, message: str, status_code: int) -> None:
@@ -270,7 +270,7 @@ def _process_config(aryn_api_key: Optional[str] = None, aryn_config: Optional[Ar
 
 
 def _generate_headers(aryn_api_key: str, webhook_url: Optional[str] = None) -> dict[str, str]:
-    headers = {"Authorization": f"Bearer {aryn_api_key}", "User-Agent": f"aryn-sdk/{version('aryn_sdk')}"}
+    headers = {"Authorization": f"Bearer {aryn_api_key}", "User-Agent": f"aryn-sdk/{g_version}"}
     if webhook_url:
         headers["X-Aryn-Webhook"] = webhook_url
     return headers

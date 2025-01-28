@@ -98,7 +98,7 @@ class TestSchema:
 
     def test_extract_properties(self, mocker):
         llm = mocker.Mock(spec=LLM)
-        generate = mocker.patch.object(llm, "generate")
+        generate = mocker.patch.object(llm, "generate_old")
         generate.return_value = '```json {"accidentNumber": "FTW95FA129", "location": "Fort Worth, TX"}```'
 
         doc = Document()
@@ -124,7 +124,7 @@ class TestSchema:
 
     def test_extract_properties_explicit_json(self, mocker):
         llm = mocker.Mock(spec=LLM)
-        generate = mocker.patch.object(llm, "generate")
+        generate = mocker.patch.object(llm, "generate_old")
         generate.return_value = '{"accidentNumber": "FTW95FA129"}'
 
         doc = Document()
@@ -147,7 +147,7 @@ class TestSchema:
 
     def test_extract_properties_fixed_json(self, mocker):
         llm = mocker.Mock(spec=LLM)
-        generate = mocker.patch.object(llm, "generate")
+        generate = mocker.patch.object(llm, "generate_old")
         generate.return_value = '{"accidentNumber": "FTW95FA129"}'
 
         doc = Document()
@@ -166,7 +166,7 @@ class TestSchema:
 
     def test_extract_properties_with_schema(self, mocker):
         llm = mocker.Mock(spec=LLM)
-        generate = mocker.patch.object(llm, "generate")
+        generate = mocker.patch.object(llm, "generate_old")
         generate.return_value = (
             '{"startDate": "2022-01-22 00:01:31", '
             '"endDate": "2022-01-24 00:01:59", '

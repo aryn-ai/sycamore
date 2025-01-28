@@ -9,7 +9,13 @@ from sycamore.llms.prompts import (
     EntityExtractorZeroShotGuidancePrompt,
     EntityExtractorFewShotGuidancePrompt,
 )
-from sycamore.llms.prompts.prompts import ElementListIterPrompt, ElementListPrompt
+from sycamore.llms.prompts.prompts import (
+    ElementListIterPrompt,
+    ElementListPrompt,
+    RenderedMessage,
+    SycamorePrompt,
+    RenderedPrompt,
+)
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base_llm import LLMMap
 from sycamore.transforms.map import Map
@@ -26,6 +32,19 @@ def element_list_formatter(elements: list[Element], field: str = "text_represent
         value = str(elements[i].field_to_value(field))
         query += f"ELEMENT {i + 1}: {value}\n"
     return query
+
+
+class FieldToValuePrompt(SycamorePrompt):
+    def __init__(self, messages: list[RenderedMessage], field: str):
+        self.messages = messages
+        self.field = field
+
+    def render_document(self, doc: Document) -> RenderedPrompt:
+        value = doc.field_to_value(self.field)
+        rendered = []
+        for m in self.messages:
+            rendered.append(RenderedMessage(role=m.role, content=m.content.format(value=value)))
+        return RenderedPrompt(messages=rendered)
 
 
 class EntityExtractor(ABC):
@@ -122,11 +141,19 @@ class OpenAIEntityExtractor(EntityExtractor):
         else:
             prompt = EntityExtractorZeroShotGuidancePrompt
 
-        def postprocess(d: Document, i: int) -> Document:
-            return d
-
         if self._tokenizer is not None:
-            prompt.render_document = partial(ElementListIterPrompt.render_document, prompt)  # type: ignore
+
+            def postprocess(d: Document, i: int) -> Document:
+                last_club = set()
+                source_key = f"{self._entity_name}_source_element_index"
+                for e in d.elements:
+                    if e.properties[source_key] != last_club:
+                        i -= 1
+                        last_club = e.properties[source_key]
+                    if i == -1:
+                        break
+                d.properties[source_key] = last_club
+                return d
 
             def elt_list_ctor(elts: list[Element]) -> str:
                 combined_text = ""
@@ -139,11 +166,6 @@ class OpenAIEntityExtractor(EntityExtractor):
                         combined_text += f"Element_index: {element['properties']['_element_index']}\n"
                     combined_text += f"Text: {element.field_to_value(self._field)}\n"
                 return combined_text
-
-            if self._prompt_formatter is not element_list_formatter:
-                prompt = prompt.set(element_list_constructor=self._prompt_formatter)
-            else:
-                prompt = prompt.set(element_list_constructor=elt_list_ctor)
 
             def eb(elts: list[Element]) -> list[list[Element]]:
                 curr_tks = 0
@@ -167,21 +189,28 @@ class OpenAIEntityExtractor(EntityExtractor):
                 batches.append(curr_batch)
                 return batches
 
+            prompt.render_document = partial(ElementListIterPrompt.render_document, prompt)  # type: ignore
+            if self._prompt_formatter is not element_list_formatter:
+                prompt = prompt.set(element_list_constructor=self._prompt_formatter)
+            else:
+                prompt = prompt.set(element_list_constructor=elt_list_ctor)
             setattr(prompt, "element_batcher", eb)
             prompt.is_done = lambda s: s != "None"
-            print(prompt.__dict__)
+            prompt = prompt.set(entity=self._entity_name)
+            return LLMMap(child, prompt, self._entity_name, llm, postprocess_fn=postprocess, **kwargs)
 
-            def postprocess(d: Document, i: int) -> Document:
-                last_club = set()
-                source_key = f"{self._entity_name}_source_element_index"
-                for e in d.elements:
-                    if e.properties[source_key] != last_club:
-                        i -= 1
-                        last_club = e.properties[source_key]
-                    if i == -1:
-                        break
-                d.properties[source_key] = last_club
-                return d
+        elif not self._use_elements:
+            if self._prompt is None:
+                raise ValueError("prompt must be specified if use_elements is False")
+            if isinstance(self._prompt, str):
+                prompt = FieldToValuePrompt(
+                    messages=[RenderedMessage(role="user", content=self._prompt + "{value}")], field=self._field
+                )
+            elif isinstance(self._prompt, list):
+                ms = [RenderedMessage(role=m["role"], content=m["content"]) for m in self._prompt]
+                ms.append(RenderedMessage(role="user", content="{value}"))
+                prompt = FieldToValuePrompt(messages=ms, field=self._field)
+            return LLMMap(child, prompt, self._entity_name, llm, **kwargs)
 
         def elt_sorter(elts: list[Element]) -> list[Element]:
             sorter_inner = make_element_sorter_fn(self._field, self._similarity_query, self._similarity_scorer)
@@ -190,11 +219,10 @@ class OpenAIEntityExtractor(EntityExtractor):
             return dummy_doc.elements
 
         prompt = prompt.set(element_select=lambda e: elt_sorter(e)[: self._num_of_elements])
-        if self._tokenizer is None:
-            prompt = prompt.set(element_list_constructor=lambda e: self._prompt_formatter(e, self._field))
+        prompt = prompt.set(element_list_constructor=lambda e: self._prompt_formatter(e, self._field))
         prompt = prompt.set(entity=self._entity_name)
 
-        llm_map = LLMMap(child, prompt, self._entity_name, llm, postprocess_fn=postprocess, **kwargs)
+        llm_map = LLMMap(child, prompt, self._entity_name, llm, **kwargs)
         return llm_map
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)

@@ -24,12 +24,13 @@ class MockLLM(LLM):
         super().__init__(model_name="mock_model")
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        if asdict(prompt) == {"messages": [{"role": "user", "content": "s3://path"}]} and llm_kwargs == {}:
-            return "alt_title"
-        if asdict(prompt) == {"prompt": "s3://path"} and llm_kwargs == {}:
-            return "alt_title"
+        if len(prompt.messages) == 1:
+            usermessage = prompt.messages[0].content
+        else:
+            usermessage = prompt.messages[1].content
 
-        usermessage = prompt.messages[1].content
+        if "s3://path" in usermessage:
+            return "alt_title"
 
         if "Jack Black" in usermessage:
             return "Jack Black"

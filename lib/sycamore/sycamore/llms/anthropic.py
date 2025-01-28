@@ -140,7 +140,6 @@ class Anthropic(LLM):
         response = self._client.messages.create(model=self.model.value, **kwargs)
 
         wall_latency = datetime.now() - start
-
         in_tokens = response.usage.input_tokens
         out_tokens = response.usage.output_tokens
         output = response.content[0].text
@@ -151,7 +150,7 @@ class Anthropic(LLM):
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }
-
+        self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
         self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)

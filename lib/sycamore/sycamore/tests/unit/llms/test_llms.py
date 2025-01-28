@@ -5,6 +5,38 @@ from sycamore.llms import OpenAI, OpenAIModels, Bedrock, BedrockModels, get_llm,
 from sycamore.llms.llms import FakeLLM
 from sycamore.llms.prompts import EntityExtractorFewShotGuidancePrompt, EntityExtractorZeroShotGuidancePrompt
 from sycamore.utils.cache import DiskCache
+import datetime
+from sycamore.utils.thread_local import ThreadLocalAccess
+
+
+def test_get_metadata():
+    llm = FakeLLM()
+    wall_latency = datetime.timedelta(seconds=1)
+    metadata = llm.get_metadata({"prompt": "Hello", "temperature": 0.7}, "Test output", wall_latency, 10, 5)
+    assert metadata["model"] == llm._model_name
+    assert metadata["usage"] == {
+        "completion_tokens": 10,
+        "prompt_tokens": 5,
+        "total_tokens": 15,
+    }
+    assert metadata["prompt"] == "Hello"
+    assert metadata["output"] == "Test output"
+    assert metadata["temperature"] == 0.7
+    assert metadata["wall_latency"] == wall_latency
+
+
+@patch("sycamore.llms.llms.add_metadata")
+def test_add_llm_metadata(mock_add_metadata):
+    llm = FakeLLM()
+    with patch.object(ThreadLocalAccess, "present", return_value=True):
+        llm.add_llm_metadata({}, "Test output", datetime.timedelta(seconds=0.5), 1, 2)
+        mock_add_metadata.assert_called_once()
+
+    # If TLS not present, add_metadata should not be called
+    mock_add_metadata.reset_mock()
+    with patch.object(ThreadLocalAccess, "present", return_value=False):
+        llm.add_llm_metadata({}, "Test output", datetime.timedelta(seconds=0.5), 1, 2)
+        mock_add_metadata.assert_not_called()
 
 
 def test_openai_davinci_fallback():

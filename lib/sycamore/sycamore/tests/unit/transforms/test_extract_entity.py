@@ -111,15 +111,6 @@ class TestEntityExtraction:
         llm_map = extractor.as_llm_map(None)
         out_docs = llm_map.run([self.doc])
         assert out_docs[0].properties.get("title") == "alt_title"
-        # extract_entity = ExtractEntity(
-        #     None,
-        #     entity_extractor=OpenAIEntityExtractor(
-        #         "title", llm=llm, use_elements=False, prompt=[], field="properties.path"
-        #     ),
-        # )
-        # out_doc = extract_entity.run(self.doc)
-
-        # assert out_doc.properties.get("title") == "alt_title"
 
     def test_extract_entity_document_field_string(self, mocker):
         llm = MockLLM()
@@ -127,14 +118,6 @@ class TestEntityExtraction:
         llm_map = extractor.as_llm_map(None)
         out_docs = llm_map.run([self.doc])
         assert out_docs[0].properties.get("title") == "alt_title"
-        # extract_entity = ExtractEntity(
-        #     None,
-        #     entity_extractor=OpenAIEntityExtractor(
-        #         "title", llm=llm, use_elements=False, prompt="", field="properties.path"
-        #     ),
-        # )
-        # out_doc = extract_entity.run(self.doc)
-        # assert out_doc.properties.get("title") == "alt_title"
 
     def test_extract_entity_with_similarity_sorting(self, mocker):
         doc_list = [

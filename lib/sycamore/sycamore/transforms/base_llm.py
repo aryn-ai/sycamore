@@ -152,7 +152,7 @@ class LLMMapElements(MapBatch):
         results = _infer_prompts(
             _as_sequences([p for _, p in rendered]), self._llm, self._llm_mode, self._prompt.is_done
         )
-        for r, (e, _) in zip(results, rendered):
+        for (r, i), (e, _) in zip(results, rendered):
             e.properties[self._output_field] = r
         return documents
 

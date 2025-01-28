@@ -85,8 +85,8 @@ class LLMMap(MapBatch):
         super().__init__(child, f=self.llm_map, **kwargs)
 
     def llm_map(self, documents: list[Document]) -> list[Document]:
-        rendered = [self._prompt.render_document(d) for d in documents]
-        rendered = _as_sequences(rendered)
+        rendered_inc = [self._prompt.render_document(d) for d in documents]
+        rendered = _as_sequences(rendered_inc)
         results = _infer_prompts(rendered, self._llm, self._llm_mode, self._prompt.is_done)
         postprocessed = []
         for d, (r, i) in zip(documents, results):

@@ -21,7 +21,7 @@ class TestLLMQuery:
 
     def test_summarize_text_element_calls_llm(self, mocker):
         llm = mocker.Mock(spec=OpenAI)
-        generate = mocker.patch.object(llm, "generate")
+        generate = mocker.patch.object(llm, "generate_old")
         generate.return_value = {"summary": "summary"}
         doc = Document()
         element1 = Element()
@@ -39,7 +39,7 @@ class TestLLMQuery:
 
     def test_summarize_text_document_calls_llm(self, mocker):
         llm = mocker.Mock(spec=OpenAI)
-        generate = mocker.patch.object(llm, "generate")
+        generate = mocker.patch.object(llm, "generate_old")
         generate.return_value = {"summary": "summary"}
         doc = Document()
         element1 = Element()

@@ -41,7 +41,7 @@ guidelines when generating a plan:
             "properties.key" or "properties.count"; you can only reference one of those fields.
             Other than those, DO NOT USE ANY OTHER FIELD NAMES.
         5. If an optional field does not have a value in the query plan, return null in its place.
-        6. The first step of each plan MUST be a **QueryDatabase** or **QueryVectorDatabase" operation. 
+        6. The first step of each plan MUST be a **QueryDatabase** or **QueryVectorDatabase" operation.
             Whenever possible, include all possible filtering operations in the first step.
            That is, you should strive to construct an OpenSearch query that filters the data as
            much as possible, reducing the need for further query operations. If using a QueryVectorDatabase, always
@@ -518,7 +518,7 @@ class LlmPlanner:
         ]
 
         prompt_kwargs = {"messages": messages}
-        chat_completion = self._llm_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
+        chat_completion = self._llm_client.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
         return prompt_kwargs, chat_completion
 
     def plan(self, question: str) -> LogicalPlan:

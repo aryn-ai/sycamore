@@ -62,6 +62,7 @@ class TestResolveGraphEntities:
 
         def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
             """"""
+            raise NotImplementedError("All these calls are async")
 
         def is_chat_mode(self):
             return True

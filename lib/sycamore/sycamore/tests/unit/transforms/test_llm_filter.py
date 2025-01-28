@@ -259,7 +259,7 @@ class BadEntityExtractor(EntityExtractor):
     def as_llm_map(
         self, child: Optional[Node], context: Optional[Context] = None, llm: Optional[LLM] = None, **kwargs
     ) -> LLMMap:
-        pass
+        raise NotImplementedError("Not using this yet")
 
     def extract_entity(
         self, document: Document, context: Optional[Context] = None, llm: Optional[LLM] = None

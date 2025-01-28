@@ -336,9 +336,10 @@ class OpenAI(LLM):
             else:
                 role = m.role
             if m.images is None:
-                content = m.content
+                content: Union[str, list] = m.content
             else:
                 content = [{"type": "text", "text": m.content}]
+                assert isinstance(content, list)  # mypy!!!
                 for im in m.images:
                     content.append({"type": "image_url", "image_url": base64_data_url(im)})
             messages_list.append({"role": role, "content": content})

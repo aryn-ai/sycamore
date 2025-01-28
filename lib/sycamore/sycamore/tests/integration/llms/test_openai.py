@@ -173,8 +173,8 @@ def test_cached_openai_pydantic_model(tmp_path: Path):
     class Statement(BaseModel):
         is_true: bool
 
-    llm_kwargs = {}
-    llm_kwargs_cached = {}
+    llm_kwargs = {}  # type: ignore
+    llm_kwargs_cached = {}  # type: ignore
 
     prompt = RenderedPrompt(
         messages=[RenderedMessage(role="user", content="2+2 = 4, is this statement true?")], response_format=Statement

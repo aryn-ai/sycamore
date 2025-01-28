@@ -51,6 +51,7 @@ class MockLLM(LLM):
                 return "group3"
         else:
             return ""
+        return ""
 
     def is_chat_mode(self):
         return True

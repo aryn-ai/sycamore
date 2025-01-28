@@ -137,6 +137,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         if llm is None:
             llm = self._llm
         assert llm is not None, "Could not find an LLM to use"
+        prompt: SycamorePrompt  # grr mypy
         if self._prompt_template is not None:
             prompt = EntityExtractorFewShotGuidancePrompt
             prompt = cast(ElementListPrompt, prompt.set(examples=self._prompt_template))
@@ -146,7 +147,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         if self._tokenizer is not None:
 
             def postprocess(d: Document, i: int) -> Document:
-                last_club = set()
+                last_club: set[int] = set()
                 source_key = f"{self._entity_name}_source_element_index"
                 for e in d.elements:
                     if e.properties[source_key] != last_club:
@@ -171,11 +172,14 @@ class OpenAIEntityExtractor(EntityExtractor):
 
             def eb(elts: list[Element]) -> list[list[Element]]:
                 curr_tks = 0
-                curr_batch = []
+                curr_batch: list[Element] = []
                 batches = []
                 source_indices = set()
+                assert (
+                    self._tokenizer is not None
+                ), "Cannot batch elements based on token counts because tokenier is None"
                 for e in elts:
-                    eltl = prompt.element_list_constructor([e])
+                    eltl = cast(ElementListPrompt, prompt).element_list_constructor([e])
                     tks = len(self._tokenizer.tokenize(eltl))
                     if tks + curr_tks > self._max_tokens:
                         batches.append(curr_batch)
@@ -197,7 +201,7 @@ class OpenAIEntityExtractor(EntityExtractor):
             else:
                 prompt = prompt.set(element_list_constructor=elt_list_ctor)
             setattr(prompt, "element_batcher", eb)
-            prompt.is_done = lambda s: s != "None"
+            setattr(prompt, "is_done", lambda s: s != "None")
             prompt = prompt.set(entity=self._entity_name)
             return LLMMap(child, prompt, self._entity_name, llm, postprocess_fn=postprocess, **kwargs)
 

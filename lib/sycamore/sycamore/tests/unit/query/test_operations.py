@@ -26,20 +26,23 @@ class MockLLM(LLM):
         super().__init__(model_name="mock_model")
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        if prompt.messages[0].content.endswith('"1, 2, one, two, 1, 3".'):
+            return '{"groups": ["group1", "group2", "group3"]}'
         if (
-            prompt_kwargs["messages"]
+            prompt.messages
             == LlmClusterEntityFormGroupsMessagesPrompt(
                 field="text_representation", instruction="", text="1, 2, one, two, 1, 3"
             ).as_messages()
         ):
             return '{"groups": ["group1", "group2", "group3"]}'
         elif (
-            prompt_kwargs["messages"][0]
+            "['group1', 'group2', 'group3']" in prompt.messages[0].content
+            or prompt.messages[0]
             == LlmClusterEntityAssignGroupsMessagesPrompt(
                 field="text_representation", groups=["group1", "group2", "group3"]
             ).as_messages()[0]
         ):
-            value = prompt_kwargs["messages"][1]["content"]
+            value = prompt.messages[1].content
             if value == "1" or value == "one":
                 return "group1"
             elif value == "2" or value == "two":

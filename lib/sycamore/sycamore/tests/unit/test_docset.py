@@ -48,7 +48,7 @@ class MockLLM(LLM):
         print(prompt)
         if llm_kwargs is None:
             llm_kwargs = {}
-        if len(prompt.messages) > 1 and prompt.messages[1].content.endswith("Element_index: 1\nText: third element\n"):
+        if prompt.messages[-1].content.endswith("Element_index: 1\nText: third element\n"):
             return "None"
         if (
             asdict(prompt) == {"messages": [{"role": "user", "content": "Element_index: 1\nText: third element\n"}]}
@@ -56,21 +56,23 @@ class MockLLM(LLM):
         ):
             return "None"
         elif (
-            len(prompt.messages) > 1
-            and "first short element" in prompt.messages[1].content
-            and "second longer element with more words" in prompt.messages[1].content
+            "first short element" in prompt.messages[-1].content
+            and "second longer element with more words" in prompt.messages[-1].content
             and llm_kwargs == {}
         ):
             return "4"
         elif (
-            len(prompt.messages) > 1
-            and "very long element with many words that might exceed token limit" in prompt.messages[1].content
+            "very long element with many words that might exceed token limit" in prompt.messages[-1].content
             and llm_kwargs == {}
         ):
             return "5"
         elif asdict(prompt) == {"messages": [{"role": "user", "content": "test1"}]} and llm_kwargs == {}:
             return "4"
+        elif prompt.messages[0].content == "test1":
+            return "4"
         elif asdict(prompt) == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
+            return "2"
+        elif prompt.messages[0].content == "test2":
             return "2"
 
         elif prompt.messages[-1].content.endswith('"1, 2, one, two, 1, 3".'):

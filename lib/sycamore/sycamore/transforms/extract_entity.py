@@ -5,9 +5,11 @@ from functools import partial
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Element, Document
 from sycamore.llms import LLM
-from sycamore.llms.prompts import (
+from sycamore.llms.prompts.default_prompts import (
     EntityExtractorZeroShotGuidancePrompt,
     EntityExtractorFewShotGuidancePrompt,
+    _EntityExtractorZeroShotGuidancePrompt,
+    _EntityExtractorFewShotGuidancePrompt,
 )
 from sycamore.llms.prompts.prompts import (
     ElementListIterPrompt,
@@ -255,10 +257,10 @@ class OpenAIEntityExtractor(EntityExtractor):
         if self._prompt is None:
             prompt: Any = None
             if self._prompt_template:
-                prompt = EntityExtractorFewShotGuidancePrompt()
+                prompt = _EntityExtractorFewShotGuidancePrompt()
             else:
-                prompt = EntityExtractorZeroShotGuidancePrompt()
-            entities = self._llm.generate(
+                prompt = _EntityExtractorZeroShotGuidancePrompt()
+            entities = self._llm.generate_old(
                 prompt_kwargs={
                     "prompt": prompt,
                     "entity": self._entity_name,
@@ -302,10 +304,10 @@ class OpenAIEntityExtractor(EntityExtractor):
         assert prompt is not None, "No prompt found for entity extraction"
         if isinstance(self._prompt, str):
             prompt = self._prompt + content
-            response = self._llm.generate(prompt_kwargs={"prompt": prompt}, llm_kwargs={})
+            response = self._llm.generate_old(prompt_kwargs={"prompt": prompt}, llm_kwargs={})
         else:
             messages = (self._prompt or []) + [{"role": "user", "content": content}]
-            response = self._llm.generate(prompt_kwargs={"messages": messages}, llm_kwargs={})
+            response = self._llm.generate_old(prompt_kwargs={"messages": messages}, llm_kwargs={})
         return response
 
 

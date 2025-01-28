@@ -57,6 +57,19 @@ class LLM(ABC):
         """Generates a response from the LLM for the given prompt and LLM parameters asynchronously."""
         raise NotImplementedError("This LLM does not support asynchronous generation.")
 
+    @deprecated(version="0.1.31", reason="Use generate_async, with a RenderedPrompt, instead")
+    async def generate_async_old(self, *, prompt_kwargs: dict[str, Any], llm_kwargs: Optional[dict] = None) -> str:
+        if "prompt" in prompt_kwargs:
+            prompt = prompt_kwargs.get("prompt")
+            rendered = RenderedPrompt(messages=[RenderedMessage(role="user", content=f"{prompt}")])
+        elif "messages" in prompt_kwargs:
+            ms = prompt_kwargs.get("messages", [])
+            messages = [RenderedMessage(role=m["role"], content=m["content"]) for m in ms]
+            rendered = RenderedPrompt(messages=messages)
+        else:
+            raise ValueError("Either 'prompt' or 'messages' must be specified in prompt_kwargs")
+        return await self.generate_async(prompt=rendered, llm_kwargs=llm_kwargs)
+
     def __str__(self):
         return f"{self.__class__.__name__}({self._model_name})"
 

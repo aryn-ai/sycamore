@@ -94,6 +94,7 @@ flake8 = "4.0.1"
 pytest = "7.4.0" # See poetry-lock/pyproject.toml
 pytest-mock = "^3.11"
 pytest-xdist = "^3.6.1"
+pytest-json-ctrf = "^0.3.5"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }

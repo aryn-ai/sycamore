@@ -266,12 +266,14 @@ class ElementListIterPrompt(ElementListPrompt):
             prompt.render_document(doc)
             # [
             #   [
-            #       {"role": "system", "content": "You are a program that returns 'None' if you don't know the answer to my question"},
+            #       {"role": "system", "content": "You are a program that returns 'None' if you don't
+            #               know the answer to my question"},
             #       {"role": "user", "content": "What is the capital of the country described?\\nElements:\\n
             #               ELEMENT 0: <elt 0 text>\\nELEMENT 1: <elt 1 text>"}
             #   ],
             #   [
-            #       {"role": "system", "content": "You are a program that returns 'None' if you don't know the answer to my question"},
+            #       {"role": "system", "content": "You are a program that returns 'None' if you don't
+            #               know the answer to my question"},
             #       {"role": "user", "content": "What is the capital of the country described?\\nElements:\\n
             #               ELEMENT 0: <elt 2 text>\\nELEMENT 1: <elt 3 text>"}
             #   ]

@@ -524,10 +524,12 @@ def partition_file_async_list(
     headers = _generate_headers(aryn_config.api_key())
     response = requests.get(async_list_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
-    result = response.json()
-    result = result["jobs"]
-    for job_id in result.keys():
-        del result[job_id]["path"]
+    all_jobs = response.json()["jobs"]
+    result = {}
+    for job_id in all_jobs.keys():
+        if all_jobs[job_id]["path"] == "/v1/document/partition":
+            result[job_id] = all_jobs[job_id]
+        del all_jobs[job_id]["path"]
     return result
 
 

@@ -36,8 +36,11 @@ def bound_memory(gb: int = 4) -> None:
         gb: Memory limit in gigabytes.
     """
     import resource
+    import platform
 
-    # Works on Linux, not on macOS.
+    if platform.system() != "Linux":
+        print("WARNING: Memory limiting only works on Linux.")
+
     limit_bytes: int = gb * 1024 * 1024 * 1024
     resource.setrlimit(resource.RLIMIT_DATA, (limit_bytes, resource.RLIM_INFINITY))
 

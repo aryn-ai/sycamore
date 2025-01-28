@@ -505,19 +505,14 @@ def partition_file_async_list(
     List pending async jobs. For an example of usage see README.md
 
     Returns:
-        A dict like the one below containing "jobs" which is itself a dict that maps job ids to dicts containing the
-        respective job's "path" and "state".
+        A dict like the one below which maps job_ids to a dict containing details of the respective job.
 
         {
-            "jobs": {
-                "aryn:j-sc0v0lglkauo774pioflp4l": {
-                    "path": "/v1/document/partition",
-                    "state": "run"
-                },
-                "aryn:j-b9xp7ny0eejvqvbazjhg8rn": {
-                    "path": "/v1/document/partition",
-                    "state": "run"
-                }
+            "aryn:j-sc0v0lglkauo774pioflp4l": {
+                "state": "run"
+            },
+            "aryn:j-b9xp7ny0eejvqvbazjhg8rn": {
+                "state": "run"
             }
         }
     """
@@ -529,7 +524,11 @@ def partition_file_async_list(
     headers = _generate_headers(aryn_config.api_key())
     response = requests.get(async_list_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
-    return response.json()
+    result = response.json()
+    result = result["jobs"]
+    for job_id in result.keys():
+        del result[job_id]["path"]
+    return result
 
 
 # Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()

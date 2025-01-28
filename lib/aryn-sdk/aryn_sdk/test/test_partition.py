@@ -260,7 +260,7 @@ def test_multiple_partition_file_async():
 
     before = partition_file_async_list()
     logging.info(f"List before:\n{json.dumps(before, indent=4)}")
-    assert len(before["jobs"]) == 0
+    assert len(before) == 0
 
     for i in range(num_jobs):
         logging.info(f"Submitting job {i + 1}/{num_jobs}")
@@ -270,7 +270,7 @@ def test_multiple_partition_file_async():
 
     after = partition_file_async_list()
     logging.info(f"List after:\n{json.dumps(after, indent=4)}")
-    assert len(after["jobs"]) == num_jobs
+    assert len(after) == num_jobs
 
     for i, job_id in enumerate(job_ids):
         logging.info(f"Polling job ({job_id}) {i + 1}/{num_jobs}")

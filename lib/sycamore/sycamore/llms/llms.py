@@ -8,7 +8,8 @@ import pydantic
 from sycamore.utils.cache import Cache
 from sycamore.utils.thread_local import ThreadLocalAccess, ADD_METADATA_TO_OUTPUT
 from sycamore.data.metadata import add_metadata
-from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
+from sycamore.llms.prompts import RenderedPrompt, RenderedMessage, SimplePrompt
+
 from sycamore.utils.deprecate import deprecated
 
 
@@ -36,7 +37,15 @@ class LLM(ABC):
         """Generates a response from the LLM"""
         if "prompt" in prompt_kwargs:
             prompt = prompt_kwargs.get("prompt")
-            rendered = RenderedPrompt(messages=[RenderedMessage(role="user", content=f"{prompt}")])
+            if isinstance(prompt, SimplePrompt):
+                prompt = prompt.as_messages()
+                for idx, prompt_message in enumerate(prompt):
+                    prompt[idx]["content"] = prompt_message["content"].format(**prompt_kwargs)
+                rendered = RenderedPrompt(
+                    messages=[RenderedMessage(role=m["role"], content=m["content"]) for m in prompt]
+                )
+            else:
+                rendered = RenderedPrompt(messages=[RenderedMessage(role="user", content=f"{prompt}")])
         elif "messages" in prompt_kwargs:
             ms = prompt_kwargs.get("messages", [])
             messages = [RenderedMessage(role=m["role"], content=m["content"]) for m in ms]
@@ -62,7 +71,15 @@ class LLM(ABC):
     async def generate_async_old(self, *, prompt_kwargs: dict[str, Any], llm_kwargs: Optional[dict] = None) -> str:
         if "prompt" in prompt_kwargs:
             prompt = prompt_kwargs.get("prompt")
-            rendered = RenderedPrompt(messages=[RenderedMessage(role="user", content=f"{prompt}")])
+            if isinstance(prompt, SimplePrompt):
+                prompt = prompt.as_messages()
+                for idx, prompt_message in enumerate(prompt):
+                    prompt[idx]["content"] = prompt_message["content"].format(**prompt_kwargs)
+                rendered = RenderedPrompt(
+                    messages=[RenderedMessage(role=m["role"], content=m["content"]) for m in prompt]
+                )
+            else:
+                rendered = RenderedPrompt(messages=[RenderedMessage(role="user", content=f"{prompt}")])
         elif "messages" in prompt_kwargs:
             ms = prompt_kwargs.get("messages", [])
             messages = [RenderedMessage(role=m["role"], content=m["content"]) for m in ms]

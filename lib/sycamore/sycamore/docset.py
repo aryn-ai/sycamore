@@ -1393,7 +1393,7 @@ class DocSet:
         prompt_kwargs = {"messages": messages}
 
         # call to LLM
-        completion = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
+        completion = llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
 
         groups = extract_json(completion)
 

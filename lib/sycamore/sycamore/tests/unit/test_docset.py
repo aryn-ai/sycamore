@@ -31,6 +31,7 @@ from sycamore.transforms import (
 )
 from sycamore.transforms import Filter
 from sycamore.transforms.base import get_name_from_callable
+from sycamore.transforms.base_llm import LLMMap
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor
 from sycamore.transforms.query import QueryExecutor
@@ -44,6 +45,7 @@ class MockLLM(LLM):
         super().__init__(model_name="mock_model")
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        print(prompt)
         if llm_kwargs is None:
             llm_kwargs = {}
         if len(prompt.messages) > 1 and prompt.messages[1].content.endswith("Element_index: 1\nText: third element\n"):
@@ -54,14 +56,14 @@ class MockLLM(LLM):
         ):
             return "None"
         elif (
-            len(prompt.messages) > 0
+            len(prompt.messages) > 1
             and "first short element" in prompt.messages[1].content
             and "second longer element with more words" in prompt.messages[1].content
             and llm_kwargs == {}
         ):
             return "4"
         elif (
-            len(prompt.messages) > 0
+            len(prompt.messages) > 1
             and "very long element with many words that might exceed token limit" in prompt.messages[1].content
             and llm_kwargs == {}
         ):
@@ -71,6 +73,9 @@ class MockLLM(LLM):
         elif asdict(prompt) == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
             return "2"
 
+        elif prompt.messages[-1].content.endswith('"1, 2, one, two, 1, 3".'):
+            return '{"groups": ["group1", "group2", "group3"]}'
+
         elif (
             prompt.messages
             == LlmClusterEntityFormGroupsMessagesPrompt(
@@ -79,7 +84,8 @@ class MockLLM(LLM):
         ):
             return '{"groups": ["group1", "group2", "group3"]}'
         elif (
-            prompt.messages[0]
+            "['group1', 'group2', 'group3']" in prompt.messages[0].content
+            or prompt.messages[0]
             == LlmClusterEntityAssignGroupsMessagesPrompt(
                 field="text_representation", groups=["group1", "group2", "group3"]
             ).as_messages()[0]
@@ -171,10 +177,11 @@ class TestDocSet:
 
     def test_llm_extract_entity(self, mocker):
         context = mocker.Mock(spec=Context)
+        context.params = {}
         llm = mocker.Mock(spec=LLM)
         docset = DocSet(context, None)
         docset = docset.extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=llm, prompt_template=""))
-        assert isinstance(docset.lineage(), ExtractEntity)
+        assert isinstance(docset.lineage(), LLMMap)
 
     def test_query(self, mocker):
         context = mocker.Mock(spec=Context)

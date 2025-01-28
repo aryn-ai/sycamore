@@ -7,7 +7,8 @@ from PIL import Image
 from typing import Any, Optional
 import pydantic
 from sycamore.utils.cache import Cache
-from sycamore.llms.prompts import RenderedPrompt
+from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
+from sycamore.utils.deprecate import deprecated
 
 
 class LLMMode(Enum):
@@ -28,6 +29,20 @@ class LLM(ABC):
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters."""
         pass
+
+    @deprecated(version="0.1.31", reason="Use generate, with a RenderedPrompt, instead")
+    def generate_old(self, *, prompt_kwargs: dict[str, Any], llm_kwargs: Optional[dict] = None) -> str:
+        """Generates a response from the LLM"""
+        if "prompt" in prompt_kwargs:
+            prompt = prompt_kwargs.get("prompt")
+            rendered = RenderedPrompt(messages=[RenderedMessage(role="user", content=f"{prompt}")])
+        elif "messages" in prompt_kwargs:
+            ms = prompt_kwargs.get("messages", [])
+            messages = [RenderedMessage(role=m["role"], content=m["content"]) for m in ms]
+            rendered = RenderedPrompt(messages=messages)
+        else:
+            raise ValueError("Either 'prompt' or 'messages' must be specified in prompt_kwargs")
+        return self.generate(prompt=rendered, llm_kwargs=llm_kwargs)
 
     @abstractmethod
     def is_chat_mode(self) -> bool:

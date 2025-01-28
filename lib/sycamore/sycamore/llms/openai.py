@@ -332,7 +332,9 @@ class OpenAI(LLM):
         messages_list = []
         for m in prompt.messages:
             if m.role == "system":
-                role = "developer"
+                # OpenAI docs say "developer" is the new "system"
+                # but Azure don't like that
+                role = "system"
             else:
                 role = m.role
             if m.images is None:

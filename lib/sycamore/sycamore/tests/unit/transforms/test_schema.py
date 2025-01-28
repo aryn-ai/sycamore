@@ -4,7 +4,7 @@ import string
 
 from ray.util import inspect_serializability
 
-from sycamore.llms.prompts import SchemaZeroShotGuidancePrompt
+from sycamore.llms.prompts.default_prompts import _SchemaZeroShotGuidancePrompt
 from sycamore.data import Document, Element
 from sycamore.llms.llms import LLM, FakeLLM
 from sycamore.schema import Schema, SchemaField
@@ -37,7 +37,7 @@ class TestSchema:
 
     def test_extract_schema(self, mocker):
         llm = mocker.Mock(spec=LLM)
-        generate = mocker.patch.object(llm, "generate")
+        generate = mocker.patch.object(llm, "generate_old")
         generate.return_value = '```json {"accidentNumber": "string"}```'
 
         num_of_elements = 10
@@ -66,7 +66,7 @@ class TestSchema:
         assert doc.properties == ground_truth
         generate.assert_called_once_with(
             prompt_kwargs={
-                "prompt": SchemaZeroShotGuidancePrompt(),
+                "prompt": _SchemaZeroShotGuidancePrompt(),
                 "entity": class_name,
                 "max_num_properties": max_num_properties,
                 "query": schema_extractor._prompt_formatter(doc.elements),
@@ -75,7 +75,7 @@ class TestSchema:
 
     def test_extract_batch_schema(self, mocker):
         llm = mocker.Mock(spec=LLM)
-        generate = mocker.patch.object(llm, "generate")
+        generate = mocker.patch.object(llm, "generate_old")
         generate.return_value = '```json {"accidentNumber": "string"}```'
         schema_extractor = LLMSchemaExtractor("AircraftIncident", llm)
 

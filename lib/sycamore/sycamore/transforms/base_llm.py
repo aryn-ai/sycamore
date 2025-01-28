@@ -183,5 +183,5 @@ class LLMMapElements(MapBatch):
             pass
 
 
-def _as_sequences(l: list[Union[RenderedPrompt, Sequence[RenderedPrompt]]]) -> list[Sequence[RenderedPrompt]]:
-    return [[p] if isinstance(p, RenderedPrompt) else p for p in l]
+def _as_sequences(ls: list[Union[RenderedPrompt, Sequence[RenderedPrompt]]]) -> list[Sequence[RenderedPrompt]]:
+    return [[p] if isinstance(p, RenderedPrompt) else p for p in ls]

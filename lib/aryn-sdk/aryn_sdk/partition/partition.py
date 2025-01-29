@@ -378,12 +378,12 @@ def partition_file_async_submit(
     if async_submit_url:
         docparse_url = async_submit_url
     elif not aps_url and not docparse_url:
-        docparse_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/submit", False)
+        docparse_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/submit", truncate=False)
     else:
         if aps_url:
-            aps_url = _convert_sync_to_async_url(aps_url, "/submit", False)
+            aps_url = _convert_sync_to_async_url(aps_url, "/submit", truncate=False)
         if docparse_url:
-            docparse_url = _convert_sync_to_async_url(docparse_url, "/submit", False)
+            docparse_url = _convert_sync_to_async_url(docparse_url, "/submit", truncate=False)
 
     return _partition_file_inner(
         file=file,
@@ -406,7 +406,7 @@ def partition_file_async_submit(
     )
 
 
-def _convert_sync_to_async_url(url: str, prefix: str, truncate: bool) -> str:
+def _convert_sync_to_async_url(url: str, prefix: str, *, truncate: bool) -> str:
     parsed_url = urlparse(url)
     assert parsed_url.path.startswith("/v1/")
     if parsed_url.path.startswith("/v1/async/submit"):
@@ -441,7 +441,7 @@ def partition_file_async_result(
         `partition_file` had the partitioning been done synchronously.
     """
     if not async_result_url:
-        async_result_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/result", True)
+        async_result_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/result", truncate=True)
 
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
@@ -479,7 +479,7 @@ def partition_file_async_cancel(
         For an example of usage see README.md
     """
     if not async_cancel_url:
-        async_cancel_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/cancel", True)
+        async_cancel_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/cancel", truncate=True)
 
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
@@ -517,7 +517,7 @@ def partition_file_async_list(
         }
     """
     if not async_list_url:
-        async_list_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/list", True)
+        async_list_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/list", truncate=True)
 
     aryn_config = _process_config(aryn_api_key, aryn_config)
 

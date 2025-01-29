@@ -343,19 +343,11 @@ class OpenAI(LLM):
                 content = [{"type": "text", "text": m.content}]
                 assert isinstance(content, list)  # mypy!!!
                 for im in m.images:
-                    content.append({"type": "image_url", "image_url": base64_data_url(im)})
+                    content.append(self.format_image(im))
             messages_list.append({"role": role, "content": content})
 
         kwargs.update({"messages": messages_list})
         return kwargs
-
-    def _determine_using_beta(self, response_format: Any) -> bool:
-        if isinstance(response_format, dict) and response_format.get("type") == "json_schema":
-            return True
-        elif inspect.isclass(response_format) and issubclass(response_format, pydantic.BaseModel):
-            return True
-        else:
-            return False
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         llm_kwargs = self._convert_response_format(llm_kwargs)

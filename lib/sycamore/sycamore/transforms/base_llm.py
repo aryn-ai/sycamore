@@ -108,7 +108,7 @@ class LLMMap(MapBatch):
 class LLMMapElements(MapBatch):
     """The LLMMapElements transform renders each Element for each
     Document in a docset into a prompt for an LLM, calls the LLM,
-    and attaches the output to the document.
+    and attaches the output to the element.
 
     Args:
         child: Child node in the sycamore execution graph

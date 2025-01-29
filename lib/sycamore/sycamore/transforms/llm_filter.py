@@ -35,8 +35,6 @@ def tokenized_threshold_llm_filter(
     max_tokens: int,
     tokenizer: Tokenizer,
 ) -> bool:
-    print("=" * 80)
-    print(doc)
     element_sorter(doc)
     evaluated_elements = 0
 
@@ -59,14 +57,9 @@ def tokenized_threshold_llm_filter(
         if score >= doc.get(doc_source_field_name, 0):
             doc.properties[f"{new_field}"] = score
             doc.properties[f"{new_field}_source_element_index"] = window_indices
-        print(score, combined_text)
         if score >= threshold:
-            print("-" * 80)
-            print(doc)
             return True
         evaluated_elements += 1
-    print("-" * 80)
-    print(doc)
     if evaluated_elements == 0:  # no elements found for property
         return keep_none
     return False

@@ -92,7 +92,7 @@ class _TextSummarizerGuidancePrompt(SimplePrompt):
 
 TextSummarizerGuidancePrompt = ElementPrompt(
     system="You are a helpful text summarizer.",
-    user="""Write a summary of the following. Use onlt the information provided.
+    user="""Write a summary of the following. Use only the information provided.
     Include as many key details as possible. Do not make up your answer. Only return the summary as part of your answer
     {elt_text}
     """,

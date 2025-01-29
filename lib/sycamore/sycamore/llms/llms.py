@@ -14,7 +14,6 @@ from sycamore.utils.deprecate import deprecated
 
 
 class LLMMode(Enum):
-    UNKNOWN = 0
     SYNC = 1
     ASYNC = 2
     BATCH = 3

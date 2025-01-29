@@ -528,8 +528,8 @@ def partition_file_async_list(
     result = {}
     for job_id in all_jobs.keys():
         if all_jobs[job_id]["path"] == "/v1/document/partition":
+            del all_jobs[job_id]["path"]
             result[job_id] = all_jobs[job_id]
-        del all_jobs[job_id]["path"]
     return result
 
 

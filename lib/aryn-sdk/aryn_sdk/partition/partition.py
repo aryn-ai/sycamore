@@ -433,8 +433,9 @@ def partition_file_async_result(
     For examples of usage see README.md
 
     Returns:
-        A dict containing "status" and "status_code". Also contains "result" when "status" is "done". "status" can be
-        "done", "pending", "error", or "no_such_job".
+        A dict containing "status" and "status_code". When "status" is "done", the returned dict also contains "result"
+        which contains what would have been returned had `partition_file` been called directly. "status" can be "done",
+        "pending", "error", or "no_such_job".
 
         Unlike `partition_file`, this function does not raise an Exception if the partitioning failed. Note the
         value corresponding to the "result" key of the returned dict contains what would have been the return value of

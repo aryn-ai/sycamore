@@ -437,9 +437,7 @@ def partition_file_async_result(
         which contains what would have been returned had `partition_file` been called directly. "status" can be "done",
         "pending", "error", or "no_such_job".
 
-        Unlike `partition_file`, this function does not raise an Exception if the partitioning failed. Note the
-        value corresponding to the "result" key of the returned dict contains what would have been the return value of
-        `partition_file` had the partitioning been done synchronously.
+        Unlike `partition_file`, this function does not raise an Exception if the partitioning failed.
     """
     if not async_result_url:
         async_result_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/result", truncate=True)

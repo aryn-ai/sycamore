@@ -481,7 +481,7 @@ test = ["dateparser (==1.*)", "pre-commit", "pytest", "pytest-cov", "pytest-mock
 
 [[package]]
 name = "aryn-sdk"
-version = "0.1.12"
+version = "0.1.12.post0"
 description = "The client library for Aryn services"
 optional = false
 python-versions = ">=3.9"

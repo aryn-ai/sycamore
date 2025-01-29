@@ -21,7 +21,7 @@ _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.INFO)
 _logger.addHandler(logging.StreamHandler(sys.stderr))
 
-g_version = "0.1.11"
+g_version = "0.1.12"
 
 
 class PartitionError(Exception):

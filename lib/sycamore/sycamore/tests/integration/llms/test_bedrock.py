@@ -1,9 +1,21 @@
 from pathlib import Path
 from typing import Any
+import pickle
+import base64
 
 from sycamore.llms import Bedrock, BedrockModels
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.utils.cache import DiskCache
+
+
+def cacheget(cache: DiskCache, key: str):
+    hit = cache.get(key)
+    return pickle.loads(base64.b64decode(hit))  # type: ignore
+
+
+def cacheset(cache: DiskCache, key: str, data: Any):
+    databytes = pickle.dumps(data)
+    cache.set(key, base64.b64encode(databytes).decode("utf-8"))
 
 
 # Note: These tests assume your environment has been configured to access Amazon Bedrock.
@@ -48,11 +60,11 @@ def test_cached_bedrock(tmp_path: Path):
     res = llm.generate(prompt=prompt, llm_kwargs={})
 
     # assert result is cached
-    assert cache.get(key).get("result")["output"] == res
-    assert cache.get(key).get("prompt") == prompt
-    assert cache.get(key).get("prompt.response_format") is None
-    assert cache.get(key).get("llm_kwargs") == {}
-    assert cache.get(key).get("model_name") == BedrockModels.CLAUDE_3_HAIKU.value.name
+    assert cacheget(cache, key).get("result")["output"] == res
+    assert cacheget(cache, key).get("prompt") == prompt
+    assert cacheget(cache, key).get("prompt.response_format") is None
+    assert cacheget(cache, key).get("llm_kwargs") == {}
+    assert cacheget(cache, key).get("model_name") == BedrockModels.CLAUDE_3_HAIKU.value.name
 
     # assert llm.generate is using cached result
     custom_output: dict[str, Any] = {
@@ -62,7 +74,7 @@ def test_cached_bedrock(tmp_path: Path):
         "llm_kwargs": {},
         "model_name": BedrockModels.CLAUDE_3_HAIKU.value.name,
     }
-    cache.set(key, custom_output)
+    cacheset(cache, key, custom_output)
 
     assert llm.generate(prompt=prompt, llm_kwargs={}) == custom_output["result"]["output"]
 
@@ -116,14 +128,14 @@ def test_cached_bedrock_different_models(tmp_path: Path):
     res_SONNET = llm_SONNET.generate(prompt=prompt, llm_kwargs={})
 
     # check proper cached results
-    assert cache.get(key_HAIKU).get("result")["output"] == res_HAIKU
-    assert cache.get(key_HAIKU).get("prompt") == prompt
-    assert cache.get(key_HAIKU).get("llm_kwargs") == {}
-    assert cache.get(key_HAIKU).get("model_name") == BedrockModels.CLAUDE_3_HAIKU.value.name
-    assert cache.get(key_SONNET).get("result")["output"] == res_SONNET
-    assert cache.get(key_SONNET).get("prompt") == prompt
-    assert cache.get(key_SONNET).get("llm_kwargs") == {}
-    assert cache.get(key_SONNET).get("model_name") == BedrockModels.CLAUDE_3_SONNET.value.name
+    assert cacheget(cache, key_HAIKU).get("result")["output"] == res_HAIKU
+    assert cacheget(cache, key_HAIKU).get("prompt") == prompt
+    assert cacheget(cache, key_HAIKU).get("llm_kwargs") == {}
+    assert cacheget(cache, key_HAIKU).get("model_name") == BedrockModels.CLAUDE_3_HAIKU.value.name
+    assert cacheget(cache, key_SONNET).get("result")["output"] == res_SONNET
+    assert cacheget(cache, key_SONNET).get("prompt") == prompt
+    assert cacheget(cache, key_SONNET).get("llm_kwargs") == {}
+    assert cacheget(cache, key_SONNET).get("model_name") == BedrockModels.CLAUDE_3_SONNET.value.name
 
     # check for difference with model change
     assert key_HAIKU != key_SONNET

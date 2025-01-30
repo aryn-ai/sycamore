@@ -1,6 +1,8 @@
 from pathlib import Path
 import pickle
+import base64
 import pytest
+from typing import Any
 
 from sycamore.llms import OpenAI, OpenAIModels, OpenAIClientWrapper
 from sycamore.llms.openai import OpenAIModel, OpenAIClientType
@@ -8,6 +10,16 @@ from sycamore.llms.prompts import RenderedPrompt, RenderedMessage, StaticPrompt
 from sycamore.utils.cache import DiskCache
 
 from pydantic import BaseModel
+
+
+def cacheget(cache: DiskCache, key: str):
+    hit = cache.get(key)
+    return pickle.loads(base64.b64decode(hit))  # type: ignore
+
+
+def cacheset(cache: DiskCache, key: str, data: Any):
+    databytes = pickle.dumps(data)
+    cache.set(key, base64.b64encode(databytes).decode("utf-8"))
 
 
 # Note: These tests expect you to have OPENAI_API_KEY set in your environment.
@@ -54,11 +66,11 @@ def test_cached_openai(tmp_path: Path):
     res = llm.generate(prompt=prompt, llm_kwargs={})
 
     # assert result is cached
-    assert cache.get(key).get("result") == res
-    assert cache.get(key).get("prompt") == prompt
-    assert cache.get(key).get("prompt.response_format") is None
-    assert cache.get(key).get("llm_kwargs") == {}
-    assert cache.get(key).get("model_name") == "gpt-3.5-turbo"
+    assert cacheget(cache, key).get("result") == res
+    assert cacheget(cache, key).get("prompt") == prompt
+    assert cacheget(cache, key).get("prompt.response_format") is None
+    assert cacheget(cache, key).get("llm_kwargs") == {}
+    assert cacheget(cache, key).get("model_name") == "gpt-3.5-turbo"
 
     # assert llm.generate is using cached result
     custom_output = {
@@ -68,7 +80,7 @@ def test_cached_openai(tmp_path: Path):
         "llm_kwargs": {},
         "model_name": "gpt-3.5-turbo",
     }
-    cache.set(key, custom_output)
+    cacheset(cache, key, custom_output)
 
     assert llm.generate(prompt=prompt, llm_kwargs={}) == custom_output["result"]
 
@@ -83,12 +95,12 @@ def test_cached_guidance(tmp_path: Path):
     res = llm.generate(prompt=prompt, llm_kwargs=None)
 
     # assert result is cached
-    assert isinstance(cache.get(key), dict)
-    assert cache.get(key).get("result") == res
-    assert cache.get(key).get("prompt") == prompt
-    assert cache.get(key).get("prompt.response_format") is None
-    assert cache.get(key).get("llm_kwargs") is None
-    assert cache.get(key).get("model_name") == "gpt-3.5-turbo"
+    assert isinstance(cacheget(cache, key), dict)
+    assert cacheget(cache, key).get("result") == res
+    assert cacheget(cache, key).get("prompt") == prompt
+    assert cacheget(cache, key).get("prompt.response_format") is None
+    assert cacheget(cache, key).get("llm_kwargs") is None
+    assert cacheget(cache, key).get("model_name") == "gpt-3.5-turbo"
 
     # assert llm.generate is using cached result
     custom_output = {
@@ -98,7 +110,7 @@ def test_cached_guidance(tmp_path: Path):
         "llm_kwargs": None,
         "model_name": "gpt-3.5-turbo",
     }
-    cache.set(key, custom_output)
+    cacheset(cache, key, custom_output)
 
     assert llm.generate(prompt=TestPrompt().render_generic(), llm_kwargs=None) == custom_output["result"]
 
@@ -152,14 +164,14 @@ def test_cached_openai_different_models(tmp_path: Path):
     res_GPT_4O_MINI = llm_GPT_4O_MINI.generate(prompt=prompt, llm_kwargs={})
 
     # check proper cached results
-    assert cache.get(key_GPT_3_5_TURBO).get("result") == res_GPT_3_5_TURBO
-    assert cache.get(key_GPT_3_5_TURBO).get("prompt") == prompt
-    assert cache.get(key_GPT_3_5_TURBO).get("llm_kwargs") == {}
-    assert cache.get(key_GPT_3_5_TURBO).get("model_name") == "gpt-3.5-turbo"
-    assert cache.get(key_GPT_4O_MINI).get("result") == res_GPT_4O_MINI
-    assert cache.get(key_GPT_4O_MINI).get("prompt") == prompt
-    assert cache.get(key_GPT_4O_MINI).get("llm_kwargs") == {}
-    assert cache.get(key_GPT_4O_MINI).get("model_name") == "gpt-4o-mini"
+    assert cacheget(cache, key_GPT_3_5_TURBO).get("result") == res_GPT_3_5_TURBO
+    assert cacheget(cache, key_GPT_3_5_TURBO).get("prompt") == prompt
+    assert cacheget(cache, key_GPT_3_5_TURBO).get("llm_kwargs") == {}
+    assert cacheget(cache, key_GPT_3_5_TURBO).get("model_name") == "gpt-3.5-turbo"
+    assert cacheget(cache, key_GPT_4O_MINI).get("result") == res_GPT_4O_MINI
+    assert cacheget(cache, key_GPT_4O_MINI).get("prompt") == prompt
+    assert cacheget(cache, key_GPT_4O_MINI).get("llm_kwargs") == {}
+    assert cacheget(cache, key_GPT_4O_MINI).get("model_name") == "gpt-4o-mini"
 
     # check for difference with model change
     assert key_GPT_3_5_TURBO != key_GPT_4O_MINI
@@ -187,13 +199,13 @@ def test_cached_openai_pydantic_model(tmp_path: Path):
     print(res_GPT_4O_MINI)
     assert key_GPT_4O_MINI is not None
     # check cache
-    assert cache.get(key_GPT_4O_MINI).get("result") == res_GPT_4O_MINI
-    assert cache.get(key_GPT_4O_MINI).get("prompt") == RenderedPrompt(messages=prompt.messages)
-    assert cache.get(key_GPT_4O_MINI).get("prompt.response_format") == llm_GPT_4O_MINI._pickleable_response_format(
-        prompt
-    )
-    assert cache.get(key_GPT_4O_MINI).get("llm_kwargs") == llm_kwargs_cached
-    assert cache.get(key_GPT_4O_MINI).get("model_name") == "gpt-4o-mini"
+    assert cacheget(cache, key_GPT_4O_MINI).get("result") == res_GPT_4O_MINI
+    assert cacheget(cache, key_GPT_4O_MINI).get("prompt") == RenderedPrompt(messages=prompt.messages)
+    assert cacheget(cache, key_GPT_4O_MINI).get(
+        "prompt.response_format"
+    ) == llm_GPT_4O_MINI._pickleable_response_format(prompt)
+    assert cacheget(cache, key_GPT_4O_MINI).get("llm_kwargs") == llm_kwargs_cached
+    assert cacheget(cache, key_GPT_4O_MINI).get("model_name") == "gpt-4o-mini"
 
 
 class TestPrompt(StaticPrompt):

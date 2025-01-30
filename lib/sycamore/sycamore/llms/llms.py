@@ -2,6 +2,7 @@ import inspect
 from abc import ABC, abstractmethod
 from enum import Enum
 import pickle
+import base64
 from PIL import Image
 from typing import Any, Optional
 import pydantic
@@ -129,6 +130,7 @@ class LLM(ABC):
         key = self._llm_cache_key(prompt, llm_kwargs)
         hit = self._cache.get(key)
         if hit:
+            hit = base64.b64decode(hit)
             hit = pickle.loads(hit)
             assert (
                 len(hit) == 5
@@ -155,17 +157,19 @@ class LLM(ABC):
         assert self._cache is not None, "make mypy happy"
 
         key = self._llm_cache_key(prompt, llm_kwargs)
+        databytes = pickle.dumps(
+            {
+                "prompt": RenderedPrompt(messages=prompt.messages),
+                "prompt.response_format": self._pickleable_response_format(prompt),
+                "llm_kwargs": llm_kwargs,
+                "model_name": self._model_name,
+                "result": result,
+            }
+        )
+        datastr = base64.b64encode(databytes).decode("utf-8")
         self._cache.set(
             key,
-            pickle.dumps(
-                {
-                    "prompt": RenderedPrompt(messages=prompt.messages),
-                    "prompt.response_format": self._pickleable_response_format(prompt),
-                    "llm_kwargs": llm_kwargs,
-                    "model_name": self._model_name,
-                    "result": result,
-                }
-            ),
+            datastr,
         )
 
     def get_metadata(self, kwargs, response_text, wall_latency, in_tokens, out_tokens) -> dict:

@@ -63,8 +63,8 @@ class OpenSearchReaderClient(BaseDBReader.Client):
             query_params.kwargs["_source_includes"] = query_params.doc_reconstructor.get_required_source_fields()
         # No pagination needed for knn queries
         if "query" in query_params.query and "knn" in query_params.query["query"]:
-            response = self._client.search(
-                index=query_params.index_name, body=query_params.query, **query_params.kwargs
+            response = _search_with_logging(
+                self._client, index=query_params.index_name, body=query_params.query, **query_params.kwargs
             )
             hits = response["hits"]["hits"]
             if hits:
@@ -73,8 +73,8 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         else:
             if "scroll" not in query_params.kwargs:
                 query_params.kwargs["scroll"] = "10m"
-            response = self._client.search(
-                index=query_params.index_name, body=query_params.query, **query_params.kwargs
+            response = _search_with_logging(
+                self._client, index=query_params.index_name, body=query_params.query, **query_params.kwargs
             )
             scroll_id = response["_scroll_id"]
             try:
@@ -242,7 +242,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                     "size": page_size,
                     "from": from_offset,
                 }
-                response = self.client.search(index=index, body=query)
+                response = _search_with_logging(self.client, index=index, body=query)
                 hits = response["hits"]["hits"]
                 all_elements.extend(hits)
                 if len(hits) < page_size:
@@ -252,13 +252,22 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
 
 
 def get_doc_count(os_client, index_name: str, query: Optional[dict[str, Any]] = None) -> int:
-    res = os_client.search(index=index_name, body=query, size=0, track_total_hits=True)
+    res = _search_with_logging(os_client, index=index_name, body=query, size=0, track_total_hits=True)
     return res["hits"]["total"]["value"]
 
 
 def get_doc_count_for_slice(os_client, slice_query: dict[str, Any]) -> int:
-    res = os_client.search(body=slice_query, size=0, track_total_hits=True)
+    res = _search_with_logging(os_client, body=slice_query, size=0, track_total_hits=True)
     return res["hits"]["total"]["value"]
+
+
+def _search_with_logging(os_client, **kwargs):
+    """Helper method to execute OpenSearch search queries, and silent errors."""
+    response = os_client.search(**kwargs)
+    shards = response.get("_shards", {})
+    if shards.get("total") != shards.get("successful"):
+        logger.error(f"OpenSearch query skipped shards: {response}")
+    return response
 
 
 class OpenSearchReader(BaseDBReader):
@@ -315,12 +324,7 @@ class OpenSearchReader(BaseDBReader):
             query_params = {"_source_includes": "parent_id"}
             parent_ids = set()
             while True:
-                res = os_client.search(
-                    body=slice_query,
-                    size=size,
-                    from_=page * size,
-                    **query_params,
-                )
+                res = _search_with_logging(os_client, body=slice_query, size=size, from_=page * size, **query_params)
                 hits = res["hits"]["hits"]
                 if hits is None or len(hits) == 0:
                     break
@@ -376,11 +380,7 @@ class OpenSearchReader(BaseDBReader):
             page = 0
 
             while True:
-                res = os_client.search(
-                    body=slice_query,
-                    size=size,
-                    from_=page * size,
-                )
+                res = _search_with_logging(os_client, body=slice_query, size=size, from_=page * size)
                 hits = res["hits"]["hits"]
                 if hits is None or len(hits) == 0:
                     break

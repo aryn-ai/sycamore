@@ -162,7 +162,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             messages = generate_prompt_messages(self.prompt, entities_list[i], section.data["summary"])
             llm_kwargs = {"response_format": models[i]}
             prompt_kwargs = {"messages": messages}
-            outputs.append(await self.llm.generate_async(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs))
+            outputs.append(await self.llm.generate_async_old(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs))
 
         async def _process_llm_output(outputs: list[str], parsed_metadata: dict, summary: str):
             parsed_res: dict[str, Any] = {}

@@ -15,6 +15,14 @@ from sycamore.llms.prompts.default_prompts import (
     ExtractTablePropertiesPrompt,
 )
 from sycamore.llms.prompts.default_prompts import _deprecated_prompts
+from sycamore.llms.prompts.prompts import (
+    RenderedPrompt,
+    RenderedMessage,
+    SycamorePrompt,
+    ElementListPrompt,
+    ElementPrompt,
+    StaticPrompt,
+)
 
 prompts = [
     "SimplePrompt",
@@ -28,7 +36,16 @@ prompts = [
     "ExtractTablePropertiesPrompt",
 ] + list(_deprecated_prompts.keys())
 
-__all__ = prompts
+_all = prompts + [
+    "RenderedPrompt",
+    "RenderedMessage",
+    "SycamorePrompt",
+    "ElementListPrompt",
+    "ElementPrompt",
+    "StaticPrompt",
+]
+
+__all__ = _all
 
 
 def __getattr__(name):

@@ -34,7 +34,7 @@ class RenderedPrompt:
     """
 
     messages: list[RenderedMessage]
-    response_format: Union[None, dict[str, Any], pydantic.BaseModel] = None
+    response_format: Union[None, dict[str, Any], type[pydantic.BaseModel]] = None
 
 
 class SycamorePrompt:
@@ -93,7 +93,7 @@ class SycamorePrompt:
              .. code-block:: python
 
                 p = StaticPrompt(system="hello", user="world")
-                    p.render_document(Document())
+                p.render_document(Document())
                 # [
                 #     {"role": "system", "content": "hello"},
                 #     {"role": "user", "content": "world"}
@@ -216,6 +216,108 @@ class ElementListPrompt(SycamorePrompt):
         messages = _build_format_str(self.system, self.user, format_args)
         result = RenderedPrompt(messages=messages)
         return result
+
+
+class ElementListIterPrompt(ElementListPrompt):
+    """A prompt with utilities for constructing a lists of elements to include
+    in a sequence of rendered prompts. Functions almost identically to ElementListPrompt,
+    but renders into a series of prompts.
+
+    Args:
+
+        system: The system prompt string. Use {} to reference names that should
+            be interpolated. Defaults to None
+        user: The user prompt string. Use {} to reference names that should be
+            interpolated. Defaults to None
+        element_select: Function to choose the elements (and their order) to include
+            in the prompt. If None, defaults to the first ``num_elements`` elements.
+        element_list_constructor: Function to turn a list of elements into a
+            string that can be accessed with the interpolation key "{elements}".
+            Defaults to "ELEMENT 0: {elts[0].text_representation}\\n
+                         ELEMENT 1: {elts[1].text_representation}\\n
+                         ..."
+        num_elements: Sets the number of elements to take if ``element_select`` is
+            unset. Default is 35.
+        element_batcher: Constructs batches of elements to render in sequence to generate
+            several rendered prompts. Defaults to one batch with all elements.
+        iteration_var_name: Name of the property to look for in the document to determine
+            which batch of elements to use to render the prompt. Default is "i"
+        **kwargs: other keyword arguments are stored and can be used as interpolation keys.
+
+    Example:
+         .. code-block:: python
+
+            prompt = ElementListIterPrompt(
+                system = "You are a program that returns 'None' if you don't know the answer to my question"
+                user = "What is the capital of the country described?\\nElements:\\n{elements}"
+                element_batcher = lambda elts: [elts[i:i+2] for i in range(0, len(elts), 2)]
+            ).set(is_done=lambda s: s != 'None')
+            doc.properties["i"] = 0
+            prompt.render_document(doc)
+            # [
+            #     {"role": "system", "content": "You are a program that returns 'None' if you don't
+            #             know the answer to my question"},
+            #     {"role": "user", "content": "What is the capital of the country described?\\nElements:\\n
+            #             ELEMENT 0: <elt 0 text>\\nELEMENT 1: <elt 1 text>"}
+            # ]
+            doc.properties["i"] = 1
+            prompt.render_document(doc)
+            # [
+            #     {"role": "system", "content": "You are a program that returns 'None' if you don't
+            #             know the answer to my question"},
+            #     {"role": "user", "content": "What is the capital of the country described?\\nElements:\\n
+            #             ELEMENT 0: <elt 2 text>\\nELEMENT 1: <elt 3 text>"}
+            # ]
+    """
+
+    def __init__(
+        self,
+        *,
+        element_batcher: Optional[Callable[[list[Element]], list[list[Element]]]] = None,
+        iteration_var_name: str = "i",
+        **kwargs,
+    ):
+        self.element_batcher = element_batcher or (lambda e: [e])
+        self.iteration_var_name = iteration_var_name
+        super().__init__(**kwargs)
+
+    def render_document(self, doc: Document) -> RenderedPrompt:
+        """Render this prompt, given this document as context, using python's
+        ``str.format()`` method. The keys passed into ``format()`` are as follows:
+
+            - self.kwargs: the additional kwargs specified when creating this prompt.
+            - doc_text: doc.text_representation
+            - doc_property_<property_name>: each property name in doc.properties is
+                prefixed with 'doc_property_'. So if ``doc.properties = {'k1': 0, 'k2': 3}``,
+                you get ``doc_property_k1 = 0, doc_property_k2 = 3``.
+            - elements: the element list constructed from doc.elements using ``self.element_select``,
+                ``self.element_order``, and ``self.element_list_constructor``.
+
+        Args:
+            doc: The document to use as context for rendering this prompt
+
+        Returns:
+            A two-message RenderedPrompt containing ``self.system.format()`` and
+            ``self.user.format()`` using the format keys as specified above. The prompt is
+            rendered from the ``doc.properties[self.iteration_var_name]``'th batch of
+            elements generated by ``self.element_batcher``
+        """
+        i = doc.properties.get(self.iteration_var_name, 0)
+
+        format_args = self.kwargs
+        format_args["doc_text"] = doc.text_representation
+        flat_props = flatten_data(doc.properties, prefix="doc_property", separator="_")
+        format_args.update(flat_props)
+
+        for j, elt_batch in enumerate(self.element_batcher(doc.elements)):
+            if j < i:
+                continue
+            else:
+                elements = self.element_select(elt_batch)
+                elementstr = self.element_list_constructor(elements)
+                messages = _build_format_str(self.system, self.user, {"elements": elementstr, **format_args})
+                return RenderedPrompt(messages=messages)
+        return RenderedPrompt(messages=[])
 
 
 class ElementPrompt(SycamorePrompt):

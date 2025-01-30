@@ -23,11 +23,11 @@ class LLMImageSummarizer:
 
     Example:
          The following code demonstrates how to partition a pdf DocSet and summarize the images it contains.
-         This version uses a Claude model via Bedrock. 
+         This version uses a Claude model via Bedrock.
 
          .. code-block:: python
             llm = Bedrock(BedrockModels.CLAUDE_3_5_SONNET)
-    
+
             context = sycamore.init()
             doc = context.read.binary(paths=paths, binary_format="pdf")\
                               .partition(partitioner=SycamorePartitioner(extract_images=True))\
@@ -91,7 +91,7 @@ class LLMImageSummarizer:
 
         prompt_kwargs = {"messages": messages}
 
-        raw_answer = self.llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
+        raw_answer = self.llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={})
         return extract_json(raw_answer)
 
     def summarize_all_images(self, doc: Document) -> Document:

@@ -9,7 +9,7 @@ from sycamore.functions import Tokenizer, CharacterTokenizer
 from sycamore.llms.prompts.default_prompts import SummarizeDataMessagesPrompt
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
-from sycamore.llms.prompts import TextSummarizerGuidancePrompt
+from sycamore.llms.prompts.default_prompts import _TextSummarizerGuidancePrompt
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 
@@ -77,10 +77,10 @@ class LLMElementTextSummarizer(Summarizer):
 
     @timetrace("SummText")
     def _summarize_text_element(self, element: Element) -> Element:
-        prompt = TextSummarizerGuidancePrompt()
+        prompt = _TextSummarizerGuidancePrompt()
 
         if element.text_representation:
-            response = self._llm.generate(prompt_kwargs={"prompt": prompt, "query": element.text_representation})
+            response = self._llm.generate_old(prompt_kwargs={"prompt": prompt, "query": element.text_representation})
             element.properties["summary"] = response
         return element
 
@@ -96,7 +96,7 @@ class QuestionAnsweringSummarizer:
 
         t0 = time.time()
         # call to LLM
-        summary = self.llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
+        summary = self.llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
         t1 = time.time()
         logging.info(f"Summarizer took {t1 - t0} seconds to generate summary.")
 

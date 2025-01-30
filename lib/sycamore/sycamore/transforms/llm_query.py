@@ -85,7 +85,7 @@ class LLMTextQueryAgent:
                         break
             if not self._per_element:
                 prompt_kwargs = {"prompt": final_prompt}
-                llm_resp = self._llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
+                llm_resp = self._llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
                 document["properties"][self._output_property] = llm_resp
         else:
             if document.text_representation:
@@ -118,7 +118,7 @@ class LLMTextQueryAgent:
                 else:
                     prompt = self._prompt + "\n" + object.text_representation
             prompt_kwargs = {"prompt": prompt}
-            llm_resp = self._llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
+            llm_resp = self._llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
             if self._table_cont:
                 object["properties"]["table_continuation"] = llm_resp
             else:

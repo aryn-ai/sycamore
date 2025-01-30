@@ -5,8 +5,8 @@ import json
 from sycamore.data import Element, Document
 from sycamore.schema import Schema
 from sycamore.llms import LLM
-from sycamore.llms.prompts import (
-    SchemaZeroShotGuidancePrompt,
+from sycamore.llms.prompts.default_prompts import (
+    _SchemaZeroShotGuidancePrompt,
     PropertiesZeroShotGuidancePrompt,
 )
 from sycamore.llms.prompts.default_prompts import ExtractPropertiesFromSchemaPrompt
@@ -99,9 +99,9 @@ class LLMSchemaExtractor(SchemaExtractor):
     def _handle_zero_shot_prompting(self, document: Document) -> Any:
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
 
-        prompt = SchemaZeroShotGuidancePrompt()
+        prompt = _SchemaZeroShotGuidancePrompt()
 
-        entities = self._llm.generate(
+        entities = self._llm.generate_old(
             prompt_kwargs={
                 "prompt": prompt,
                 "entity": self._entity_name,
@@ -228,7 +228,7 @@ class LLMPropertyExtractor(PropertyExtractor):
             )
         if isinstance(self._schema, Schema):
             prompt = ExtractPropertiesFromSchemaPrompt(schema=self._schema, text=text)
-            entities = self._llm.generate(prompt_kwargs={"prompt": prompt})
+            entities = self._llm.generate_old(prompt_kwargs={"prompt": prompt})
         else:
             schema = self._schema or document.properties.get("_schema")
             assert schema is not None, "Schema must be provided or detected before extracting properties."
@@ -236,7 +236,7 @@ class LLMPropertyExtractor(PropertyExtractor):
             schema_name = self._schema_name or document.properties.get("_schema_class")
             assert schema_name is not None, "Schema name must be provided or detected before extracting properties."
 
-            entities = self._llm.generate(
+            entities = self._llm.generate_old(
                 prompt_kwargs={
                     "prompt": PropertiesZeroShotGuidancePrompt(),
                     "entity": schema_name,

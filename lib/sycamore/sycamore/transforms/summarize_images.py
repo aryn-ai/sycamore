@@ -1,6 +1,5 @@
-from typing import Any, Optional
+from typing import Optional
 
-from PIL import Image
 import textwrap
 
 from sycamore.data import Document, ImageElement, Element
@@ -11,10 +10,21 @@ from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.base_llm import LLMMapElements
 from sycamore.transforms.map import Map
 from sycamore.utils.extract_json import extract_json
-from sycamore.utils.time_trace import timetrace
 
 
 class SummarizeImagesPrompt(SycamorePrompt):
+    """A prompt for summarizing image elements. If given a non-image element
+    or an image element without image data, will render an empty prompt (which
+    is skipped by LLMMapElements).
+
+    Args:
+        user: Base user prompt. Defaults to LLMImageSummarizer.DEFAULT_PROMPT
+        include_context: Whether to include the text of the elements before
+            and after the image in the prompt. Only takes Section-headers,
+            Captions, and Text before the image and only Captions and Text
+            after the image.
+    """
+
     def __init__(self, user: Optional[str] = None, include_context: bool = True):
         self.include_context = include_context
         self.user = user or textwrap.dedent(" " * 12 + LLMImageSummarizer.DEFAULT_PROMPT)
@@ -111,67 +121,6 @@ class LLMImageSummarizer:
             prompt = self.DEFAULT_PROMPT
         self.prompt = prompt
         self.include_context = include_context
-
-    def as_llm_map(self, child: Optional[Node]) -> Node:
-        prompt = SummarizeImagesPrompt(user=self.prompt, include_context=self.include_context)
-        llm_map = LLMMapElements(
-            child, prompt=prompt, output_field="summary", llm=self.llm, filter=lambda e: e.type == "Image"
-        )
-        return llm_map
-
-    @timetrace("SummImg")
-    def summarize_image(
-        self, image: Image.Image, preceding_context: Optional[str] = None, following_context: Optional[str] = None
-    ):
-        text = self.prompt
-
-        if self.include_context and preceding_context is not None:
-            text += f"\n The text preceding the image is {preceding_context}"
-
-        if self.include_context and following_context is not None:
-            text += f"\nThe text following the image is {following_context}"
-
-        content = [
-            {"type": "text", "text": text},
-            self.llm.format_image(image),
-        ]
-
-        messages: list[dict[str, Any]] = [
-            {"role": "user", "content": content},
-        ]
-
-        prompt_kwargs = {"messages": messages}
-
-        raw_answer = self.llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-        return extract_json(raw_answer)
-
-    def summarize_all_images(self, doc: Document) -> Document:
-        for i, element in enumerate(doc.elements):
-            if not isinstance(element, ImageElement):
-                continue
-
-            preceding_context = None
-            if i > 0:
-                preceding_element = doc.elements[i - 1]
-                if preceding_element.type in {"Section-header", "Caption", "Text"}:
-                    preceding_context = preceding_element.text_representation
-
-            following_context = None
-            if i < len(doc.elements) - 1:
-                preceding_element = doc.elements[i + 1]
-                if preceding_element.type in {"Caption", "Text"}:  # Don't want titles following the image.
-                    following_context = preceding_element.text_representation
-
-            image = element.as_image()
-
-            if image is None:
-                continue
-
-            json_summary = self.summarize_image(image, preceding_context, following_context)
-
-            element.properties["summary"] = json_summary
-            element.text_representation = json_summary["summary"]
-        return doc
 
 
 class OpenAIImageSummarizer(LLMImageSummarizer):

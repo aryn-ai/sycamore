@@ -1,13 +1,45 @@
 from typing import Any, Optional
 
 from PIL import Image
+import textwrap
 
-from sycamore.data import Document, ImageElement
+from sycamore.data import Document, ImageElement, Element
 from sycamore.llms.openai import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels
+from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
+from sycamore.transforms.base_llm import LLMMap
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.time_trace import timetrace
+
+
+class SummarizeImagesPrompt(SycamorePrompt):
+    def __init__(self, user: Optional[str] = None, include_context: bool = True):
+        self.include_context = include_context
+        self.user = user or textwrap.dedent(" " * 12 + LLMImageSummarizer.DEFAULT_PROMPT)
+        self.preceding = "\nThe text preceding the image is {preceding_context}"
+        self.following = "\nThe text following the image is {following_context}"
+
+    def render_element(self, elt: Element, doc: Document) -> RenderedPrompt:
+        if not isinstance(elt, ImageElement):
+            return RenderedPrompt(messages=[])
+        im = elt.as_image()
+        if im is None:
+            return RenderedPrompt(messages=[])
+        text = self.user
+        if self.include_context:
+            for i, e in doc.elements:
+                if e.element_index == elt.element_index:
+                    if i > 0:
+                        pe = doc.elements[i - 1]
+                        if pe.type in {"Section-header", "Caption", "Text"}:
+                            text += self.preceding.format(preceding_context=pe.text_representation)
+                    if i < len(doc.elements) - 1:
+                        fe = doc.elements[i + 1]
+                        if fe.type in {"Caption", "Text"}:
+                            text += self.following.format(following_context=fe.text_representation)
+
+        return RenderedPrompt(messages=[RenderedMessage(role="user", content=text, images=[im])])
 
 
 class LLMImageSummarizer:
@@ -67,6 +99,11 @@ class LLMImageSummarizer:
             prompt = self.DEFAULT_PROMPT
         self.prompt = prompt
         self.include_context = include_context
+
+    def as_llm_map(self, child: Optional[Node]) -> Node:
+        prompt = SummarizeImagesPrompt(user=self.prompt, include_context=self.include_context)
+        llm_map = LLMMap(child, prompt=prompt, output_field="summary", llm=self.llm)
+        return llm_map
 
     @timetrace("SummImg")
     def summarize_image(
@@ -151,7 +188,7 @@ class OpenAIImageSummarizer(LLMImageSummarizer):
         super().__init__(llm=openai, prompt=prompt, include_context=include_context)
 
 
-class SummarizeImages(Map):
+class SummarizeImages(LLMMap):
     """SummarizeImages is a transform for summarizing context into text using an LLM.
 
     Args:
@@ -170,5 +207,6 @@ class SummarizeImages(Map):
     """
 
     def __init__(self, child: Node, summarizer=OpenAIImageSummarizer(), **resource_args):
-        super().__init__(child, f=summarizer.summarize_all_images, **resource_args)
+        prompt = SummarizeImagesPrompt(user=summarizer.prompt, include_context=summarizer.include_context)
+        super().__init__(child, prompt, output_field="summary", llm=summarizer.llm)
         self.summarizer = summarizer

@@ -11,7 +11,7 @@ def _infer_prompts(
     prompts: list[RenderedPrompt],
     llm: LLM,
     llm_mode: LLMMode,
-) -> list[tuple[str, int]]:
+) -> list[str]:
     if llm_mode == LLMMode.SYNC:
         res = []
         for p in prompts:

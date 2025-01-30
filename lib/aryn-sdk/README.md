@@ -170,3 +170,10 @@ from aryn_sdk.partition import partition_file_async_submit, partition_file_async
 
         partition_file_async_cancel(job_id)
 ```
+
+#### List pending jobs
+
+```
+from aryn_sdk.partition import partition_file_async_list
+partition_file_async_list()
+```

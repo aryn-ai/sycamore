@@ -41,11 +41,12 @@ class LLMMap(MapBatch):
         llm: The llm to use for inference.
         llm_mode: How to call the llm - sync/async/batch. All LLMs do not
             necessarily implement all options.
-        postprocess_fn: function to call on documents after performing the
-            llm inference. If the prompt rendered into multiple RenderedPrompts,
-            ``i`` is the index of the RenderedPrompt that succeeded; if the
-            prompt rendered into an empty list, ``i`` is -1; and otherwise
-            ``i`` is 0
+        iteration_var: Name of the document property to increment with every
+            invalid response. Default is None, which means no re-try.
+        validate: Function to determine whether an LLM response is valid.
+            Default is 'everything is valid'
+        max_tries: Hard limit on the number of LLM calls per document. Default
+            is 5
 
     Example:
          .. code-block:: python
@@ -132,11 +133,12 @@ class LLMMapElements(MapBatch):
         llm: The llm to use for inference.
         llm_mode: How to call the llm - sync/async/batch. All LLMs do not
             necessarily implement all options.
-        postprocess_fn: function to call on documents after performing the
-            llm inference. If the prompt rendered into multiple RenderedPrompts,
-            ``i`` is the index of the RenderedPrompt that succeeded; if the
-            prompt rendered into an empty list, ``i`` is -1; and otherwise
-            ``i`` is 0
+        iteration_var: Name of the element property to increment with every
+            invalid response. Default is None, which means no re-try.
+        validate: Function to determine whether an LLM response is valid.
+            Default is 'everything is valid'
+        max_tries: Hard limit on the number of LLM calls per element. Default
+            is 5
 
     Example:
          .. code-block:: python

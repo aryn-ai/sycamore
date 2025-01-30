@@ -1,8 +1,8 @@
 import os
 import pytest
-from opensearchpy import OpenSearch
 
 import sycamore
+from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 from sycamore.functions import HuggingFaceTokenizer
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
@@ -69,7 +69,7 @@ def query_integration_test_index():
         index_name=QUERY_INTEGRATION_TEST_INDEX_NAME,
         index_settings=index_settings,
     )
-    osc = OpenSearch(**OS_CLIENT_ARGS)
+    osc = OpenSearchClientWithLogging(**OS_CLIENT_ARGS)
     osc.indices.refresh(QUERY_INTEGRATION_TEST_INDEX_NAME)
     yield QUERY_INTEGRATION_TEST_INDEX_NAME
     osc.indices.delete(QUERY_INTEGRATION_TEST_INDEX_NAME)

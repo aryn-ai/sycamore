@@ -129,6 +129,7 @@ class LLM(ABC):
         key = self._llm_cache_key(prompt, llm_kwargs)
         hit = self._cache.get(key)
         if hit:
+            hit = pickle.loads(hit)
             assert (
                 len(hit) == 5
                 and hit.get("prompt") == RenderedPrompt(messages=prompt.messages)
@@ -156,13 +157,15 @@ class LLM(ABC):
         key = self._llm_cache_key(prompt, llm_kwargs)
         self._cache.set(
             key,
-            {
-                "prompt": RenderedPrompt(messages=prompt.messages),
-                "prompt.response_format": self._pickleable_response_format(prompt),
-                "llm_kwargs": llm_kwargs,
-                "model_name": self._model_name,
-                "result": result,
-            },
+            pickle.dumps(
+                {
+                    "prompt": RenderedPrompt(messages=prompt.messages),
+                    "prompt.response_format": self._pickleable_response_format(prompt),
+                    "llm_kwargs": llm_kwargs,
+                    "model_name": self._model_name,
+                    "result": result,
+                }
+            ),
         )
 
     def get_metadata(self, kwargs, response_text, wall_latency, in_tokens, out_tokens) -> dict:

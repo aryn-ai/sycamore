@@ -7,8 +7,9 @@ from sycamore.data import Document, ImageElement, Element
 from sycamore.llms.openai import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
 from sycamore.plan_nodes import Node
+from sycamore.transforms.base import CompositeTransform
+from sycamore.transforms.base_llm import LLMMapElements
 from sycamore.transforms.map import Map
-from sycamore.transforms.base_llm import LLMMap
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.time_trace import timetrace
 
@@ -28,7 +29,7 @@ class SummarizeImagesPrompt(SycamorePrompt):
             return RenderedPrompt(messages=[])
         text = self.user
         if self.include_context:
-            for i, e in doc.elements:
+            for i, e in enumerate(doc.elements):
                 if e.element_index == elt.element_index:
                     if i > 0:
                         pe = doc.elements[i - 1]
@@ -40,6 +41,17 @@ class SummarizeImagesPrompt(SycamorePrompt):
                             text += self.following.format(following_context=fe.text_representation)
 
         return RenderedPrompt(messages=[RenderedMessage(role="user", content=text, images=[im])])
+
+
+def parse_summary_json(e: Element) -> Element:
+    if "summary" in e.properties and isinstance(e.properties["summary"], str):
+        e.properties["summary"] = extract_json(e.properties["summary"])
+    return e
+
+
+def _parse_summary_json_on_all_elts(d: Document) -> Document:
+    d.elements = [parse_summary_json(e) for e in d.elements]
+    return d
 
 
 class LLMImageSummarizer:
@@ -102,7 +114,9 @@ class LLMImageSummarizer:
 
     def as_llm_map(self, child: Optional[Node]) -> Node:
         prompt = SummarizeImagesPrompt(user=self.prompt, include_context=self.include_context)
-        llm_map = LLMMap(child, prompt=prompt, output_field="summary", llm=self.llm)
+        llm_map = LLMMapElements(
+            child, prompt=prompt, output_field="summary", llm=self.llm, filter=lambda e: e.type == "Image"
+        )
         return llm_map
 
     @timetrace("SummImg")
@@ -188,7 +202,7 @@ class OpenAIImageSummarizer(LLMImageSummarizer):
         super().__init__(llm=openai, prompt=prompt, include_context=include_context)
 
 
-class SummarizeImages(LLMMap):
+class SummarizeImages(CompositeTransform):
     """SummarizeImages is a transform for summarizing context into text using an LLM.
 
     Args:
@@ -207,6 +221,11 @@ class SummarizeImages(LLMMap):
     """
 
     def __init__(self, child: Node, summarizer=OpenAIImageSummarizer(), **resource_args):
+        super().__init__(child, [], **resource_args)
         prompt = SummarizeImagesPrompt(user=summarizer.prompt, include_context=summarizer.include_context)
-        super().__init__(child, prompt, output_field="summary", llm=summarizer.llm)
+        llm_map = LLMMapElements(
+            child, prompt, output_field="summary", llm=summarizer.llm, filter=lambda e: e.type == "Image"
+        )
+        parse_summary = Map(llm_map, f=_parse_summary_json_on_all_elts)
+        self.nodes = [llm_map, parse_summary]
         self.summarizer = summarizer

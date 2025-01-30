@@ -70,6 +70,7 @@ class LLMMap(MapBatch):
         iteration_var: Optional[str] = None,
         validate: Callable[[Document], bool] = lambda d: True,
         max_tries: int = 5,
+        filter: Callable[[Element], bool] = lambda e: True,
         **kwargs,
     ):
         self._prompt = prompt
@@ -80,6 +81,7 @@ class LLMMap(MapBatch):
         self._iteration_var = iteration_var
         self._validate = validate
         self._max_tries = max_tries
+        self._filter = filter
         super().__init__(child, f=self.llm_map, **kwargs)
 
     def llm_map(self, documents: list[Document]) -> list[Document]:
@@ -87,22 +89,22 @@ class LLMMap(MapBatch):
             for d in documents:
                 d.properties[self._iteration_var] = 0
 
-        valid = [False] * len(documents)
+        skips = [not self._filter(d) for d in documents]
         tries = 0
-        while not all(valid) and tries < self._max_tries:
+        while not all(skips) and tries < self._max_tries:
             tries += 1
-            rendered = [self._prompt.render_document(d) for v, d in zip(valid, documents) if not v]
+            rendered = [self._prompt.render_document(d) for sk, d in zip(skips, documents) if not sk]
             if sum([0, *(len(r.messages) for r in rendered)]) == 0:
                 break
             results = _infer_prompts(rendered, self._llm, self._llm_mode)
             ri = 0
             for i in range(len(documents)):
-                if valid[i]:
+                if skips[i]:
                     continue
                 documents[i].properties[self._output_field] = results[ri]
-                valid[i] = self._validate(documents[i])
+                skips[i] = self._validate(documents[i])
                 ri += 1
-                if self._iteration_var is not None and not valid[i]:
+                if self._iteration_var is not None and not skips[i]:
                     documents[i].properties[self._iteration_var] += 1
             if self._iteration_var is None:
                 break
@@ -159,8 +161,9 @@ class LLMMapElements(MapBatch):
         llm: LLM,
         llm_mode: LLMMode = LLMMode.SYNC,
         iteration_var: Optional[str] = None,
-        validate: Callable[[Element], bool] = lambda d: True,
+        validate: Callable[[Element], bool] = lambda e: True,
         max_tries: int = 5,
+        filter: Callable[[Element], bool] = lambda e: True,
         **kwargs,
     ):
         self._prompt = prompt
@@ -171,6 +174,7 @@ class LLMMapElements(MapBatch):
         self._iteration_var = iteration_var
         self._validate = validate
         self._max_tries = max_tries
+        self._filter = filter
         super().__init__(child, f=self.llm_map_elements, **kwargs)
 
     def llm_map_elements(self, documents: list[Document]) -> list[Document]:
@@ -179,22 +183,21 @@ class LLMMapElements(MapBatch):
             for e, _ in elt_doc_pairs:
                 e.properties[self._iteration_var] = 0
 
-        valid = [False] * len(elt_doc_pairs)
+        skips = [not self._filter(e) for e, _ in elt_doc_pairs]
         tries = 0
-        while not all(valid) and tries < self._max_tries:
+        while not all(skips) and tries < self._max_tries:
             tries += 1
-            rendered = [self._prompt.render_element(e, d) for v, (e, d) in zip(valid, elt_doc_pairs) if not v]
+            rendered = [self._prompt.render_element(e, d) for sk, (e, d) in zip(skips, elt_doc_pairs) if not sk]
             if sum([0, *(len(r.messages) for r in rendered)]) == 0:
                 break
             results = _infer_prompts(rendered, self._llm, self._llm_mode)
             ri = 0
             for i in range(len(elt_doc_pairs)):
-                if valid[i]:
+                if skips[i]:
                     continue
-                print(ri)
                 elt, doc = elt_doc_pairs[i]
                 elt.properties[self._output_field] = results[ri]
-                valid[i] = self._validate(elt)
+                skips[i] = self._validate(elt)
                 ri += 1
                 if self._iteration_var is not None:
                     elt.properties[self._iteration_var] += 1

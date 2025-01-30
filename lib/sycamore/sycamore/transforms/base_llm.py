@@ -70,7 +70,7 @@ class LLMMap(MapBatch):
         iteration_var: Optional[str] = None,
         validate: Callable[[Document], bool] = lambda d: True,
         max_tries: int = 5,
-        filter: Callable[[Element], bool] = lambda e: True,
+        filter: Callable[[Document], bool] = lambda d: True,
         **kwargs,
     ):
         self._prompt = prompt

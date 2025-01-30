@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any, Optional, Union, cast
-from functools import partial
 
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Element, Document
@@ -56,7 +55,7 @@ class EntityExtractor(ABC):
     @abstractmethod
     def as_llm_map(
         self, child: Optional[Node], context: Optional[Context] = None, llm: Optional[LLM] = None, **kwargs
-    ) -> LLMMap:
+    ) -> Node:
         pass
 
     @abstractmethod
@@ -133,7 +132,7 @@ class OpenAIEntityExtractor(EntityExtractor):
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def as_llm_map(
         self, child: Optional[Node], context: Optional[Context] = None, llm: Optional[LLM] = None, **kwargs
-    ) -> LLMMap:
+    ) -> Node:
         if llm is None:
             llm = self._llm
         assert llm is not None, "Could not find an LLM to use"
@@ -146,19 +145,12 @@ class OpenAIEntityExtractor(EntityExtractor):
 
         if self._tokenizer is not None:
 
-            def postprocess(d: Document, i: int) -> Document:
-                last_club: set[int] = set()
-                source_key = f"{self._entity_name}_source_element_index"
-                for e in d.elements:
-                    if e.properties[source_key] != last_club:
-                        i -= 1
-                        last_club = e.properties[source_key]
-                    if i == -1:
-                        break
-                d.properties[source_key] = last_club
-                return d
+            def validate(d: Document) -> bool:
+                return d.properties.get(self._entity_name, "None") != "None"
 
             def elt_list_ctor(elts: list[Element]) -> str:
+                if self._prompt_formatter is not element_list_formatter:
+                    return self._prompt_formatter(elts, self._field)
                 combined_text = ""
                 for element in elts:
                     if "type" in element:
@@ -170,6 +162,8 @@ class OpenAIEntityExtractor(EntityExtractor):
                     combined_text += f"Text: {element.field_to_value(self._field)}\n"
                 return combined_text
 
+            source_idx_key = f"{self._entity_name}_source_element_index"
+
             def eb(elts: list[Element]) -> list[list[Element]]:
                 curr_tks = 0
                 curr_batch: list[Element] = []
@@ -177,7 +171,7 @@ class OpenAIEntityExtractor(EntityExtractor):
                 source_indices = set()
                 assert (
                     self._tokenizer is not None
-                ), "Cannot batch elements based on token counts because tokenier is None"
+                ), "Cannot batch elements based on token counts because tokenizer is None"
                 for e in elts:
                     eltl = cast(ElementListPrompt, prompt).element_list_constructor([e])
                     tks = len(self._tokenizer.tokenize(eltl))
@@ -186,24 +180,45 @@ class OpenAIEntityExtractor(EntityExtractor):
                         curr_tks = tks
                         curr_batch = [e]
                         source_indices = {e.element_index}
-                        e.properties[f"{self._entity_name}_source_element_index"] = source_indices
+                        e.properties[source_idx_key] = source_indices
                     else:
-                        e.properties[f"{self._entity_name}_source_element_index"] = source_indices
+                        e.properties[source_idx_key] = source_indices
                         source_indices.add(e.element_index)
                         curr_batch.append(e)
                         curr_tks += tks
                 batches.append(curr_batch)
                 return batches
 
-            prompt.render_document = partial(ElementListIterPrompt.render_document, prompt)  # type: ignore
-            if self._prompt_formatter is not element_list_formatter:
-                prompt = prompt.set(element_list_constructor=self._prompt_formatter)
-            else:
-                prompt = prompt.set(element_list_constructor=elt_list_ctor)
-            setattr(prompt, "element_batcher", eb)
-            setattr(prompt, "is_done", lambda s: s != "None")
-            prompt = prompt.set(entity=self._entity_name)
-            return LLMMap(child, prompt, self._entity_name, llm, postprocess_fn=postprocess, **kwargs)
+            iteration_var_name = f"{self._entity_name}_i"
+
+            def postprocess(d: Document) -> Document:
+                last_eclub: set[int] = set()
+                club_idx = 0
+                target_club_idx = d.properties[iteration_var_name]
+                for e in d.elements:
+                    if len(last_eclub) > 0 and e.properties[source_idx_key] != last_eclub:
+                        club_idx += 1
+                    last_eclub = e.properties[source_idx_key]
+                    if club_idx == target_club_idx:
+                        d.properties[source_idx_key] = last_eclub
+                        break
+                return d
+
+            prompt = ElementListIterPrompt(
+                system=prompt.system,
+                user=prompt.user,
+                element_list_constructor=elt_list_ctor,
+                element_batcher=eb,
+                entity=self._entity_name,
+                examples=self._prompt_template,
+                iteration_var_name=iteration_var_name,
+            )
+
+            llm_map = LLMMap(
+                child, prompt, self._entity_name, llm, iteration_var=iteration_var_name, validate=validate, **kwargs
+            )
+            ppmap = Map(llm_map, f=postprocess)
+            return ppmap
 
         elif not self._use_elements:
             if self._prompt is None:

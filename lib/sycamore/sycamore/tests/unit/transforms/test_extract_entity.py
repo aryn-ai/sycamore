@@ -202,6 +202,7 @@ class TestEntityExtraction:
             entity_extractor=entity_extractor,
         )
         taken = entity_docset.take()
+
         assert taken[0].properties[f"{new_field}_source_element_index"] == {0, 1, 2}
         assert taken[1].properties[f"{new_field}_source_element_index"] == {2}
         assert taken[0].properties[new_field] == "4"

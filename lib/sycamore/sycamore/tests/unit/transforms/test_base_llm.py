@@ -54,19 +54,19 @@ class TestLLMMap:
         assert outdocs[1].text_representation == "booga"
         assert outdocs[1].properties["out"] == "booga"
 
-    def test_postprocess(self):
+    def test_validate(self):
         prompt = FakeDocPrompt()
         llm = FakeLLM()
         doc1 = Document({"text_representation": "ooga"})
         doc2 = Document({"text_representation": "booga"})
         count = 0
 
-        def ppfn(d: Document, i: int) -> Document:
+        def valfn(d: Document) -> bool:
             nonlocal count
             count += 1
-            return d
+            return count > 1
 
-        map = LLMMap(None, prompt, "out", llm, postprocess_fn=ppfn)
+        map = LLMMap(None, prompt, "out", llm, validate=valfn)
         _ = map.llm_map([doc1, doc2])
 
         assert count == 2
@@ -112,12 +112,12 @@ class TestLLMMapElements:
         doc2 = Document({"doc_id": "2", "elements": [{"text_representation": "booga"}, {}]})
         count = 0
 
-        def ppfn(e: Element, i: int) -> Element:
+        def valfn(e: Element) -> bool:
             nonlocal count
             count += 1
-            return e
+            return count > 1
 
-        map = LLMMapElements(None, prompt, "out", llm, postprocess_fn=ppfn)
+        map = LLMMapElements(None, prompt, "out", llm, validate=valfn)
         _ = map.llm_map_elements([doc1, doc2])
 
         assert count == 4

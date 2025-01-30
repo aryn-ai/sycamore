@@ -44,7 +44,6 @@ class MockLLM(LLM):
         super().__init__(model_name="mock_model")
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        print(prompt)
         if llm_kwargs is None:
             llm_kwargs = {}
         if prompt.messages[-1].content.endswith("Element_index: 1\nText: third element\n"):
@@ -98,6 +97,8 @@ class MockLLM(LLM):
                 return "group2"
             elif value == "3" or value == "three":
                 return "group3"
+            else:
+                return ""
         else:
             return prompt.messages[-1].content
 

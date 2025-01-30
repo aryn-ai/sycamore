@@ -8,22 +8,15 @@ from sycamore.data import Document, Element
 
 
 def _infer_prompts(
-    prompts: list[Sequence[RenderedPrompt]],
+    prompts: list[RenderedPrompt],
     llm: LLM,
     llm_mode: LLMMode,
-    is_done: Callable[[str], bool] = lambda s: True,
 ) -> list[tuple[str, int]]:
     if llm_mode == LLMMode.SYNC:
         res = []
-        for piter in prompts:
-            s = ""
-            i = -1
-            for p in piter:
-                i += 1
-                s = llm.generate(prompt=p)
-                if is_done(s):
-                    break
-            res.append((s, i))
+        for p in prompts:
+            s = llm.generate(prompt=p)
+            res.append(s)
         return res
     elif llm_mode == LLMMode.ASYNC:
         raise NotImplementedError("Haven't done async yet")
@@ -73,7 +66,9 @@ class LLMMap(MapBatch):
         output_field: str,
         llm: LLM,
         llm_mode: LLMMode = LLMMode.SYNC,
-        postprocess_fn: Callable[[Document, int], Document] = lambda d, i: d,
+        iteration_var: Optional[str] = None,
+        validate: Callable[[Document], bool] = lambda d: True,
+        max_tries: int = 5,
         **kwargs,
     ):
         self._prompt = prompt
@@ -81,19 +76,37 @@ class LLMMap(MapBatch):
         self._output_field = output_field
         self._llm = llm
         self._llm_mode = llm_mode
-        self._postprocess_fn = postprocess_fn
+        self._iteration_var = iteration_var
+        self._validate = validate
+        self._max_tries = max_tries
         super().__init__(child, f=self.llm_map, **kwargs)
 
     def llm_map(self, documents: list[Document]) -> list[Document]:
-        rendered_inc = [self._prompt.render_document(d) for d in documents]
-        rendered = _as_sequences(rendered_inc)
-        results = _infer_prompts(rendered, self._llm, self._llm_mode, self._prompt.is_done)
-        postprocessed = []
-        for d, (r, i) in zip(documents, results):
-            d.properties[self._output_field] = r
-            new_d = self._postprocess_fn(d, i)
-            postprocessed.append(new_d)
-        return postprocessed
+        if self._iteration_var is not None:
+            for d in documents:
+                d.properties[self._iteration_var] = 0
+
+        valid = [False] * len(documents)
+        tries = 0
+        while not all(valid) and tries < self._max_tries:
+            tries += 1
+            rendered = [self._prompt.render_document(d) for v, d in zip(valid, documents) if not v]
+            if sum([0, *(len(r.messages) for r in rendered)]) == 0:
+                break
+            results = _infer_prompts(rendered, self._llm, self._llm_mode)
+            ri = 0
+            for i in range(len(documents)):
+                if valid[i]:
+                    continue
+                documents[i].properties[self._output_field] = results[ri]
+                valid[i] = self._validate(documents[i])
+                ri += 1
+                if self._iteration_var is not None and not valid[i]:
+                    documents[i].properties[self._iteration_var] += 1
+            if self._iteration_var is None:
+                break
+
+        return documents
 
     def _validate_prompt(self):
         doc = Document()
@@ -143,7 +156,9 @@ class LLMMapElements(MapBatch):
         output_field: str,
         llm: LLM,
         llm_mode: LLMMode = LLMMode.SYNC,
-        postprocess_fn: Callable[[Element, int], Element] = lambda e, i: e,
+        iteration_var: Optional[str] = None,
+        validate: Callable[[Element], bool] = lambda d: True,
+        max_tries: int = 5,
         **kwargs,
     ):
         self._prompt = prompt
@@ -151,22 +166,46 @@ class LLMMapElements(MapBatch):
         self._output_field = output_field
         self._llm = llm
         self._llm_mode = llm_mode
-        self._postprocess_fn = postprocess_fn
+        self._iteration_var = iteration_var
+        self._validate = validate
+        self._max_tries = max_tries
         super().__init__(child, f=self.llm_map_elements, **kwargs)
 
     def llm_map_elements(self, documents: list[Document]) -> list[Document]:
-        rendered = [(d, e, self._prompt.render_element(e, d)) for d in documents for e in d.elements]
-        results = _infer_prompts(
-            _as_sequences([p for _, _, p in rendered]), self._llm, self._llm_mode, self._prompt.is_done
-        )
-        new_elts = []
+        elt_doc_pairs = [(e, d) for d in documents for e in d.elements]
+        if self._iteration_var is not None:
+            for e, _ in elt_doc_pairs:
+                e.properties[self._iteration_var] = 0
+
+        valid = [False] * len(elt_doc_pairs)
+        tries = 0
+        while not all(valid) and tries < self._max_tries:
+            tries += 1
+            rendered = [self._prompt.render_element(e, d) for v, (e, d) in zip(valid, elt_doc_pairs) if not v]
+            if sum([0, *(len(r.messages) for r in rendered)]) == 0:
+                break
+            results = _infer_prompts(rendered, self._llm, self._llm_mode)
+            ri = 0
+            for i in range(len(elt_doc_pairs)):
+                if valid[i]:
+                    continue
+                print(ri)
+                elt, doc = elt_doc_pairs[i]
+                elt.properties[self._output_field] = results[ri]
+                valid[i] = self._validate(elt)
+                ri += 1
+                if self._iteration_var is not None:
+                    elt.properties[self._iteration_var] += 1
+            if self._iteration_var is None:
+                break
+
         last_doc = None
-        for (r, i), (d, e, _) in zip(results, rendered):
+        new_elts = []
+        for e, d in elt_doc_pairs:
             if last_doc is not None and last_doc.doc_id != d.doc_id:
                 last_doc.elements = new_elts
                 new_elts = []
-            e.properties[self._output_field] = r
-            new_elts.append(self._postprocess_fn(e, i))
+            new_elts.append(e)
             last_doc = d
         if last_doc is not None:
             last_doc.elements = new_elts

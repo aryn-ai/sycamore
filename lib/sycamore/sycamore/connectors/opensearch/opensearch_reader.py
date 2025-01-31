@@ -33,6 +33,21 @@ class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
     reconstruct_document: bool = False
     doc_reconstructor: Optional[DocumentReconstructor] = None
 
+    def compatible_with(self, other: "BaseDBReader.QueryParams") -> bool:
+        if not isinstance(other, OpenSearchReaderQueryParams):
+            raise ValueError(f"Incompatible query parameters: Expected OpenSearchReaderQueryParams, found {type(other)}")
+        if self.index_name != other.index_name:
+            raise ValueError(f"Incompatible index names: Expected {self.index_name}, found {other.index_name}")
+        if self.query != other.query:
+            raise ValueError(f"Incompatible queries: Expected {self.query}, found {other.query}")
+        if self.kwargs != other.kwargs:
+            raise ValueError(f"Incompatible kwargs: Expected {self.kwargs}, found {other.kwargs}")
+        if self.reconstruct_document != other.reconstruct_document:
+            raise ValueError(f"Incompatible reconstruct_document values: Expected {self.reconstruct_document}, found {other.reconstruct_document}")
+        if self.doc_reconstructor != other.doc_reconstructor:
+            raise ValueError(f"Incompatible doc_reconstructor values: Expected {self.doc_reconstructor}, found {other.doc_reconstructor}")
+        return True
+
 
 class OpenSearchReaderClient(BaseDBReader.Client):
     def __init__(self, client: "OpenSearch"):

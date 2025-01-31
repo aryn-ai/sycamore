@@ -37,11 +37,11 @@ class DuckDBWriterTargetParams(BaseDBWriter.TargetParams):
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
         if not isinstance(other, DuckDBWriterTargetParams):
-            return False
+            raise ValueError(f"Incompatible target parameters: Expected DuckDBWriterTargetParams, found {type(other)}")
         if self.dimensions != other.dimensions:
-            return False
+            raise ValueError(f"Incompatible dimensions: Expected {self.dimensions}, found {other.dimensions}")
         if self.table_name != other.table_name:
-            return False
+            raise ValueError(f"Incompatible table names: Expected {self.table_name}, found {other.table_name}")
         if other.schema and self.schema:
             if (
                 "embedding" in other.schema
@@ -49,7 +49,8 @@ class DuckDBWriterTargetParams(BaseDBWriter.TargetParams):
                 and self.schema["embedding"] != other.schema["embedding"]
             ):
                 self.schema["embedding"] = self.schema["embedding"] + "[" + str(self.dimensions) + "]"
-            return self.schema == other.schema
+            if self.schema != other.schema:
+                raise ValueError(f"Incompatible schemas: Expected {self.schema}, found {other.schema}")
         return True
 
 

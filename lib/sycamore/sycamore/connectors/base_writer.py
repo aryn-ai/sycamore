@@ -48,7 +48,14 @@ class BaseDBWriter(MapBatch, Write):
     @dataclass
     class TargetParams(ABC):
         def compatible_with(self, other: "BaseDBWriter.TargetParams") -> bool:
-            return self == other
+            if self == other:
+                return True
+            else:
+                raise ValueError(
+                    f"Incompatible target parameters:\n"
+                    f"Expected: {self}\n"
+                    f"Found: {other}\n"
+                )
 
     # Type param for the object used to create a client
     @dataclass

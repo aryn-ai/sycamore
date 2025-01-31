@@ -100,13 +100,13 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
     @classmethod
     @requires_modules(["opensearchpy", "opensearchpy.helpers"], extra="opensearch")
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "OpenSearchWriterClient":
-        from opensearchpy import OpenSearch
+        from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 
         assert isinstance(
             params, OpenSearchWriterClientParams
         ), f"Provided params was not of type OpenSearchWriterClientParams:\n{params}"
         paramsdict = asdict(params)
-        os_client = OpenSearch(**paramsdict)
+        os_client = OpenSearchClientWithLogging(**paramsdict)
         os_client.ping()
         return OpenSearchWriterClient(os_client)
 

@@ -5,7 +5,6 @@ import uuid
 from typing import Optional, Dict, Any
 
 import pytest
-from opensearchpy import OpenSearch
 
 import sycamore
 from sycamore import EXEC_LOCAL, ExecMode
@@ -21,7 +20,9 @@ TEST_CACHE_DIR = "/tmp/test_cache_dir"
 
 @pytest.fixture(scope="class")
 def os_client():
-    client = OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS)
+    from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
+
+    client = OpenSearchClientWithLogging(**TestOpenSearchRead.OS_CLIENT_ARGS)
     yield client
 
 

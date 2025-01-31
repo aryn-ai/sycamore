@@ -1,12 +1,12 @@
 import pytest
 import sycamore
 from sycamore import ExecMode
+from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 from sycamore.data.document import OpenSearchQuery
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.query import OpenSearchQueryExecutor
-from opensearchpy import OpenSearch
 
 
 @pytest.fixture(scope="class")
@@ -47,7 +47,7 @@ def setup_index():
         index_name=TestQueryOpenSearch.INDEX,
         index_settings=index_settings,
     )
-    osc = OpenSearch(**TestQueryOpenSearch.OS_CLIENT_ARGS)
+    osc = OpenSearchClientWithLogging(**TestQueryOpenSearch.OS_CLIENT_ARGS)
     osc.indices.refresh(TestQueryOpenSearch.INDEX)
     yield TestQueryOpenSearch.INDEX
     osc.indices.delete(TestQueryOpenSearch.INDEX)

@@ -184,6 +184,33 @@ class Table:
         d["num_cols"] = self.num_cols
         return d
 
+    def data_cells(self) -> "Table":
+        """Returns a table containing only the data cells in this table."""
+        header_rows = sorted(set((row_num for cell in self.cells for row_num in cell.rows if cell.is_header)))
+        i = -1
+        for r in header_rows:
+            i += 1
+            if r != i:
+                break
+        data_cells = [c for c in self.cells if c.rows[0] > i]
+        shifted_cells = [
+            TableCell(
+                content=c.content, rows=[r - i - 1 for r in c.rows], cols=c.cols, is_header=c.is_header, bbox=c.bbox
+            )
+            for c in data_cells
+        ]
+        return Table(shifted_cells, column_headers=[], caption=self.caption)
+
+    def header_cells(self) -> list[TableCell]:
+        """Returns the header cells as a list"""
+        header_rows = sorted(set((row_num for cell in self.cells for row_num in cell.rows if cell.is_header)))
+        i = -1
+        for r in header_rows:
+            i += 1
+            if r != i:
+                break
+        return [c for c in self.cells if c.rows[0] <= i]
+
     # TODO: There are likely edge cases where this will break or lose information. Nested or non-contiguous
     # headers are one likely source of issues. We also don't support missing closing tags (which are allowed in
     # the spec) because html.parser doesn't handle them. If and when this becomes an issue, we can consider

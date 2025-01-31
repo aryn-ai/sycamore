@@ -31,6 +31,15 @@ repos:
           # same args as used in .github/workflows/linting.yml
           args: [--install-types, --explicit-package-bases, --non-interactive]
           exclude: docs/
+  - repo: local
+    hooks:
+      - id: pytest-check
+        name: pytest-check
+        # Needed because otherwise it seems to always run pytest in the git root.
+        entry: poetry run pytest lib/sycamore/sycamore/tests/unit
+        language: system
+        pass_filenames: false
+        always_run: true
 
   - repo: https://github.com/kynan/nbstripout
     rev: 0.7.1

@@ -30,7 +30,7 @@ permissions:
 
 jobs:
   sycamore-unit-tests:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]

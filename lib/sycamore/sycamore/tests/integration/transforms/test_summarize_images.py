@@ -1,7 +1,11 @@
 import sycamore
 from sycamore.context import ExecMode
 from sycamore.transforms.partition import ArynPartitioner
-from sycamore.transforms.summarize_images import LLMImageSummarizer, OpenAIImageSummarizer, SummarizeImages
+from sycamore.transforms.summarize_images import (
+    LLMImageSummarizer,
+    OpenAIImageSummarizer,
+    SummarizeImages,
+)
 from sycamore.tests.config import TEST_DIR
 from sycamore.llms.bedrock import BedrockModels, Bedrock
 from sycamore.llms.anthropic import AnthropicModels, Anthropic

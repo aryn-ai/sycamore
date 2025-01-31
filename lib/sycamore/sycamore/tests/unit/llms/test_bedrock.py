@@ -2,6 +2,7 @@ import json
 from unittest.mock import patch
 import tempfile
 
+from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.llms import Bedrock, BedrockModels
 from sycamore.llms.bedrock import DEFAULT_ANTHROPIC_VERSION, DEFAULT_MAX_TOKENS
 from sycamore.utils.cache import DiskCache
@@ -40,11 +41,11 @@ def test_bedrock_simple(mock_boto3_client):
     assert client._model_name == BedrockModels.CLAUDE_3_5_SONNET.value.name
 
     result = client.generate(
-        prompt_kwargs={
-            "messages": [
-                {"role": "user", "content": "Roll 4d20 and tell me the final sum."},
+        prompt=RenderedPrompt(
+            messages=[
+                RenderedMessage(role="user", content="Roll 4d20 and tell me the final sum."),
             ]
-        }
+        )
     )
     assert result == "Here is your result: 56"
 
@@ -68,12 +69,12 @@ def test_bedrock_system_role(mock_boto3_client):
     assert client._model_name == BedrockModels.CLAUDE_3_5_SONNET.value.name
 
     result = client.generate(
-        prompt_kwargs={
-            "messages": [
-                {"role": "system", "content": "You are a DM for a game of D&D."},
-                {"role": "user", "content": "Roll 4d20 and tell me the final sum."},
+        prompt=RenderedPrompt(
+            messages=[
+                RenderedMessage(role="system", content="You are a DM for a game of D&D."),
+                RenderedMessage(role="user", content="Roll 4d20 and tell me the final sum."),
             ]
-        }
+        )
     )
     assert result == "Here is your result: 56"
 
@@ -99,11 +100,11 @@ def test_bedrock_with_llm_kwargs(mock_boto3_client):
     assert client._model_name == BedrockModels.CLAUDE_3_5_SONNET.value.name
 
     result = client.generate(
-        prompt_kwargs={
-            "messages": [
-                {"role": "user", "content": "Roll 4d20 and tell me the final sum."},
+        prompt=RenderedPrompt(
+            messages=[
+                RenderedMessage(role="user", content="Roll 4d20 and tell me the final sum."),
             ]
-        },
+        ),
         llm_kwargs={"max_tokens": 100, "anthropic_version": "v1"},
     )
     assert result == "Here is your result: 56"
@@ -134,11 +135,11 @@ def test_bedrock_with_cache(mock_boto3_client):
         assert client._model_name == BedrockModels.CLAUDE_3_5_SONNET.value.name
 
         result = client.generate(
-            prompt_kwargs={
-                "messages": [
-                    {"role": "user", "content": "Roll 4d20 and tell me the final sum."},
+            prompt=RenderedPrompt(
+                messages=[
+                    RenderedMessage(role="user", content="Roll 4d20 and tell me the final sum."),
                 ]
-            }
+            )
         )
         assert result == "Here is your result: 56"
 
@@ -154,11 +155,11 @@ def test_bedrock_with_cache(mock_boto3_client):
         }
 
         result = client.generate(
-            prompt_kwargs={
-                "messages": [
-                    {"role": "user", "content": "Roll 4d20 and tell me the final sum."},
+            prompt=RenderedPrompt(
+                messages=[
+                    RenderedMessage(role="user", content="Roll 4d20 and tell me the final sum."),
                 ]
-            }
+            )
         )
         assert result == "Here is your result: 56"
 

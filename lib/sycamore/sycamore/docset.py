@@ -8,7 +8,8 @@ from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
-from sycamore.llms.llms import LLM
+from sycamore.llms.llms import LLM, LLMMode
+from sycamore.llms.prompts import SycamorePrompt
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
     LlmClusterEntityFormGroupsMessagesPrompt,
@@ -29,6 +30,7 @@ from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
+from sycamore.utils.deprecate import deprecated
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
 
@@ -465,6 +467,7 @@ class DocSet:
         document_structure = ExtractDocumentStructure(self.plan, structure=structure, **kwargs)
         return DocSet(self.context, document_structure)
 
+    @deprecated(version="0.1.31", reason="Use llm_map instead")
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
         """
         Applies the ExtractEntity transform on the Docset.
@@ -489,10 +492,8 @@ class DocSet:
                      .extract_entity(entity_extractor=entity_extractor)
 
         """
-        from sycamore.transforms import ExtractEntity
-
-        entities = ExtractEntity(self.plan, context=self.context, entity_extractor=entity_extractor, **kwargs)
-        return DocSet(self.context, entities)
+        llm_map = entity_extractor.as_llm_map(self.plan, context=self.context, **kwargs)
+        return DocSet(self.context, llm_map)
 
     def extract_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
         """
@@ -948,6 +949,42 @@ class DocSet:
         flat_map = FlatMap(self.plan, f=f, **resource_args)
         return DocSet(self.context, flat_map)
 
+    def llm_map(
+        self, prompt: SycamorePrompt, output_field: str, llm: LLM, llm_mode: LLMMode = LLMMode.SYNC, **kwargs
+    ) -> "DocSet":
+        """
+        Renders and runs a prompt on every Document of the DocSet.
+
+        Args:
+            prompt: The prompt to use. Must implement the ``render_document`` method
+            output_field: Field in properties to store the output.
+            llm: LLM to use for the inferences.
+            llm_mode: how to make the api calls to the llm - sync/async/batch
+        """
+        from sycamore.transforms.base_llm import LLMMap
+
+        llm_map = LLMMap(self.plan, prompt=prompt, output_field=output_field, llm=llm, llm_mode=llm_mode, **kwargs)
+        return DocSet(self.context, llm_map)
+
+    def llm_map_elements(
+        self, prompt: SycamorePrompt, output_field: str, llm: LLM, llm_mode: LLMMode = LLMMode.SYNC, **kwargs
+    ) -> "DocSet":
+        """
+        Renders and runs a prompt on every Element of every Document in the DocSet.
+
+        Args:
+            prompt: The prompt to use. Must implement the ``render_document`` method
+            output_field: Field in properties to store the output.
+            llm: LLM to use for the inferences.
+            llm_mode: how to make the api calls to the llm - sync/async/batch
+        """
+        from sycamore.transforms.base_llm import LLMMapElements
+
+        llm_map_elements = LLMMapElements(
+            self.plan, prompt=prompt, output_field=output_field, llm=llm, llm_mode=llm_mode, **kwargs
+        )
+        return DocSet(self.context, llm_map_elements)
+
     def filter(self, f: Callable[[Document], bool], **kwargs) -> "DocSet":
         """
         Applies the Filter transform on the Docset.
@@ -1356,7 +1393,7 @@ class DocSet:
         prompt_kwargs = {"messages": messages}
 
         # call to LLM
-        completion = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
+        completion = llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
 
         groups = extract_json(completion)
 

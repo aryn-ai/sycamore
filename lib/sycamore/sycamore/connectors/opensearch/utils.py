@@ -1,8 +1,24 @@
-from typing import Optional
+import logging
+from typing import Optional, Any
+
+from opensearchpy import OpenSearch
 
 from sycamore import Context
 from sycamore.context import context_params
 from sycamore.transforms import Embedder
+
+
+logger = logging.getLogger("opensearch")
+
+
+class OpenSearchClientWithLogging(OpenSearch):
+    def search(self, **kwargs) -> Any:
+        """Helper method to execute OpenSearch search queries, and silent errors."""
+        response = super().search(**kwargs)
+        shards = response.get("_shards", {})
+        if shards.get("total") != shards.get("successful"):
+            logger.error(f"OpenSearch query skipped shards: {response}")
+        return response
 
 
 @context_params("opensearch")

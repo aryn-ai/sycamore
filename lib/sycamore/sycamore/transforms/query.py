@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABC
 from typing import Any
+
 from sycamore.utils.import_utils import requires_modules
 
 from sycamore.data import OpenSearchQueryResult, Element, OpenSearchQuery
@@ -26,10 +27,10 @@ class OpenSearchQueryExecutor(QueryExecutor):
 
     @requires_modules("opensearchpy", extra="opensearch")
     def query(self, query: OpenSearchQuery) -> OpenSearchQueryResult:
-        from opensearchpy import OpenSearch
+        from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 
         logger.debug("Executing OS query: " + str(query))
-        client = OpenSearch(**self._os_client_args)
+        client = OpenSearchClientWithLogging(**self._os_client_args)
 
         os_result = client.transport.perform_request(
             "POST",

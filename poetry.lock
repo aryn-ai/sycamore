@@ -457,7 +457,7 @@ test = ["dateparser (==1.*)", "pre-commit", "pytest", "pytest-cov", "pytest-mock
 
 [[package]]
 name = "aryn-sdk"
-version = "0.1.11"
+version = "0.1.12.post0"
 description = "The client library for Aryn services"
 optional = false
 python-versions = ">=3.9"
@@ -5597,13 +5597,13 @@ signedtoken = ["cryptography (>=3.0.0)", "pyjwt (>=2.0.0,<3)"]
 
 [[package]]
 name = "openai"
-version = "1.59.9"
+version = "1.60.2"
 description = "The official Python library for the openai API"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "openai-1.59.9-py3-none-any.whl", hash = "sha256:61a0608a1313c08ddf92fe793b6dbd1630675a1fe3866b2f96447ce30050c448"},
-    {file = "openai-1.59.9.tar.gz", hash = "sha256:ec1a20b0351b4c3e65c6292db71d8233515437c6065efd4fd50edeb55df5f5d2"},
+    {file = "openai-1.60.2-py3-none-any.whl", hash = "sha256:993bd11b96900b9098179c728026f016b4982ded7ee30dfcf4555eab1171fff9"},
+    {file = "openai-1.60.2.tar.gz", hash = "sha256:a8f843e10f2855713007f491d96afb2694b11b5e02cb97c7d01a0be60bc5bb51"},
 ]
 
 [package.dependencies]
@@ -8756,7 +8756,7 @@ nanoid = "^2.0.0"
 neo4j = {version = "^5.21.0", optional = true}
 nltk = {version = "^3.9.0", optional = true}
 numpy = "<2.0.0"
-openai = "^1.40.2"
+openai = "^1.60.2"
 opensearch-py = {version = "^2.3.1", optional = true}
 overrides = "^7.7.0"
 paddleocr = {version = "^2.8.1", optional = true}
@@ -8779,6 +8779,7 @@ setuptools = ">70.0.0"
 sphinx = {version = "^7.2.5", optional = true}
 structlog = "^24.2.0"
 tenacity = "^8.4.1"
+tiktoken = "^0.8.0"
 timm = {version = "^0.9.12", optional = true}
 torch = {version = "^2.3.0", optional = true}
 torchvision = {version = "^0.18.1", optional = true}

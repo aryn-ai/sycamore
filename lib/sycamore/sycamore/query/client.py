@@ -18,6 +18,7 @@ from typing import List, Optional, Union
 import structlog
 import yaml
 from rich.console import Console
+
 from sycamore.schema import Schema
 
 import sycamore
@@ -131,7 +132,7 @@ class SycamoreQueryClient:
         llm: Optional[Union[LLM, str]] = None,
         query_plan_strategy: Optional[QueryPlanStrategy] = None,
     ):
-        from opensearchpy import OpenSearch
+        from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 
         self.llm_cache_dir = llm_cache_dir
         self.os_config = os_config
@@ -155,7 +156,7 @@ class SycamoreQueryClient:
 
         assert self.context.params, "Could not find required params in Context"
         self.os_client_args = self.context.params.get("opensearch", {}).get("os_client_args", os_client_args)
-        self._os_client = OpenSearch(**self.os_client_args)
+        self._os_client = OpenSearchClientWithLogging(**self.os_client_args)
         self._os_query_executor = OpenSearchQueryExecutor(self.os_client_args)
 
     def get_opensearch_indices(self) -> List[str]:

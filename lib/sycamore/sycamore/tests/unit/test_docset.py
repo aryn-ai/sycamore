@@ -1,6 +1,7 @@
 import random
 import string
 from typing import Callable, Optional
+from dataclasses import asdict
 
 import pytest
 
@@ -8,6 +9,7 @@ import sycamore
 from sycamore import DocSet, Context
 from sycamore.data import Document, Element
 from sycamore.llms import LLM
+from sycamore.llms.prompts import RenderedPrompt
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
     LlmClusterEntityFormGroupsMessagesPrompt,
@@ -17,7 +19,6 @@ from sycamore.transforms import (
     Embed,
     Partitioner,
     Summarize,
-    ExtractEntity,
     FlatMap,
     Map,
     MapBatch,
@@ -29,6 +30,7 @@ from sycamore.transforms import (
 )
 from sycamore.transforms import Filter
 from sycamore.transforms.base import get_name_from_callable
+from sycamore.transforms.base_llm import LLMMap
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor
 from sycamore.transforms.query import QueryExecutor
@@ -41,50 +43,64 @@ class MockLLM(LLM):
     def __init__(self):
         super().__init__(model_name="mock_model")
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
+    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        if llm_kwargs is None:
+            llm_kwargs = {}
+        if prompt.messages[-1].content.endswith("Element_index: 1\nText: third element\n"):
+            return "None"
         if (
-            prompt_kwargs == {"messages": [{"role": "user", "content": "Element_index: 1\nText: third element\n"}]}
+            asdict(prompt) == {"messages": [{"role": "user", "content": "Element_index: 1\nText: third element\n"}]}
             and llm_kwargs == {}
         ):
             return "None"
         elif (
-            "first short element" in prompt_kwargs["messages"][0]["content"]
-            and "second longer element with more words" in prompt_kwargs["messages"][0]["content"]
+            "first short element" in prompt.messages[-1].content
+            and "second longer element with more words" in prompt.messages[-1].content
             and llm_kwargs == {}
         ):
             return "4"
         elif (
-            "very long element with many words that might exceed token limit" in prompt_kwargs["messages"][0]["content"]
+            "very long element with many words that might exceed token limit" in prompt.messages[-1].content
             and llm_kwargs == {}
         ):
             return "5"
-        elif prompt_kwargs == {"messages": [{"role": "user", "content": "test1"}]} and llm_kwargs == {}:
+        elif asdict(prompt) == {"messages": [{"role": "user", "content": "test1"}]} and llm_kwargs == {}:
             return "4"
-        elif prompt_kwargs == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
+        elif prompt.messages[0].content == "test1":
+            return "4"
+        elif asdict(prompt) == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
+            return "2"
+        elif prompt.messages[0].content == "test2":
             return "2"
 
+        elif prompt.messages[-1].content.endswith('"1, 2, one, two, 1, 3".'):
+            return '{"groups": ["group1", "group2", "group3"]}'
+
         elif (
-            prompt_kwargs["messages"]
+            prompt.messages
             == LlmClusterEntityFormGroupsMessagesPrompt(
                 field="text_representation", instruction="", text="1, 2, one, two, 1, 3"
             ).as_messages()
         ):
             return '{"groups": ["group1", "group2", "group3"]}'
         elif (
-            prompt_kwargs["messages"][0]
+            "['group1', 'group2', 'group3']" in prompt.messages[0].content
+            or prompt.messages[0]
             == LlmClusterEntityAssignGroupsMessagesPrompt(
                 field="text_representation", groups=["group1", "group2", "group3"]
             ).as_messages()[0]
         ):
-            value = prompt_kwargs["messages"][1]["content"]
+            value = prompt.messages[1].content
             if value == "1" or value == "one":
                 return "group1"
             elif value == "2" or value == "two":
                 return "group2"
             elif value == "3" or value == "three":
                 return "group3"
+            else:
+                return ""
         else:
-            return ""
+            return prompt.messages[-1].content
 
     def is_chat_mode(self):
         return True
@@ -163,10 +179,11 @@ class TestDocSet:
 
     def test_llm_extract_entity(self, mocker):
         context = mocker.Mock(spec=Context)
+        context.params = {}
         llm = mocker.Mock(spec=LLM)
         docset = DocSet(context, None)
         docset = docset.extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=llm, prompt_template=""))
-        assert isinstance(docset.lineage(), ExtractEntity)
+        assert isinstance(docset.lineage(), LLMMap)
 
     def test_query(self, mocker):
         context = mocker.Mock(spec=Context)

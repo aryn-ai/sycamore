@@ -41,10 +41,10 @@ class OpenSearchReaderClient(BaseDBReader.Client):
     @classmethod
     @requires_modules("opensearchpy", extra="opensearch")
     def from_client_params(cls, params: BaseDBReader.ClientParams) -> "OpenSearchReaderClient":
-        from opensearchpy import OpenSearch
+        from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 
         assert isinstance(params, OpenSearchReaderClientParams)
-        client = OpenSearch(**params.os_client_args)
+        client = OpenSearchClientWithLogging(**params.os_client_args)
         return OpenSearchReaderClient(client)
 
     def read_records(self, query_params: BaseDBReader.QueryParams) -> "OpenSearchReaderQueryResponse":
@@ -276,7 +276,7 @@ class OpenSearchReader(BaseDBReader):
     ):
         assert isinstance(
             query_params, OpenSearchReaderQueryParams
-        ), f"Wrong kind of query parameters found: {self._query_params}"
+        ), f"Wrong kind of query parameters found: {query_params}"
 
         super().__init__(client_params, query_params, **kwargs)
         self._client_params = client_params

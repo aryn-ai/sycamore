@@ -6,13 +6,14 @@ from pyarrow import Table
 from pyarrow.filesystem import FileSystem
 
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
-from sycamore.connectors.docstore.DocStoreReader import DocStoreClientParams, DocStoreQueryParams
+from sycamore.connectors.aryn.ArynReader import ArynClientParams, ArynQueryParams
 from sycamore.context import context_params
 from sycamore.plan_nodes import Node
 from sycamore import Context, DocSet
 from sycamore.data import Document
 from sycamore.connectors.file import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
 from sycamore.connectors.file.file_scan import FileMetadataProvider
+from sycamore.utils.aryn_config import ArynConfig
 from sycamore.utils.import_utils import requires_modules
 
 
@@ -635,18 +636,21 @@ class DocSetReader:
         return DocSet(self._context, wr)
 
     @context_params
-    def docstore(self, docset_id: str, **kwargs) -> DocSet:
+    def aryn(self, docset_id: str, **kwargs) -> DocSet:
         """
-        Reads the contents of a DocStore collection into a DocSet.
+        Reads the contents of a Aryn collection into a DocSet.
 
         Args:
             kwargs: Keyword arguments to pass to the underlying execution engine.
         """
-        from sycamore.connectors.docstore.DocStoreReader import (
-            DocStoreReader,
-            DocStoreClientParams,
-            DocStoreQueryParams,
+        from sycamore.connectors.aryn.ArynReader import (
+            ArynReader,
+            ArynClientParams,
+            ArynQueryParams,
         )
 
-        dr = DocStoreReader(client_params=DocStoreClientParams(), query_params=DocStoreQueryParams(docset_id), **kwargs)
+        api_key = ArynConfig.get_aryn_api_key()
+        aryn_url = ArynConfig.get_aryn_url()
+
+        dr = ArynReader(client_params=ArynClientParams(aryn_url, api_key), query_params=ArynQueryParams(docset_id), **kwargs)
         return DocSet(self._context, dr)

@@ -1,10 +1,11 @@
 import logging
 from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 
+import requests
 from pyarrow.fs import FileSystem
 
-from sycamore.connectors.docstore.DocStoreReader import DocStoreClientParams
-from sycamore.connectors.docstore.DocStoreWriter import DocStoreWriterTargetParams
+from sycamore.connectors.aryn.ArynReader import ArynClientParams
+from sycamore.connectors.aryn.ArynWriter import ArynWriterTargetParams
 from sycamore.context import Context, ExecMode, context_params
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
@@ -12,6 +13,7 @@ from sycamore.data import Document
 from sycamore.executor import Execution
 from sycamore.plan_nodes import Node
 from sycamore.docset import DocSet
+from sycamore.utils.aryn_config import ArynConfig
 from sycamore.utils.import_utils import requires_modules
 
 from mypy_boto3_s3.client import S3Client
@@ -802,26 +804,35 @@ class DocSetWriter:
 
         self._maybe_execute(node, True)
 
-    def docstore(
+    def aryn(
             self,
             docset_id: Optional[str] = None,
+            create_new_docset: Optional[bool] = False,
+            name: Optional[str] = None,
             **kwargs,
     ) -> Optional["DocSet"]:
         """
-
-        Returns:
-
+        Writes all documents of a DocSet to Aryn.
         """
 
-        from sycamore.connectors.docstore.DocStoreWriter import (
-            DocStoreWriter,
-            DocStoreWriterClientParams,
-            DocStoreWriterTargetParams,
+        from sycamore.connectors.aryn.ArynWriter import (
+            ArynWriter,
+            ArynWriterClientParams,
+            ArynWriterTargetParams,
         )
 
-        client_params = DocStoreWriterClientParams()
-        target_params = DocStoreWriterTargetParams(docset_id)
-        ds = DocStoreWriter(self.plan, client_params=client_params, target_params=target_params, **kwargs)
+        api_key = ArynConfig.get_aryn_api_key()
+        aryn_url = ArynConfig.get_aryn_url()
+        if docset_id is None and create_new_docset and name is not None:
+            headers = {
+                "Authorization": f"Bearer {api_key}"
+            }
+            res = requests.post(url=f"{aryn_url}/docsets", data={"name": name}, headers=headers)
+            docset_id = res.json()["docset_id"]
+
+        client_params = ArynWriterClientParams(aryn_url, api_key)
+        target_params = ArynWriterTargetParams(docset_id)
+        ds = ArynWriter(self.plan, client_params=client_params, target_params=target_params, **kwargs)
 
         return self._maybe_execute(ds, True)
 

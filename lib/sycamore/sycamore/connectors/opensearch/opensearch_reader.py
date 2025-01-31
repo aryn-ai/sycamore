@@ -4,7 +4,6 @@ from copy import deepcopy
 import pandas as pd
 
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
-from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 from sycamore.data import Document, Element
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
@@ -42,6 +41,8 @@ class OpenSearchReaderClient(BaseDBReader.Client):
     @classmethod
     @requires_modules("opensearchpy", extra="opensearch")
     def from_client_params(cls, params: BaseDBReader.ClientParams) -> "OpenSearchReaderClient":
+        from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
+
         assert isinstance(params, OpenSearchReaderClientParams)
         client = OpenSearchClientWithLogging(**params.os_client_args)
         return OpenSearchReaderClient(client)
@@ -275,7 +276,7 @@ class OpenSearchReader(BaseDBReader):
     ):
         assert isinstance(
             query_params, OpenSearchReaderQueryParams
-        ), f"Wrong kind of query parameters found: {self._query_params}"
+        ), f"Wrong kind of query parameters found: {query_params}"
 
         super().__init__(client_params, query_params, **kwargs)
         self._client_params = client_params

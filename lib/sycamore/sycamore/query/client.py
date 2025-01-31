@@ -19,7 +19,6 @@ import structlog
 import yaml
 from rich.console import Console
 
-from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 from sycamore.schema import Schema
 
 import sycamore
@@ -133,6 +132,7 @@ class SycamoreQueryClient:
         llm: Optional[Union[LLM, str]] = None,
         query_plan_strategy: Optional[QueryPlanStrategy] = None,
     ):
+        from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 
         self.llm_cache_dir = llm_cache_dir
         self.os_config = os_config

@@ -1,6 +1,7 @@
 import logging
 from abc import ABC
 from typing import Any, Optional, Type
+import textwrap
 
 from sycamore.schema import Schema
 from sycamore.llms.prompts.prompts import ElementListPrompt, ElementPrompt, StaticPrompt
@@ -277,7 +278,7 @@ ExtractTablePropertiesPrompt = ElementPrompt(
 )
 
 
-class ExtractPropertiesFromSchemaPrompt(SimplePrompt):
+class _ExtractPropertiesFromSchemaPrompt(SimplePrompt):
     def __init__(self, schema: Schema, text: str):
         super().__init__()
 
@@ -307,7 +308,7 @@ class ExtractPropertiesFromSchemaPrompt(SimplePrompt):
         return text
 
 
-class PropertiesZeroShotGuidancePrompt(SimplePrompt):
+class _PropertiesZeroShotGuidancePrompt(SimplePrompt):
     def __init__(self):
         super().__init__()
 
@@ -319,6 +320,20 @@ class PropertiesZeroShotGuidancePrompt(SimplePrompt):
         Only return JSON as part of your answer. If no entity is in the text, return "None".
         {text}
         """
+
+
+PropertiesZeroShotGuidancePrompt = ElementListPrompt(
+    system="You are a helpful property extractor. You only return JSON.",
+    user=textwrap.dedent(
+        """\
+    You are given a few text elements of a document. Extract JSON representing one entity of
+    class {entity} from the document. The class only has properties {properties}. Using
+    this context, FIND, FORMAT, and RETURN the JSON representing one {entity}.
+    Only return JSON as part of your answer. If no entity is in the text, return "None".
+    {text}
+    """
+    ),
+)
 
 
 class EntityExtractorMessagesPrompt(SimplePrompt):

@@ -25,14 +25,13 @@ from sycamore.transforms import (
     Partition,
     ExtractSchema,
     ExtractBatchSchema,
-    ExtractProperties,
     Query,
 )
 from sycamore.transforms import Filter
 from sycamore.transforms.base import get_name_from_callable
 from sycamore.transforms.base_llm import LLMMap
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
-from sycamore.transforms.extract_schema import SchemaExtractor
+from sycamore.transforms.extract_schema import SchemaExtractor, LLMPropertyExtractor
 from sycamore.transforms.query import QueryExecutor
 from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.transforms.sort import Sort
@@ -278,10 +277,12 @@ class TestDocSet:
 
     def test_extract_properties(self, mocker):
         context = mocker.Mock(spec=Context)
-        func = mocker.Mock(spec=Callable, extract_properties=lambda d: {})
+        pe = LLMPropertyExtractor(llm=MockLLM())
         docset = DocSet(context, None)
-        docset = docset.extract_properties(func)
-        assert isinstance(docset.lineage(), ExtractProperties)
+        docset = docset.extract_properties(property_extractor=pe)
+        assert isinstance(docset.lineage(), Map)
+        docset_back_one = DocSet(context, docset.plan.children[0])
+        assert isinstance(docset_back_one.lineage(), LLMMap)
 
     def test_take_all(self):
         num_docs = 30

@@ -17,4 +17,5 @@ def extract_json(payload: str) -> Any:
         if match:
             return json.loads(match.group(1))
         else:
+            raise exc
             raise ValueError("JSON block not found in LLM response: " + str(payload)) from exc

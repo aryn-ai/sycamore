@@ -76,13 +76,11 @@ class PropertyExtractionFromSchemaPrompt(ElementListPrompt):
     def _format_schema(schema: Schema) -> str:
         text = ""
         for i, field in enumerate(schema.fields):
-            text += textwrap.dedent(
-                f"""\
-            {i} {field.name}: type={field.field_type}: default={field.default}
-                {field.description}\n
-                Examples values: {field.examples}\n
-                """
-            )
+            text += f"{i} {field.name}: type={field.field_type}: default={field.default}\n"
+            if field.description is not None:
+                text += f"    {field.description}\n"
+            if field.examples is not None:
+                text += f"    Examples values: {field.examples}\n"
         return text
 
     def set(self, **kwargs) -> SycamorePrompt:
@@ -301,13 +299,19 @@ class LLMPropertyExtractor(PropertyExtractor):
             endkey = self._schema_name or d.properties.get("_schema_class", "entity")
             try:
                 entity = extract_json(entitystr)
-            except (json.JSONDecodeError, AttributeError):
+            except (json.JSONDecodeError, AttributeError, ValueError):
                 entity = entitystr
 
+            # If LLM couldn't do extract we instructed it to say "None"
+            # So handle that
             if entity == "None":
                 entity = {}
+
             if isinstance(self._schema, Schema):
                 entity = self.cast_types(entity)
+
+            # If schema name wasn't provided we wrote stuff to a
+            # temp "_entity" property
             if entity_name == "_entity":
                 if endkey in d.properties:
                     d.properties[endkey].update(entity)

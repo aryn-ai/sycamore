@@ -36,7 +36,6 @@ from sycamore.transforms.extract_schema import (
     ExtractSchema,
     ExtractBatchSchema,
     SchemaExtractor,
-    ExtractProperties,
     PropertyExtractor,
 )
 from sycamore.transforms.random_sample import RandomSample
@@ -83,7 +82,6 @@ __all__ = [
     "ExtractBatchSchema",
     "SchemaExtractor",
     "PropertyExtractor",
-    "ExtractProperties",
     "RandomSample",
     "SplitElements",
     "Query",

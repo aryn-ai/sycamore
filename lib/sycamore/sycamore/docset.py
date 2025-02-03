@@ -712,10 +712,8 @@ class DocSet:
                     .partition(partition=ArynPartitioner())
                     .extract_properties(property_extractor)
         """
-        from sycamore.transforms import ExtractProperties
-
-        schema = ExtractProperties(self.plan, property_extractor=property_extractor)
-        return DocSet(self.context, schema)
+        map = property_extractor.as_llm_map(self.plan, **kwargs)
+        return DocSet(self.context, map)
 
     def summarize(self, summarizer: Summarizer, **kwargs) -> "DocSet":
         """

@@ -1,17 +1,22 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any, Optional, Union
 import json
+import textwrap
+import copy
 
 from sycamore.data import Element, Document
+from sycamore.connectors.common import flatten_data
+from sycamore.llms.prompts.prompts import ElementListPrompt
 from sycamore.schema import Schema
 from sycamore.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
     _SchemaZeroShotGuidancePrompt,
-    PropertiesZeroShotGuidancePrompt,
 )
-from sycamore.llms.prompts.default_prompts import ExtractPropertiesFromSchemaPrompt
+from sycamore.llms.prompts import SycamorePrompt, RenderedPrompt
+from sycamore.llms.prompts.prompts import _build_format_str
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
+from sycamore.transforms.base_llm import LLMMap
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.time_trace import timetrace
 
@@ -42,8 +47,78 @@ class PropertyExtractor(ABC):
         pass
 
     @abstractmethod
-    def extract_properties(self, document: Document) -> Document:
+    def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
         pass
+
+
+class PropertyExtractionFromSchemaPrompt(ElementListPrompt):
+    default_system = "You are given text contents from a document."
+    default_user = textwrap.dedent(
+        """\
+    Extract values for the following fields:
+    {schema}
+
+    Document text:
+    {doc_text}
+
+    Don't return extra information.
+    If you cannot find a value for a requested property, use the provided default or the value 'None'.
+    Return your answers as a valid json dictionary that will be parsed in python.
+    """
+    )
+
+    def __init__(self, schema: Schema):
+        super().__init__(system=self.default_system, user=self.default_user)
+        self.schema = schema
+        self.kwargs["schema"] = self._format_schema(schema)
+
+    @staticmethod
+    def _format_schema(schema: Schema) -> str:
+        text = ""
+        for i, field in enumerate(schema.fields):
+            text += f"{i} {field.name}: type={field.field_type}: default={field.default}\n"
+            if field.description is not None:
+                text += f"    {field.description}\n"
+            if field.examples is not None:
+                text += f"    Examples values: {field.examples}\n"
+        return text
+
+    def set(self, **kwargs) -> SycamorePrompt:
+        if "schema" in kwargs:
+            new = copy.deepcopy(self)
+            new.schema = kwargs["schema"]
+            kwargs["schema"] = self._format_schema(new.schema)
+            return new.set(**kwargs)
+        return super().set(**kwargs)
+
+    def render_document(self, doc: Document) -> RenderedPrompt:
+        rp = super().render_document(doc)
+        rp.response_format = self.schema.model_dump()
+        return rp
+
+
+class PropertyExtractionFromDictPrompt(ElementListPrompt):
+    def __init__(self, schema: Optional[dict] = None, **kwargs):
+        super().__init__(**kwargs)
+        self.schema = schema
+
+    def render_document(self, doc: Document) -> RenderedPrompt:
+        format_args = copy.deepcopy(self.kwargs)
+        format_args["doc_text"] = doc.text_representation
+        if self.schema is None:
+            schema = doc.properties.get("_schema")
+        else:
+            schema = self.schema
+        format_args["schema"] = schema
+        if "entity" not in format_args:
+            format_args["entity"] = doc.properties.get("_schema_class", "entity")
+        flat_props = flatten_data(doc.properties, prefix="doc_property", separator="_")
+        format_args.update(flat_props)
+        format_args["elements"] = self._render_element_list_to_string
+
+        messages = _build_format_str(self.system, self.user, format_args)
+        result = RenderedPrompt(messages=messages, response_format=schema)
+        return result
 
 
 class LLMSchemaExtractor(SchemaExtractor):
@@ -169,27 +244,6 @@ class LLMPropertyExtractor(PropertyExtractor):
         self._num_of_elements = num_of_elements
         self._prompt_formatter = prompt_formatter
 
-    @timetrace("ExtrProps")
-    def extract_properties(self, document: Document) -> Document:
-        entities = self._handle_zero_shot_prompting(document)
-
-        try:
-            payload = entities
-            answer = extract_json(payload)
-        except (json.JSONDecodeError, AttributeError):
-            answer = entities
-        if answer == "None":
-            answer = {}
-
-        if isinstance(self._schema, Schema):
-            answer = self.cast_types(answer)
-        if "entity" in document.properties:
-            document.properties["entity"].update(answer)
-        else:
-            document.properties.update({"entity": answer})
-
-        return document
-
     def cast_types(self, fields: dict) -> dict:
         assert self._schema is not None, "Schema must be provided for property standardization."
         assert isinstance(self._schema, Schema), "Schema object must be provided for property standardization."
@@ -219,32 +273,60 @@ class LLMPropertyExtractor(PropertyExtractor):
 
         return result
 
-    def _handle_zero_shot_prompting(self, document: Document) -> Any:
-        if document.text_representation:
-            text = document.text_representation
-        else:
-            text = self._prompt_formatter(
-                [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
-            )
+    def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        prompt: SycamorePrompt  # mypy grr
         if isinstance(self._schema, Schema):
-            prompt = ExtractPropertiesFromSchemaPrompt(schema=self._schema, text=text)
-            entities = self._llm.generate_old(prompt_kwargs={"prompt": prompt})
+            prompt = PropertyExtractionFromSchemaPrompt(self._schema)
         else:
-            schema = self._schema or document.properties.get("_schema")
-            assert schema is not None, "Schema must be provided or detected before extracting properties."
-
-            schema_name = self._schema_name or document.properties.get("_schema_class")
-            assert schema_name is not None, "Schema name must be provided or detected before extracting properties."
-
-            entities = self._llm.generate_old(
-                prompt_kwargs={
-                    "prompt": PropertiesZeroShotGuidancePrompt(),
-                    "entity": schema_name,
-                    "properties": schema,
-                    "text": text,
-                }
+            prompt = PropertyExtractionFromDictPrompt(
+                schema=self._schema,
+                system="You are a helpful property extractor. You only return JSON.",
+                user=textwrap.dedent(
+                    """\
+                    You are given a few text elements of a document. Extract JSON representing one entity of
+                    class {entity} from the document. The class only has properties {schema}. Using
+                    this context, FIND, FORMAT, and RETURN the JSON representing one {entity}.
+                    Only return JSON as part of your answer. If no entity is in the text, return "None".
+                    {doc_text}
+                    """
+                ),
             )
-        return entities
+            if self._schema_name is not None:
+                prompt = prompt.set(entity=self._schema_name)
+
+        def parse_json_and_cast(d: Document) -> Document:
+            entity_name = self._schema_name or "_entity"
+            entitystr = d.properties.get(entity_name, "{}")
+            endkey = self._schema_name or d.properties.get("_schema_class", "entity")
+            try:
+                entity = extract_json(entitystr)
+            except (json.JSONDecodeError, AttributeError, ValueError):
+                entity = entitystr
+
+            # If LLM couldn't do extract we instructed it to say "None"
+            # So handle that
+            if entity == "None":
+                entity = {}
+
+            if isinstance(self._schema, Schema):
+                entity = self.cast_types(entity)
+
+            # If schema name wasn't provided we wrote stuff to a
+            # temp "_entity" property
+            if entity_name == "_entity":
+                if endkey in d.properties:
+                    d.properties[endkey].update(entity)
+                else:
+                    d.properties[endkey] = entity
+                if "_entity" in d.properties:
+                    d.properties.pop("_entity")
+                return d
+            d.properties[endkey] = entity
+            return d
+
+        llm_map = LLMMap(child, prompt, output_field=self._schema_name or "_entity", llm=self._llm, **kwargs)
+        parse_map = Map(llm_map, f=parse_json_and_cast)
+        return parse_map
 
 
 class ExtractSchema(Map):
@@ -334,33 +416,3 @@ class ExtractBatchSchema(Map):
             d.properties.update(self._schema)
 
             return d
-
-
-class ExtractProperties(Map):
-    """
-    ExtractProperties is a transformation class for extracting property values from a document once a schema has
-    been established.
-
-    The schema may be detected by `ExtractSchema` or provided manually under the `_schema` key of `Document.properties`.
-
-    Args:
-        child: The source node or component that provides the dataset text for schema suggestion
-        property_extractor: An instance of an PropertyExtractor class that provides the property detection method
-        resource_args: Additional resource-related arguments that can be passed to the extraction operation
-
-    Example:
-         .. code-block:: python
-
-            documents = ...  # Define a source node or component that provides a dataset with text data.
-            custom_property_extractor = ExamplePropertyExtractor(entity_extraction_params)
-
-            documents_with_schema = ...
-            documents_with_properties = ExtractProperties(
-                child=documents_with_schema,
-                property_extractor=custom_property_extractor
-            )
-            documents_with_properties = documents_with_properties.execute()
-    """
-
-    def __init__(self, child: Node, property_extractor: PropertyExtractor, **resource_args):
-        super().__init__(child, f=property_extractor.extract_properties, **resource_args)

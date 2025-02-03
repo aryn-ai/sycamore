@@ -207,8 +207,8 @@ class ElementListPrompt(SycamorePrompt):
             A two-message RenderedPrompt containing ``self.system.format()`` and ``self.user.format()``
             using the format keys as specified above.
         """
-        format_args = self.kwargs
-        format_args["doc_text"] = doc.text_representation
+        format_args = copy.deepcopy(self.kwargs)
+        format_args["doc_text"] = doc.text_representation or self._render_element_list_to_string(doc)
         flat_props = flatten_data(doc.properties, prefix="doc_property", separator="_")
         format_args.update(flat_props)
         format_args["elements"] = self._render_element_list_to_string(doc)
@@ -304,7 +304,7 @@ class ElementListIterPrompt(ElementListPrompt):
         """
         i = doc.properties.get(self.iteration_var_name, 0)
 
-        format_args = self.kwargs
+        format_args = copy.deepcopy(self.kwargs)
         format_args["doc_text"] = doc.text_representation
         flat_props = flatten_data(doc.properties, prefix="doc_property", separator="_")
         format_args.update(flat_props)
@@ -394,7 +394,7 @@ class ElementPrompt(SycamorePrompt):
             of the PDF it's on and attach it to the last message (user message if there
             is one, o/w system message).
         """
-        format_args = self.kwargs
+        format_args = copy.deepcopy(self.kwargs)
         format_args.update(self.capture_parent_context(doc, elt))
         format_args["elt_text"] = elt.text_representation
         flat_props = flatten_data(elt.properties, prefix="elt_property", separator="_")

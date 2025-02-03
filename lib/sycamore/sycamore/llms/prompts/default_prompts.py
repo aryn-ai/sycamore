@@ -1,8 +1,8 @@
 import logging
 from abc import ABC
 from typing import Any, Optional, Type
+import textwrap
 
-from sycamore.schema import Schema
 from sycamore.llms.prompts.prompts import ElementListPrompt, ElementPrompt, StaticPrompt
 
 logger = logging.getLogger(__name__)
@@ -277,48 +277,18 @@ ExtractTablePropertiesPrompt = ElementPrompt(
 )
 
 
-class ExtractPropertiesFromSchemaPrompt(SimplePrompt):
-    def __init__(self, schema: Schema, text: str):
-        super().__init__()
-
-        self.system = "You are given text contents from a document."
-        self.user = f"""
-        Extract values for the following fields:
-        {self._format_schema(schema)}
-
-        Document text:
-        {text}
-
-        Don't return extra information.
-        If you cannot find a value for a requested property, use the provided default or the value 'None'.
-        Return your answers as a valid json dictionary that will be parsed in python.
-"""
-
-    @staticmethod
-    def _format_schema(schema: Schema) -> str:
-        text = ""
-        for i, field in enumerate(schema.fields):
-            text += f"""
-            {i} {field.name}: type={field.field_type}: default={field.default}
-                {field.description}\n
-                Examples values: {field.examples}
-
-"""
-        return text
-
-
-class PropertiesZeroShotGuidancePrompt(SimplePrompt):
-    def __init__(self):
-        super().__init__()
-
-        self.system = "You are a helpful property extractor. You only return JSON."
-
-        self.user = """You are given a few text elements of a document. Extract JSON representing one entity of
-        class {entity} from the document. The class only has properties {properties}. Using
-        this context, FIND, FORMAT, and RETURN the JSON representing one {entity}.
-        Only return JSON as part of your answer. If no entity is in the text, return "None".
-        {text}
-        """
+PropertiesZeroShotGuidancePrompt = ElementListPrompt(
+    system="You are a helpful property extractor. You only return JSON.",
+    user=textwrap.dedent(
+        """\
+    You are given a few text elements of a document. Extract JSON representing one entity of
+    class {entity} from the document. The class only has properties {properties}. Using
+    this context, FIND, FORMAT, and RETURN the JSON representing one {entity}.
+    Only return JSON as part of your answer. If no entity is in the text, return "None".
+    {text}
+    """
+    ),
+)
 
 
 class EntityExtractorMessagesPrompt(SimplePrompt):
@@ -413,8 +383,6 @@ _deprecated_prompts: dict[str, Type[SimplePrompt]] = {
     "TEXT_SUMMARIZER_GUIDANCE_PROMPT_CHAT": _TextSummarizerGuidancePrompt,
     "SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT": _SchemaZeroShotGuidancePrompt,
     "SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT": _SchemaZeroShotGuidancePrompt,
-    "PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT": PropertiesZeroShotGuidancePrompt,
-    "PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT_CHAT": PropertiesZeroShotGuidancePrompt,
 }
 
 

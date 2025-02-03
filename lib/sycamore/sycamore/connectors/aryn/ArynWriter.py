@@ -68,7 +68,7 @@ class ArynWriterClient(BaseDBWriter.Client):
     def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
         pass
 
-    def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> "BaseDBWriter.TargetParams":
+    def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams"):
         pass
 
 

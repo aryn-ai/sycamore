@@ -113,7 +113,7 @@ class PropertyExtractionFromDictPrompt(ElementListPrompt):
             schema = self.schema
         format_args["schema"] = schema
         if "entity" not in format_args:
-            format_args["entity"] = doc.properties.get("_schema_class")
+            format_args["entity"] = doc.properties.get("_schema_class", "entity")
         flat_props = flatten_data(doc.properties, prefix="doc_property", separator="_")
         format_args.update(flat_props)
         format_args["elements"] = self._render_element_list_to_string
@@ -298,6 +298,7 @@ class LLMPropertyExtractor(PropertyExtractor):
         def parse_json_and_cast(d: Document) -> Document:
             entity_name = self._schema_name or "_entity"
             entitystr = d.properties.get(entity_name, "{}")
+            endkey = self._schema_name or d.properties.get("_schema_class", "entity")
             try:
                 entity = extract_json(entitystr)
             except (json.JSONDecodeError, AttributeError):
@@ -308,17 +309,17 @@ class LLMPropertyExtractor(PropertyExtractor):
             if isinstance(self._schema, Schema):
                 entity = self.cast_types(entity)
             if entity_name == "_entity":
-                if "entity" in d.properties:
-                    d.properties["entity"].update(entity)
+                if endkey in d.properties:
+                    d.properties[endkey].update(entity)
                 else:
-                    d.properties["entity"] = entity
+                    d.properties[endkey] = entity
                 if "_entity" in d.properties:
                     d.properties.pop("_entity")
                 return d
-            d.properties[entity_name] = entity
+            d.properties[endkey] = entity
             return d
 
-        llm_map = LLMMap(child, prompt, output_field=self._schema_name or "_entity", llm=self._llm)
+        llm_map = LLMMap(child, prompt, output_field=self._schema_name or "_entity", llm=self._llm, **kwargs)
         parse_map = Map(llm_map, f=parse_json_and_cast)
         return parse_map
 

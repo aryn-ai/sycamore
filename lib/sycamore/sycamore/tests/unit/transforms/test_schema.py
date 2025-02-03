@@ -130,6 +130,40 @@ class TestSchema:
         # doc = property_extractor.extract_properties(doc)
 
         assert doc.properties["entity"]["weather"] == "sunny"
+        assert doc.properties["AircraftIncident"]["accidentNumber"] == "FTW95FA129"
+        assert doc.properties["AircraftIncident"]["location"] == "Fort Worth, TX"
+
+    def test_extract_properties_default_to_entity(self, mocker):
+        llm = mocker.Mock(spec=LLM)
+        generate = mocker.patch.object(llm, "generate")
+        generate.return_value = '```json {"accidentNumber": "FTW95FA129", "location": "Fort Worth, TX"}```'
+
+        doc = Document()
+        element1 = Element()
+        element1.text_representation = "".join(random.choices(string.ascii_letters, k=10))
+        element2 = Element()
+        element2.text_representation = "".join(random.choices(string.ascii_letters, k=20))
+        doc.elements = [element1, element2]
+        doc.properties = {
+            "_schema": {
+                "accidentNumber": "string",
+            },
+            "entity": {"weather": "sunny"},
+        }
+
+        property_extractor = LLMPropertyExtractor(llm)
+        pe_map = property_extractor.as_llm_map(None)
+        assert len(pe_map.children) == 1
+        pe_llm_map = pe_map.children[0]
+        assert isinstance(pe_llm_map, LLMMap)
+        assert isinstance(pe_map, Map)
+
+        docs = pe_llm_map.run([doc])
+        doc = pe_map.run(docs[0])
+
+        # doc = property_extractor.extract_properties(doc)
+
+        assert doc.properties["entity"]["weather"] == "sunny"
         assert doc.properties["entity"]["accidentNumber"] == "FTW95FA129"
         assert doc.properties["entity"]["location"] == "Fort Worth, TX"
 
@@ -161,7 +195,7 @@ class TestSchema:
         docs = pe_llm_map.run([doc])
         doc = pe_map.run(docs[0])
 
-        assert doc.properties["entity"]["accidentNumber"] == "FTW95FA129"
+        assert doc.properties["AircraftIncident"]["accidentNumber"] == "FTW95FA129"
 
     def test_extract_properties_fixed_json(self, mocker):
         llm = mocker.Mock(spec=LLM)

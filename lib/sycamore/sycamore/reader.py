@@ -635,12 +635,14 @@ class DocSetReader:
         )
         return DocSet(self._context, wr)
 
-    @context_params
-    def aryn(self, docset_id: str, **kwargs) -> DocSet:
+    def aryn(self, docset_id: str, aryn_api_key: Optional[str] = None, aryn_url: Optional[str] = None, **kwargs) -> DocSet:
         """
-        Reads the contents of a Aryn collection into a DocSet.
+        Reads the contents of an Aryn docset into a DocSet.
 
         Args:
+            docset_id: The ID of the Aryn docset to read from.
+            aryn_api_key: (Optional) The Aryn API key to use for authentication.
+            aryn_url: (Optional) The URL of the Aryn instance to read from.
             kwargs: Keyword arguments to pass to the underlying execution engine.
         """
         from sycamore.connectors.aryn.ArynReader import (
@@ -649,8 +651,10 @@ class DocSetReader:
             ArynQueryParams,
         )
 
-        api_key = ArynConfig.get_aryn_api_key()
-        aryn_url = ArynConfig.get_aryn_url()
+        if aryn_api_key is None:
+            aryn_api_key = ArynConfig.get_aryn_api_key()
+        if aryn_url is None:
+            aryn_url = ArynConfig.get_aryn_url()
 
-        dr = ArynReader(client_params=ArynClientParams(aryn_url, api_key), query_params=ArynQueryParams(docset_id), **kwargs)
+        dr = ArynReader(client_params=ArynClientParams(aryn_url, aryn_api_key), query_params=ArynQueryParams(docset_id), **kwargs)
         return DocSet(self._context, dr)

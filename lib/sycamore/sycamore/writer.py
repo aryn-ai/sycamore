@@ -807,12 +807,20 @@ class DocSetWriter:
     def aryn(
             self,
             docset_id: Optional[str] = None,
-            create_new_docset: Optional[bool] = False,
             name: Optional[str] = None,
+            aryn_api_key: Optional[str] = None,
+            aryn_url: Optional[str] = None,
             **kwargs,
     ) -> Optional["DocSet"]:
         """
         Writes all documents of a DocSet to Aryn.
+
+        Args:
+            docset_id: The id of the docset to write to. If not provided, a new docset will be created.
+            create_new_docset: If true, a new docset will be created. If false, the docset with the provided id will be used.
+            name: The name of the new docset to create. Required if create_new_docset is true.
+            aryn_api_key: The api key to use for authentication. If not provided, the api key from the config file will be used.
+            aryn_url: The url of the Aryn instance to write to. If not provided, the url from the config file will be used.
         """
 
         from sycamore.connectors.aryn.ArynWriter import (
@@ -821,16 +829,22 @@ class DocSetWriter:
             ArynWriterTargetParams,
         )
 
-        api_key = ArynConfig.get_aryn_api_key()
-        aryn_url = ArynConfig.get_aryn_url()
-        if docset_id is None and create_new_docset and name is not None:
+        if aryn_api_key is None:
+            aryn_api_key = ArynConfig.get_aryn_api_key()
+        if aryn_url is None:
+            aryn_url = ArynConfig.get_aryn_url()
+
+        if docset_id is None and name is None:
+            raise ValueError("Either docset_id or name must be provided")
+
+        if docset_id is None and name is not None:
             headers = {
-                "Authorization": f"Bearer {api_key}"
+                "Authorization": f"Bearer {aryn_api_key}"
             }
             res = requests.post(url=f"{aryn_url}/docsets", data={"name": name}, headers=headers)
             docset_id = res.json()["docset_id"]
 
-        client_params = ArynWriterClientParams(aryn_url, api_key)
+        client_params = ArynWriterClientParams(aryn_url, aryn_api_key)
         target_params = ArynWriterTargetParams(docset_id)
         ds = ArynWriter(self.plan, client_params=client_params, target_params=target_params, **kwargs)
 

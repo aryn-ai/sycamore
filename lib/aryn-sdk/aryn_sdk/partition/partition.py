@@ -355,8 +355,8 @@ def partition_file_async_submit(
     Submits a file to be partitioned asynchronously. Meant to be used in tandem with `partition_file_async_result`.
 
     `partition_file_async_submit` takes the same arguments as `partition_file`, and in addition it accepts a str
-    `webhook_url` argument which is a URL Aryn will send a POST request to when the job stops and an str
-    `async_submit_url` argument that can be used to override where the job is submitted to.
+    `webhook_url` argument which is a URL Aryn will send a POST request to when the task stops and an str
+    `async_submit_url` argument that can be used to override where the task is submitted to.
 
     Set the `docparse_url` argument to the url of the synchronous endpoint, and this function will automatically
     change it to the async endpoint as long as `async_submit_url` is not set.
@@ -366,13 +366,13 @@ def partition_file_async_submit(
     Args:
         Includes All Arguments `partition_file` accepts plus those below:
         ...
-        webhook_url: A URL to send a POST request to when the job is done. The resulting POST request will have a
-            body like: {"done": [{"job_id": "aryn:j-47gpd3604e5tz79z1jro5fc"}]}
-        async_submit_url: When set, this will override the endpoint the job is submitted to.
+        webhook_url: A URL to send a POST request to when the task is done. The resulting POST request will have a
+            body like: {"done": [{"task_id": "aryn:j-47gpd3604e5tz79z1jro5fc"}]}
+        async_submit_url: When set, this will override the endpoint the task is submitted to.
 
     Returns:
-        A dictionary containing the key "job_id" the value of which can be used with the `partition_file_async_result`
-        function to get the results and check the status of the async job.
+        A dictionary containing the key "task_id" the value of which can be used with the `partition_file_async_result`
+        function to get the results and check the status of the async task.
     """
 
     if async_submit_url:
@@ -420,7 +420,7 @@ def _convert_sync_to_async_url(url: str, prefix: str, *, truncate: bool) -> str:
 
 
 def partition_file_async_result(
-    job_id: str,
+    task_id: str,
     *,
     aryn_api_key: Optional[str] = None,
     aryn_config: Optional[ArynConfig] = None,
@@ -428,14 +428,15 @@ def partition_file_async_result(
     async_result_url: Optional[str] = None,
 ) -> dict[str, Any]:
     """
-    Get the results of an asynchronous partitioning job by job_id. Meant to be used with `partition_file_async_submit`.
+    Get the results of an asynchronous partitioning task by task_id. Meant to be used with
+    `partition_file_async_submit`.
 
     For examples of usage see README.md
 
     Returns:
         A dict containing "status" and "status_code". When "status" is "done", the returned dict also contains "result"
         which contains what would have been returned had `partition_file` been called directly. "status" can be "done",
-        "pending", "error", or "no_such_job".
+        "pending", "error", or "no_such_task".
 
         Unlike `partition_file`, this function does not raise an Exception if the partitioning failed.
     """
@@ -444,22 +445,22 @@ def partition_file_async_result(
 
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
-    specific_job_url = f"{async_result_url.rstrip('/')}/{job_id}"
+    specific_task_url = f"{async_result_url.rstrip('/')}/{task_id}"
     headers = _generate_headers(aryn_config.api_key())
-    response = requests.get(specific_job_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
+    response = requests.get(specific_task_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
     if response.status_code == 200:
         return {"status": "done", "status_code": response.status_code, "result": response.json()}
     elif response.status_code == 202:
         return {"status": "pending", "status_code": response.status_code}
     elif response.status_code == 404:
-        return {"status": "no_such_job", "status_code": response.status_code}
+        return {"status": "no_such_task", "status_code": response.status_code}
     else:
         return {"status": "error", "status_code": response.status_code}
 
 
 def partition_file_async_cancel(
-    job_id: str,
+    task_id: str,
     *,
     aryn_api_key: Optional[str] = None,
     aryn_config: Optional[ArynConfig] = None,
@@ -467,13 +468,13 @@ def partition_file_async_cancel(
     async_cancel_url: Optional[str] = None,
 ) -> bool:
     """
-    Cancel an asynchronous partitioning job by job_id. Meant to be used with `partition_file_async_submit`.
+    Cancel an asynchronous partitioning task by task_id. Meant to be used with `partition_file_async_submit`.
 
     Returns:
-        A bool indicating whether the job was successfully cancelled by this request.
+        A bool indicating whether the task was successfully cancelled by this request.
 
-        A job can only be successfully cancelled once. A return value of false can mean the job was already cancelled,
-        the job is already done, or there was no job with the given job_id.
+        A task can only be successfully cancelled once. A return value of false can mean the task was already cancelled,
+        the task is already done, or there was no task with the given task_id.
 
         For an example of usage see README.md
     """
@@ -482,9 +483,9 @@ def partition_file_async_cancel(
 
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
-    specific_job_url = f"{async_cancel_url.rstrip('/')}/{job_id}"
+    specific_task_url = f"{async_cancel_url.rstrip('/')}/{task_id}"
     headers = _generate_headers(aryn_config.api_key())
-    response = requests.post(specific_job_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
+    response = requests.post(specific_task_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
     if response.status_code == 200:
         return True
     elif response.status_code == 404:
@@ -501,10 +502,10 @@ def partition_file_async_list(
     async_list_url: Optional[str] = None,
 ) -> dict[str, Any]:
     """
-    List pending async jobs. For an example of usage see README.md
+    List pending async tasks. For an example of usage see README.md
 
     Returns:
-        A dict like the one below which maps job_ids to a dict containing details of the respective job.
+        A dict like the one below which maps task_ids to a dict containing details of the respective task.
 
         {
             "aryn:j-sc0v0lglkauo774pioflp4l": {
@@ -523,12 +524,12 @@ def partition_file_async_list(
     headers = _generate_headers(aryn_config.api_key())
     response = requests.get(async_list_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
-    all_jobs = response.json()["jobs"]
+    all_tasks = response.json()["tasks"]
     result = {}
-    for job_id in all_jobs.keys():
-        if all_jobs[job_id]["path"] == "/v1/document/partition":
-            del all_jobs[job_id]["path"]
-            result[job_id] = all_jobs[job_id]
+    for task_id in all_tasks.keys():
+        if all_tasks[task_id]["path"] == "/v1/document/partition":
+            del all_tasks[task_id]["path"]
+            result[task_id] = all_tasks[task_id]
     return result
 
 

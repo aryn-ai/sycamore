@@ -2,10 +2,14 @@ from sycamore.data.document import DocumentPropertyTypes, DocumentSource, Docume
 from sycamore.connectors.common import compare_docs
 
 
-def compare_connector_docs(gt_docs: list[Document], returned_docs: list[Document], parent_offset: int = 0):
+def compare_connector_docs(
+    gt_docs: list[Document], returned_docs: list[Document], parent_offset: int = 0, doc_reconstruct: bool = False
+):
     assert len(gt_docs) == (len(returned_docs) + parent_offset)
-    for doc in gt_docs:
-        doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
+
+    if not doc_reconstruct:
+        for doc in gt_docs:
+            doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
 
     gt_dict = {doc.doc_id: doc for doc in gt_docs}
     returned_dict = {doc.doc_id: doc for doc in returned_docs}

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Callable, Iterator, Union, Iterable, Tuple, Any, Dict
-from sycamore.data import Document
+from sycamore.data import Document, Element
 import json
 import string
 import random
@@ -69,7 +69,10 @@ def compare_docs(doc1: Document, doc2: Document):
                     assert math.isclose(num1, num2, rel_tol=1e-5, abs_tol=1e-5)
                 except (ValueError, TypeError):
                     # If conversion to float fails, do direct comparison
-                    assert item1 == item2
+                    if isinstance(item1, Element):
+                        check_dictionary_compatibility(item1.data, item2.data)
+                    else:
+                        assert item1 == item2
         elif isinstance(filtered_doc1[key], dict) and isinstance(filtered_doc2.get(key), dict):
             assert check_dictionary_compatibility(filtered_doc1[key], filtered_doc2.get(key))
         else:

@@ -274,6 +274,7 @@ class LLMPropertyExtractor(PropertyExtractor):
         return result
 
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        prompt: SycamorePrompt  # mypy grr
         if isinstance(self._schema, Schema):
             prompt = PropertyExtractionFromSchemaPrompt(self._schema)
         else:

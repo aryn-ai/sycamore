@@ -424,7 +424,7 @@ class OpenSearchReader(BaseDBReader):
         assert isinstance(
             self._query_params, OpenSearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {self._query_params}"
-        
+
         parent_doc = os_client.get(
             index=self._query_params.index_name, id=doc_id
         )  # , _source_includes=["properties"])["_source"]["properties"]

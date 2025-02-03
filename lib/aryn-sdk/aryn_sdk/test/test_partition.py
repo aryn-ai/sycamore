@@ -181,13 +181,13 @@ def test_convert_img():
     assert png_str == real_str
 
 
-def test_invalid_job_id():
+def test_invalid_task_id():
     response = partition_file_async_result("INVALID_JOB_ID")
-    assert response["status"] == "no_such_job"
+    assert response["status"] == "no_such_task"
 
 
 def test_partition_file_async_submit(mocker):
-    data = b'{"job_id": "1234"}'
+    data = b'{"task_id": "1234"}'
     expected_response = json.loads(data.decode())
 
     mocked_response = mocker.Mock()
@@ -240,11 +240,11 @@ def test_partiton_file_async_url_forwarding(mocker):
 
 def test_partition_file_async_with_unsupported_file_format():
     with open(RESOURCE_DIR / "image" / "unsupported-format-test-document-image.heic", "rb") as f:
-        job_id = partition_file_async_submit(f)["job_id"]
+        task_id = partition_file_async_submit(f)["task_id"]
 
     start = time.time()
     while True:
-        actual_result = partition_file_async_result(job_id)
+        actual_result = partition_file_async_result(task_id)
         if actual_result["status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
             break
         time.sleep(1)
@@ -255,57 +255,57 @@ def test_partition_file_async_with_unsupported_file_format():
 
 
 def test_multiple_partition_file_async():
-    num_jobs = 4
-    job_ids = []
+    num_tasks = 4
+    task_ids = []
 
     before = partition_file_async_list()
     logging.info(f"List before:\n{json.dumps(before, indent=4)}")
 
-    for i in range(num_jobs):
-        logging.info(f"Submitting job {i + 1}/{num_jobs}")
-        job_id = partition_file_async_submit(RESOURCE_DIR / "pdfs" / "FR-2002-05-03-TRUNCATED-40.pdf")["job_id"]
-        logging.info(f"\tJob ID: {job_id}")
-        job_ids.append(job_id)
+    for i in range(num_tasks):
+        logging.info(f"Submitting task {i + 1}/{num_tasks}")
+        task_id = partition_file_async_submit(RESOURCE_DIR / "pdfs" / "FR-2002-05-03-TRUNCATED-40.pdf")["task_id"]
+        logging.info(f"\tTask ID: {task_id}")
+        task_ids.append(task_id)
 
     after = partition_file_async_list()
     logging.info(f"List after:\n{json.dumps(after, indent=4)}")
-    assert len(after) >= num_jobs
-    for job_id in job_ids:
-        assert job_id in after
+    assert len(after) >= num_tasks
+    for task_id in task_ids:
+        assert task_id in after
 
-    for i, job_id in enumerate(job_ids):
-        logging.info(f"Polling job ({job_id}) {i + 1}/{num_jobs}")
+    for i, task_id in enumerate(task_ids):
+        logging.info(f"Polling task ({task_id}) {i + 1}/{num_tasks}")
         start = time.time()
         while True:
-            actual_result = partition_file_async_result(job_id)
+            actual_result = partition_file_async_result(task_id)
             if actual_result["status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
                 break
             time.sleep(1)
-            logging.info(f"\tContinuing to Poll Job {job_id} ({i + 1}/{num_jobs})")
+            logging.info(f"\tContinuing to Poll Task {task_id} ({i + 1}/{num_tasks})")
         assert actual_result["status"] == "done"
         assert len(actual_result["result"]["elements"]) > 1000
 
 
 def test_partition_file_async_cancel():
     with open(RESOURCE_DIR / "pdfs" / "FR-2002-05-03-TRUNCATED-40.pdf", "rb") as f:
-        job_id = partition_file_async_submit(f)["job_id"]
+        task_id = partition_file_async_submit(f)["task_id"]
 
-    before_cancel_result = partition_file_async_result(job_id)
+    before_cancel_result = partition_file_async_result(task_id)
     assert before_cancel_result["status"] == "pending"
-    assert partition_file_async_cancel(job_id)
+    assert partition_file_async_cancel(task_id)
 
     # Cancellation is not reflected in the result immediately
     for _ in range(10):
         time.sleep(0.1)
-        after_cancel_result = partition_file_async_result(job_id)
+        after_cancel_result = partition_file_async_result(task_id)
         if after_cancel_result["status"] != "pending":
             break
         assert after_cancel_result["status"] == "pending"
-    assert after_cancel_result["status"] == "no_such_job"
+    assert after_cancel_result["status"] == "no_such_task"
 
 
 def test_smoke_webhook(mocker):
-    data = b'{"job_id": "1234"}'
+    data = b'{"task_id": "1234"}'
 
     webhook_url = "TEST"
 

@@ -421,6 +421,10 @@ class OpenSearchReader(BaseDBReader):
         os_client = client._client
         # doc["_source"]["properties"] = json.loads(doc["_source"]["properties"])
         doc_id = doc["_source"]["doc_id"]
+        assert isinstance(
+            self._query_params, OpenSearchReaderQueryParams
+        ), f"Wrong kind of query parameters found: {self._query_params}"
+        
         parent_doc = os_client.get(
             index=self._query_params.index_name, id=doc_id
         )  # , _source_includes=["properties"])["_source"]["properties"]

@@ -12,6 +12,7 @@ from sycamore import Context, DocSet
 from sycamore.data import Document
 from sycamore.connectors.file import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
 from sycamore.connectors.file.file_scan import FileMetadataProvider
+from sycamore.utils.aryn_config import ArynConfig
 from sycamore.utils.import_utils import requires_modules
 
 
@@ -304,7 +305,7 @@ class DocSetReader:
             kwargs=query_kwargs,
         )
 
-        osr = OpenSearchReader(client_params=client_params, query_params=query_params)
+        osr = OpenSearchReader(client_params=client_params, query_params=query_params, **kwargs)
         return DocSet(self._context, osr)
 
     @requires_modules("duckdb", extra="duckdb")
@@ -632,3 +633,31 @@ class DocSetReader:
             **kwargs,
         )
         return DocSet(self._context, wr)
+
+    def aryn(
+        self, docset_id: str, aryn_api_key: Optional[str] = None, aryn_url: Optional[str] = None, **kwargs
+    ) -> DocSet:
+        """
+        Reads the contents of an Aryn docset into a DocSet.
+
+        Args:
+            docset_id: The ID of the Aryn docset to read from.
+            aryn_api_key: (Optional) The Aryn API key to use for authentication.
+            aryn_url: (Optional) The URL of the Aryn instance to read from.
+            kwargs: Keyword arguments to pass to the underlying execution engine.
+        """
+        from sycamore.connectors.aryn.ArynReader import (
+            ArynReader,
+            ArynClientParams,
+            ArynQueryParams,
+        )
+
+        if aryn_api_key is None:
+            aryn_api_key = ArynConfig.get_aryn_api_key()
+        if aryn_url is None:
+            aryn_url = ArynConfig.get_aryn_url()
+
+        dr = ArynReader(
+            client_params=ArynClientParams(aryn_url, aryn_api_key), query_params=ArynQueryParams(docset_id), **kwargs
+        )
+        return DocSet(self._context, dr)

@@ -37,6 +37,7 @@ def source_image() -> Image.Image:
 # if the image contains blue pixels to begin with. Image must have mode RGBA.
 def check_image(image: Image.Image, expected_color=(0, 0, 255, 255)) -> None:
     raw_colors = image.getcolors(64_000)
+    assert raw_colors is not None, "Image has too many colors to count"
     assert expected_color in set((color_tup[1] for color_tup in raw_colors))
 
 

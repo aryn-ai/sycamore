@@ -16,7 +16,7 @@ build:
       - pip install poetry
     post_install:
       # Install sycamore with poetry  (instead of pip)
-      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH poetry install --extras "docs"
+      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH poetry install --extras "docs" --no-root
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:

@@ -2,7 +2,9 @@
 
 root="$(pwd)"
 fail() {
+    echo FAILED FAILED FAILED FAILED
     echo "$@"
+    echo FAILED FAILED FAILED FAILED
     exit 1
 }
 [[ -f "${root}/lib/sycamore/pyproject.toml" ]] || fail "run in root git directory"
@@ -25,19 +27,19 @@ for i in ${tomls}; do
         (
             echo "--------------------- special casing in $i"
             cd $(dirname "$i")
-            poetry lock --no-update || exit 1
+            poetry lock --no-update || fail "broke on special case 'poetry lock --no-update' for $i"
             # Do not apply the consistency logic, it can't do anything useful.
-        ) || exit 1
+        ) || fail "broke on special case for $i"
         continue
     fi
     (
         echo "--------------------- processing in $i"
         cd $(dirname "$i")
-        poetry lock --no-update || exit 1
-        poetry install 2>&1 | tee /tmp/poetry-install.out || exit 1
+        poetry lock --no-update || fail "broke on regular case 'poetry lock --no-update' $i"
+        poetry install 2>&1 | tee /tmp/poetry-install.out || fail "broke on 'poetry install' for $i"
         perl -ne 'print qq{$1 = "$2"\n} if /Downgrading (\S+) \((\S+) ->/o;' </tmp/poetry-install.out >/tmp/downgraded
         cat /tmp/downgraded
-        [[ $(wc -l </tmp/downgraded) -eq 0 ]] || exit 1
-    ) || exit 1
+        [[ $(wc -l </tmp/downgraded) -eq 0 ]] || fail "broke on downgrading $i it seems these packages are incompatible"
+    ) || fail "broke on regular case $i"
 done
 echo "SUCCESS"

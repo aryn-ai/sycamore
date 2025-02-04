@@ -140,7 +140,7 @@ class EntityExtractor(GraphEntityExtractor):
                 llm_kwargs = {"response_format": model}
                 messages = generate_prompt_messages(self.prompt, summary)
                 outputs.append(
-                    await self.llm.generate_async(prompt_kwargs={"messages": messages}, llm_kwargs=llm_kwargs)
+                    await self.llm.generate_async_old(prompt_kwargs={"messages": messages}, llm_kwargs=llm_kwargs)
                 )
             except Exception as e:
                 logger.warn(f"OPENAI CALL FAILED: {e}")

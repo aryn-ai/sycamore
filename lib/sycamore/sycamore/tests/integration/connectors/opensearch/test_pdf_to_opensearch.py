@@ -3,9 +3,9 @@ import uuid
 
 import boto3
 from urllib.parse import urlparse
-from opensearchpy import OpenSearch
 
 import sycamore
+from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 from sycamore.context import OperationTypes, ExecMode
 from sycamore.functions import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
@@ -143,7 +143,7 @@ def test_pdf_to_opensearch_with_llm_caching():
         )
         ds.write.opensearch()
 
-        OpenSearch(**os_client_args).indices.delete("toyindex")
+        OpenSearchClientWithLogging(**os_client_args).indices.delete("toyindex")
 
         # validate caching
 

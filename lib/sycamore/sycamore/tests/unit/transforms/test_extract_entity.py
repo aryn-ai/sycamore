@@ -23,6 +23,12 @@ class MockLLM(LLM):
         else:
             usermessage = prompt.messages[1].content
 
+        if usermessage.startswith("Hi"):
+            return usermessage
+
+        if usermessage.startswith("ho!"):
+            return "ho there! " + prompt.messages[2].content
+
         if "s3://path" in usermessage:
             return "alt_title"
 
@@ -55,11 +61,13 @@ class TestEntityExtraction:
                 {
                     "type": "title",
                     "content": {"binary": None, "text": "text1"},
+                    "text_representation": "text1",
                     "properties": {"coordinates": [(1, 2)], "page_number": 1, "entity": {"author": "Jack Black"}},
                 },
                 {
                     "type": "table",
                     "content": {"binary": None, "text": "text2"},
+                    "text_representation": "text2",
                     "properties": {"page_name": "name", "coordinates": [(1, 2)], "coordinate_system": "pixel"},
                 },
             ],
@@ -112,6 +120,25 @@ class TestEntityExtraction:
         llm_map = extractor.as_llm_map(None)
         out_docs = llm_map.run([self.doc])
         assert out_docs[0].properties.get("title") == "alt_title"
+
+    def test_extract_entity_with_elements_and_string_prompt(self, mocker):
+        llm = MockLLM()
+        extractor = OpenAIEntityExtractor("title", llm=llm, use_elements=True, prompt="Hi ")
+        llm_map = extractor.as_llm_map(None)
+        outdocs = llm_map.run([self.doc])
+        assert outdocs[0].properties.get("title").startswith("Hi")
+        assert "text1" in outdocs[0].properties.get("title")
+        assert "text2" in outdocs[0].properties.get("title")
+
+    def test_extract_entity_with_elements_and_messages_prompt(self, mocker):
+        llm = MockLLM()
+        prompt_messages = [{"role": "system", "content": "Yo"}, {"role": "user", "content": "ho!"}]
+        extractor = OpenAIEntityExtractor("title", llm=llm, use_elements=True, prompt=prompt_messages)
+        llm_map = extractor.as_llm_map(None)
+        outdocs = llm_map.run([self.doc])
+        assert outdocs[0].properties.get("title").startswith("ho there!")
+        assert "text1" in outdocs[0].properties.get("title")
+        assert "text2" in outdocs[0].properties.get("title")
 
     def test_extract_entity_with_similarity_sorting(self, mocker):
         doc_list = [

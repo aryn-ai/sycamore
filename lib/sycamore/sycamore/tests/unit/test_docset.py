@@ -43,6 +43,7 @@ class MockLLM(LLM):
         super().__init__(model_name="mock_model")
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        print(prompt)
         if llm_kwargs is None:
             llm_kwargs = {}
         if prompt.messages[-1].content.endswith("Element_index: 1\nText: third element\n"):
@@ -67,9 +68,13 @@ class MockLLM(LLM):
             return "4"
         elif prompt.messages[0].content == "test1":
             return "4"
+        elif prompt.messages[-1].content.endswith("test1"):
+            return "4"
         elif asdict(prompt) == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
             return "2"
         elif prompt.messages[0].content == "test2":
+            return "2"
+        elif prompt.messages[-1].content.endswith("test2"):
             return "2"
 
         elif prompt.messages[-1].content.endswith('"1, 2, one, two, 1, 3".'):

@@ -15,6 +15,9 @@ def _infer_prompts(
     if llm_mode == LLMMode.SYNC:
         res = []
         for p in prompts:
+            if len(p.messages) == 0:
+                res.append("")
+                continue
             s = llm.generate(prompt=p)
             res.append(s)
         return res
@@ -93,8 +96,16 @@ class LLMMap(MapBatch):
         tries = 0
         while not all(skips) and tries < self._max_tries:
             tries += 1
-            rendered = [self._prompt.render_document(d) for sk, d in zip(skips, documents) if not sk]
-            if sum([0, *(len(r.messages) for r in rendered)]) == 0:
+            rendered_and_index = [
+                (self._prompt.render_document(d), i) for sk, d, i in zip(skips, documents, range(len(skips))) if not sk
+            ]
+            rendered = []
+            for r, i in rendered_and_index:
+                if len(r.messages) == 0:
+                    skips[i] = True
+                else:
+                    rendered.append(r)
+            if len(rendered) == 0:
                 break
             results = _infer_prompts(rendered, self._llm, self._llm_mode)
             ri = 0
@@ -187,8 +198,18 @@ class LLMMapElements(MapBatch):
         tries = 0
         while not all(skips) and tries < self._max_tries:
             tries += 1
-            rendered = [self._prompt.render_element(e, d) for sk, (e, d) in zip(skips, elt_doc_pairs) if not sk]
-            if sum([0, *(len(r.messages) for r in rendered)]) == 0:
+            rendered_and_index = [
+                (self._prompt.render_element(e, d), i)
+                for sk, (e, d), i in zip(skips, elt_doc_pairs, range(len(skips)))
+                if not sk
+            ]
+            rendered = []
+            for r, i in rendered_and_index:
+                if len(r.messages) == 0:
+                    skips[i] = True
+                else:
+                    rendered.append(r)
+            if len(rendered) == 0:
                 break
             results = _infer_prompts(rendered, self._llm, self._llm_mode)
             ri = 0

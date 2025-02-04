@@ -236,7 +236,7 @@ def test_llm_filter():
         result = sycamore_operator.execute()
 
         # assert LlmFilterMessagesPrompt called with expected arguments
-        MockLlmFilterMessagesPrompt.assert_called_once_with(
+        MockLlmFilterMessagesPrompt.set.assert_called_once_with(
             filter_question=logical_node.question,
         )
 

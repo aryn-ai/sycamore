@@ -160,7 +160,7 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
 os_query["query"]["knn"]["embedding"]["filter"] = {self.logical_node.opensearch_filter}"""
         result += f"""
 {output_var or get_var_name(self.logical_node)} = context.read.opensearch(
-    index_name='{self.logical_node.index}', 
+    index_name='{self.logical_node.index}',
     query=os_query,
     reconstruct_document=True
 ).rerank(query='{self.logical_node.query_phrase}')
@@ -263,7 +263,7 @@ class SycamoreLlmFilter(SycamoreOperator):
 
         # load into local vars for Ray serialization magic
 
-        prompt = LlmFilterMessagesPrompt(filter_question=question).as_messages()
+        prompt = LlmFilterMessagesPrompt.set(filter_question=question)
 
         result = self.inputs[0].llm_filter(
             new_field="_autogen_LLMFilterOutput",

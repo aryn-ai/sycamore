@@ -10,6 +10,7 @@ from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts import SycamorePrompt
+from sycamore.llms.prompts.prompts import ElementListIterPrompt
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
     LlmClusterEntityFormGroupsMessagesPrompt,
@@ -1030,7 +1031,7 @@ class DocSet:
         self,
         llm: LLM,
         new_field: str,
-        prompt: Union[list[dict], str],
+        prompt: ElementListIterPrompt,
         field: str = "text_representation",
         threshold: int = 3,
         keep_none: bool = False,
@@ -1064,6 +1065,24 @@ class DocSet:
         Returns:
             A filtered DocSet.
         """
+        from sycamore.transforms.llm_filter import plan_llm_filter_as_llm_map
+
+        mapfilter = plan_llm_filter_as_llm_map(
+            self.plan,
+            llm,
+            new_field,
+            prompt,
+            threshold,
+            keep_none,
+            use_elements,
+            similarity_query,
+            similarity_scorer,
+            max_tokens,
+            tokenizer,
+            **resource_args,
+        )
+        return DocSet(self.context, mapfilter)
+
         entity_extractor = OpenAIEntityExtractor(
             entity_name=new_field, llm=llm, use_elements=False, prompt=prompt, field=field
         )

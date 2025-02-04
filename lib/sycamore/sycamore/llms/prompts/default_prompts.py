@@ -3,7 +3,13 @@ from abc import ABC
 from typing import Any, Optional, Type
 import textwrap
 
-from sycamore.llms.prompts.prompts import ElementListPrompt, ElementPrompt, StaticPrompt
+from sycamore.llms.prompts.prompts import (
+    ElementListPrompt,
+    ElementPrompt,
+    FieldValuePrompt,
+    StaticPrompt,
+    ElementListIterPrompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -317,7 +323,7 @@ class EntityExtractorMessagesPrompt(SimplePrompt):
             )
 
 
-class LlmFilterMessagesPrompt(SimplePrompt):
+class _LlmFilterMessagesPrompt(SimplePrompt):
     def __init__(self, filter_question: str):
         super().__init__()
 
@@ -329,6 +335,27 @@ class LlmFilterMessagesPrompt(SimplePrompt):
             "confidence level. 0 is the most negative answer and 5 is the most positive "
             f"answer. Question: {filter_question}; Entry: "
         )
+
+
+LlmFilterMessagesPrompt = ElementListIterPrompt(
+    system="You are a helpful classifier that generously filters database entries based on questions.",
+    user=(
+        "Given an entry and a question, you will answer the question relating "
+        "to the entry. You only respond with 0, 1, 2, 3, 4, or 5 based on your "
+        "confidence level. 0 is the most negative answer and 5 is the most positive "
+        "answer. Question: {filter_question}; Entry: {elements}"
+    ),
+)
+
+LlmFilterDocValuePrompt = FieldValuePrompt(
+    system="You are a helpful classifier that generously filters database entries based on questions.",
+    user=(
+        "Given a field value and a question, you will answer the question relating "
+        "to the field value. You only respond with 0, 1, 2, 3, 4, or 5 based on your "
+        "confidence level. 0 is the most negative answer and 5 is the most positive "
+        "answer. Question: {filter_question}; Field Name: {field_name}; Field Value: {value}"
+    ),
+)
 
 
 class SummarizeDataMessagesPrompt(SimplePrompt):

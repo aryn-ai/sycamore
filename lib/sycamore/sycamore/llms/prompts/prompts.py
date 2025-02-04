@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Union, Optional, Callable
+from typing import Any, Union, Optional, Callable, Literal
 import copy
 
 import pydantic
@@ -318,6 +318,56 @@ class ElementListIterPrompt(ElementListPrompt):
                 messages = _build_format_str(self.system, self.user, {"elements": elementstr, **format_args})
                 return RenderedPrompt(messages=messages)
         return RenderedPrompt(messages=[])
+
+
+class FieldValuePrompt(SycamorePrompt):
+
+    def __init__(
+        self,
+        *,
+        system: Optional[str],
+        user: Union[None, str, list[str]],
+        field_name: str = "unset",
+        no_field_behavior: Union[Literal["crash"], Literal["none"], Literal["empty"]] = "none",
+        **kwargs,
+    ):
+        self.system = system
+        self.user = user
+        self.field_name = field_name
+        self.no_field_behavior = no_field_behavior
+
+        self.kwargs = kwargs
+
+    def _lookup_field(self, doc: Document) -> Optional[str]:
+        keys = self.field_name.split(sep=".")
+        curr = doc.data
+        while len(keys) > 0:
+            k = keys[0]
+            if not hasattr(curr, "__getitem__"):
+                return None
+            if k in curr:
+                curr = curr[k]
+            else:
+                return None
+        return str(curr)
+
+    def render_document(self, doc: Document) -> RenderedPrompt:
+        format_args = copy.deepcopy(self.kwargs)
+        value = self._lookup_field(doc)
+        if value is None:
+            if self.no_field_behavior == "crash":
+                raise KeyError(f"Could not find key {self.field_name} in doc: {doc}")
+            elif self.no_field_behavior == "none":
+                value = "None"
+            elif self.no_field_behavior == "empty":
+                return RenderedPrompt(messages=[])
+            else:
+                raise ValueError(f"prompt.no_field_behavior was an unrecognized value: {self.no_field_behavior}")
+        format_args["value"] = value
+        format_args["field_name"] = self.field_name
+
+        messages = _build_format_str(self.system, self.user, format_args)
+        return RenderedPrompt(messages=messages)
 
 
 class ElementPrompt(SycamorePrompt):

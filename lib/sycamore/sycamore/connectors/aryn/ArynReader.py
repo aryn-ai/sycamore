@@ -1,15 +1,13 @@
 import json
-import os
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Any
 
 import requests
 from requests import Response
 
 from sycamore.connectors.base_reader import BaseDBReader
-from sycamore.data import Document, Element
+from sycamore.data import Document
 from sycamore.data.element import create_element
-from sycamore.utils.aryn_config import ArynConfig
 
 
 @dataclass
@@ -51,12 +49,10 @@ class ArynClient(BaseDBReader.Client):
 
     def read_records(self, query_params: "BaseDBReader.QueryParams") -> "ArynQueryResponse":
         assert isinstance(query_params, ArynQueryParams)
-        headers = {
-            "Authorization": f"Bearer {self.api_key}"
-        }
+        headers = {"Authorization": f"Bearer {self.api_key}"}
         response: Response = requests.post(
-            f"{self.aryn_url}/docsets/{query_params.docset_id}/read", stream=True,
-            headers=headers)
+            f"{self.aryn_url}/docsets/{query_params.docset_id}/read", stream=True, headers=headers
+        )
         assert response.status_code == 200
         docs = []
         print(f"Reading from docset: {query_params.docset_id}")

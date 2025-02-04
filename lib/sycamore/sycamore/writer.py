@@ -4,8 +4,6 @@ from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 import requests
 from pyarrow.fs import FileSystem
 
-from sycamore.connectors.aryn.ArynReader import ArynClientParams
-from sycamore.connectors.aryn.ArynWriter import ArynWriterTargetParams
 from sycamore.context import Context, ExecMode, context_params
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
@@ -805,22 +803,25 @@ class DocSetWriter:
         self._maybe_execute(node, True)
 
     def aryn(
-            self,
-            docset_id: Optional[str] = None,
-            name: Optional[str] = None,
-            aryn_api_key: Optional[str] = None,
-            aryn_url: Optional[str] = None,
-            **kwargs,
+        self,
+        docset_id: Optional[str] = None,
+        name: Optional[str] = None,
+        aryn_api_key: Optional[str] = None,
+        aryn_url: Optional[str] = None,
+        **kwargs,
     ) -> Optional["DocSet"]:
         """
         Writes all documents of a DocSet to Aryn.
 
         Args:
             docset_id: The id of the docset to write to. If not provided, a new docset will be created.
-            create_new_docset: If true, a new docset will be created. If false, the docset with the provided id will be used.
+            create_new_docset: If true, a new docset will be created. If false, the docset with the provided
+                               id will be used.
             name: The name of the new docset to create. Required if create_new_docset is true.
-            aryn_api_key: The api key to use for authentication. If not provided, the api key from the config file will be used.
-            aryn_url: The url of the Aryn instance to write to. If not provided, the url from the config file will be used.
+            aryn_api_key: The api key to use for authentication. If not provided, the api key from the config
+                          file will be used.
+            aryn_url: The url of the Aryn instance to write to. If not provided, the url from the config file
+                      will be used.
         """
 
         from sycamore.connectors.aryn.ArynWriter import (
@@ -838,9 +839,7 @@ class DocSetWriter:
             raise ValueError("Either docset_id or name must be provided")
 
         if docset_id is None and name is not None:
-            headers = {
-                "Authorization": f"Bearer {aryn_api_key}"
-            }
+            headers = {"Authorization": f"Bearer {aryn_api_key}"}
             res = requests.post(url=f"{aryn_url}/docsets", data={"name": name}, headers=headers)
             docset_id = res.json()["docset_id"]
 

@@ -6,7 +6,6 @@ from pyarrow import Table
 from pyarrow.filesystem import FileSystem
 
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
-from sycamore.connectors.aryn.ArynReader import ArynClientParams, ArynQueryParams
 from sycamore.context import context_params
 from sycamore.plan_nodes import Node
 from sycamore import Context, DocSet
@@ -635,7 +634,9 @@ class DocSetReader:
         )
         return DocSet(self._context, wr)
 
-    def aryn(self, docset_id: str, aryn_api_key: Optional[str] = None, aryn_url: Optional[str] = None, **kwargs) -> DocSet:
+    def aryn(
+        self, docset_id: str, aryn_api_key: Optional[str] = None, aryn_url: Optional[str] = None, **kwargs
+    ) -> DocSet:
         """
         Reads the contents of an Aryn docset into a DocSet.
 
@@ -656,5 +657,7 @@ class DocSetReader:
         if aryn_url is None:
             aryn_url = ArynConfig.get_aryn_url()
 
-        dr = ArynReader(client_params=ArynClientParams(aryn_url, aryn_api_key), query_params=ArynQueryParams(docset_id), **kwargs)
+        dr = ArynReader(
+            client_params=ArynClientParams(aryn_url, aryn_api_key), query_params=ArynQueryParams(docset_id), **kwargs
+        )
         return DocSet(self._context, dr)

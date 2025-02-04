@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 from typing import Optional, Mapping
 
@@ -6,7 +5,6 @@ import requests
 
 from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.data import Document
-from sycamore.utils.aryn_config import ArynConfig
 
 
 @dataclass
@@ -51,19 +49,16 @@ class ArynWriterClient(BaseDBWriter.Client):
     def write_many_records(self, records: list["BaseDBWriter.Record"], target_params: "BaseDBWriter.TargetParams"):
         assert isinstance(target_params, ArynWriterTargetParams)
         docset_id = target_params.docset_id
-        name = ""
 
-        headers = {
-            "Authorization": f"Bearer {self.api_key}"
-        }
+        headers = {"Authorization": f"Bearer {self.api_key}"}
 
         for record in records:
             assert isinstance(record, ArynWriterRecord)
             doc = record.doc
             files: Mapping = {"doc": doc.serialize()}
-            res = requests.post(url=f"{self.aryn_url}/docsets/write",
-                                params={"docset_id": docset_id},
-                                files=files, headers=headers)
+            requests.post(
+                url=f"{self.aryn_url}/docsets/write", params={"docset_id": docset_id}, files=files, headers=headers
+            )
 
     def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
         pass

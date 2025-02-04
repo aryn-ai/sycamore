@@ -20,7 +20,7 @@ from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDa
 from sycamore.query.execution.physical_operator import PhysicalOperator
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
-from sycamore.query.operators.top_k import TopK
+from sycamore.query.operators.top_k import TopK, GroupByCount
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.execution.physical_operator import MathOperator
 from sycamore.query.execution.sycamore_operator import (
@@ -35,6 +35,7 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreLimit,
     SycamoreFieldIn,
     SycamoreQueryVectorDatabase,
+    SycamoreGroupByCount,
 )
 
 log = structlog.get_logger(__name__)
@@ -184,6 +185,14 @@ class SycamoreExecutor:
                 inputs=inputs,
                 trace_dir=self.trace_dir,
             )
+        elif isinstance(logical_node, GroupByCount):
+            operation = SycamoreGroupByCount(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
         elif isinstance(logical_node, FieldIn):
             operation = SycamoreFieldIn(
                 context=self.context,
@@ -206,9 +215,10 @@ class SycamoreExecutor:
         else:
             raise ValueError(f"Unsupported node type: {str(logical_node)}")
 
-        code, imports = operation.script(output_var=(self.OUTPUT_VAR_NAME if is_result_node else None))
-        self.imports += imports
-        self.node_id_to_code[logical_node.node_id] = code
+        if self.codegen_mode:
+            code, imports = operation.script(output_var=(self.OUTPUT_VAR_NAME if is_result_node else None))
+            self.imports += imports
+            self.node_id_to_code[logical_node.node_id] = code
         self.node_id_to_node[logical_node.node_id] = logical_node
 
         operation_result = "visited"

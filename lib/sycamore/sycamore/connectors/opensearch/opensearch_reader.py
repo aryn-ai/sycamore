@@ -398,42 +398,32 @@ class OpenSearchReader(BaseDBReader):
 
         records = OpenSearchReaderQueryResponse(results, os_client)
         docs = records.to_docs(query_params=self._query_params)
-        # logging.info(f"Sample: {docs[:5]}")
         return [{"doc": doc.serialize()} for doc in docs]
 
     def map_reduce_parent_id(self, group: pd.DataFrame) -> pd.DataFrame:
         parent_ids = set()
         for row in group["parent_id"]:
-            # logging.info(f"Row: {row}: {type(row)}")
             if row not in parent_ids:
                 parent_ids.add(row)
 
-        # logger.info(f"Parent IDs: {parent_ids}")
         return pd.DataFrame([{"_source": {"doc_id": parent_id}} for parent_id in parent_ids])
 
     def reconstruct(self, doc: dict[str, Any]) -> dict[str, Any]:
-        # logging.info(f"Applying on {doc} ({type(doc)}) ...")
         client = self.Client.from_client_params(self._client_params)
 
         if not client.check_target_presence(self._query_params):
             raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
 
         os_client = client._client
-        # doc["_source"]["properties"] = json.loads(doc["_source"]["properties"])
         doc_id = doc["_source"]["doc_id"]
         assert isinstance(
             self._query_params, OpenSearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {self._query_params}"
 
-        parent_doc = os_client.get(
-            index=self._query_params.index_name, id=doc_id
-        )  # , _source_includes=["properties"])["_source"]["properties"]
+        parent_doc = os_client.get(index=self._query_params.index_name, id=doc_id)
         records = OpenSearchReaderQueryResponse([parent_doc], os_client)
         docs = records.to_docs(query_params=self._query_params)
 
-        # properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DOCUMENT_RECONSTRUCTION_PARENT
-        # docs[0].update(parent_doc["_source"]) # json.loads(doc["_source"]["properties"])
-        # docs[0]["properties"] = json.loads(doc["_source"]["properties"])
         return {"doc": docs[0].serialize()}
 
     def execute(self, **kwargs) -> "Dataset":
@@ -455,9 +445,7 @@ class OpenSearchReader(BaseDBReader):
         ), f"Wrong kind of query parameters found: {self._query_params}"
 
         doc_ids = set()
-        # logger.info(f"Applying on {group} ({type(group)}) ...")
         for row in group["doc_id"]:
-            # logger.info(row)
             doc_ids.add(row)
 
         logger.info(f"No. of IDs: {len(doc_ids)}")

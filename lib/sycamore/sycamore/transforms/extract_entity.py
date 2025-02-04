@@ -137,7 +137,18 @@ class OpenAIEntityExtractor(EntityExtractor):
             llm = self._llm
         assert llm is not None, "Could not find an LLM to use"
         prompt: SycamorePrompt  # grr mypy
-        if self._prompt_template is not None:
+        if self._prompt is not None:
+            if isinstance(self._prompt, str):
+                prompt = ElementListPrompt(user=self._prompt + "\n{elements}")
+            else:
+                system = None
+                if len(self._prompt) > 0 and self._prompt[0]["role"] == "system":
+                    system = self._prompt[0]["content"]
+                    user = [p["content"] for p in self._prompt[1:]] + ["{elements}"]
+                else:
+                    user = [p["content"] for p in self._prompt] + ["{elements}"]
+                prompt = ElementListPrompt(system=system, user=user)
+        elif self._prompt_template is not None:
             prompt = EntityExtractorFewShotGuidancePrompt
             prompt = cast(ElementListPrompt, prompt.set(examples=self._prompt_template))
         else:

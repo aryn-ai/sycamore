@@ -5,23 +5,29 @@ import uuid
 from typing import Optional, Dict, Any
 
 import pytest
-from opensearchpy import OpenSearch
 
 import sycamore
 from sycamore import EXEC_LOCAL, ExecMode
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.data import Document
+from sycamore.data.document import DocumentPropertyTypes
+from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.tests.integration.connectors.common import compare_connector_docs
 from sycamore.tests.config import TEST_DIR
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import ArynPartitioner
+
+from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 
 OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
 TEST_CACHE_DIR = "/tmp/test_cache_dir"
+ARYN_API_KEY = os.getenv("ARYN_API_KEY")
 
 
 @pytest.fixture(scope="class")
 def os_client():
-    client = OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS)
+    from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
+
+    client = OpenSearchClientWithLogging(**TestOpenSearchRead.OS_CLIENT_ARGS)
     yield client
 
 
@@ -48,7 +54,7 @@ def setup_index_large(os_client):
 
     (
         context.read.binary(path, binary_format="pdf")
-        .partition(partitioner=UnstructuredPdfPartitioner())
+        .partition(ArynPartitioner(aryn_api_key=ARYN_API_KEY))
         .explode()
         .write.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
@@ -70,6 +76,19 @@ def setup_index_large(os_client):
 def get_doc_count(os_client, index_name: str, query: Optional[Dict[str, Any]] = None) -> int:
     res = os_client.count(index=index_name)
     return res["count"]
+
+
+"""
+class MockLLM(LLM):
+    def __init__(self):
+        super().__init__(model_name="mock_model")
+
+    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        return str(uuid.uuid4())
+
+    def is_chat_mode(self):
+        return True
+"""
 
 
 class TestOpenSearchRead:
@@ -111,7 +130,7 @@ class TestOpenSearchRead:
         context = sycamore.init(exec_mode=exec_mode)
         original_docs = (
             context.read.binary(path, binary_format="pdf")
-            .partition(partitioner=UnstructuredPdfPartitioner())
+            .partition(ArynPartitioner(aryn_api_key=ARYN_API_KEY))
             .explode()
             .write.opensearch(
                 os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
@@ -159,6 +178,74 @@ class TestOpenSearchRead:
         for i in range(len(doc.elements) - 1):
             assert doc.elements[i].element_index < doc.elements[i + 1].element_index
 
+        os_client.indices.delete(setup_index, ignore_unavailable=True)
+
+    def test_doc_reconstruct(self, setup_index, os_client):
+        with tempfile.TemporaryDirectory() as materialized_dir:
+            self._test_doc_reconstruct(setup_index, os_client, materialized_dir)
+
+    def _test_doc_reconstruct(self, setup_index, os_client, materialized_dir):
+        """
+        Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
+        """
+
+        print(f"Using materialized dir: {materialized_dir}")
+
+        def doc_reconstructor(doc_id: str) -> Document:
+            import pickle
+
+            data = pickle.load(open(f"{materialized_dir}/{setup_index}-{doc_id}", "rb"))
+            return Document(**data)
+
+        def doc_to_name(doc: Document, bin: bytes) -> str:
+            return f"{setup_index}-{doc.doc_id}"
+
+        path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
+        context = sycamore.init(exec_mode=ExecMode.RAY)
+        llm = OpenAI(OpenAIModels.GPT_4O_MINI)
+        extractor = OpenAIEntityExtractor("title", llm=llm)
+        original_docs = (
+            context.read.binary(path, binary_format="pdf")
+            .partition(ArynPartitioner(aryn_api_key=ARYN_API_KEY))
+            .extract_entity(extractor)
+            .materialize(path={"root": materialized_dir, "name": doc_to_name})
+            .explode()
+            .write.opensearch(
+                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                index_name=setup_index,
+                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                execute=False,
+            )
+            .take_all()
+        )
+
+        os_client.indices.refresh(setup_index)
+
+        expected_count = len(original_docs)
+        actual_count = get_doc_count(os_client, setup_index)
+        # refresh should have made all ingested docs immediately available for search
+        assert actual_count == expected_count, f"Expected {expected_count} documents, found {actual_count}"
+
+        retrieved_docs_reconstructed = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            reconstruct_document=True,
+        ).take_all()
+
+        assert len(retrieved_docs_reconstructed) == 1
+        retrieved_sorted = sorted(retrieved_docs_reconstructed, key=lambda d: d.doc_id)
+
+        def remove_reconstruct_doc_property(doc: Document):
+            for element in doc.data["elements"]:
+                element["properties"].pop(DocumentPropertyTypes.SOURCE)
+
+        for doc in retrieved_sorted:
+            remove_reconstruct_doc_property(doc)
+
+        from_materialized = [doc_reconstructor(doc.doc_id) for doc in retrieved_sorted]
+        compare_connector_docs(from_materialized, retrieved_sorted)
+
+        # Clean up
         os_client.indices.delete(setup_index, ignore_unavailable=True)
 
     def _test_ingest_and_read_via_docid_reconstructor(self, setup_index, os_client, cache_dir):
@@ -558,7 +645,7 @@ class TestOpenSearchRead:
         while doc_count < 20000:
             (
                 context.read.binary(path, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
+                .partition(ArynPartitioner(aryn_api_key=ARYN_API_KEY))
                 # .materialize(path={"root": TEST_CACHE_DIR, "name": self.doc_to_name})
                 .explode()
                 .write.opensearch(

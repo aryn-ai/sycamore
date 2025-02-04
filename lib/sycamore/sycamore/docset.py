@@ -17,6 +17,7 @@ from sycamore.llms.prompts.default_prompts import (
 )
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
+from sycamore.transforms.clustering import KMeans
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms import DocumentStructure, Sort
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
@@ -37,6 +38,7 @@ from sycamore.materialize_config import MaterializeSourceMode
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
+    from sycamore.grouped_data import GroupedData
 
 logger = logging.getLogger(__name__)
 
@@ -921,6 +923,40 @@ class DocSet:
         mapping = Map(self.plan, f=f, **resource_args)
         return DocSet(self.context, mapping)
 
+    def kmeans(self, K: int, iterations: int = 20, init_mode: str = "random", epsilon: float = 1e-4):
+        """
+        Apply kmeans over embedding field
+
+        Args:
+            K: the count of centroids
+            iterations: the max iteration runs before converge
+            init_mode: how the initial centroids are select
+            epsilon: the condition for determining if it's converged
+        Return a list of max K centroids
+        """
+
+        def init_embedding(row):
+            doc = Document.from_row(row)
+            return {"vector": doc.embedding, "cluster": -1}
+
+        embeddings = self.plan.execute().map(init_embedding).materialize()
+
+        initial_centroids = KMeans.init(embeddings, K, init_mode)
+        centroids = KMeans.update(embeddings, initial_centroids, iterations, epsilon)
+        return centroids
+
+    def clustering(self, centroids, cluster_field_name, **resource_args) -> "DocSet":
+        def cluster(doc: Document) -> Document:
+            idx = KMeans.closest(doc.embedding, centroids)
+            doc[cluster_field_name] = idx
+            return doc
+
+        from sycamore.transforms import Map
+
+        resource_args["enable_auto_metadata"] = False
+        mapping = Map(self.plan, f=cluster, **resource_args)
+        return DocSet(self.context, mapping)
+
     def flat_map(self, f: Callable[[Document], list[Document]], **resource_args) -> "DocSet":
         """
         Applies the FlatMap transformation on the Docset.
@@ -1333,6 +1369,11 @@ class DocSet:
 
         queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
         return DocSet(self.context, queries)
+
+    def groupby(self, key: Union[str, list[str]]) -> "GroupedData":
+        from sycamore.grouped_data import GroupedData
+
+        return GroupedData(self, key)
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def top_k(

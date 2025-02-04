@@ -41,10 +41,10 @@ class OpenSearchReaderClient(BaseDBReader.Client):
     @classmethod
     @requires_modules("opensearchpy", extra="opensearch")
     def from_client_params(cls, params: BaseDBReader.ClientParams) -> "OpenSearchReaderClient":
-        from opensearchpy import OpenSearch
+        from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 
         assert isinstance(params, OpenSearchReaderClientParams)
-        client = OpenSearch(**params.os_client_args)
+        client = OpenSearchClientWithLogging(**params.os_client_args)
         return OpenSearchReaderClient(client)
 
     def read_records(self, query_params: BaseDBReader.QueryParams) -> "OpenSearchReaderQueryResponse":
@@ -123,7 +123,9 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                     }
                 )
                 doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
-                doc.properties["score"] = data["_score"]
+                doc.properties["score"] = (
+                    data["_score"] if doc.properties.get("score") is None else doc.properties["score"]
+                )
                 result.append(doc)
         else:
             assert (
@@ -276,7 +278,7 @@ class OpenSearchReader(BaseDBReader):
     ):
         assert isinstance(
             query_params, OpenSearchReaderQueryParams
-        ), f"Wrong kind of query parameters found: {self._query_params}"
+        ), f"Wrong kind of query parameters found: {query_params}"
 
         super().__init__(client_params, query_params, **kwargs)
         self._client_params = client_params
@@ -326,7 +328,6 @@ class OpenSearchReader(BaseDBReader):
                     break
 
                 for hit in hits:
-                    # print(f"Element index: {hit['_source']['properties']['_element_index']}")
                     if (
                         "parent_id" in hit["_source"]
                         and hit["_source"]["parent_id"] is not None
@@ -346,7 +347,6 @@ class OpenSearchReader(BaseDBReader):
                 client.close()
 
         ret = [doc["_source"] for doc in results]
-        # logging.info(f"Sample: {ret[:5]}")
         return ret
 
     @timetrace("OpenSearchReader")
@@ -398,29 +398,32 @@ class OpenSearchReader(BaseDBReader):
 
         records = OpenSearchReaderQueryResponse(results, os_client)
         docs = records.to_docs(query_params=self._query_params)
-        # logging.info(f"Sample: {docs[:5]}")
         return [{"doc": doc.serialize()} for doc in docs]
 
     def map_reduce_parent_id(self, group: pd.DataFrame) -> pd.DataFrame:
-        # logger.info(f"Applying on {group} ({type(group)}) ...")
         parent_ids = set()
         for row in group["parent_id"]:
-            # logging.info(f"Row: {row}: {type(row)}")
-            parent_ids.add(row)
+            if row not in parent_ids:
+                parent_ids.add(row)
 
-        logger.info(f"Parent IDs: {parent_ids}")
-        return pd.DataFrame([{"_source": {"doc_id": parent_id, "parent_id": parent_id}} for parent_id in parent_ids])
+        return pd.DataFrame([{"_source": {"doc_id": parent_id}} for parent_id in parent_ids])
 
     def reconstruct(self, doc: dict[str, Any]) -> dict[str, Any]:
-        # logging.info(f"Applying on {doc} ({type(doc)}) ...")
         client = self.Client.from_client_params(self._client_params)
 
         if not client.check_target_presence(self._query_params):
             raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
 
         os_client = client._client
-        records = OpenSearchReaderQueryResponse([doc], os_client)
+        doc_id = doc["_source"]["doc_id"]
+        assert isinstance(
+            self._query_params, OpenSearchReaderQueryParams
+        ), f"Wrong kind of query parameters found: {self._query_params}"
+
+        parent_doc = os_client.get(index=self._query_params.index_name, id=doc_id)
+        records = OpenSearchReaderQueryResponse([parent_doc], os_client)
         docs = records.to_docs(query_params=self._query_params)
+
         return {"doc": docs[0].serialize()}
 
     def execute(self, **kwargs) -> "Dataset":
@@ -442,9 +445,7 @@ class OpenSearchReader(BaseDBReader):
         ), f"Wrong kind of query parameters found: {self._query_params}"
 
         doc_ids = set()
-        # logger.info(f"Applying on {group} ({type(group)}) ...")
         for row in group["doc_id"]:
-            # logger.info(row)
             doc_ids.add(row)
 
         logger.info(f"No. of IDs: {len(doc_ids)}")
@@ -570,6 +571,8 @@ class OpenSearchReader(BaseDBReader):
                     ds.flat_map(self._to_parent_doc, **self.resource_args)
                     .groupby("parent_id")
                     .map_groups(self.map_reduce_parent_id)
+                    # TODO use map_batches to improve 'get_all_elements_for_doc_ids' performance
+                    #  by making fewer requests to OpenSearch
                     .map(self.reconstruct)
                 )
             else:

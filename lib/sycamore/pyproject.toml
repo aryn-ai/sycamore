@@ -151,10 +151,6 @@ line-length = 120
 [tool.black]
 line-length = 120
 
-[mypy]
-mypy_path = "crawler/s3:crawler/http"
-explicit_package_bases = true
-
 [tool.mypy]
 exclude = ["notebooks", "docs"]
 ignore_missing_imports = true

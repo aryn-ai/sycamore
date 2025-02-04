@@ -20,6 +20,14 @@ class ArynConfig:
         return cls._get_aryn_config(config_path).get("aryn_token", "")
 
     @classmethod
+    def get_aryn_url(cls, config_path: str = "") -> str:
+        aryn_url = os.environ.get("ARYN_URL")
+        if aryn_url:
+            return aryn_url
+
+        return cls._get_aryn_config(config_path).get("aryn_url", "")
+
+    @classmethod
     def _get_aryn_config(cls, config_path: str = "") -> Dict[Any, Any]:
         config_path = config_path or os.environ.get("ARYN_CONFIG") or _DEFAULT_PATH
 

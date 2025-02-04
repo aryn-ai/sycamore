@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from ray.data.aggregate import AggregateFn
 
 from sycamore import DocSet
-from sycamore.data import Document
+from sycamore.data import Document, MetadataDocument
 
 
 class GroupedData:
@@ -14,7 +14,12 @@ class GroupedData:
 
     def aggregate(self, f: "AggregateFn") -> DocSet:
         dataset = self._docset.plan.execute()
-        grouped = dataset.map(Document.from_row).groupby(self._key)
+
+        def filter_meta(row):
+            doc = Document.from_row(row)
+            return not isinstance(doc, MetadataDocument)
+
+        grouped = dataset.filter(filter_meta).map(Document.from_row).groupby(self._key)
         aggregated = grouped.aggregate(f)
 
         def to_doc(row: dict):

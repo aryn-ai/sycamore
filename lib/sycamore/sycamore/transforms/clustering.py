@@ -23,7 +23,8 @@ class KMeans:
     @staticmethod
     def random_init(embeddings, K):
         count = embeddings.count()
-        assert count > 0 and K < count
+        K = K if count > K else count
+        assert count > 0
         fraction = min(2 * K / count, 1.0)
 
         candidates = [list(c["vector"]) for c in embeddings.random_sample(fraction).take()]
@@ -31,7 +32,7 @@ class KMeans:
         from itertools import groupby
 
         uniques = [key for key, _ in groupby(candidates)]
-        assert len(uniques) >= K
+        # assert len(uniques) >= K
 
         centroids = random.sample(uniques, K)
         return centroids

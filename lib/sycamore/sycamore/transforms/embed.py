@@ -39,19 +39,28 @@ class Embedder(ABC):
         model_batch_size: Optional[int] = None,
         pre_process_document: Optional[Callable[[Union[Document, Element]], str]] = None,
         device: Optional[str] = None,
+        embed_name: Optional[tuple[str, str]] = None,
     ):
         self.model_name = model_name
         self.batch_size = batch_size
         self.pre_process_document = pre_process_document if pre_process_document else _pre_process_document
         self.device = choose_device(device)
         self.model_batch_size = model_batch_size
+        self.embed_name = embed_name
 
     def __call__(self, doc_batch: list[Document]) -> list[Document]:
         return self.generate_embeddings(doc_batch)
 
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
-        """Handle batching and document processing logic in parent class"""
+        if self.embed_name:
+            for small_batch in batched(doc_batch, self._get_model_batch_size()):
+                texts = [doc.field_to_value(self.embed_name[0]) for doc in small_batch]
+                batch_embeddings = self.embed_texts(texts)
+                for doc, embedding in zip(small_batch, batch_embeddings):
+                    doc[self.embed_name[1]] = embedding
+            return doc_batch
 
+        """Handle batching and document processing logic in parent class"""
         # Collect objects to embed
         obj_for_embedding: list[Union[Document, Element]] = []
         text_to_embed = []
@@ -148,6 +157,7 @@ class SentenceTransformerEmbedder(Embedder):
         model_batch_size: int = 100,
         pre_process_document: Optional[Callable[[Union[Document, Element]], str]] = None,
         device: Optional[str] = None,
+        embed_name: Optional[tuple[str, str]] = None,
     ):
         super().__init__(
             model_name=model_name,
@@ -155,6 +165,7 @@ class SentenceTransformerEmbedder(Embedder):
             model_batch_size=model_batch_size,
             pre_process_document=pre_process_document,
             device=device,
+            embed_name=embed_name,
         )
         self._transformer = None
 
@@ -197,6 +208,7 @@ class OpenAIEmbedder(Embedder):
         api_key: Optional[str] = None,
         client_wrapper: Optional[OpenAIClientWrapper] = None,
         params: Optional[OpenAIClientParameters] = None,
+        embed_name: Optional[tuple[str, str]] = None,
         **kwargs,
     ):
         if isinstance(model_name, OpenAIEmbeddingModels):
@@ -223,6 +235,7 @@ class OpenAIEmbedder(Embedder):
             model_batch_size=model_batch_size,
             pre_process_document=pre_process_document,
             device="cpu",
+            embed_name=embed_name,
         )
 
     def __getstate__(self):
@@ -284,6 +297,7 @@ class BedrockEmbedder(Embedder):
         model_batch_size: int = 1,
         boto_session_args: list[Any] = [],
         boto_session_kwargs: dict[str, Any] = {},
+        embed_name: Optional[tuple[str, str]] = None,
     ):
         # Bedrock embedding curently doesn't support batching
         super().__init__(
@@ -292,6 +306,7 @@ class BedrockEmbedder(Embedder):
             model_batch_size=model_batch_size,
             pre_process_document=pre_process_document,
             device="cpu",
+            embed_name=embed_name,
         )
         self.boto_session_args = boto_session_args
         self.boto_session_kwargs = boto_session_kwargs

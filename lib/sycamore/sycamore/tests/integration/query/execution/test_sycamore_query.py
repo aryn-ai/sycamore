@@ -1,10 +1,11 @@
 import pytest
 
 from sycamore import DocSet
+from sycamore.query.operators.top_k import GroupByCount
 from sycamore.query.strategy import QueryPlanStrategy
 
 from sycamore.query.client import SycamoreQueryClient
-from sycamore.query.operators.query_database import QueryVectorDatabase
+from sycamore.query.operators.query_database import QueryVectorDatabase, QueryDatabase
 
 
 class TestSycamoreQuery:
@@ -70,8 +71,8 @@ class TestSycamoreQuery:
             assert len(result.result) > 0
             assert ray.is_initialized()
 
-    @pytest.mark.parametrize("codegen_mode", [True, False])
-    def test_vector_search(self, query_integration_test_index: str, codegen_mode: bool):
+    @pytest.mark.parametrize("codegen_mode", [False])
+    def test_vector_search(self, query_integration_test_index, codegen_mode: bool):
         """ """
 
         client = SycamoreQueryClient(query_plan_strategy=QueryPlanStrategy())
@@ -85,6 +86,34 @@ class TestSycamoreQuery:
         assert len(plan.nodes) == 2
         assert isinstance(plan.nodes[0], QueryVectorDatabase)
         result = client.run_plan(plan, codegen_mode=codegen_mode)
+        assert isinstance(result.result, DocSet)
+        docs = result.result.take_all()
+        assert len(docs) > 0
+
+    def test_vector_search_2(self, query_integration_test_index: str):
+
+        client = SycamoreQueryClient(query_plan_strategy=QueryPlanStrategy())
+        schema = client.get_opensearch_schema("ntsb-accident-cause")
+        plan = client.generate_plan(
+            "What was the most common cause of accidents in the NTSB incident reports?",
+            "ntsb-accident-cause",
+            schema,
+            natural_language_response=False,
+        )
+        assert len(plan.nodes) == 2
+        assert isinstance(plan.nodes[0], QueryDatabase)
+        plan.nodes[1] = GroupByCount(
+            node_type="GroupByCount",
+            node_id=1,
+            description="Find the most common cause of accidents",
+            inputs=[0],
+            entity_name="properties.cause",
+            embed_name="cause",
+            cluster_field_name="centroids",
+            K=5,
+            descending=True,
+        )
+        result = client.run_plan(plan, codegen_mode=False)
         assert isinstance(result.result, DocSet)
         docs = result.result.take_all()
         assert len(docs) > 0

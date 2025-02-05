@@ -1611,10 +1611,25 @@ class DocSet:
         ds = ctx.read....
         ds.execute()  # Runs without reliability guarantees
 
-        # Reliable execution
+        # Reliable execution with materialize read
+
         ctx = sycamore.init()
         ctx.rewrite_rules.append(MaterializeReadReliability(max_batch=200, max_retries=20))
-        ds = ctx.read....Materialize(...)
+        ds = ctx.read.materialize()\
+             ... \
+             materialize()
+        ds.execute()  # Runs with batching, retries, and progress tracking
+
+
+        # Reliable execution with binary read ( Make sure to map docid_from_path to set the docid )
+
+        from sycamore.materialize import docid_from_path
+        ctx = sycamore.init()
+        ctx.rewrite_rules.append(MaterializeReadReliability(max_batch=200, max_retries=20))
+        ds = ctx.read.binary()\
+            .map(docid_from_path)
+             ... \
+             materialize()
         ds.execute()  # Runs with batching, retries, and progress tracking
 
         For more details, see the MaterializeReadReliability class.

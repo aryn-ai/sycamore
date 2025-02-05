@@ -186,7 +186,7 @@ class MaterializeReadReliability(NodeTraverse):
             else:
                 assert (
                     len(node.children) != 0
-                ), f"""Reliability pipeline cannot have node {type(node)} as first node.\
+                ), f"""Reliability pipeline cannot have node {type(node)} as first node.\n
                 Only BinaryScan and Materialize nodes are allowed."""
 
             assert len(node.children) < 2, "Reliablity pipeline should only have one/zero child"
@@ -258,12 +258,11 @@ class MaterializeReadReliability(NodeTraverse):
 
 def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
     if d.doc_id:
-
         assert (
             len(d.doc_id) == 76
         ), """This method expects docids to be 76 characters long and used with reliability.
               Make sure to have docids set using docid_from_path method,
-              also use params 'name': name_from_docid, 'tobin': doc_only_to_binary in materialize"""
+            """
         assert d.doc_id.startswith("path-sha256-")
         if isinstance(d, MetadataDocument):
             return f"md-{d.doc_id}.pickle"

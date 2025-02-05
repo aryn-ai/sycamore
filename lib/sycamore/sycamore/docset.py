@@ -1119,56 +1119,6 @@ class DocSet:
         )
         return DocSet(self.context, mapfilter)
 
-        entity_extractor = OpenAIEntityExtractor(
-            entity_name=new_field, llm=llm, use_elements=False, prompt=prompt, field=field
-        )
-
-        if not use_elements:
-            from sycamore.transforms.llm_filter import document_threshold_llm_filter
-
-            def f(doc):
-                return document_threshold_llm_filter(
-                    doc, field=field, entity_extractor=entity_extractor, threshold=threshold, keep_none=keep_none
-                )
-
-            return self.filter(f, **resource_args)
-
-        from sycamore.transforms.llm_filter import (
-            tokenized_threshold_llm_filter,
-            untokenized_threshold_llm_filter,
-        )
-        from sycamore.utils.similarity import make_element_sorter_fn
-
-        element_sorter = make_element_sorter_fn(field, similarity_query, similarity_scorer)
-
-        if tokenizer is not None:
-
-            def g(doc):
-                return tokenized_threshold_llm_filter(
-                    doc,
-                    field=field,
-                    entity_extractor=entity_extractor,
-                    threshold=threshold,
-                    keep_none=keep_none,
-                    element_sorter=element_sorter,
-                    max_tokens=max_tokens,
-                    tokenizer=tokenizer,
-                )
-
-            return self.filter(g, **resource_args)
-
-        def h(doc):
-            return untokenized_threshold_llm_filter(
-                doc,
-                field=field,
-                entity_extractor=entity_extractor,
-                threshold=threshold,
-                keep_none=keep_none,
-                element_sorter=element_sorter,
-            )
-
-        return self.filter(h, **resource_args)
-
     def map_batch(
         self,
         f: Callable[[list[Document]], list[Document]],

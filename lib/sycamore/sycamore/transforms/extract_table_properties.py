@@ -87,7 +87,9 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
                         "text": (
                             prompt_LLM
                             if prompt_LLM is not None
-                            else ExtractTablePropertiesPrompt.user + f"\n CSV: {ele.text_representation}"
+                            else (
+                                ExtractTablePropertiesPrompt.user + f"\n CSV: {ele.text_representation}"  # type: ignore
+                            )  # type ignore - thinks ETPP.user could be None
                         ),
                     },
                     llm.format_image(img),
@@ -96,7 +98,7 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
                     {"role": "user", "content": content},
                 ]
                 prompt_kwargs = {"messages": messages}
-                raw_answer = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
+                raw_answer = llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={})
             parsed_json = ExtractTableProperties.extract_parent_json(raw_answer)
             if parsed_json:
                 ele.properties[property_name] = json.loads(parsed_json)

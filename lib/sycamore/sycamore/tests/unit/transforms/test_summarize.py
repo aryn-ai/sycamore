@@ -21,7 +21,7 @@ class TestSummarize:
 
     def test_summarize_text_calls_llm(self, mocker):
         llm = mocker.Mock(spec=LLM)
-        generate = mocker.patch.object(llm, "generate")
+        generate = mocker.patch.object(llm, "generate_old")
         generate.return_value = "this is the summary"
         doc = Document()
         element1 = Element()

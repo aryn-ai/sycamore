@@ -86,7 +86,7 @@ class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
             modified_description = self.postprocess_llm_helper(
                 f"""
                             The following is the description of a Python function. I am modifying the function code
-                            to remove any functionality that specifically has to do with "{op.query_phrase}", thereby 
+                            to remove any functionality that specifically has to do with "{op.query_phrase}", thereby
                             generalizing the description to be more flexible.
                             Return only the modified description. Do not make assumptions
                             about the intent of the question that are not explicitly specified.
@@ -115,7 +115,7 @@ class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
                 f"""
                         Generate a one-line description for a python function whose goal is to filter the input
                         records based on whether they contain {op.query_phrase}.
-                        Here are two example outputs: 
+                        Here are two example outputs:
                         (1) Filter to records involving wildfires.
                         (2) Filter to records that occurred in Northwest USA.
                         """,
@@ -158,7 +158,7 @@ class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
         ]
 
         prompt_kwargs = {"messages": messages}
-        chat_completion = self.llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
+        chat_completion = self.llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
         return chat_completion
 
 

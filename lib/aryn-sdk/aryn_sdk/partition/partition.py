@@ -1,5 +1,6 @@
 from os import PathLike
 from typing import BinaryIO, Literal, Optional, Union, Any
+from urllib.parse import urlparse, urlunparse
 from collections.abc import Mapping
 from aryn_sdk.config import ArynConfig
 import requests
@@ -20,6 +21,8 @@ _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.INFO)
 _logger.addHandler(logging.StreamHandler(sys.stderr))
 
+g_version = "0.1.13"
+
 
 class PartitionError(Exception):
     def __init__(self, message: str, status_code: int) -> None:
@@ -29,6 +32,7 @@ class PartitionError(Exception):
 
 def partition_file(
     file: Union[BinaryIO, str, PathLike],
+    *,
     aryn_api_key: Optional[str] = None,
     aryn_config: Optional[ArynConfig] = None,
     threshold: Optional[Union[float, Literal["auto"]]] = None,
@@ -91,14 +95,21 @@ def partition_file(
         ssl_verify: verify ssl certificates. In databricks, set this to False to fix ssl imcompatibilities.
         output_format: controls output representation; can be set to "markdown" or "json"
             default: None (JSON elements)
-        output_label_options: A dictionary for configuring output label behavior. It supports two options:
+        output_label_options: A dictionary for configuring output label behavior. It supports three options:
             promote_title, a boolean specifying whether to pick the largest element by font size on the first page
                 from among the elements on that page that have one of the types specified in title_candidate_elements
                 and promote it to type "Title" if there is no element on the first page of type "Title" already.
             title_candidate_elements, a list of strings representing the label types allowed to be promoted to
                 a title.
+            orientation_correction, a boolean specifying whether to pagewise rotate pages to the correct orientation
+                based off the orientation of text. Pages are rotated by increments of 90 degrees to correct their
+                orientation.
             Here is an example set of output label options:
-                {"promote_title": True, "title_candidate_elements": ["Section-header", "Caption"]}
+                {
+                    "promote_title": True,
+                    "title_candidate_elements": ["Section-header", "Caption"],
+                    "orientation_correction": True
+                }
             default: None (no element is promoted to "Title")
 
 
@@ -121,18 +132,54 @@ def partition_file(
                 )
             elements = data['elements']
     """
+    return _partition_file_inner(
+        file=file,
+        aryn_api_key=aryn_api_key,
+        aryn_config=aryn_config,
+        threshold=threshold,
+        use_ocr=use_ocr,
+        ocr_images=ocr_images,
+        extract_table_structure=extract_table_structure,
+        table_extraction_options=table_extraction_options,
+        extract_images=extract_images,
+        selected_pages=selected_pages,
+        chunking_options=chunking_options,
+        aps_url=aps_url,
+        docparse_url=docparse_url,
+        ssl_verify=ssl_verify,
+        output_format=output_format,
+        output_label_options=output_label_options,
+    )
+
+
+def _partition_file_inner(
+    file: Union[BinaryIO, str, PathLike],
+    *,
+    aryn_api_key: Optional[str] = None,
+    aryn_config: Optional[ArynConfig] = None,
+    threshold: Optional[Union[float, Literal["auto"]]] = None,
+    use_ocr: bool = False,
+    ocr_images: bool = False,
+    extract_table_structure: bool = False,
+    table_extraction_options: dict[str, Any] = {},
+    extract_images: bool = False,
+    selected_pages: Optional[list[Union[list[int], int]]] = None,
+    chunking_options: Optional[dict[str, Any]] = None,
+    aps_url: Optional[str] = None,  # deprecated in favor of docparse_url
+    docparse_url: Optional[str] = None,
+    ssl_verify: bool = True,
+    output_format: Optional[str] = None,
+    output_label_options: dict[str, Any] = {},
+    webhook_url: Optional[str] = None,
+):
+    """Do not call this function directly. Use partition_file or partition_file_async_submit instead."""
 
     # If you hand me a path for the file, read it in instead of trying to send the path
     if isinstance(file, (str, PathLike)):
         with open(file, "rb") as f:
             file = io.BytesIO(f.read())
 
-    if aryn_api_key is not None:
-        if aryn_config is not None:
-            _logger.warning("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")
-        aryn_config = ArynConfig(aryn_api_key=aryn_api_key)
-    if aryn_config is None:
-        aryn_config = ArynConfig()
+    aryn_config = _process_config(aryn_api_key, aryn_config)
 
     if aps_url is not None:
         if docparse_url is not None:
@@ -160,21 +207,11 @@ def partition_file(
 
     _logger.debug(f"{options_str}")
 
-    # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
-    stream = True
-    if "vcr" in sys.modules:
-        ul3 = sys.modules.get("urllib3")
-        if ul3:
-            # Look for tell-tale patched method...
-            mod = ul3.connectionpool.is_connection_dropped.__module__
-            if "mock" in mod:
-                stream = False
-
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
-    http_header = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
-    resp = requests.post(docparse_url, files=files, headers=http_header, stream=stream, verify=ssl_verify)
+    headers = _generate_headers(aryn_config.api_key(), webhook_url)
+    resp = requests.post(docparse_url, files=files, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
-    if resp.status_code != 200:
+    if resp.status_code < 200 or resp.status_code > 299:
         raise requests.exceptions.HTTPError(
             f"Error: status_code: {resp.status_code}, reason: {resp.text}", response=resp
         )
@@ -223,6 +260,36 @@ def partition_file(
     return data
 
 
+def _process_config(aryn_api_key: Optional[str] = None, aryn_config: Optional[ArynConfig] = None) -> ArynConfig:
+    if aryn_api_key is not None:
+        if aryn_config is not None:
+            _logger.warning("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")
+        aryn_config = ArynConfig(aryn_api_key=aryn_api_key)
+    if aryn_config is None:
+        aryn_config = ArynConfig()
+    return aryn_config
+
+
+def _generate_headers(aryn_api_key: str, webhook_url: Optional[str] = None) -> dict[str, str]:
+    headers = {"Authorization": f"Bearer {aryn_api_key}", "User-Agent": f"aryn-sdk/{g_version}"}
+    if webhook_url:
+        headers["X-Aryn-Webhook"] = webhook_url
+    return headers
+
+
+def _should_stream() -> bool:
+    # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
+    stream = True
+    if "vcr" in sys.modules:
+        ul3 = sys.modules.get("urllib3")
+        if ul3:
+            # Look for tell-tale patched method...
+            mod = ul3.connectionpool.is_connection_dropped.__module__
+            if "mock" in mod:
+                stream = False
+    return stream
+
+
 def _json_options(
     threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
@@ -261,6 +328,209 @@ def _json_options(
     options["source"] = "aryn-sdk"
 
     return json.dumps(options)
+
+
+def partition_file_async_submit(
+    file: Union[BinaryIO, str, PathLike],
+    *,
+    aryn_api_key: Optional[str] = None,
+    aryn_config: Optional[ArynConfig] = None,
+    threshold: Optional[Union[float, Literal["auto"]]] = None,
+    use_ocr: bool = False,
+    ocr_images: bool = False,
+    extract_table_structure: bool = False,
+    table_extraction_options: dict[str, Any] = {},
+    extract_images: bool = False,
+    selected_pages: Optional[list[Union[list[int], int]]] = None,
+    chunking_options: Optional[dict[str, Any]] = None,
+    aps_url: Optional[str] = None,  # deprecated in favor of docparse_url
+    docparse_url: Optional[str] = None,
+    ssl_verify: bool = True,
+    output_format: Optional[str] = None,
+    output_label_options: dict[str, Any] = {},
+    webhook_url: Optional[str] = None,
+    async_submit_url: Optional[str] = None,
+) -> dict[str, Any]:
+    """
+    Submits a file to be partitioned asynchronously. Meant to be used in tandem with `partition_file_async_result`.
+
+    `partition_file_async_submit` takes the same arguments as `partition_file`, and in addition it accepts a str
+    `webhook_url` argument which is a URL Aryn will send a POST request to when the task stops and an str
+    `async_submit_url` argument that can be used to override where the task is submitted to.
+
+    Set the `docparse_url` argument to the url of the synchronous endpoint, and this function will automatically
+    change it to the async endpoint as long as `async_submit_url` is not set.
+
+    For examples of usage see README.md
+
+    Args:
+        Includes All Arguments `partition_file` accepts plus those below:
+        ...
+        webhook_url: A URL to send a POST request to when the task is done. The resulting POST request will have a
+            body like: {"done": [{"task_id": "aryn:j-47gpd3604e5tz79z1jro5fc"}]}
+        async_submit_url: When set, this will override the endpoint the task is submitted to.
+
+    Returns:
+        A dictionary containing the key "task_id" the value of which can be used with the `partition_file_async_result`
+        function to get the results and check the status of the async task.
+    """
+
+    if async_submit_url:
+        docparse_url = async_submit_url
+    elif not aps_url and not docparse_url:
+        docparse_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/submit", truncate=False)
+    else:
+        if aps_url:
+            aps_url = _convert_sync_to_async_url(aps_url, "/submit", truncate=False)
+        if docparse_url:
+            docparse_url = _convert_sync_to_async_url(docparse_url, "/submit", truncate=False)
+
+    return _partition_file_inner(
+        file=file,
+        aryn_api_key=aryn_api_key,
+        aryn_config=aryn_config,
+        threshold=threshold,
+        use_ocr=use_ocr,
+        ocr_images=ocr_images,
+        extract_table_structure=extract_table_structure,
+        table_extraction_options=table_extraction_options,
+        extract_images=extract_images,
+        selected_pages=selected_pages,
+        chunking_options=chunking_options,
+        aps_url=aps_url,
+        docparse_url=docparse_url,
+        ssl_verify=ssl_verify,
+        output_format=output_format,
+        output_label_options=output_label_options,
+        webhook_url=webhook_url,
+    )
+
+
+def _convert_sync_to_async_url(url: str, prefix: str, *, truncate: bool) -> str:
+    parsed_url = urlparse(url)
+    assert parsed_url.path.startswith("/v1/")
+    if parsed_url.path.startswith("/v1/async/submit"):
+        return url
+    ary = list(parsed_url)
+    if truncate:
+        ary[2] = f"/v1/async{prefix}"  # path
+    else:
+        ary[2] = f"/v1/async{prefix}{parsed_url.path[3:]}"  # path
+    return urlunparse(ary)
+
+
+def partition_file_async_result(
+    task_id: str,
+    *,
+    aryn_api_key: Optional[str] = None,
+    aryn_config: Optional[ArynConfig] = None,
+    ssl_verify: bool = True,
+    async_result_url: Optional[str] = None,
+) -> dict[str, Any]:
+    """
+    Get the results of an asynchronous partitioning task by task_id. Meant to be used with
+    `partition_file_async_submit`.
+
+    For examples of usage see README.md
+
+    Returns:
+        A dict containing "status" and "status_code". When "status" is "done", the returned dict also contains "result"
+        which contains what would have been returned had `partition_file` been called directly. "status" can be "done",
+        "pending", "error", or "no_such_task".
+
+        Unlike `partition_file`, this function does not raise an Exception if the partitioning failed.
+    """
+    if not async_result_url:
+        async_result_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/result", truncate=True)
+
+    aryn_config = _process_config(aryn_api_key, aryn_config)
+
+    specific_task_url = f"{async_result_url.rstrip('/')}/{task_id}"
+    headers = _generate_headers(aryn_config.api_key())
+    response = requests.get(specific_task_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
+
+    if response.status_code == 200:
+        return {"status": "done", "status_code": response.status_code, "result": response.json()}
+    elif response.status_code == 202:
+        return {"status": "pending", "status_code": response.status_code}
+    elif response.status_code == 404:
+        return {"status": "no_such_task", "status_code": response.status_code}
+    else:
+        return {"status": "error", "status_code": response.status_code}
+
+
+def partition_file_async_cancel(
+    task_id: str,
+    *,
+    aryn_api_key: Optional[str] = None,
+    aryn_config: Optional[ArynConfig] = None,
+    ssl_verify: bool = True,
+    async_cancel_url: Optional[str] = None,
+) -> bool:
+    """
+    Cancel an asynchronous partitioning task by task_id. Meant to be used with `partition_file_async_submit`.
+
+    Returns:
+        A bool indicating whether the task was successfully cancelled by this request.
+
+        A task can only be successfully cancelled once. A return value of false can mean the task was already cancelled,
+        the task is already done, or there was no task with the given task_id.
+
+        For an example of usage see README.md
+    """
+    if not async_cancel_url:
+        async_cancel_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/cancel", truncate=True)
+
+    aryn_config = _process_config(aryn_api_key, aryn_config)
+
+    specific_task_url = f"{async_cancel_url.rstrip('/')}/{task_id}"
+    headers = _generate_headers(aryn_config.api_key())
+    response = requests.post(specific_task_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
+    if response.status_code == 200:
+        return True
+    elif response.status_code == 404:
+        return False
+    else:
+        raise Exception("Unexpected response code.")
+
+
+def partition_file_async_list(
+    *,
+    aryn_api_key: Optional[str] = None,
+    aryn_config: Optional[ArynConfig] = None,
+    ssl_verify: bool = True,
+    async_list_url: Optional[str] = None,
+) -> dict[str, Any]:
+    """
+    List pending async tasks. For an example of usage see README.md
+
+    Returns:
+        A dict like the one below which maps task_ids to a dict containing details of the respective task.
+
+        {
+            "aryn:j-sc0v0lglkauo774pioflp4l": {
+                "state": "run"
+            },
+            "aryn:j-b9xp7ny0eejvqvbazjhg8rn": {
+                "state": "run"
+            }
+        }
+    """
+    if not async_list_url:
+        async_list_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/list", truncate=True)
+
+    aryn_config = _process_config(aryn_api_key, aryn_config)
+
+    headers = _generate_headers(aryn_config.api_key())
+    response = requests.get(async_list_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
+
+    all_tasks = response.json()["tasks"]
+    result = {}
+    for task_id in all_tasks.keys():
+        if all_tasks[task_id]["path"] == "/v1/document/partition":
+            del all_tasks[task_id]["path"]
+            result[task_id] = all_tasks[task_id]
+    return result
 
 
 # Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()
@@ -353,7 +623,7 @@ def tables_to_pandas(data: dict) -> list[tuple[dict, Optional[pd.DataFrame]]]:
             with open("my-favorite-pdf.pdf", "rb") as f:
                 data = partition_file(
                     f,
-                    aryn_api_key="MY-ARYN-TOKEN",
+                    aryn_api_key="MY-ARYN-API-KEY",
                     use_ocr=True,
                     extract_table_structure=True,
                     extract_images=True

@@ -7,8 +7,10 @@ from sycamore.context import Context, OperationTypes, ExecMode
 from sycamore.data import Document, Element
 from sycamore.functions import Tokenizer
 from sycamore.llms import LLM
+from sycamore.plan_nodes import Node
 from sycamore.tests.unit.test_docset import MockLLM, TestSimilarityScorer, MockTokenizer
 from sycamore.transforms.extract_entity import EntityExtractor
+from sycamore.transforms.base_llm import LLMMap
 
 tokenizer_doc = [
     Document(
@@ -27,7 +29,9 @@ tokenizer_doc = [
             Element(properties={"_element_index": 1}, text_representation="third element"),  # llm_filter result = 2
             Element(
                 properties={"_element_index": 2},
-                text_representation="very long element with many words that might exceed token limit",
+                text_representation="very long element with many words that might exceed token limit."
+                " Specifically, it has so many words that even with the additional contextualization"
+                " like 'Element type' and 'page number' it still overflows",
             ),  # llm_filter result = 5
         ],
     ),
@@ -223,7 +227,7 @@ class TestLLMFilter:
             threshold=3,
             use_elements=True,
             tokenizer=mock_tokenizer,
-            max_tokens=10,  # Low token limit to test windowing
+            max_tokens=20,  # Low token limit to test windowing
         )
 
         taken = filtered_docset.take()
@@ -251,6 +255,11 @@ class BadEntityExtractor(EntityExtractor):
     def __init__(self, entity_name, bad_val):
         super().__init__(entity_name)
         self.bad_val = bad_val
+
+    def as_llm_map(
+        self, child: Optional[Node], context: Optional[Context] = None, llm: Optional[LLM] = None, **kwargs
+    ) -> LLMMap:
+        raise NotImplementedError("Not using this yet")
 
     def extract_entity(
         self, document: Document, context: Optional[Context] = None, llm: Optional[LLM] = None

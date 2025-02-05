@@ -1,13 +1,14 @@
 import logging
 from abc import ABC
 from typing import Any, Optional, Type
+import textwrap
 
-from sycamore.schema import Schema
+from sycamore.llms.prompts.prompts import ElementListPrompt, ElementPrompt, StaticPrompt
 
 logger = logging.getLogger(__name__)
 
 
-class SimplePrompt(ABC):
+class _SimplePrompt(ABC):
     system: Optional[str] = None
     user: Optional[str] = None
     var_name: str = "answer"
@@ -35,7 +36,10 @@ class SimplePrompt(ABC):
         return hash((self.system, self.user, self.var_name))
 
 
-class EntityExtractorZeroShotGuidancePrompt(SimplePrompt):
+SimplePrompt = _SimplePrompt
+
+
+class _EntityExtractorZeroShotGuidancePrompt(_SimplePrompt):
     system = "You are a helpful entity extractor"
     # ruff: noqa: E501
     user = """You are given a few text elements of a document. The {entity} of the document is in these few text elements.Using
@@ -45,7 +49,15 @@ class EntityExtractorZeroShotGuidancePrompt(SimplePrompt):
     """
 
 
-class EntityExtractorFewShotGuidancePrompt(SimplePrompt):
+EntityExtractorZeroShotGuidancePrompt = ElementListPrompt(
+    system="You are a helpful entity extractor",
+    user="""You are given a few text elements of a document. The {entity} of the document is in these few text elements.
+    Using this context, FIND, COPY, and RETURN the {entity}. DO NOT REPHRASE OR MAKE UP AN ANSWER.
+    {elements}""",
+)
+
+
+class _EntityExtractorFewShotGuidancePrompt(SimplePrompt):
     system = "You are a helpful entity extractor."
     # ruff: noqa: E501
     user = """You are given a few text elements of a document. The {entity} of the document is in these few text elements. Here are
@@ -57,7 +69,19 @@ class EntityExtractorFewShotGuidancePrompt(SimplePrompt):
     """
 
 
-class TextSummarizerGuidancePrompt(SimplePrompt):
+EntityExtractorFewShotGuidancePrompt = ElementListPrompt(
+    system="You are a helpful entity extractor",
+    user="""You are given a few text elements of a document. The {entity} of the document is in these few text elements. Here are
+    some example groups of text elements where the {entity} has been identified.
+    {examples}
+    Using the context from the document and the provided examples, FIND, COPY, and RETURN the {entity}. Only return the {entity} as part
+    of your answer. DO NOT REPHRASE OR MAKE UP AN ANSWER.
+    {elements}
+    """,
+)
+
+
+class _TextSummarizerGuidancePrompt(SimplePrompt):
     system = "You are a helpful text summarizer."
     user = """Write a summary of the following. Use only the information provided.
     Include as many key details as possible. Do not make up answer. Only return the summary as part of your answer.
@@ -66,7 +90,16 @@ class TextSummarizerGuidancePrompt(SimplePrompt):
     var_name = "summary"
 
 
-class SchemaZeroShotGuidancePrompt(SimplePrompt):
+TextSummarizerGuidancePrompt = ElementPrompt(
+    system="You are a helpful text summarizer.",
+    user="""Write a summary of the following. Use only the information provided.
+    Include as many key details as possible. Do not make up your answer. Only return the summary as part of your answer
+    {elt_text}
+    """,
+)
+
+
+class _SchemaZeroShotGuidancePrompt(SimplePrompt):
     system = "You are a helpful entity extractor. You only return JSON Schema."
     user = """You are given a few text elements of a document. Extract JSON Schema representing one entity of
     class {entity} from the document. Using this context, FIND, FORMAT, and RETURN the JSON-LD Schema.
@@ -76,7 +109,18 @@ class SchemaZeroShotGuidancePrompt(SimplePrompt):
     """
 
 
-class TaskIdentifierZeroShotGuidancePrompt(SimplePrompt):
+SchemaZeroShotGuidancePrompt = ElementListPrompt(
+    system="You are a helpful entity extractor. You only return JSON Schema.",
+    user="""You are given a few text elements of a document. Extract JSON Schema representing one entity of
+    class {entity} from the document. Using this context, FIND, FORMAT, and RETURN the JSON-LD Schema.
+    Return a flat schema, without nestes properties. Return at most {max_num_properties} properties.
+    Only return JSON Schema as part of your answer.
+    {elements}""",
+    max_num_properties=7,
+)
+
+
+class _TaskIdentifierZeroShotGuidancePrompt(SimplePrompt):
     system = "You are a helpful task identifier. You return a string containing no whitespace."
     user = """You are given a dictionary where the keys are task IDs and the values are descriptions of tasks.
     Using this context, FIND and RETURN only the task ID that best matches the given question.
@@ -84,6 +128,17 @@ class TaskIdentifierZeroShotGuidancePrompt(SimplePrompt):
     {task_descriptions}
     Question: {question}
     """
+
+
+TaskIdentifierZeroShotGuidancePrompt = StaticPrompt(
+    system="You are a helpful task identifier. You return a string containing no whitespace.",
+    user="""You are given a dictionary where the keys are task IDs and the values are descriptions of tasks.
+    Using this context, FIND and RETURN only the task ID that best matches the given question.
+    Only return the task ID as a string. Do not return any additional information.
+    {task_descriptions}
+    Question: {question}
+    """,
+)
 
 
 class GraphEntityExtractorPrompt(SimplePrompt):
@@ -108,7 +163,7 @@ class GraphRelationshipExtractorPrompt(SimplePrompt):
     """
 
 
-class ExtractTablePropertiesPrompt(SimplePrompt):
+class _ExtractTablePropertiesPrompt(SimplePrompt):
     user = """
         You are given a text string represented as a CSV (comma-separated values) and an image of a table.
 
@@ -150,8 +205,8 @@ class ExtractTablePropertiesPrompt(SimplePrompt):
             |---------------------------------|------------------|------------------|
 
             return False
-        
-        example of a key value table containing null walues 
+
+        example of a key value table containing null values
             |---------------------------------|---------------------|
             | header 1 :                      | header 2: 'value2'  |
             | header 3 :                      | header 4 :          |
@@ -163,48 +218,77 @@ class ExtractTablePropertiesPrompt(SimplePrompt):
             """
 
 
-class ExtractPropertiesFromSchemaPrompt(SimplePrompt):
-    def __init__(self, schema: Schema, text: str):
-        super().__init__()
+ExtractTablePropertiesPrompt = ElementPrompt(
+    user="""
+        You are given a text string represented as a CSV (comma-separated values) and an image of a table.
 
-        self.system = "You are given text contents from a document."
-        self.user = f"""
-        Extract values for the following fields:
-        {self._format_schema(schema)}
-        
-        Document text:
-        {text}
-        
-        Don't return extra information.
-        If you cannot find a value for a requested property, use the provided default or the value 'None'.
-        Return your answers as a valid json dictionary that will be parsed in python. 
-"""
+        Instructions:
+            Check if the table contains key-value pairs. A key-value pair table is a table where data is structured as key-value pairs. Generally, the first column contains the key and the second column contains the value. However, key-value pairs can also appear in other formats.
+            If there is a one-to-one mapping between two cells, even if the relationship is not direct, they should be considered key-value pairs.
+            If the table is a key-value pair table, return its key-value pairs as a JSON object.
+            If the table is not a key-value pair table, return False.
+            Use camelCase for the key names in the JSON object.
+            Parse the CSV table, check the image, and return a flattened JSON object representing the key-value pairs from the table. The extracted key-value pairs should be formatted as a JSON object.
+            Do not return nested objects; keep the dictionary only one level deep. The only valid value types are numbers, strings, None, and lists.
+            A table can have multiple or all null values for a key. In such cases, return a JSON object with the specified key set to null for all rows in the table.
+            For fields where the values are in standard measurement units like miles, nautical miles, knots, or Celsius, include the unit in the key name and only set the numeric value as the value:
 
-    @staticmethod
-    def _format_schema(schema: Schema) -> str:
-        text = ""
-        for i, field in enumerate(schema.fields):
-            text += f"""
-            {i} {field.name}: type={field.field_type}: default={field.default}
-                {field.description}\n
-                Examples values: {field.examples}
-                
-"""
-        return text
+                "Wind Speed: 9 knots" should become "windSpeedInKnots": 9
+                "Temperature: 3°C" should become "temperatureInC": 3
+                Ensure that key names are enclosed in double quotes.
+
+            Return only the JSON object between ``` if the table is a key-value pair table; otherwise, return False.
+
+        example of a key-value pair table:
+            |---------------------------------|------------------|
+            | header 1                        | header 2         |
+            |---------------------------------|------------------|
+            | NEW FIRE ALARM SYSTEMS          | $272 TWO HOURS   |
+            | NEW SPRINKLER SYSTEMS           | $408 THREE HOURS |
+            | NEW GASEOUS SUPPRESSION SYSTEMS | $272 TWO HOURS   |
+            |---------------------------------|------------------|
+
+            return ```{"NEW FIRE ALARM SYSTEMS": "$272 TWO HOURS", "NEW SPRINKLER SYSTEMS": "$408 THREE HOURS", "NEW GASEOUS SUPPRESSION SYSTEMS": "$272 TWO HOURS"}```
+
+        example of a table which is not key-value pair table:
+            |---------------------------------|------------------|------------------|
+            | header 1                        | header 2         | header 3         |
+            |---------------------------------|------------------|------------------|
+            | NEW FIRE ALARM SYSTEMS          | $272 TWO HOURS   | $2752 ONE HOUR   |
+            | NEW SPRINKLER SYSTEMS           | $408 THREE HOURS | $128 FIVE HOURS  |
+            | NEW GASEOUS SUPPRESSION SYSTEMS | $272 TWO HOURS   | $652 TEN HOURS   |
+            |---------------------------------|------------------|------------------|
+
+            return False
+
+        example of a key value table containing null values
+            |---------------------------------|---------------------|
+            | header 1 :                      | header 2: 'value2'  |
+            | header 3 :                      | header 4 :          |
+            | header 5 :                      | header 6:           |
+            |---------------------------------|---------------------|
+
+            return ```{"header1": null, "header2": "value2", "header3": null, "header4": null, "header5": null, "header6": null}```
+
+        CSV:
+            {elt_text}
+            """,
+    include_element_image=True,
+)
 
 
-class PropertiesZeroShotGuidancePrompt(SimplePrompt):
-    def __init__(self):
-        super().__init__()
-
-        self.system = "You are a helpful property extractor. You only return JSON."
-
-        self.user = """You are given a few text elements of a document. Extract JSON representing one entity of
-        class {entity} from the document. The class only has properties {properties}. Using
-        this context, FIND, FORMAT, and RETURN the JSON representing one {entity}.
-        Only return JSON as part of your answer. If no entity is in the text, return "None".
-        {text}
-        """
+PropertiesZeroShotGuidancePrompt = ElementListPrompt(
+    system="You are a helpful property extractor. You only return JSON.",
+    user=textwrap.dedent(
+        """\
+    You are given a few text elements of a document. Extract JSON representing one entity of
+    class {entity} from the document. The class only has properties {properties}. Using
+    this context, FIND, FORMAT, and RETURN the JSON representing one {entity}.
+    Only return JSON as part of your answer. If no entity is in the text, return "None".
+    {text}
+    """
+    ),
+)
 
 
 class EntityExtractorMessagesPrompt(SimplePrompt):
@@ -291,16 +375,14 @@ class LlmClusterEntityAssignGroupsMessagesPrompt(SimplePrompt):
 
 
 _deprecated_prompts: dict[str, Type[SimplePrompt]] = {
-    "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT": EntityExtractorZeroShotGuidancePrompt,
-    "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT_CHAT": EntityExtractorFewShotGuidancePrompt,
-    "ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT_CHAT": EntityExtractorFewShotGuidancePrompt,
-    "ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT": EntityExtractorFewShotGuidancePrompt,
-    "TEXT_SUMMARIZER_GUIDANCE_PROMPT": TextSummarizerGuidancePrompt,
-    "TEXT_SUMMARIZER_GUIDANCE_PROMPT_CHAT": TextSummarizerGuidancePrompt,
-    "SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT": SchemaZeroShotGuidancePrompt,
-    "SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT": SchemaZeroShotGuidancePrompt,
-    "PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT": PropertiesZeroShotGuidancePrompt,
-    "PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT_CHAT": PropertiesZeroShotGuidancePrompt,
+    "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT": _EntityExtractorZeroShotGuidancePrompt,
+    "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT_CHAT": _EntityExtractorFewShotGuidancePrompt,
+    "ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT_CHAT": _EntityExtractorFewShotGuidancePrompt,
+    "ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT": _EntityExtractorFewShotGuidancePrompt,
+    "TEXT_SUMMARIZER_GUIDANCE_PROMPT": _TextSummarizerGuidancePrompt,
+    "TEXT_SUMMARIZER_GUIDANCE_PROMPT_CHAT": _TextSummarizerGuidancePrompt,
+    "SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT": _SchemaZeroShotGuidancePrompt,
+    "SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT": _SchemaZeroShotGuidancePrompt,
 }
 
 

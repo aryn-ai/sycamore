@@ -96,3 +96,84 @@ pil_img = convert_image_element(image_elts[0])
 jpg_bytes = convert_image_element(image_elts[1], format='JPEG')
 png_str = convert_image_element(image_elts[2], format="PNG", b64encode=True)
 ```
+
+### Async Aryn DocParse
+
+#### Single Task Example
+```python
+import time
+from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result
+
+with open("my-favorite-pdf.pdf", "rb") as f:
+    response = partition_file_async_submit(
+        f,
+        use_ocr=True,
+        extract_table_structure=True,
+    )
+
+task_id = response["task_id"]
+
+# Poll for the results
+while True:
+    result = partition_file_async_result(task_id)
+    if result["status"] != "pending":
+        break
+    time.sleep(5)
+```
+
+Optionally, you can also set a webhook for Aryn to call when your task is completed:
+
+```python
+partition_file_async_submit("path/to/my/file.docx", webhook_url="https://example.com/alert")
+```
+
+Aryn will POST a request containing a body like the below:
+```json
+{"done": [{"task_id": "aryn:t-47gpd3604e5tz79z1jro5fc"}]}
+```
+
+#### Multi-Task Example
+
+```python
+import logging
+import time
+from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result
+
+files = [open("file1.pdf", "rb"), open("file2.docx", "rb")]
+task_ids = [None] * len(files)
+for i, f in enumerate(files):
+    try:
+        task_ids[i] = partition_file_async_submit(f)["task_id"]
+    except Exception as e:
+        logging.warning(f"Failed to submit {f}: {e}")
+
+results = [None] * len(files)
+for i, task_id in enumerate(task_ids):
+    while True:
+        result = partition_file_async_result(task_id)
+        if result["status"] != "pending":
+            break
+        time.sleep(5)
+    results[i] = result
+```
+
+#### Cancelling an async task
+
+```python
+from aryn_sdk.partition import partition_file_async_submit, partition_file_async_cancel
+        task_id = partition_file_async_submit(
+                    "path/to/file.pdf",
+                    use_ocr=True,
+                    extract_table_structure=True,
+                    extract_images=True,
+                )["task_id"]
+
+        partition_file_async_cancel(task_id)
+```
+
+#### List pending tasks
+
+```
+from aryn_sdk.partition import partition_file_async_list
+partition_file_async_list()
+```

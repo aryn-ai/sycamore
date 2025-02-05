@@ -60,7 +60,6 @@ def tokenized_threshold_llm_filter(
         if score >= threshold:
             return True
         evaluated_elements += 1
-
     if evaluated_elements == 0:  # no elements found for property
         return keep_none
     return False

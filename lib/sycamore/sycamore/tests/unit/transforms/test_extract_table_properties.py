@@ -54,7 +54,7 @@ class TestExtractTableProperties:
         mock_frombytes.return_value = image
 
         llm = mocker.Mock(spec=OpenAI)
-        llm.generate.return_value = '{"key1":"val1"}'
+        llm.generate_old.return_value = '{"key1":"val1"}'
         llm.format_image.return_value = {"type": "image", "data": "dummy"}
 
         property_name = "llm_response"

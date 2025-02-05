@@ -109,6 +109,7 @@ class DrawBoxes:
     def _draw_boxes(self, doc: Document) -> Document:
         size = tuple(doc.properties["size"])
         mode = doc.properties["mode"]
+        assert doc.binary_representation is not None, "Document must have binary representation to render as PNG"
         image = PImage.frombytes(mode=mode, size=size, data=doc.binary_representation)
         canvas = ImageDraw.Draw(image)
 

@@ -1,5 +1,4 @@
-from opensearchpy import OpenSearch
-
+from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 from sycamore.tests.integration.query.conftest import OS_CLIENT_ARGS, OS_CONFIG
 from sycamore.query.planner import LlmPlanner
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
@@ -10,7 +9,7 @@ def test_simple_llm_planner(query_integration_test_index: str):
     Simple test ensuring nodes are being created and dependencies are being set.
     Using a simple query here for consistent query plans.
     """
-    os_client = OpenSearch(OS_CLIENT_ARGS)
+    os_client = OpenSearchClientWithLogging(OS_CLIENT_ARGS)
 
     schema = OpenSearchSchema(
         fields={

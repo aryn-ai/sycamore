@@ -1,8 +1,0 @@
-# -*- makefile -*-
-help:
-	@echo "This should be run as part of the Dockerfile"
-	false
-
-apt-install:
-	echo "Nothing needed so far"
-

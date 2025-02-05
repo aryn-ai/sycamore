@@ -117,19 +117,13 @@ def context_params(*names):
                     candidate_kwargs.pop(param, None)
 
                 """
-                If the function doesn't accept arbitrary kwargs, we don't want to use candidate_kwargs that aren't in
-                the function signature.
+                Remove candidate kwargs that aren't in the function signature.
                 """
                 new_kwargs = {}
-                accepts_kwargs = any(param.kind == param.VAR_KEYWORD for param in sig.parameters.values())
-
-                if accepts_kwargs:
-                    new_kwargs = candidate_kwargs
-                else:
-                    for param in signature[len(args) :]:  # arguments that haven't been passed as positional args
-                        candidate_val = candidate_kwargs.get(param)
-                        if candidate_val:
-                            new_kwargs[param] = candidate_val
+                for param in signature[len(args) :]:  # arguments that haven't been passed as positional args
+                    candidate_val = candidate_kwargs.get(param)
+                    if candidate_val:
+                        new_kwargs[param] = candidate_val
 
                 """
                 Put in user provided kwargs (either through decorator param or function call)

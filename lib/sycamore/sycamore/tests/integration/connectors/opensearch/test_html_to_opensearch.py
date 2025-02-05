@@ -2,9 +2,9 @@ import json
 import os
 import tempfile
 
-from opensearchpy import OpenSearch
 import sycamore
 from sycamore.connectors.file.file_scan import JsonManifestMetadataProvider
+from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.partition import HtmlPartitioner
@@ -75,4 +75,4 @@ def test_html_to_opensearch(exec_mode):
         ds.write.opensearch(os_client_args=os_client_args, index_name="toyindex", index_settings=index_settings)
     finally:
         tmp_manifest.close()
-        OpenSearch(**os_client_args).indices.delete("toyindex")
+        OpenSearchClientWithLogging(**os_client_args).indices.delete("toyindex")

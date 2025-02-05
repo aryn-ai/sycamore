@@ -130,6 +130,9 @@ def plan_llm_filter_as_llm_map(
     if not use_elements:
 
         def eb(elts: list[Element]) -> list[list[Element]]:
+            source_indices = {e.element_index for e in elts}
+            for e in elts:
+                e.properties[source_idx_key] = source_indices
             return [elts]
 
     elif tokenizer is None:

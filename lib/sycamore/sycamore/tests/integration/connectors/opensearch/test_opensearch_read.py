@@ -200,7 +200,7 @@ class TestOpenSearchRead:
             re_count = get_doc_count(os_client, setup_index)
 
         assert count == re_count, f"Expected {count} documents, found {re_count}"
-        os_client.indices.delete(setup_index, ignore_unavailable=True)
+        os_client.indices.delete(setup_index)
 
     def _test_ingest_and_read_via_docid_reconstructor(self, setup_index, os_client, cache_dir):
         """

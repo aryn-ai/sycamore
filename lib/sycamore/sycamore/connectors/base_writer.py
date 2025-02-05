@@ -33,6 +33,18 @@ class BaseDBWriter(MapBatch, Write):
         def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> "BaseDBWriter.TargetParams":
             pass
 
+        def reliability_assertor(self, target_params: "BaseDBWriter.TargetParams"):
+            """
+            Method to verify that all documents were successfully written when reliability mode is enabled.
+
+            Args:
+                target_params: Parameters describing the target being written to
+
+            Raises:
+                NotImplementedError: If the implementing class doesn't support reliability checks
+            """
+            raise NotImplementedError("This writer does not support reliability checks")
+
         def close(self):
             pass
 

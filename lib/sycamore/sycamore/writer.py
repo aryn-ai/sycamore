@@ -136,29 +136,15 @@ class DocSetWriter:
             os_client_args["hosts"] = _convert_to_host_port_list(hosts)
         client_params = OpenSearchWriterClientParams(**os_client_args)
 
-        target_params: OpenSearchWriterTargetParams
-        target_params_dict: dict[str, Any] = {
-            "index_name": index_name,
-            "reliability_rewriter_chunks_count": 0,
-        }
-        if reliability_rewriter:
-            from sycamore.materialize import Materialize
-
-            assert execute, "Reliability rewriter requires execute to be True"
-            assert (
-                type(self.plan) == Materialize
-            ), "The first node must be a materialize node for reliability rewriter to work"
-            assert not self.plan.children[
-                0
-            ], "Pipeline should only have read materialize and write nodes for reliability rewriter to work"
-            target_params_dict["reliability_rewriter_chunks_count"] = DocSet(self.context, self.plan).count()
-
-        if insert_settings:
-            target_params_dict["insert_settings"] = insert_settings
-        if index_settings:
-            target_params_dict["settings"] = index_settings.get("body", {}).get("settings", {})
-            target_params_dict["mappings"] = index_settings.get("body", {}).get("mappings", {})
-        target_params = OpenSearchWriterTargetParams(**target_params_dict)
+        target_params = OpenSearchWriterTargetParams.from_write_args(
+            index_name=index_name,
+            plan=self.plan,
+            context=self.context,
+            reliability_rewriter=reliability_rewriter,
+            execute=execute,
+            insert_settings=insert_settings,
+            index_settings=index_settings,
+        )
         os = OpenSearchWriter(
             self.plan, client_params=client_params, target_params=target_params, name="OsrchWrite", **kwargs
         )
@@ -831,8 +817,6 @@ class DocSetWriter:
 
         ds.execute()
         if client is not None:
-            if type(node) == OpenSearchWriter:
-                client.reliability_assertor(node._target_params)
-            else:
-                raise NotImplementedError
+            assert type(node) == OpenSearchWriter
+            client.reliability_assertor(node._target_params)
         return None

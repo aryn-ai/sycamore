@@ -865,7 +865,8 @@ class DocSetWriter:
             return ds
 
         ds.execute()
+
         if client is not None:
-            assert type(node) == OpenSearchWriter
-            client.reliability_assertor(node._target_params)
+            if type(node) == OpenSearchWriter:
+                client.reliability_assertor(node._target_params)
         return None

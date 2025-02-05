@@ -125,7 +125,7 @@ def plan_llm_filter_as_llm_map(
     **kwargs,
 ) -> Node:
 
-    source_idx_key = f"{new_field}_source_element_index"
+    source_idx_key = f"{new_field}_source_element_indices"
     iteration_var_name = f"{new_field}_i"
     if not use_elements:
 

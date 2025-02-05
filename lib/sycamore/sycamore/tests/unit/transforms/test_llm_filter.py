@@ -87,8 +87,8 @@ class TestLLMFilter:
         # doc level field checks
         assert taken[0].properties[new_field] == 4
         assert taken[1].properties[new_field] == 4
-        assert taken[0].properties[new_field + "_source_element_index"] == {None}  # no index
-        assert taken[1].properties[new_field + "_source_element_index"] == {2}
+        assert taken[0].properties[new_field + "_source_element_indices"] == {None}  # no index
+        assert taken[1].properties[new_field + "_source_element_indices"] == {2}
 
         filtered_docset = docset.llm_filter(
             new_field=new_field,
@@ -263,11 +263,11 @@ class TestLLMFilter:
         # Check the properties of the filtered document
         assert taken[0].properties[new_field] == 4
         assert taken[1].properties[new_field] == 5
-        assert taken[0].elements[0]["properties"]["_autogen_LLMFilterOutput_source_element_index"] == {0, 1, 2}
-        assert taken[0].elements[1]["properties"]["_autogen_LLMFilterOutput_source_element_index"] == {0, 1, 2}
-        assert taken[0].elements[2]["properties"]["_autogen_LLMFilterOutput_source_element_index"] == {0, 1, 2}
-        assert taken[1].elements[0]["properties"]["_autogen_LLMFilterOutput_source_element_index"] == {1}
-        assert taken[1].elements[1]["properties"]["_autogen_LLMFilterOutput_source_element_index"] == {2}
+        assert taken[0].elements[0]["properties"]["_autogen_LLMFilterOutput_source_element_indices"] == {0, 1, 2}
+        assert taken[0].elements[1]["properties"]["_autogen_LLMFilterOutput_source_element_indices"] == {0, 1, 2}
+        assert taken[0].elements[2]["properties"]["_autogen_LLMFilterOutput_source_element_indices"] == {0, 1, 2}
+        assert taken[1].elements[0]["properties"]["_autogen_LLMFilterOutput_source_element_indices"] == {1}
+        assert taken[1].elements[1]["properties"]["_autogen_LLMFilterOutput_source_element_indices"] == {2}
         # assert taken[0].elements[0]["properties"]["_autogen_LLMFilterOutput"] == 4
         # assert taken[0].elements[1]["properties"]["_autogen_LLMFilterOutput"] == 4
         # assert taken[0].elements[2]["properties"]["_autogen_LLMFilterOutput"] == 4

@@ -1617,7 +1617,7 @@ class DocSet:
         ctx.rewrite_rules.append(MaterializeReadReliability(max_batch=200, max_retries=20))
         ds = ctx.read.materialize()\
              ... \
-             materialize()
+             .materialize()
         ds.execute()  # Runs with batching, retries, and progress tracking
 
 
@@ -1628,9 +1628,9 @@ class DocSet:
         ctx = sycamore.init()
         ctx.rewrite_rules.append(MaterializeReadReliability(max_batch=200, max_retries=20))
         ds = ctx.read.binary()\
-            .map(docid_from_path)
+             .map(docid_from_path)
              ... \
-             materialize()
+             .materialize()
         ds.execute()  # Runs with batching, retries, and progress tracking
 
         For more details, see the MaterializeReadReliability class.

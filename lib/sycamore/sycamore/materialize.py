@@ -4,7 +4,7 @@ from typing import Any, Optional, Tuple, Union, TYPE_CHECKING, cast, Callable
 
 from sycamore.context import Context
 from sycamore.data import Document, MetadataDocument
-from sycamore.data.docid import docid_to_typed_nanoid, sha256_conversion
+from sycamore.data.docid import docid_to_typed_nanoid, path_to_sha256_docid
 from sycamore.materialize_config import MaterializeSourceMode
 from sycamore.plan_nodes import Node, UnaryNode, NodeTraverse
 from sycamore.transforms.base import rename
@@ -45,6 +45,25 @@ class _PyArrowFsHelper:
 
 
 class MaterializeReadReliability(NodeTraverse):
+    """
+    A node traversal rule that implements reliable materialization for document pipelines.
+    This class handles batch processing, automatic retries, and progress tracking to ensure
+    robust data materialization even in the presence of failures.
+
+    Args:
+        max_batch (int): Maximum number of documents to process in a single batch. Default: 200
+        max_retries (int): Maximum number of retry attempts for failed batches. Default: 20
+
+    # Add to context rewrite rules
+    ctx.rewrite_rules.append(MaterializeReadReliabliity([batch_size=200]))
+
+    Warning:
+        This class enforces specific constraints on pipeline structure:
+        - Pipeline must have exactly one output materialization point
+        - MRR is only compatible with docset.execute(), not docset.take_all()
+        - The reliability pipeline requires proper document ID formatting (doc-path-sha256-*)
+    """
+
     def __init__(self, max_batch: int = 200, max_retries: int = 20):
 
         super().__init__()
@@ -59,17 +78,79 @@ class MaterializeReadReliability(NodeTraverse):
         self.iteration = 0
 
     def reinit(self, out_mat_path, max_batch, max_retries):
-        from sycamore.utils.pyarrow import infer_fs
 
-        (fs, path) = infer_fs(str(out_mat_path))
+        (fs, path) = Materialize.infer_fs(str(out_mat_path))
         logger.info(f"Fetching files from {out_mat_path}")
         self.fs = fs
-        self.path = path
+        self.path = str(path)
         self.__init__(max_batch=max_batch, max_retries=max_retries)
 
         # Initialize seen files
         self._refresh_seen_files()
         self.prev_seen = len(self.seen)
+
+    @staticmethod
+    def maybe_execute_reliably(docset) -> bool:
+        """
+        Determines if the execution should use reliability mode.
+
+        Returns:
+            Tuple of (should_use_reliability, mrr_instance)
+        """
+        plan, context = docset.plan, docset.context
+        if not isinstance(plan, Materialize):
+            return False
+
+        mrr = next((rule for rule in context.rewrite_rules if isinstance(rule, MaterializeReadReliability)), None)
+        if not mrr:
+            return False
+
+        if isinstance(plan._orig_path, str) or isinstance(plan._orig_path, Path):
+            destination_path = plan._orig_path
+        elif isinstance(plan._orig_path, dict):
+            destination_path = plan._orig_path["root"]
+        else:
+            return False
+
+        mrr.reinit(out_mat_path=destination_path, max_batch=mrr.max_batch, max_retries=mrr.max_retries)
+        MaterializeReadReliability.execute_reliably(context, plan, mrr)
+
+        return True
+
+    @staticmethod
+    def execute_reliably(context, plan, mrr: "MaterializeReadReliability", **kwargs) -> None:
+        """
+        Executes the plan with reliability guarantees.
+        Handles batching, retries, and error reporting.
+        """
+        from sycamore.executor import Execution
+        import traceback
+
+        while True:
+            mrr.clear_console()
+            try:
+                for doc in Execution(context).execute_iter(plan, **kwargs):
+                    pass
+
+                if mrr.current_batch == 0:
+                    mrr.reset_batch()
+                    logger.info(f"\nProcessed {len(mrr.seen)} docs.")
+                    break
+
+            except AssertionError:
+                raise
+            except Exception as e:
+                mrr.cycle_error = e
+                logger.info(f"Retrying batch job because of {e}.\n" f"Processed {len(mrr.seen)} docs at present.")
+                detailed_cycle_error = traceback.format_exc()
+                print(f"Detailed Trace:\n{detailed_cycle_error}")
+            mrr.reset_batch()
+
+            if mrr.retries_count > mrr.max_retries:
+                logger.info(
+                    f"\nGiving up after retrying {mrr.retries_count} times. " f"Processed {len(mrr.seen)} docs."
+                )
+                break
 
     def once(self, context, node):
         for rule in context.rewrite_rules:
@@ -180,7 +261,7 @@ def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
 def docid_from_path(d: Document) -> Document:
 
     if "path" in d.properties:
-        d.doc_id = sha256_conversion(d.properties["path"])
+        d.doc_id = path_to_sha256_docid(d.properties["path"])
         return d
     assert False
 

@@ -701,3 +701,49 @@ class TestMaterializeReadReliability(unittest.TestCase):
                 assert ids(e2) == ids(e1)  # Only 6 documents processed
             assert len(e2) == 6
             assert retry_counter.x == 23  # 2 successful, 21 unsuccessful
+
+    def test_mrr_path_handling(self):
+        from pyarrow.fs import S3FileSystem, LocalFileSystem
+        from sycamore.docset import DocSet
+
+        """Test MaterializeReadReliability path handling for both local and S3 paths"""
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        mrr = MaterializeReadReliability(max_batch=3)
+        mrr._refresh_seen_files = lambda: None
+        mrr.seen = set()
+        ctx.rewrite_rules.append(mrr)
+
+        # Test various path formats
+        test_cases = [
+            # Local paths
+            {"path": "/tmp/local/path", "expected_fs": "LocalFileSystem"},
+            {"path": Path("/tmp/local/path2"), "expected_fs": "LocalFileSystem"},
+            {"path": {"root": "/tmp/local/path3"}, "expected_fs": "LocalFileSystem"},
+            {"path": {"root": Path("/tmp/local/path4")}, "expected_fs": "LocalFileSystem"},
+            # S3 paths
+            {"path": "s3://test-example/path", "should_execute": True, "expected_fs": "S3FileSystem"},
+            {"path": {"root": "s3://test-example/a/path"}, "should_execute": True, "expected_fs": "S3FileSystem"},
+        ]
+
+        MaterializeReadReliability.execute_reliably = lambda context, plan, mrr, **kwargs: None
+        for case in test_cases:
+            # Create a dummy materialize plan
+            plan = Materialize(None, ctx, path=case["path"])
+
+            # Test should_execute_reliably
+
+            MaterializeReadReliability.maybe_execute_reliably(DocSet(context=ctx, plan=plan))
+
+            # Verify the path was properly initialized in mrr_instance
+            assert hasattr(mrr, "path"), f"mrr_instance missing path attribute for {case['path']}"
+            assert hasattr(mrr, "fs"), f"mrr_instance missing fs attribute for {case['path']}"
+
+            # Verify correct filesystem type
+            if case["expected_fs"] == "S3FileSystem":
+                assert isinstance(
+                    mrr.fs, S3FileSystem
+                ), f"Expected S3FileSystem for path {case['path']}, got {type(mrr.fs)}"
+            else:
+                assert isinstance(
+                    mrr.fs, LocalFileSystem
+                ), f"Expected LocalFileSystem for path {case['path']}, got {type(mrr.fs)}"

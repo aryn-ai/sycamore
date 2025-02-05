@@ -225,7 +225,7 @@ class MaterializeReadReliability(NodeTraverse):
         if not read:
             id = self._path_to_id(Path(p))
         else:
-            id = sha256_conversion(str(p))
+            id = path_to_sha256_docid(str(p))
         if id is None:
             logger.debug(f"Got path {p} not in proper format")
             return False

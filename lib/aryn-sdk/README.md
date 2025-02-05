@@ -129,7 +129,7 @@ partition_file_async_submit("path/to/my/file.docx", webhook_url="https://example
 
 Aryn will POST a request containing a body like the below:
 ```json
-{"done": [{"task_id": "aryn:j-47gpd3604e5tz79z1jro5fc"}]}
+{"done": [{"task_id": "aryn:t-47gpd3604e5tz79z1jro5fc"}]}
 ```
 
 #### Multi-Task Example

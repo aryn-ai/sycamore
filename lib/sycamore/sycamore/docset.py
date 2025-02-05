@@ -1622,7 +1622,7 @@ class DocSet:
 
 
         # Reliable execution with binary read
-        # ( Make sure to map docid_from_path to set the unique docid that would be used to track documents in every pipeline)
+        # Make sure to map docid_from_path to set unique docids that would be used to track documents processing
 
         from sycamore.materialize import docid_from_path
         ctx = sycamore.init()

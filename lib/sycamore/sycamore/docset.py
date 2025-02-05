@@ -1061,6 +1061,7 @@ class DocSet:
 
         return self.map(process_doc, **resource_args)
 
+    @deprecated(version="0.1.31", reason="use llm_map and a plain filter instead")
     @context_params(OperationTypes.BINARY_CLASSIFIER)
     @context_params(OperationTypes.TEXT_SIMILARITY)
     def llm_filter(

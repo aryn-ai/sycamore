@@ -22,7 +22,8 @@ if TYPE_CHECKING:
     from neo4j import Auth
     from neo4j.auth_management import AuthManager
 
-from sycamore.connectors.opensearch import OpenSearchWriterClient, OpenSearchWriter
+from sycamore.connectors.opensearch import OpenSearchWriterClient
+from sycamore.connectors.base_writer import BaseDBWriter
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +108,7 @@ class DocSetWriter:
         from sycamore.connectors.opensearch import (
             OpenSearchWriterClientParams,
             OpenSearchWriterTargetParams,
+            OpenSearchWriter,
         )
         from typing import Any
         import copy
@@ -867,6 +869,6 @@ class DocSetWriter:
         ds.execute()
 
         if client is not None:
-            if type(node) == OpenSearchWriter:
+            if type(node) == BaseDBWriter:
                 client.reliability_assertor(node._target_params)
         return None

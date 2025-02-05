@@ -1621,7 +1621,8 @@ class DocSet:
         ds.execute()  # Runs with batching, retries, and progress tracking
 
 
-        # Reliable execution with binary read ( Make sure to map docid_from_path to set the docid )
+        # Reliable execution with binary read
+        # ( Make sure to map docid_from_path to set the unique docid that would be used to track documents in every pipeline)
 
         from sycamore.materialize import docid_from_path
         ctx = sycamore.init()

@@ -248,6 +248,56 @@ class TestOpenSearchRead:
         # Clean up
         os_client.indices.delete(setup_index, ignore_unavailable=True)
 
+    def test_write_with_reliability(self, setup_index, os_client, exec_mode):
+        """
+        Validates that when materialized pickle outputs are deleted, the index is rewritten
+        with the correct (reduced) number of chunks.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir1:
+            path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
+            context = sycamore.init(exec_mode=exec_mode)
+
+            # 2 docs for ray execution
+            (
+                context.read.binary([path, path], binary_format="pdf")
+                .partition(ArynPartitioner(aryn_api_key=ARYN_API_KEY))
+                .explode()
+                .materialize(path=tmpdir1)
+                .execute()
+            )
+
+            (
+                context.read.materialize(tmpdir1).write.opensearch(
+                    os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                    index_name=setup_index,
+                    index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                    reliability_rewriter=True,
+                )
+            )
+            os_client.indices.refresh(setup_index)
+            count = get_doc_count(os_client, setup_index)
+
+            # Delete 1 pickle file to make sure reliability rewriter works
+            pickle_files = [f for f in os.listdir(tmpdir1) if f.endswith(".pickle")]
+            assert pickle_files, "No pickle files found in materialized directory"
+            os.remove(os.path.join(tmpdir1, pickle_files[0]))
+
+            # Delete and recreate the index - should have fewer chunks
+            (
+                context.read.materialize(tmpdir1).write.opensearch(
+                    os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                    index_name=setup_index,
+                    index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                    reliability_rewriter=True,
+                )
+            )
+            os_client.indices.refresh(setup_index)
+            re_count = get_doc_count(os_client, setup_index)
+
+        # Verify document count is reduced
+        assert count - 1 == re_count, f"Expected {count} documents, found {re_count}"
+        os_client.indices.delete(setup_index)
+
     def _test_ingest_and_read_via_docid_reconstructor(self, setup_index, os_client, cache_dir):
         """
         Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.

@@ -531,13 +531,9 @@ def partition_file_async_list(
         async_list_url, params=g_parameters, headers=headers, stream=_should_stream(), verify=ssl_verify
     )
 
-    # Once filtering has been added to Aryn async, we can stop filtering below and make this logic just delete the path
-    all_tasks = response.json()["tasks"]
-    result = {}
-    for task_id in all_tasks.keys():
-        if all_tasks[task_id]["path"] == "/v1/document/partition":
-            del all_tasks[task_id]["path"]
-            result[task_id] = all_tasks[task_id]
+    result = response.json()["tasks"]
+    for v in result.values():
+        del v["path"]
     return result
 
 

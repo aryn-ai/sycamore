@@ -4,14 +4,16 @@ from io import BytesIO
 
 import boto3
 import mimetypes
-from typing import Any, Optional, Union, Tuple, Callable, TYPE_CHECKING
+from typing import Any, Optional, Union, Tuple, Callable, TYPE_CHECKING, cast
 import logging
 
+from functools import partial
 from pyarrow._fs import FileInfo
 from pyarrow.fs import FileSystem, FileSelector
 from sycamore.data import Document, mkdocid
 from sycamore.plan_nodes import Scan
 from sycamore.utils.time_trace import timetrace
+from sycamore.materialize import RayPathParser
 
 if TYPE_CHECKING:
     from ray.data import Dataset
@@ -186,6 +188,7 @@ class BinaryScan(FileScan):
         self._binary_format = binary_format
         self._metadata_provider = metadata_provider
         self._filter_paths_by_extension = filter_paths_by_extension
+        self._path_filter = None
 
     @timetrace("readBinary")
     def _to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
@@ -202,7 +205,10 @@ class BinaryScan(FileScan):
             document.properties["filetype"] = self._file_mime_type()
         if self._metadata_provider:
             document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
+        if self._path_filter is not None:
+            from sycamore.materialize import docid_from_path
 
+            document = docid_from_path(document)
         return {"doc": document.serialize()}
 
     def _file_mime_type(self):
@@ -218,22 +224,43 @@ class BinaryScan(FileScan):
         file_extensions = [self.format()] if self._filter_paths_by_extension else None
 
         from ray.data import read_binary_files
+        from ray.data.datasource import PathPartitionFilter, PathPartitionParser
 
-        files = read_binary_files(
-            self._paths,
-            include_paths=True,
-            filesystem=self._filesystem,
-            override_num_blocks=self.override_num_blocks,
-            ray_remote_args=self.resource_args,
-            file_extensions=file_extensions,
-        )
+        # TODO: Consider refactoring to use kwargs = self._get_read_args() for better extensibility
+        # when adding new read arguments in the future
+        partition_filter: Optional[Callable[[dict[str, str]], bool]] = None
+        if self._path_filter is not None:
+            partition_filter = PathPartitionFilter(
+                cast(PathPartitionParser, RayPathParser()), partial(self._path_filter, read=True)
+            )
+        shuffle = None if partition_filter is None else "files"
 
+        try:
+            files = read_binary_files(
+                self._paths,
+                include_paths=True,
+                filesystem=self._filesystem,
+                override_num_blocks=self.override_num_blocks,
+                ray_remote_args=self.resource_args,
+                file_extensions=file_extensions,
+                partition_filter=partition_filter,
+                shuffle=shuffle,
+            )
+        except ValueError as e:
+
+            from ray.data import from_items
+
+            if self._path_filter is not None and "No input files found to read." in str(e):
+                return from_items(items=[])
+            raise
         return files.map(self._to_document, **self.resource_args)
 
     def process_file(self, info) -> list[Document]:
         if not info.is_file:
             return []
         if self._filter_paths_by_extension and not info.path.endswith(self.format()):
+            return []
+        if self._path_filter is not None and not self._path_filter(info.path, True):
             return []
 
         assert self._filesystem
@@ -251,6 +278,10 @@ class BinaryScan(FileScan):
             document.properties["path"] = "s3://" + info.path
         if self._metadata_provider:
             document.properties.update(self._metadata_provider.get_metadata(info.path))
+        if self._path_filter is not None:
+            from sycamore.materialize import docid_from_path
+
+            document = docid_from_path(document)
         return [document]
 
     def format(self):

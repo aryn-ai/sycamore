@@ -32,6 +32,7 @@ structlog = "^24.4.0"
 flake8 = "4.0.1"
 pytest = "^7.4"
 pytest-mock = "^3.11"
+pytest-xdist = "^3.6.1"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-ai = { path = "lib/sycamore", develop = true, extras=["eval", "duckdb", "elasticsearch", "neo4j", "opensearch", "pinecone", "weaviate", "local-inference", "legacy-partitioners", "anthropic"] }

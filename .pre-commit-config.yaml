@@ -1,17 +1,17 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: "v4.5.0"
+    rev: 'v4.5.0'
     hooks:
-      - id: check-ast # checks Python syntax
-      - id: check-json # checks JSON syntax
-      - id: check-yaml # checks YAML syntax
-      - id: check-toml # checks TOML syntax
-      - id: end-of-file-fixer # checks there is a newline at the end of the file
-      - id: trailing-whitespace # trims trailing whitespace
-      - id: check-merge-conflict # checks for no merge conflict strings
-      - id: check-shebang-scripts-are-executable # checks all shell scripts have executable permissions
-      - id: mixed-line-ending # normalizes line endings
-      - id: no-commit-to-branch # prevents committing to main
+      - id: check-ast   # checks Python syntax
+      - id: check-json  # checks JSON syntax
+      - id: check-yaml  # checks YAML syntax
+      - id: check-toml  # checks TOML syntax
+      - id: end-of-file-fixer  # checks there is a newline at the end of the file
+      - id: trailing-whitespace  # trims trailing whitespace
+      - id: check-merge-conflict  # checks for no merge conflict strings
+      - id: check-shebang-scripts-are-executable  # checks all shell scripts have executable permissions
+      - id: mixed-line-ending  # normalizes line endings
+      - id: no-commit-to-branch  # prevents committing to main
 
   - repo: https://github.com/psf/black
     rev: 24.3.0
@@ -19,7 +19,7 @@ repos:
       - id: black
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.3.3"
+    rev: 'v0.3.3'
     hooks:
       - id: ruff
         name: ruff
@@ -27,10 +27,10 @@ repos:
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.9.0
     hooks:
-      - id: mypy
-        # same args as used in .github/workflows/linting.yml
-        args: [--install-types, --explicit-package-bases, --non-interactive]
-        exclude: docs/
+        - id: mypy
+          # same args as used in .github/workflows/linting.yml
+          args: [--install-types, --explicit-package-bases, --non-interactive]
+          exclude: docs/
   - repo: local
     hooks:
       - id: pytest-check

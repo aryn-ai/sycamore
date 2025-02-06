@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from neo4j import Auth
     from neo4j.auth_management import AuthManager
 
-from sycamore.connectors.opensearch import OpenSearchWriterClient
 from sycamore.connectors.base_writer import BaseDBWriter
 
 logger = logging.getLogger(__name__)
@@ -860,7 +859,7 @@ class DocSetWriter:
         return self._maybe_execute(ds, True)
 
     def _maybe_execute(
-        self, node: Node, execute: bool, client: Optional[OpenSearchWriterClient] = None
+        self, node: Node, execute: bool, client: Optional[BaseDBWriter.Client] = None
     ) -> Optional[DocSet]:
         ds = DocSet(self.context, node)
         if not execute:

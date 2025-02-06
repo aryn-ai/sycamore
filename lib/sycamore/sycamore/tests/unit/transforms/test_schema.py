@@ -216,14 +216,8 @@ class TestSchema:
         }
 
         property_extractor = LLMPropertyExtractor(llm)
-        pe_map = property_extractor.as_llm_map(None)
-        assert len(pe_map.children) == 1
-        pe_llm_map = pe_map.children[0]
-        assert isinstance(pe_llm_map, LLMMap)
-        assert isinstance(pe_map, Map)
-
-        docs = pe_llm_map.run([doc])
-        doc = pe_map.run(docs[0])
+        docs = property_extractor.extract_docs([doc])
+        doc = docs[0]
 
         assert len(doc.properties["AircraftIncident"]) == 0
 

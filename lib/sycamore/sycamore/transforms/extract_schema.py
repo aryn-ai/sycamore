@@ -244,6 +244,14 @@ class LLMPropertyExtractor(PropertyExtractor):
         self._num_of_elements = num_of_elements
         self._prompt_formatter = prompt_formatter
 
+    def extract_docs(self, docs: list[Document]) -> list[Document]:
+        jsonextract_node = self.as_llm_map(None)
+        assert len(jsonextract_node.children) == 1
+        llm_map_node = jsonextract_node.children[0]
+        assert isinstance(jsonextract_node, Map)
+        assert isinstance(llm_map_node, LLMMap)
+        return [jsonextract_node.run(d) for d in llm_map_node.run(docs)]
+
     def cast_types(self, fields: dict) -> dict:
         assert self._schema is not None, "Schema must be provided for property standardization."
         assert isinstance(self._schema, Schema), "Schema object must be provided for property standardization."

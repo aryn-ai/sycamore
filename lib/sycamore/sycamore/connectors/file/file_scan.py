@@ -205,7 +205,10 @@ class BinaryScan(FileScan):
             document.properties["filetype"] = self._file_mime_type()
         if self._metadata_provider:
             document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
+        if self._path_filter is not None:
+            from sycamore.materialize import docid_from_path
 
+            document = docid_from_path(document)
         return {"doc": document.serialize()}
 
     def _file_mime_type(self):
@@ -223,6 +226,8 @@ class BinaryScan(FileScan):
         from ray.data import read_binary_files
         from ray.data.datasource import PathPartitionFilter, PathPartitionParser
 
+        # TODO: Consider refactoring to use kwargs = self._get_read_args() for better extensibility
+        # when adding new read arguments in the future
         partition_filter: Optional[Callable[[dict[str, str]], bool]] = None
         if self._path_filter is not None:
             partition_filter = PathPartitionFilter(
@@ -273,6 +278,10 @@ class BinaryScan(FileScan):
             document.properties["path"] = "s3://" + info.path
         if self._metadata_provider:
             document.properties.update(self._metadata_provider.get_metadata(info.path))
+        if self._path_filter is not None:
+            from sycamore.materialize import docid_from_path
+
+            document = docid_from_path(document)
         return [document]
 
     def format(self):

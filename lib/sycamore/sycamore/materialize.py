@@ -218,11 +218,11 @@ class MaterializeReadReliability(NodeTraverse):
             return None
         return str(p.stem[4:])
 
-    def filter(self, p: str, read: Optional[bool] = False) -> bool:
+    def filter(self, p: str, read_binary: bool = False) -> bool:
         """Filter files for processing, respecting batch size"""
         if self.current_batch >= self.max_batch:
             return False
-        if not read:
+        if not read_binary:
             id = self._path_to_id(Path(p))
         else:
             id = path_to_sha256_docid(str(p))

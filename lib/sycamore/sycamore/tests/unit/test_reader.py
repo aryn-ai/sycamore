@@ -10,10 +10,7 @@ from sycamore.connectors.file.file_scan import JsonManifestMetadataProvider
 from sycamore.tests.config import TEST_DIR
 from sycamore.tests.unit.test_materialize import make_docs, NumCalls, mock_mrr_reset_fn, noop_fn, ids
 from sycamore.context import ExecMode
-from sycamore.materialize import (
-    MaterializeReadReliability,
-    docid_from_path,
-)
+from sycamore.materialize import MaterializeReadReliability
 
 
 class TestDocSetReader:
@@ -103,7 +100,6 @@ class TestFileReadReliability(unittest.TestCase):
                 paths.append(str(path))
             (
                 ctx.read.binary(paths, binary_format="pdf")
-                .map(docid_from_path)
                 .materialize(
                     path={"root": tmpdir2},
                 )
@@ -118,12 +114,7 @@ class TestFileReadReliability(unittest.TestCase):
 
             counter.x = 0
 
-            (
-                ctx.read.binary(tmpdir1, binary_format="pdf")
-                .map(docid_from_path)
-                .materialize(path={"root": tmpdir3})
-                .execute()
-            )
+            (ctx.read.binary(tmpdir1, binary_format="pdf").materialize(path={"root": tmpdir3}).execute())
             e2 = ctx.read.materialize(path=tmpdir3).take_all()
 
             # Verify batching works (4 + 1 (mrr.reset at the end))
@@ -175,7 +166,6 @@ class TestFileReadReliability(unittest.TestCase):
 
             ds = (
                 ctx.read.binary(paths, binary_format="pdf")
-                .map(docid_from_path)
                 .map(failing_map)
                 .materialize(
                     path=tmpdir2,
@@ -189,12 +179,7 @@ class TestFileReadReliability(unittest.TestCase):
             retry_counter.x = 0
             failure_counter.x = 0
 
-            ds = (
-                ctx.read.binary(tmpdir1, binary_format="pdf")
-                .map(docid_from_path)
-                .map(failing_map)
-                .materialize(path=tmpdir3)
-            )
+            ds = ctx.read.binary(tmpdir1, binary_format="pdf").map(failing_map).materialize(path=tmpdir3)
             ds.execute()
             assert retry_counter.x == 8  # 4 success +3 extra retries for 3 failures + 1 for mrr.reset()
 
@@ -230,7 +215,6 @@ class TestFileReadReliability(unittest.TestCase):
 
             ds = (
                 ctx.read.binary(paths, binary_format="pdf")
-                .map(docid_from_path)
                 .map(failing_map)
                 .materialize(
                     path={"root": tmpdir2},
@@ -247,7 +231,6 @@ class TestFileReadReliability(unittest.TestCase):
 
             ds = (
                 ctx.read.binary(tmpdir1, binary_format="pdf")
-                .map(docid_from_path)
                 .map(failing_map)
                 .materialize(
                     path={"root": tmpdir3},

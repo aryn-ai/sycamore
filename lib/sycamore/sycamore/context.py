@@ -139,8 +139,8 @@ def context_params(*names):
     """
         this let's you handle decorator usage like:
         @context_params OR
-        @context_params() OR 
-        @context_params("template") OR 
+        @context_params() OR
+        @context_params("template") OR
         @context_params("template1", "template2")
     """
     if len(names) == 1 and callable(names[0]):

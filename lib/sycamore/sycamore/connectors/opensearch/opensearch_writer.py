@@ -16,6 +16,9 @@ from sycamore.connectors.common import (
     DEFAULT_RECORD_PROPERTIES,
 )
 from sycamore.utils.import_utils import requires_modules
+from sycamore.plan_nodes import Node
+from sycamore.docset import DocSet
+from sycamore.context import Context
 
 if typing.TYPE_CHECKING:
     from opensearchpy import OpenSearch
@@ -42,6 +45,7 @@ class OpenSearchWriterClientParams(BaseDBWriter.ClientParams):
 @dataclass
 class OpenSearchWriterTargetParams(BaseDBWriter.TargetParams):
     index_name: str
+    _doc_count: int = 0
     settings: dict[str, Any] = field(default_factory=lambda: {"index.knn": True})
     mappings: dict[str, Any] = field(
         default_factory=lambda: {
@@ -91,6 +95,61 @@ class OpenSearchWriterTargetParams(BaseDBWriter.TargetParams):
         my_flat_mappings = dict(flatten_data(self.mappings))
         other_flat_mappings = dict(flatten_data(other.mappings))
         return check_dictionary_compatibility(my_flat_mappings, other_flat_mappings)
+
+    @classmethod
+    def from_write_args(
+        cls,
+        index_name: str,
+        plan: Node,
+        context: Context,
+        reliability_rewriter: bool,
+        execute: bool,
+        insert_settings: Optional[dict] = None,
+        index_settings: Optional[dict] = None,
+    ) -> "OpenSearchWriterTargetParams":
+        """
+        Build OpenSearchWriterTargetParams from write operation arguments.
+
+        Args:
+            index_name: Name of the OpenSearch index
+            plan: The execution plan Node
+            context: The execution Context
+            reliability_rewriter: Whether to enable reliability rewriter mode
+            execute: Whether to execute the pipeline immediately
+            insert_settings: Optional settings for data insertion
+            index_settings: Optional index configuration settings
+
+        Returns:
+            OpenSearchWriterTargetParams configured with the provided settings
+
+        Raises:
+            AssertionError: If reliability_rewriter conditions are not met
+        """
+        target_params_dict: dict[str, Any] = {
+            "index_name": index_name,
+            "_doc_count": 0,
+        }
+
+        if reliability_rewriter:
+            from sycamore.materialize import Materialize
+
+            assert execute, "Reliability rewriter requires execute to be True"
+            assert (
+                type(plan) == Materialize
+            ), "The first node must be a materialize node for reliability rewriter to work"
+            assert not plan.children[
+                0
+            ], "Pipeline should only have read materialize and write nodes for reliability rewriter to work"
+            target_params_dict["_doc_count"] = DocSet(context, plan).count()
+
+        if insert_settings:
+            target_params_dict["insert_settings"] = insert_settings
+
+        if index_settings:
+            target_params_dict["settings"] = index_settings.get("body", {}).get("settings", {})
+            target_params_dict["mappings"] = index_settings.get("body", {}).get("mappings", {})
+
+        return cls(**target_params_dict)
 
 
 class OpenSearchWriterClient(BaseDBWriter.Client):
@@ -187,6 +246,8 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
                     return obj
             return obj
 
+        # TODO: Convert OpenSearchWriterTargetParams to pydantic model
+
         assert isinstance(
             target_params, OpenSearchWriterTargetParams
         ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
@@ -196,7 +257,27 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
         assert isinstance(mappings, dict)
         settings = _string_values_to_python_types(response.get(index_name, {}).get("settings", {}))
         assert isinstance(settings, dict)
-        return OpenSearchWriterTargetParams(index_name=index_name, mappings=mappings, settings=settings)
+        _doc_count = target_params._doc_count
+        assert isinstance(_doc_count, int)
+        return OpenSearchWriterTargetParams(
+            index_name=index_name,
+            mappings=mappings,
+            settings=settings,
+            _doc_count=_doc_count,
+        )
+
+    def reliability_assertor(self, target_params: BaseDBWriter.TargetParams):
+        assert isinstance(
+            target_params, OpenSearchWriterTargetParams
+        ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
+        log.info("Flushing index...")
+        self._client.indices.flush(index=target_params.index_name, params={"timeout": 300})
+        log.info("Done flushing index.")
+        indices = self._client.cat.indices(index=target_params.index_name, format="json")
+        assert len(indices) == 1, f"Expected 1 index, found {len(indices)}"
+        num_docs = int(indices[0]["docs.count"])
+        log.info(f"{num_docs} chunks written in index {target_params.index_name}")
+        assert num_docs == target_params._doc_count, f"Expected {target_params._doc_count} docs, found {num_docs}"
 
 
 @dataclass

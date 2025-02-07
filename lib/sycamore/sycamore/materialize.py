@@ -1,10 +1,10 @@
 import logging
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Any, Optional, Tuple, Union, TYPE_CHECKING, cast, Callable
 
 from sycamore.context import Context
 from sycamore.data import Document, MetadataDocument
-from sycamore.data.docid import docid_to_typed_nanoid
+from sycamore.data.docid import docid_to_typed_nanoid, path_to_sha256_docid
 from sycamore.materialize_config import MaterializeSourceMode
 from sycamore.plan_nodes import Node, UnaryNode, NodeTraverse
 from sycamore.transforms.base import rename
@@ -44,6 +44,247 @@ class _PyArrowFsHelper:
         self._fs.create_dir(str(path))
 
 
+class MaterializeReadReliability(NodeTraverse):
+    """
+    A node traversal rule that implements reliable materialization for document pipelines.
+    This class handles batch processing, automatic retries, and progress tracking to ensure
+    robust data materialization even in the presence of failures.
+
+    Args:
+        max_batch (int): Maximum number of documents to process in a single batch. Default: 200
+        max_retries (int): Maximum number of retry attempts for failed batches. Default: 20
+
+    # Add to context rewrite rules
+    ctx.rewrite_rules.append(MaterializeReadReliabliity([batch_size=200]))
+
+    Warning:
+        This class enforces specific constraints on pipeline structure:
+        - Pipeline must have exactly one output materialization point
+        - MRR is only compatible with docset.execute(), not docset.take_all()
+        - The reliability pipeline requires proper document ID formatting (doc-path-sha256-*)
+    """
+
+    def __init__(self, max_batch: int = 200, max_retries: int = 20):
+
+        super().__init__()
+
+        self.max_batch = max_batch
+        self.current_batch = 0
+        self.retries_count = 0
+        # Need for refresh_seen_files
+        self.prev_seen = -1
+        self.max_retries = max_retries
+        self.cycle_error: Optional[Union[str, Exception]] = ""
+        self.iteration = 0
+
+    def reinit(self, out_mat_path, max_batch, max_retries):
+
+        (fs, path) = Materialize.infer_fs(str(out_mat_path))
+        logger.info(f"Fetching files from {out_mat_path}")
+        self.fs = fs
+        self.path = str(path)
+        self.__init__(max_batch=max_batch, max_retries=max_retries)
+
+        # Initialize seen files
+        self._refresh_seen_files()
+        self.prev_seen = len(self.seen)
+
+    @staticmethod
+    def maybe_execute_reliably(docset) -> bool:
+        """
+        Determines if the execution should use reliability mode.
+
+        Returns:
+            Tuple of (should_use_reliability, mrr_instance)
+        """
+        plan, context = docset.plan, docset.context
+        if not isinstance(plan, Materialize):
+            return False
+
+        mrr = next((rule for rule in context.rewrite_rules if isinstance(rule, MaterializeReadReliability)), None)
+        if not mrr:
+            return False
+
+        if isinstance(plan._orig_path, str) or isinstance(plan._orig_path, Path):
+            destination_path = plan._orig_path
+        elif isinstance(plan._orig_path, dict):
+            destination_path = plan._orig_path["root"]
+        else:
+            return False
+
+        mrr.reinit(out_mat_path=destination_path, max_batch=mrr.max_batch, max_retries=mrr.max_retries)
+        MaterializeReadReliability.execute_reliably(context, plan, mrr)
+
+        return True
+
+    @staticmethod
+    def execute_reliably(context, plan, mrr: "MaterializeReadReliability", **kwargs) -> None:
+        """
+        Executes the plan with reliability guarantees.
+        Handles batching, retries, and error reporting.
+        """
+        from sycamore.executor import Execution
+        import traceback
+
+        while True:
+            mrr.clear_console()
+            try:
+                for doc in Execution(context).execute_iter(plan, **kwargs):
+                    pass
+
+                if mrr.current_batch == 0:
+                    mrr.reset_batch()
+                    logger.info(f"\nProcessed {len(mrr.seen)} docs.")
+                    break
+
+            except AssertionError:
+                raise
+            except Exception as e:
+                mrr.cycle_error = e
+                logger.info(f"Retrying batch job because of {e}.\n" f"Processed {len(mrr.seen)} docs at present.")
+                detailed_cycle_error = traceback.format_exc()
+                print(f"Detailed Trace:\n{detailed_cycle_error}")
+            mrr.reset_batch()
+
+            if mrr.retries_count > mrr.max_retries:
+                logger.info(
+                    f"\nGiving up after retrying {mrr.retries_count} times. " f"Processed {len(mrr.seen)} docs."
+                )
+                break
+
+    def once(self, context, node):
+        for rule in context.rewrite_rules:
+            if isinstance(rule, MaterializeReadReliability):
+                mrr = rule
+        self.count = 0
+        node = node.traverse(visit=self.propagate_mrr(mrr))
+        return node
+
+    def propagate_mrr(self, mrr):
+
+        from sycamore.connectors.file.file_scan import BinaryScan
+
+        def visit(node):
+            if self.count == 0:
+                if len(node.children) > 0:
+                    assert isinstance(
+                        node, Materialize
+                    ), "The last node should be a materialize node to ensure reliability"
+                    logger.info("Overriding doc_to_name, doc_to_binary, clean_root for reliability pipeline")
+                    node._doc_to_name = name_from_docid
+                    node._doc_to_binary = doc_only_to_binary
+                    node._clean_root = False
+                    node._source_mode = MaterializeSourceMode.RECOMPUTE
+            elif isinstance(node, BinaryScan):
+                assert len(node.children) == 0, "Binary Scan should be the first node in the reliability pipeline"
+                node._path_filter = mrr.filter
+            elif isinstance(node, Materialize):
+                assert (
+                    len(node.children) == 0
+                ), "Only first and last node should be materialize nodes to maintain reliability."
+                node._path_filter = mrr.filter
+            else:
+                assert (
+                    len(node.children) != 0
+                ), f"""Reliability pipeline cannot have node {type(node)} as first node.\n
+                Only BinaryScan and Materialize nodes are allowed."""
+
+            assert len(node.children) < 2, "Reliablity pipeline should only have one/zero child"
+
+            self.count += 1
+
+        return visit
+
+    def _refresh_seen_files(self):
+        """Refresh the list of already processed files"""
+        from pyarrow.fs import FileSelector
+
+        files = self.fs.get_file_info(FileSelector(self.path, allow_not_found=True))
+        self.seen = {
+            self._path_to_id(Path(f.path)): f.mtime for f in files if self._path_to_id(Path(f.path)) is not None
+        }
+        logger.info(f"Found {len(self.seen)} already materialized outputs")
+        if len(self.seen) == self.prev_seen:
+            self.retries_count += 1
+        else:
+            self.retries_count = 0
+
+    @staticmethod
+    def _path_to_id(p: Path) -> Optional[str]:
+        if p.suffix != ".pickle":
+            return None
+        if not p.name.startswith("doc-path-sha256-"):
+            logger.info("Got pickle file which is not in 'doc-path-sha256-' format with reliability pipeline")
+            return None
+        return str(p.stem[4:])
+
+    def filter(self, p: str, read_binary: bool = False) -> bool:
+        """Filter files for processing, respecting batch size"""
+        if self.current_batch >= self.max_batch:
+            return False
+        if not read_binary:
+            id = self._path_to_id(Path(p))
+        else:
+            id = path_to_sha256_docid(str(p))
+        if id is None:
+            logger.debug(f"Got path {p} not in proper format")
+            return False
+
+        if id in self.seen:
+            return False
+
+        self.current_batch += 1
+        return True
+
+    def reset_batch(self) -> None:
+        """Reset the current batch counter and refresh seen files"""
+        self.current_batch = 0
+        self.prev_seen = len(self.seen)
+        self._refresh_seen_files()
+
+    def clear_console(self) -> None:
+        """Hook to clear output and print status before each iteration."""
+        from IPython.display import clear_output
+
+        clear_output(wait=True)
+        self.iteration += 1
+        print(f"Starting iteration: {self.iteration}")
+        if self.cycle_error != "":
+            print(f"Previous batch error: {self.cycle_error}. \nProcessed {len(self.seen)} docs until now.")
+            self.cycle_error = ""
+        else:
+            print(f"No errors in previous batch. \nProcessed {len(self.seen)} docs at present.")
+
+
+def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
+    if d.doc_id:
+        assert (
+            len(d.doc_id) == 76
+        ), """This method expects docids to be 76 characters long and used with reliability.
+              Make sure to have docids set using docid_from_path method,
+            """
+        assert d.doc_id.startswith("path-sha256-")
+        if isinstance(d, MetadataDocument):
+            return f"md-{d.doc_id}.pickle"
+        else:
+            return f"doc-{d.doc_id}.pickle"
+    assert False
+
+
+def docid_from_path(d: Document) -> Document:
+
+    if "path" in d.properties:
+        d.doc_id = path_to_sha256_docid(d.properties["path"])
+        return d
+    assert False
+
+
+def doc_only_to_binary(d: Document) -> Optional[bytes]:
+    if isinstance(d, MetadataDocument):
+        return None
+    return d.serialize()
+
+
 def _success_path(base_path: Path) -> Path:
     return base_path / "materialize.success"
 
@@ -55,12 +296,14 @@ class Materialize(UnaryNode):
         context: Context,
         path: Optional[Union[Path, str, dict]] = None,
         source_mode: MaterializeSourceMode = MaterializeSourceMode.RECOMPUTE,
+        tolerate_input_errors: bool = False,
         **kwargs,
     ):
         assert child is None or isinstance(child, Node)
-
         self._orig_path = path
         self._root = None
+        self._path_filter = None
+        self._tolerate_input_errors = tolerate_input_errors
         if path is None:
             pass
         elif isinstance(path, str) or isinstance(path, Path):
@@ -164,29 +407,45 @@ class Materialize(UnaryNode):
             success = self._fshelper.file_exists(self._success_path())
             if success or len(self.children) == 0:
                 logger.info(f"Using {self._orig_path} as the cached source of data")
+
                 self._executed_child = False
                 if not success:
                     self._verify_has_files()
                     logging.warning(f"materialize.success not found in {self._orig_path}. Returning partial data")
 
                 from ray.data import read_binary_files
+                from ray.data.datasource import PathPartitionFilter, PathPartitionParser
+
+                partition_filter: Optional[Callable[[dict[str, str]], bool]] = None
+                if self._path_filter is not None:
+                    partition_filter = PathPartitionFilter(
+                        cast(PathPartitionParser, RayPathParser()), self._path_filter
+                    )
+                shuffle = None if partition_filter is None else "files"
 
                 try:
+                    files = read_binary_files(
+                        self._root,
+                        filesystem=self._fs,
+                        file_extensions=["pickle"],
+                        partition_filter=partition_filter,
+                        shuffle=shuffle,
+                    )
 
-                    def _ray_to_document(dict: dict[str, Any]) -> list[dict[str, bytes]]:
-                        return [{"doc": dict["bytes"]}]
-
-                    files = read_binary_files(self._root, filesystem=self._fs, file_extensions=["pickle"])
-
-                    return files.flat_map(_ray_to_document)
+                    return files.flat_map(self._ray_to_document)
                 except ValueError as e:
+                    from ray.data import from_items
+
+                    if "No input files found to read." in str(e):
+                        logger.warning("No more files found during reliability step.")
+                        return from_items(items=[])
+
                     if "No input files found to read with the following file extensions" not in str(e):
                         raise
                 logger.warning(
                     f"Unable to find any .pickle files in {self._root}, but either"
                     " there is a materialize.success or this is a start node."
                 )
-                from ray.data import from_items
 
                 return from_items(items=[])
 
@@ -206,7 +465,6 @@ class Materialize(UnaryNode):
                 return ray_input
 
             return input_dataset.map_batches(ray_callable)
-
         return input_dataset
 
     def _verify_has_files(self) -> None:
@@ -219,7 +477,20 @@ class Materialize(UnaryNode):
             if n.path.endswith(".pickle"):
                 return
 
-        raise ValueError(f"Materialize root {self._orig_path} has no .pickle files")
+        raise ValueError(
+            f"""Materialize root {self._orig_path} has no .pickle files.
+            If using reliability, make sure to write doc ids using 'docid_from_path'."""
+        )
+
+    def _ray_to_document(self, dict: dict[str, Any]) -> list[dict[str, bytes]]:
+        b = dict["bytes"]
+        if len(b) == 0:
+            if self._tolerate_input_errors:
+                logger.info("Dropping empty doc cause of tolerate_input_errors")
+                return []
+            else:
+                logger.warning("Found empty input doc, pipeline is gonna fail")
+        return [{"doc": b}]
 
     def _will_be_source(self) -> bool:
         if len(self.children) == 0:
@@ -240,7 +511,6 @@ class Materialize(UnaryNode):
             for d in docs:
                 self.save(d)
             self._executed_child = True
-
         return docs
 
     def local_source(self) -> list[Document]:
@@ -256,6 +526,8 @@ class Materialize(UnaryNode):
         ret = []
         count = 0
         for fi in self._fshelper.list_files(self._root):
+            if self._path_filter is not None and not self._path_filter(fi.path):
+                continue
             n = Path(fi.path)
             if n.suffix == ".pickle":
                 limited_logger.info(f"  reading file {count} from {str(n)}")
@@ -325,6 +597,11 @@ class Materialize(UnaryNode):
 
         assert isinstance(doc, Document)
         return f"doc-{docid_to_typed_nanoid(doc_id)}.{hash_id}.pickle"
+
+
+class RayPathParser:
+    def __call__(self, path: str) -> Path:
+        return Path(path)
 
 
 class AutoMaterialize(NodeTraverse):

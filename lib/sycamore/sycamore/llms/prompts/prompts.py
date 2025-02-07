@@ -517,6 +517,19 @@ class JinjaPrompt(SycamorePrompt):
         return _deserialize_jinja_prompt, ({"system": self.system, "user": self.user, **self.kwargs},)
 
     def render_document(self, doc: Document) -> RenderedPrompt:
+        """Render this document using Jinja's template rendering system.
+        The template gets references to:
+
+            - doc: the document
+            - **self.kwargs: other keyword arguments held by this prompt are
+                available by name.
+
+        Args:
+            doc: The document to render
+
+        Returns:
+            A rendered prompt containing information from the document.
+        """
         if self._sys_template is None and self.system is not None:
             self._sys_template = self._env.from_string(source=self.system)
         if self._user_templates is None and self.user is not None:

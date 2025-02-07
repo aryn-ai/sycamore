@@ -222,6 +222,7 @@ class OpenAIEntityExtractor(EntityExtractor):
                         curr_tks += tks
                 batches.append(curr_club)
             else:
+                # If no tokenizer, we run a single batch with the first num_of_elements.
                 batches = [[i for e, i in elements[: self._num_of_elements]]]
                 for i in batches[0]:
                     doc.elements[i].properties[vars["source_idx_key"]] = batches[0]
@@ -247,10 +248,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         vars = self._get_const_variables()
 
         def validate(d: Document) -> bool:
-            if self._tokenizer is not None:
-                return d.properties.get(self._entity_name, "None") != "None"
-            else:
-                return True
+            return self._tokenizer is None or d.properties.get(self._entity_name, "None") != "None"
 
         def postprocess(d: Document) -> Document:
             target_club_idx = d.properties[vars["iteration_var_name"]]

@@ -18,6 +18,7 @@ class MockLLM(LLM):
         super().__init__(model_name="mock_model")
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        print(prompt)
         if len(prompt.messages) == 1:
             usermessage = prompt.messages[0].content
         else:
@@ -56,7 +57,7 @@ class TestEntityExtraction:
             "content": {"binary": None, "text": "text"},
             "parent_id": None,
             "properties": {"path": "s3://path"},
-            "embedding": {"binary": None, "text": None},
+            "embedding": None,
             "elements": [
                 {
                     "type": "title",
@@ -78,14 +79,14 @@ class TestEntityExtraction:
         llm = MockLLM()
         extractor = OpenAIEntityExtractor("title", llm=llm)
         llm_map = extractor.as_llm_map(None)
-        out_docs = llm_map.run([self.doc])
+        out_docs = llm_map._local_process([self.doc])
         assert out_docs[0].properties.get("title") == "title1"
 
     def test_extract_entity_zero_shot_custom_field(self, mocker):
         llm = MockLLM()
         extractor = OpenAIEntityExtractor("title", llm=llm, field="properties.entity.author")
         llm_map = extractor.as_llm_map(None)
-        out_docs = llm_map.run([self.doc])
+        out_docs = llm_map._local_process([self.doc])
         assert out_docs[0].properties.get("title") == "Jack Black"
 
     def test_extract_entity_with_context_llm(self, mocker):
@@ -97,35 +98,35 @@ class TestEntityExtraction:
         )
         extractor = OpenAIEntityExtractor("title")
         llm_map = extractor.as_llm_map(None, context=context)
-        out_docs = llm_map.run([self.doc])
+        out_docs = llm_map._local_process([self.doc])
         assert out_docs[0].properties.get("title") == "title1"
 
     def test_extract_entity_few_shot(self, mocker):
         llm = MockLLM()
         extractor = OpenAIEntityExtractor("title", llm=llm, prompt_template="title")
         llm_map = extractor.as_llm_map(None)
-        out_docs = llm_map.run([self.doc])
+        out_docs = llm_map._local_process([self.doc])
         assert out_docs[0].properties.get("title") == "title2"
 
     def test_extract_entity_document_field_messages(self, mocker):
         llm = MockLLM()
         extractor = OpenAIEntityExtractor("title", llm=llm, use_elements=False, prompt=[], field="properties.path")
         llm_map = extractor.as_llm_map(None)
-        out_docs = llm_map.run([self.doc])
+        out_docs = llm_map._local_process([self.doc])
         assert out_docs[0].properties.get("title") == "alt_title"
 
     def test_extract_entity_document_field_string(self, mocker):
         llm = MockLLM()
         extractor = OpenAIEntityExtractor("title", llm=llm, use_elements=False, prompt="", field="properties.path")
         llm_map = extractor.as_llm_map(None)
-        out_docs = llm_map.run([self.doc])
+        out_docs = llm_map._local_process([self.doc])
         assert out_docs[0].properties.get("title") == "alt_title"
 
     def test_extract_entity_with_elements_and_string_prompt(self, mocker):
         llm = MockLLM()
         extractor = OpenAIEntityExtractor("title", llm=llm, use_elements=True, prompt="Hi ")
         llm_map = extractor.as_llm_map(None)
-        outdocs = llm_map.run([self.doc])
+        outdocs = llm_map._local_process([self.doc])
         assert outdocs[0].properties.get("title").startswith("Hi")
         assert "text1" in outdocs[0].properties.get("title")
         assert "text2" in outdocs[0].properties.get("title")
@@ -135,7 +136,7 @@ class TestEntityExtraction:
         prompt_messages = [{"role": "system", "content": "Yo"}, {"role": "user", "content": "ho!"}]
         extractor = OpenAIEntityExtractor("title", llm=llm, use_elements=True, prompt=prompt_messages)
         llm_map = extractor.as_llm_map(None)
-        outdocs = llm_map.run([self.doc])
+        outdocs = llm_map._local_process([self.doc])
         assert outdocs[0].properties.get("title").startswith("ho there!")
         assert "text1" in outdocs[0].properties.get("title")
         assert "text2" in outdocs[0].properties.get("title")
@@ -222,7 +223,7 @@ class TestEntityExtraction:
             prompt=[],
             field="text_representation",
             tokenizer=mock_tokenizer,
-            max_tokens=20,  # Low token limit to test windowing
+            max_tokens=42,  # Low token limit to test windowing
         )
 
         entity_docset = docset.extract_entity(
@@ -230,12 +231,12 @@ class TestEntityExtraction:
         )
         taken = entity_docset.take()
 
-        assert taken[0].properties[f"{new_field}_source_element_index"] == {0, 1, 2}
-        assert taken[1].properties[f"{new_field}_source_element_index"] == {2}
+        assert taken[0].properties[f"{new_field}_source_indices"] == [0, 1, 2]
+        assert taken[1].properties[f"{new_field}_source_indices"] == [1]  # set to array index, not element_index
         assert taken[0].properties[new_field] == "4"
         assert taken[1].properties[new_field] == "5"
-        assert taken[0].elements[0]["properties"]["_autogen_LLMExtractEntityOutput_source_element_index"] == {0, 1, 2}
-        assert taken[0].elements[1]["properties"]["_autogen_LLMExtractEntityOutput_source_element_index"] == {0, 1, 2}
-        assert taken[0].elements[2]["properties"]["_autogen_LLMExtractEntityOutput_source_element_index"] == {0, 1, 2}
-        assert taken[1].elements[0]["properties"]["_autogen_LLMExtractEntityOutput_source_element_index"] == {1}
-        assert taken[1].elements[1]["properties"]["_autogen_LLMExtractEntityOutput_source_element_index"] == {2}
+        assert taken[0].elements[0]["properties"]["_autogen_LLMExtractEntityOutput_source_indices"] == [0, 1, 2]
+        assert taken[0].elements[1]["properties"]["_autogen_LLMExtractEntityOutput_source_indices"] == [0, 1, 2]
+        assert taken[0].elements[2]["properties"]["_autogen_LLMExtractEntityOutput_source_indices"] == [0, 1, 2]
+        assert taken[1].elements[0]["properties"]["_autogen_LLMExtractEntityOutput_source_indices"] == [0]
+        assert taken[1].elements[1]["properties"]["_autogen_LLMExtractEntityOutput_source_indices"] == [1]

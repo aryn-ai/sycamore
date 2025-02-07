@@ -5,6 +5,7 @@ import copy
 import pydantic
 from PIL import Image
 from sycamore.data.document import Document, Element
+from sycamore.functions.tokenizer import Tokenizer
 from sycamore.connectors.common import flatten_data
 
 
@@ -35,6 +36,10 @@ class RenderedPrompt:
 
     messages: list[RenderedMessage]
     response_format: Union[None, dict[str, Any], type[pydantic.BaseModel]] = None
+
+    def token_count(self, tokenizer: Tokenizer) -> int:
+        total_text = " ".join(m.content for m in self.messages)
+        return len(tokenizer.tokenize(total_text))
 
 
 class SycamorePrompt:
@@ -451,3 +456,98 @@ class StaticPrompt(SycamorePrompt):
 
     def render_multiple_documents(self, docs: list[Document]) -> RenderedPrompt:
         return self.render_generic()
+
+
+class NoRender(Exception):
+    def __init__(self):
+        super().__init__()
+
+
+def _deserialize_jinja_prompt(kwargs):
+    return JinjaPrompt(**kwargs)
+
+
+class JinjaPrompt(SycamorePrompt):
+    """A prompt that uses the Jinja templating system to render documents, with
+    a system and user prompt.
+
+    Args:
+        system: The system prompt template, using Jinja syntax.
+        user: The user prompt template or prompt templates, using Jinja syntax.
+        kwargs: Additional key-value pairs that will be made available to the
+            rendering engine.
+
+    Example:
+         .. code-block:: python
+
+            prompt = JinjaPrompt(
+                system="You are a helpful entity extractor that extracts a json object or list to"
+                        " populate a data processing system",
+                user='''Below, you will be given a series of segments of an NTSB report and a question.
+            Your job is to provide the answer to the question based on the value provided.
+            Your response should ONLY contain the answer to the question. If you are not able
+            to extract the new field given the information, respond with "None". The type
+            of your response should be a JSON list of strings.
+            Field value:
+            {% for elt in doc.elements[:10] %}
+            ELEMENT {{ elt.element_index }}: {{ elt.field_to_value(field) }}
+            {% endfor %}
+            Answer the question "{{ question }}":''',
+                question="What aircraft parts were damaged in this report?",
+                field="text_representation",
+            )
+            ds.llm_map(prompt, output_field="damaged_parts", llm=OpenAI(OpenAIModels.GPT_4O))
+
+    """
+
+    def __init__(self, *, system: Optional[str] = None, user: Union[None, str, list[str]] = None, **kwargs):
+        from jinja2.sandbox import SandboxedEnvironment
+        from jinja2 import Template
+
+        super().__init__()
+        self.system = system
+        self.user = user
+        self.kwargs = kwargs
+        self._env = SandboxedEnvironment()
+        self._sys_template: Optional[Template] = None
+        self._user_templates: Union[None, Template, list[Template]] = None
+
+    def __reduce__(self):
+        # Cannot serialize compiled templates - so force recompilation
+        return _deserialize_jinja_prompt, ({"system": self.system, "user": self.user, **self.kwargs},)
+
+    def render_document(self, doc: Document) -> RenderedPrompt:
+        if self._sys_template is None and self.system is not None:
+            self._sys_template = self._env.from_string(source=self.system)
+        if self._user_templates is None and self.user is not None:
+            if isinstance(self.user, str):
+                self._user_templates = self._env.from_string(source=self.user)
+            else:
+                self._user_templates = [self._env.from_string(source=u) for u in self.user]
+
+        render_args = copy.deepcopy(self.kwargs)
+        render_args["doc"] = doc
+
+        messages = []
+        if self._sys_template is not None:
+            try:
+                system = self._sys_template.render(render_args)
+                messages.append(RenderedMessage(role="system", content=system))
+            except NoRender:
+                return RenderedPrompt(messages=[])
+        if self._user_templates is not None:
+            if isinstance(self._user_templates, list):
+                for t in self._user_templates:
+                    try:
+                        content = t.render(render_args)
+                        messages.append(RenderedMessage(role="user", content=content))
+                    except NoRender:
+                        return RenderedPrompt(messages=[])
+            else:
+                try:
+                    content = self._user_templates.render(render_args)
+                    messages.append(RenderedMessage(role="user", content=content))
+                except NoRender:
+                    return RenderedPrompt(messages=[])
+
+        return RenderedPrompt(messages=messages)

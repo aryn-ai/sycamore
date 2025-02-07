@@ -3,7 +3,7 @@ from abc import ABC
 from typing import Any, Optional, Type
 import textwrap
 
-from sycamore.llms.prompts.prompts import ElementListPrompt, ElementPrompt, StaticPrompt
+from sycamore.llms.prompts.prompts import ElementListPrompt, ElementPrompt, StaticPrompt, JinjaPrompt
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,16 @@ EntityExtractorZeroShotGuidancePrompt = ElementListPrompt(
     {elements}""",
 )
 
+EntityExtractorZeroShotJinjaPrompt = JinjaPrompt(
+    system="You are a helpful entity extractor",
+    user="""You are given a few text elements of a document. The {{ entity }} of the document is in these few text elements.
+    Using this context, FIND, COPY, and RETURN the {{ entity }}. DO NOT REPHRASE OR MAKE UP AN ANSWER.
+    {% for elt in doc.elements[:num_elements] %} ELEMENT {{ elt.element_index }}: {{ elt.field_to_value(field) }}
+    {% endfor %}""",
+    field="text_representation",
+    num_elements=35,
+)
+
 
 class _EntityExtractorFewShotGuidancePrompt(SimplePrompt):
     system = "You are a helpful entity extractor."
@@ -78,6 +88,19 @@ EntityExtractorFewShotGuidancePrompt = ElementListPrompt(
     of your answer. DO NOT REPHRASE OR MAKE UP AN ANSWER.
     {elements}
     """,
+)
+
+EntityExtractorFewShotJinjaPrompt = JinjaPrompt(
+    system="You are a helpful entity extractor",
+    user="""You are given a few text elements of a document. The {{ entity }} of the document is in these few text elements. Here are
+    some example groups of text elements where the {{ entity }} has been identified.
+    {{ examples }}
+    Using the context from the document and the provided examples, FIND, COPY, and RETURN the {{ entity }}. Only return the {{ entity }} as part
+    of your answer. DO NOT REPHRASE OR MAKE UP AN ANSWER.
+    {% for elt in doc.elements[:num_elements] %} ELEMENT {{ elt.element_index }}: {{ elt.field_to_value(field) }}
+    {% endfor %}""",
+    field="text_representation",
+    num_elements=35,
 )
 
 

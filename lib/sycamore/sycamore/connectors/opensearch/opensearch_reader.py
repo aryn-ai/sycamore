@@ -333,8 +333,17 @@ class OpenSearchReader(BaseDBReader):
                         and hit["_source"]["parent_id"] is not None
                         and hit["_source"]["parent_id"] not in parent_ids
                     ):
-                        results.append(hit)
+                        # Only add a child doc whose parent_id has not been found, yet.
                         parent_ids.add(hit["_source"]["parent_id"])
+                        results.append(hit)
+                    elif ("parent_id" not in hit["_source"] or hit["_source"]["parent_id"] is None) and hit[
+                        "_id"
+                    ] not in parent_ids:
+                        # Add a parent doc if it's a match.
+                        parent_id = hit["_id"]
+                        parent_ids.add(parent_id)
+                        hit["_source"]["parent_id"] = parent_id
+                        results.append(hit)
 
                 page += 1
 

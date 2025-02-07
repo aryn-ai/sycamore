@@ -22,6 +22,7 @@ _logger.setLevel(logging.INFO)
 _logger.addHandler(logging.StreamHandler(sys.stderr))
 
 g_version = "0.1.14"
+g_parameters = {"path_filter": "^/v1/document/partition$"}
 
 
 class PartitionError(Exception):
@@ -447,7 +448,9 @@ def partition_file_async_result(
 
     specific_task_url = f"{async_result_url.rstrip('/')}/{task_id}"
     headers = _generate_headers(aryn_config.api_key())
-    response = requests.get(specific_task_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
+    response = requests.get(
+        specific_task_url, params=g_parameters, headers=headers, stream=_should_stream(), verify=ssl_verify
+    )
 
     if response.status_code == 200:
         return {"status": "done", "status_code": response.status_code, "result": response.json()}
@@ -485,7 +488,9 @@ def partition_file_async_cancel(
 
     specific_task_url = f"{async_cancel_url.rstrip('/')}/{task_id}"
     headers = _generate_headers(aryn_config.api_key())
-    response = requests.post(specific_task_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
+    response = requests.post(
+        specific_task_url, params=g_parameters, headers=headers, stream=_should_stream(), verify=ssl_verify
+    )
     if response.status_code == 200:
         return True
     elif response.status_code == 404:
@@ -522,14 +527,13 @@ def partition_file_async_list(
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
     headers = _generate_headers(aryn_config.api_key())
-    response = requests.get(async_list_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
+    response = requests.get(
+        async_list_url, params=g_parameters, headers=headers, stream=_should_stream(), verify=ssl_verify
+    )
 
-    all_tasks = response.json()["tasks"]
-    result = {}
-    for task_id in all_tasks.keys():
-        if all_tasks[task_id]["path"] == "/v1/document/partition":
-            del all_tasks[task_id]["path"]
-            result[task_id] = all_tasks[task_id]
+    result = response.json()["tasks"]
+    for v in result.values():
+        del v["path"]
     return result
 
 

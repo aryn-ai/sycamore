@@ -280,48 +280,6 @@ class OpenAIEntityExtractor(EntityExtractor):
         comptransform.nodes = nodes
         return comptransform
 
-        # prompt = ElementListIterPrompt(
-        #     system=prompt.system,
-        #     user=prompt.user,
-        #     element_list_constructor=elt_list_ctor,
-        #     element_batcher=eb,
-        #     entity=self._entity_name,
-        #     examples=self._prompt_template,
-        #     iteration_var_name=iteration_var_name,
-        # )
-
-        # llm_map = LLMMap(
-        #     child, prompt, self._entity_name, llm, iteration_var=iteration_var_name, validate=validate, **kwargs
-        # )
-        # ppmap = Map(llm_map, f=postprocess)
-        # return ppmap
-
-        # elif not self._use_elements:
-        #     if self._prompt is None:
-        #         raise ValueError("prompt must be specified if use_elements is False")
-        #     if isinstance(self._prompt, str):
-        #         prompt = FieldToValuePrompt(
-        #             messages=[RenderedMessage(role="user", content=self._prompt + "{value}")], field=self._field
-        #         )
-        #     elif isinstance(self._prompt, list):
-        #         ms = [RenderedMessage(role=m["role"], content=m["content"]) for m in self._prompt]
-        #         ms.append(RenderedMessage(role="user", content="{value}"))
-        #         prompt = FieldToValuePrompt(messages=ms, field=self._field)
-        #     return LLMMap(child, prompt, self._entity_name, llm, **kwargs)
-
-        # def elt_sorter(elts: list[Element]) -> list[Element]:
-        #     sorter_inner = make_element_sorter_fn(self._field, self._similarity_query, self._similarity_scorer)
-        #     dummy_doc = Document(elements=elts)
-        #     sorter_inner(dummy_doc)
-        #     return dummy_doc.elements
-
-        # prompt = prompt.set(element_select=lambda e: elt_sorter(e)[: self._num_of_elements])
-        # prompt = prompt.set(element_list_constructor=lambda e: self._prompt_formatter(e, self._field))
-        # prompt = prompt.set(entity=self._entity_name)
-
-        llm_map = LLMMap(child, prompt, self._entity_name, llm, **kwargs)
-        return llm_map
-
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     @timetrace("OaExtract")
     def extract_entity(

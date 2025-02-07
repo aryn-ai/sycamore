@@ -463,6 +463,10 @@ class NoRender(Exception):
         super().__init__()
 
 
+def raise_no_render():
+    raise NoRender()
+
+
 def _deserialize_jinja_prompt(kwargs):
     return JinjaPrompt(**kwargs)
 
@@ -531,12 +535,14 @@ class JinjaPrompt(SycamorePrompt):
             A rendered prompt containing information from the document.
         """
         if self._sys_template is None and self.system is not None:
-            self._sys_template = self._env.from_string(source=self.system)
+            self._sys_template = self._env.from_string(source=self.system, globals={"norender": raise_no_render})
         if self._user_templates is None and self.user is not None:
             if isinstance(self.user, str):
-                self._user_templates = self._env.from_string(source=self.user)
+                self._user_templates = self._env.from_string(source=self.user, globals={"norender": raise_no_render})
             else:
-                self._user_templates = [self._env.from_string(source=u) for u in self.user]
+                self._user_templates = [
+                    self._env.from_string(source=u, globals={"norender": raise_no_render}) for u in self.user
+                ]
 
         render_args = copy.deepcopy(self.kwargs)
         render_args["doc"] = doc

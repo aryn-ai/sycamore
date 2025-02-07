@@ -24,6 +24,9 @@ class MockLLM(LLM):
         else:
             usermessage = prompt.messages[1].content
 
+        if "returnnone" in usermessage:
+            return "None"
+
         if usermessage.startswith("Hi"):
             return usermessage
 
@@ -140,6 +143,23 @@ class TestEntityExtraction:
         assert outdocs[0].properties.get("title").startswith("ho there!")
         assert "text1" in outdocs[0].properties.get("title")
         assert "text2" in outdocs[0].properties.get("title")
+
+    def test_extract_entity_iteration_var_oob(self, mocker):
+        llm = MockLLM()
+        llm.generate = MagicMock(wraps=llm.generate)
+        extractor = OpenAIEntityExtractor(
+            "returnnone",
+            llm=llm,
+            field="properties.entity.author",
+            tokenizer=MockTokenizer(),
+            max_tokens=10,
+            prompt="{{ entity }}",
+        )
+        llm_map = extractor.as_llm_map(None)
+        out_docs = llm_map._local_process([self.doc])
+
+        assert llm.generate.call_count == 2
+        assert out_docs[0].properties["returnnone"] == "None"
 
     def test_extract_entity_with_similarity_sorting(self, mocker):
         doc_list = [

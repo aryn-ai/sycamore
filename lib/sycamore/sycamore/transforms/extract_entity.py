@@ -254,6 +254,8 @@ class OpenAIEntityExtractor(EntityExtractor):
 
         def postprocess(d: Document) -> Document:
             target_club_idx = d.properties[vars["iteration_var_name"]]
+            if target_club_idx >= len(d.properties[vars["batch_key"]]):
+                return d
             batch = d.properties[vars["batch_key"]][target_club_idx]
             d.properties[vars["source_idx_key"]] = batch
             return d
@@ -283,6 +285,7 @@ class OpenAIEntityExtractor(EntityExtractor):
             llm,
             validate=validate,
             iteration_var=vars["iteration_var_name"],
+            max_tries=100,
             **kwargs,
         )
         nodes.append(head_node)

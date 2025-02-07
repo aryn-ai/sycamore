@@ -28,7 +28,7 @@ from sycamore.transforms import (
     Query,
 )
 from sycamore.transforms import Filter
-from sycamore.transforms.base import get_name_from_callable
+from sycamore.transforms.base import get_name_from_callable, CompositeTransform
 from sycamore.transforms.base_llm import LLMMap
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, LLMPropertyExtractor
@@ -43,6 +43,7 @@ class MockLLM(LLM):
         super().__init__(model_name="mock_model")
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        print(prompt)
         if llm_kwargs is None:
             llm_kwargs = {}
         if prompt.messages[-1].content.endswith("Element_index: 1\nText: third element\n"):
@@ -182,7 +183,7 @@ class TestDocSet:
         llm = mocker.Mock(spec=LLM)
         docset = DocSet(context, None)
         docset = docset.extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=llm, prompt_template=""))
-        assert isinstance(docset.lineage(), LLMMap)
+        assert isinstance(docset.lineage(), CompositeTransform)
 
     def test_query(self, mocker):
         context = mocker.Mock(spec=Context)

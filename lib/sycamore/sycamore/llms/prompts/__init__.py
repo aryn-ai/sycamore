@@ -4,8 +4,8 @@ from sycamore.llms.prompts import default_prompts
 
 from sycamore.llms.prompts.default_prompts import (
     SimplePrompt,
-    EntityExtractorZeroShotGuidancePrompt,
-    EntityExtractorFewShotGuidancePrompt,
+    EntityExtractorZeroShotJinjaPrompt,
+    EntityExtractorFewShotJinjaPrompt,
     TextSummarizerGuidancePrompt,
     SchemaZeroShotGuidancePrompt,
     PropertiesZeroShotGuidancePrompt,
@@ -26,8 +26,8 @@ from sycamore.llms.prompts.prompts import (
 
 prompts = [
     "SimplePrompt",
-    "EntityExtractorZeroShotGuidancePrompt",
-    "EntityExtractorFewShotGuidancePrompt",
+    "EntityExtractorZeroShotJinjaPrompt",
+    "EntityExtractorFewShotJinjaPrompt",
     "TextSummarizerGuidancePrompt",
     "SchemaZeroShotGuidancePrompt",
     "PropertiesZeroShotGuidancePrompt",

@@ -3,7 +3,13 @@ from abc import ABC
 from typing import Any, Optional, Type
 import textwrap
 
-from sycamore.llms.prompts.prompts import ElementListPrompt, ElementPrompt, StaticPrompt, JinjaPrompt
+from sycamore.llms.prompts.prompts import (
+    ElementListPrompt,
+    ElementPrompt,
+    StaticPrompt,
+    JinjaPrompt,
+    JinjaElementPrompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +89,61 @@ EntityExtractorFewShotJinjaPrompt = JinjaPrompt(
     {% endfor %}""",
     field="text_representation",
     num_elements=35,
+)
+
+
+SummarizeImagesJinjaPrompt = JinjaElementPrompt(
+    user=textwrap.dedent(
+        """\
+        You are given an image from a PDF document along with with some snippets of text preceding
+        and following the image on the page. Based on this context, please decide whether the image is a
+        graph or not. An image is a graph if it is a bar chart or a line graph. If the image is a graph,
+        please summarize the axes, including their units, and provide a summary of the results in no more
+        than 5 sentences.
+
+        Return the results in the following JSON schema:
+
+        {
+            "is_graph": true,
+            "x-axis": string,
+            "y-axis": string,
+            "summary": string
+        }
+
+        If the image is not a graph, please summarize the contents of the image in no more than five sentences
+        in the following JSON format:
+
+        {
+            "is_graph": false,
+            "summary": string
+        }
+
+        In all cases return only JSON and check your work.
+
+        {%- if include_context -%}
+            {%- set posns = namespace(pos=-1) -%}
+            {%- for e in doc.elements -%}
+                {%- if e is sameas elt -%}
+                    {%- set posns.pos = loop.index0 -%}
+                    {% break %}
+                {%- endif -%}
+            {%- endfor -%}
+            {%- if posns.pos > 0 -%}
+                {%- set pe = doc.elements[posns.pos - 1] -%}
+                {%- if pe.type in ["Section-header", "Caption", "Text"] -%}
+        The text preceding the image is: {{ pe.text_representation }}
+                {%- endif -%}
+            {%- endif -%}
+            {% if posns.pos != -1 and posns.pos < doc.elements|count -%}
+                {%- set fe = doc.elements[posns.pos + 1] -%}
+                {%- if fe.type in ["Caption", "Text"] -%}
+        The text preceding the image is: {{ fe.text_representation }}
+                {%- endif -%}
+            {%- endif -%}
+        {%- endif -%}
+        """
+    ),
+    include_images=True,
 )
 
 

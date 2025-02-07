@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Union, Optional, Callable
+from typing import Any, Union, Optional, Callable, TYPE_CHECKING
 import copy
 
 import pydantic
@@ -8,6 +8,9 @@ from sycamore.data.document import Document, Element
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.connectors.common import flatten_data
 
+if TYPE_CHECKING:
+    from jinja2.sandbox import SandboxedEnvironment
+    from jinja2 import Template
 
 @dataclass
 class RenderedMessage:
@@ -467,6 +470,10 @@ def raise_no_render():
     raise NoRender()
 
 
+def compile_templates(templates: list[str], env: "SandboxedEnvironment") -> "Template":
+
+
+
 def _deserialize_jinja_prompt(kwargs):
     return JinjaPrompt(**kwargs)
 
@@ -570,3 +577,25 @@ class JinjaPrompt(SycamorePrompt):
                     return RenderedPrompt(messages=[])
 
         return RenderedPrompt(messages=messages)
+
+
+class JinjaElementPrompt(SycamorePrompt):
+    def __init__(
+        self,
+        *,
+        system: Optional[str] = None,
+        user: Union[None, str, list[str]] = None,
+        include_image: bool = False,
+        **kwargs,
+    ):
+        from jinja2.sandbox import SandboxedEnvironment
+        from jinja2 import Template
+
+        super().__init__()
+        self.system = system
+        self.user = user
+        self.include_image = include_image
+        self.kwargs = kwargs
+        self._env = SandboxedEnvironment()
+        self._sys_template: Optional[Template] = None
+        self._user_templates: Union[None, Template, list[Template]] = None

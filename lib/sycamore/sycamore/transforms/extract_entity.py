@@ -131,6 +131,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._similarity_scorer = similarity_scorer
 
     def _get_const_variables(self) -> dict[str, str]:
+        # These kept popping up in various places across the transforms
         return {
             "similarity_field_name": f"{self._field}_similarity_score",
             "source_idx_key": f"{self._entity_name}_source_indices",
@@ -139,6 +140,8 @@ class OpenAIEntityExtractor(EntityExtractor):
         }
 
     def _get_prompt(self) -> SycamorePrompt:
+        # there's like a million paths to cover but I think I have
+        # them all
         vars = self._get_const_variables()
         if self._prompt_formatter is not element_list_formatter:
             j_elements = "{{ formatter(doc.elements) }}"
@@ -180,6 +183,8 @@ class OpenAIEntityExtractor(EntityExtractor):
 
         def sort_and_batch_elements(doc: Document) -> Document:
             if self._similarity_query is not None and self._similarity_scorer is not None:
+                # If we did similarity scoring sort the elements (keep track of their original
+                # locations though)
                 elements = sorted(
                     [(e, i) for i, e in enumerate(doc.elements)],
                     key=(lambda e_i: e_i[0].properties.get(vars["similarity_field_name"], float("-inf"))),
@@ -192,6 +197,9 @@ class OpenAIEntityExtractor(EntityExtractor):
             if self._tokenizer is not None:
                 curr_club = []
                 curr_tks = 0
+                # We'll create a dummy document and consecutively
+                # add more elements to it, rendering out to a prompt
+                # at each step and counting tokens to find breakpoints.
                 dummy = doc.copy()
                 dummy.properties = doc.properties.copy()
                 dummy.properties[vars["iteration_var_name"]] = 0
@@ -227,6 +235,9 @@ class OpenAIEntityExtractor(EntityExtractor):
     def as_llm_map(
         self, child: Optional[Node], context: Optional[Context] = None, llm: Optional[LLM] = None, **kwargs
     ) -> Node:
+        # represent this EntityExtractor as a CompositeTransform consisting of some
+        # preprocessing (set up batches, sort elements, etc), the central LLMMap,
+        # and some postprocessing (derive the source_indices property)
         if llm is None:
             llm = self._llm
         assert llm is not None, "Could not find an LLM to use"
@@ -250,6 +261,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         nodes: list[BaseMapTransform] = []
         head_node: Node
         if self._similarity_query is not None and self._similarity_scorer is not None:
+            # If similarity we add a ScoreSimilarity node to the sub-pipeline
             from sycamore.transforms.similarity import ScoreSimilarity
 
             head_node = ScoreSimilarity(

@@ -114,7 +114,9 @@ class PropertyExtractionFromDictPrompt(ElementListPrompt):
             format_args["entity"] = doc.properties.get("_schema_class", "entity")
         flat_props = flatten_data(doc.properties, prefix="doc_property", separator="_")
         format_args.update(flat_props)
-        format_args["elements"] = self._render_element_list_to_string
+        format_args["elements"] = self._render_element_list_to_string(doc)
+        if doc.text_representation is None:
+            format_args["doc_text"] = format_args["elements"]
 
         messages = _build_format_str(self.system, self.user, format_args)
         result = RenderedPrompt(messages=messages, response_format=schema)

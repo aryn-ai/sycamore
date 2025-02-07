@@ -1,6 +1,6 @@
 from os import PathLike
 from typing import BinaryIO, Union
-from aryn_sdk.partition.partition import convert_image_element, tables_to_pandas, ARYN_DOCPARSE_URL
+from aryn_sdk.partition.partition import ARYN_DOCPARSE_URL
 import pytest
 import json
 import time
@@ -14,6 +14,9 @@ from aryn_sdk.partition import (
     partition_file_async_cancel,
     partition_file_async_list,
     PartitionError,
+    PartitionTaskNotFoundError,
+    convert_image_element,
+    tables_to_pandas,
 )
 from requests.exceptions import HTTPError
 
@@ -182,8 +185,8 @@ def test_convert_img():
 
 
 def test_invalid_task_id():
-    response = partition_file_async_result("INVALID_JOB_ID")
-    assert response["status"] == "no_such_task"
+    with pytest.raises(PartitionTaskNotFoundError):
+        partition_file_async_result("INVALID_JOB_ID")
 
 
 def test_partition_file_async_submit(mocker):
@@ -292,16 +295,16 @@ def test_partition_file_async_cancel():
 
     before_cancel_result = partition_file_async_result(task_id)
     assert before_cancel_result["status"] == "pending"
-    assert partition_file_async_cancel(task_id)
+    partition_file_async_cancel(task_id)
 
     # Cancellation is not reflected in the result immediately
-    for _ in range(10):
-        time.sleep(0.1)
-        after_cancel_result = partition_file_async_result(task_id)
-        if after_cancel_result["status"] != "pending":
-            break
-        assert after_cancel_result["status"] == "pending"
-    assert after_cancel_result["status"] == "no_such_task"
+    with pytest.raises(PartitionTaskNotFoundError):
+        for _ in range(10):
+            time.sleep(0.1)
+            after_cancel_result = partition_file_async_result(task_id)
+            if after_cancel_result["status"] != "pending":
+                break
+            assert after_cancel_result["status"] == "pending"
 
 
 def test_smoke_webhook(mocker):

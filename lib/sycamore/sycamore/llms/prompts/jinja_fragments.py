@@ -18,7 +18,7 @@ ELEMENT {{ loop.index }}: {{ elt.field_to_value(field) }}
 {% endfor -%}"""
 )
 
-J_FANCY_ELEMENT_BATCHED_LIST = (
+J_ELEMENT_BATCHED_LIST_WITH_METADATA = (
     J_BATCH_OOB_CHECK
     + """\
 {% for i in doc.properties[batch_key][doc.properties[iteration_var]] -%}

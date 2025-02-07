@@ -16,7 +16,7 @@ from sycamore.llms.prompts.prompts import (
     RenderedPrompt,
     JinjaPrompt,
 )
-from sycamore.llms.prompts.jinja_fragments import J_ELEMENT_BATCHED_LIST, J_FANCY_ELEMENT_BATCHED_LIST
+from sycamore.llms.prompts.jinja_fragments import J_ELEMENT_BATCHED_LIST, J_ELEMENT_BATCHED_LIST_WITH_METADATA
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform, BaseMapTransform
 from sycamore.transforms.base_llm import LLMMap
@@ -146,7 +146,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         if self._prompt_formatter is not element_list_formatter:
             j_elements = "{{ formatter(doc.elements) }}"
         elif self._tokenizer is not None:
-            j_elements = J_FANCY_ELEMENT_BATCHED_LIST
+            j_elements = J_ELEMENT_BATCHED_LIST_WITH_METADATA
         else:
             j_elements = J_ELEMENT_BATCHED_LIST
         if not self._use_elements:

@@ -450,10 +450,12 @@ def partition_file_async_result(
 
     For examples of usage see README.md
 
+    Raises a `PartitionTaskNotFoundError` if the not task with the task_id can be found.
+
     Returns:
         A dict containing "status" and "status_code". When "status" is "done", the returned dict also contains "result"
-        which contains what would have been returned had `partition_file` been called directly. "status" can be "done",
-        "pending", "error", or "no_such_task".
+        which contains what would have been returned had `partition_file` been called directly. "status" can be "done"
+        or "pending".
 
         Unlike `partition_file`, this function does not raise an Exception if the partitioning failed.
     """
@@ -489,13 +491,10 @@ def partition_file_async_cancel(
     """
     Cancel an asynchronous partitioning task by task_id. Meant to be used with `partition_file_async_submit`.
 
-    Returns:
-        A bool indicating whether the task was successfully cancelled by this request.
+    Raises an exception if there is no cancellable task found with the given task_id. A task can only be successfully
+    cancelled once.
 
-        A task can only be successfully cancelled once. A return value of false can mean the task was already cancelled,
-        the task is already done, or there was no task with the given task_id.
-
-        For an example of usage see README.md
+    For an example of usage see README.md
     """
     if not async_cancel_url:
         async_cancel_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/cancel", truncate=True)

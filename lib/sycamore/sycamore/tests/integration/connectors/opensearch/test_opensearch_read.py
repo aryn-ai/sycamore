@@ -78,19 +78,6 @@ def get_doc_count(os_client, index_name: str, query: Optional[Dict[str, Any]] = 
     return res["count"]
 
 
-"""
-class MockLLM(LLM):
-    def __init__(self):
-        super().__init__(model_name="mock_model")
-
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        return str(uuid.uuid4())
-
-    def is_chat_mode(self):
-        return True
-"""
-
-
 class TestOpenSearchRead:
     INDEX_SETTINGS = {
         "body": {
@@ -574,6 +561,139 @@ class TestOpenSearchRead:
             assert doc.doc_id in expected_docs
             if doc.parent_id is not None:
                 assert doc.parent_id == expected_docs[doc.doc_id]["parent_id"]
+
+    def test_parallel_query_on_property_with_pit(self, setup_index, os_client):
+        context = sycamore.init(exec_mode=ExecMode.RAY)
+        key = "property1"
+        hidden = str(uuid.uuid4())
+        query = {"query": {"match": {f"properties.{key}": hidden}}}
+        # make sure we read from pickle files -- this part won't be written into opensearch.
+        dicts = [
+            {
+                "doc_id": "1",
+                "properties": {key: hidden},
+                "elements": [
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that meows"},
+                ],
+            },
+            {
+                "doc_id": "2",
+                "elements": [
+                    {"id": 7, "properties": {"_element_index": 7}, "text_representation": "this is a cat"},
+                    {
+                        "id": 1,
+                        "properties": {"_element_index": 1},
+                        "text_representation": "here is an animal that moos",
+                    },
+                ],
+            },
+            {
+                "doc_id": "3",
+                "elements": [
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that moos"},
+                ],
+            },
+            {
+                "doc_id": "4",
+                "elements": [
+                    {"id": 1, "properties": {"_element_index": 1}},
+                ],
+            },
+            {
+                "doc_id": "5",
+                "elements": [
+                    {
+                        "properties": {"_element_index": 1},
+                        "text_representation": "the number of pages in this document are 253",
+                    }
+                ],
+            },
+            {
+                "doc_id": "6",
+                "elements": [
+                    {"id": 1, "properties": {"_element_index": 1}},
+                ],
+            },
+        ]
+        docs = [Document(item) for item in dicts]
+
+        original_docs = (
+            context.read.document(docs)
+            # .materialize(path={"root": cache_dir, "name": doc_to_name})
+            .explode()
+            .write.opensearch(
+                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                index_name=setup_index,
+                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                execute=False,
+            )
+            .take_all()
+        )
+
+        os_client.indices.refresh(setup_index)
+
+        expected_count = len(original_docs)
+        actual_count = get_doc_count(os_client, setup_index)
+        # refresh should have made all ingested docs immediately available for search
+        assert actual_count == expected_count, f"Expected {expected_count} documents, found {actual_count}"
+
+        t0 = time.time()
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query=query,
+            reconstruct_document=True,
+        ).take_all()
+        t1 = time.time()
+
+        print(f"Retrieved {len(retrieved_docs)} documents in {t1 - t0} seconds")
+        expected_docs = self.get_ids(os_client, setup_index, True, query)
+        assert len(retrieved_docs) == len(expected_docs)
+        assert "1" == retrieved_docs[0].doc_id
+        assert hidden == retrieved_docs[0].properties[key]
+
+    def test_parallel_query_on_extracted_property_with_pit(self, setup_index, os_client):
+
+        path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
+        context = sycamore.init(exec_mode=ExecMode.RAY)
+        llm = OpenAI(OpenAIModels.GPT_4O_MINI)
+        extractor = OpenAIEntityExtractor("title", llm=llm)
+        original_docs = (
+            context.read.binary(path, binary_format="pdf")
+            .partition(ArynPartitioner(aryn_api_key=ARYN_API_KEY))
+            .extract_entity(extractor)
+            # .materialize(path={"root": materialized_dir, "name": doc_to_name})
+            .explode()
+            .write.opensearch(
+                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                index_name=setup_index,
+                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                execute=False,
+            )
+            .take_all()
+        )
+
+        os_client.indices.refresh(setup_index)
+
+        expected_count = len(original_docs)
+        actual_count = get_doc_count(os_client, setup_index)
+        # refresh should have made all ingested docs immediately available for search
+        assert actual_count == expected_count, f"Expected {expected_count} documents, found {actual_count}"
+
+        query = {"query": {"match": {"properties.title": "ray"}}}
+
+        t0 = time.time()
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query=query,
+            reconstruct_document=True,
+        ).take_all()
+        t1 = time.time()
+
+        print(f"Retrieved {len(retrieved_docs)} documents in {t1 - t0} seconds")
+        expected_docs = self.get_ids(os_client, setup_index, True, query)
+        assert len(retrieved_docs) == len(expected_docs)
 
     @staticmethod
     def get_ids(

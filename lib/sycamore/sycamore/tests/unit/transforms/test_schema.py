@@ -258,7 +258,8 @@ class TestSchema:
             '"someOtherDate": "2024-01--1 00:01:01", '
             '"accidentNumber": "FTW95FA129", '
             '"latitude": "10.00353", '
-            '"injuryCount": "5"}'
+            '"injuryCount": "5", '
+            '"location": ["Fort Worth, TX", "Dallas, TX"]}'
         )
 
         doc = Document()
@@ -275,6 +276,7 @@ class TestSchema:
                 SchemaField(name="accidentNumber", field_type="str"),
                 SchemaField(name="injuryCount", field_type="int"),
                 SchemaField(name="latitude", field_type="float"),
+                SchemaField(name="location", field_type="list"),
             ]
         )
         property_extractor = LLMPropertyExtractor(llm, schema=schema)
@@ -293,3 +295,4 @@ class TestSchema:
         assert doc.properties["entity"]["someOtherDate"] == "2024-01--1 00:01:01"
         assert doc.properties["entity"]["injuryCount"] == 5
         assert doc.properties["entity"]["latitude"] == 10.00353
+        assert doc.properties["entity"]["location"] == ["Fort Worth, TX", "Dallas, TX"]

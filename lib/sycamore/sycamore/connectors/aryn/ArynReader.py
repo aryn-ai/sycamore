@@ -1,25 +1,23 @@
 import io
 import json
-import logging
 import struct
 from dataclasses import dataclass
 from time import time
 from typing import Any, TYPE_CHECKING
 
 import httpx
+import pandas
 
 from sycamore.connectors.aryn.client import ArynClient
+# import requests
+# from requests import Response
 
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data import Document
 from sycamore.data.element import create_element
-from sycamore.decorators import experimental
 
 if TYPE_CHECKING:
     from ray.data import Dataset
-
-logger = logging.getLogger(__name__)
-
 
 @dataclass
 class ArynClientParams(BaseDBReader.ClientParams):
@@ -64,9 +62,7 @@ class ArynReaderClient(BaseDBReader.Client):
         headers = {"Authorization": f"Bearer {self.api_key}"}
 
         client = httpx.Client()
-        with client.stream(
-            "POST", f"{self.aryn_url}/docsets/{query_params.docset_id}/read", headers=headers
-        ) as response:
+        with client.stream("POST", f"{self.aryn_url}/docsets/{query_params.docset_id}/read", headers=headers) as response:
 
             docs = []
             print(f"Reading from docset: {query_params.docset_id}")
@@ -85,8 +81,8 @@ class ArynReaderClient(BaseDBReader.Client):
                 assert len(chunk) >= 4, f"Chunk too small: {len(chunk)} < 4"
                 while cur_pos < len(chunk):
                     if start_new_doc:
-                        doc_size_buf[idx:] = chunk[cur_pos : cur_pos + 4 - idx]
-                        to_read = struct.unpack("!i", doc_size_buf)[0]
+                        doc_size_buf[idx:] = chunk[cur_pos:cur_pos + 4 - idx]
+                        to_read = struct.unpack('!i', doc_size_buf)[0]
                         print(f"Reading doc of size: {to_read}")
                         doc_size_buf = bytearray(4)
                         idx = 0
@@ -101,7 +97,7 @@ class ArynReaderClient(BaseDBReader.Client):
                         break
                     else:
                         print("Reading the rest of the doc from the chunk")
-                        buffer.write(chunk[cur_pos : cur_pos + to_read])
+                        buffer.write(chunk[cur_pos:cur_pos + to_read])
                         docs.append(json.loads(buffer.getvalue().decode()))
                         buffer.flush()
                         buffer.seek(0)
@@ -128,7 +124,6 @@ class ArynReaderClient(BaseDBReader.Client):
         return cls(client, params)
 
 
-@experimental
 class ArynReader(BaseDBReader):
     Client = ArynReaderClient
     Record = ArynQueryResponse
@@ -144,17 +139,10 @@ class ArynReader(BaseDBReader):
         super().__init__(client_params=client_params, query_params=query_params, **kwargs)
 
     def _to_doc(self, doc: dict[str, Any]) -> dict[str, Any]:
-        assert isinstance(self._client_params, ArynClientParams)
-        assert isinstance(self._query_params, ArynQueryParams)
-
-        client = self.Client.from_client_params(self._client_params)
-        aryn_client = client._client
-
-        doc = aryn_client.get_doc(self._query_params.docset_id, doc["doc_id"])
         elements = doc.get("elements", [])
-        document = Document(**doc)
-        document.data["elements"] = [create_element(**element) for element in elements]
-        return {"doc": Document.serialize(document)}
+        doc = Document(**doc)
+        doc.data["elements"] = [create_element(**element) for element in elements]
+        return {"doc": Document.serialize(doc)}
 
     def execute(self, **kwargs) -> "Dataset":
 
@@ -163,12 +151,8 @@ class ArynReader(BaseDBReader):
 
         client = self.Client.from_client_params(self._client_params)
         aryn_client = client._client
-
-        # TODO paginate
         docs = aryn_client.list_docs(self._query_params.docset_id)
-        logger.debug(f"Found {len(docs)} docs in docset: {self._query_params.docset_id}")
-
+        print(f"Found {len(docs)} docs in docset: {self._query_params.docset_id}")
         from ray.data import from_items
-
         ds = from_items([{"doc_id": doc_id} for doc_id in docs])
         return ds.map(self._to_doc)

@@ -120,7 +120,7 @@ SummarizeImagesJinjaPrompt = JinjaElementPrompt(
 
         In all cases return only JSON and check your work.
 
-        {%- if include_context -%}
+        {% if include_context -%}
             {%- set posns = namespace(pos=-1) -%}
             {%- for e in doc.elements -%}
                 {%- if e is sameas elt -%}
@@ -133,11 +133,11 @@ SummarizeImagesJinjaPrompt = JinjaElementPrompt(
                 {%- if pe.type in ["Section-header", "Caption", "Text"] -%}
         The text preceding the image is: {{ pe.text_representation }}
                 {%- endif -%}
-            {%- endif -%}
+            {%- endif %}
             {% if posns.pos != -1 and posns.pos < doc.elements|count -%}
                 {%- set fe = doc.elements[posns.pos + 1] -%}
                 {%- if fe.type in ["Caption", "Text"] -%}
-        The text preceding the image is: {{ fe.text_representation }}
+        The text following the image is: {{ fe.text_representation }}
                 {%- endif -%}
             {%- endif -%}
         {%- endif -%}

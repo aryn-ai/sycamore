@@ -130,7 +130,7 @@ class SummarizeImages(CompositeTransform):
     def __init__(self, child: Node, summarizer=OpenAIImageSummarizer(), **resource_args):
         super().__init__(child, [], **resource_args)
         prompt = SummarizeImagesJinjaPrompt
-        if summarizer.prompt is not None:
+        if summarizer.prompt != LLMImageSummarizer.DEFAULT_PROMPT:
             prompt = prompt.set(user=summarizer.prompt)
         prompt = prompt.set(include_context=summarizer.include_context)
         llm_map = LLMMapElements(

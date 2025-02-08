@@ -543,7 +543,7 @@ class JinjaPrompt(SycamorePrompt):
         self.system = system
         self.user = user
         self.kwargs = kwargs
-        self._env = SandboxedEnvironment()
+        self._env = SandboxedEnvironment(extensions=["jinja2.ext.loopcontrols"])
         self._sys_template: Optional[Template] = None
         self._user_templates: Union[None, list[Template]] = None
 
@@ -597,7 +597,7 @@ class JinjaElementPrompt(SycamorePrompt):
         self.user = user
         self.include_image = include_image
         self.kwargs = kwargs
-        self._env = SandboxedEnvironment()
+        self._env = SandboxedEnvironment(extensions=["jinja2.ext.loopcontrols"])
         self._sys_template: Optional[Template] = None
         self._user_templates: Union[None, list[Template]] = None
 
@@ -629,4 +629,5 @@ class JinjaElementPrompt(SycamorePrompt):
             from sycamore.utils.pdf_utils import get_element_image
 
             result.messages[-1].images = [get_element_image(elt, doc)]
+        print(result)
         return result

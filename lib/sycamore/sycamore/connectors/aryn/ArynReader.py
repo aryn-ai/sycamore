@@ -1,14 +1,23 @@
+import io
 import json
+import struct
 from dataclasses import dataclass
-from typing import Any
+from time import time
+from typing import Any, TYPE_CHECKING
 
-import requests
-from requests import Response
+import httpx
+import pandas
+
+from sycamore.connectors.aryn.client import ArynClient
+# import requests
+# from requests import Response
 
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data import Document
 from sycamore.data.element import create_element
 
+if TYPE_CHECKING:
+    from ray.data import Dataset
 
 @dataclass
 class ArynClientParams(BaseDBReader.ClientParams):
@@ -41,39 +50,109 @@ class ArynQueryResponse(BaseDBReader.QueryResponse):
         return docs
 
 
-class ArynClient(BaseDBReader.Client):
-    def __init__(self, client_params: ArynClientParams, **kwargs):
+class ArynReaderClient(BaseDBReader.Client):
+    def __init__(self, client: ArynClient, client_params: ArynClientParams, **kwargs):
         self.aryn_url = client_params.aryn_url
         self.api_key = client_params.api_key
+        self._client = client
         self.kwargs = kwargs
 
     def read_records(self, query_params: "BaseDBReader.QueryParams") -> "ArynQueryResponse":
         assert isinstance(query_params, ArynQueryParams)
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        response: Response = requests.post(
-            f"{self.aryn_url}/docsets/{query_params.docset_id}/read", stream=True, headers=headers
-        )
-        assert response.status_code == 200
-        docs = []
-        print(f"Reading from docset: {query_params.docset_id}")
-        for chunk in response.iter_lines():
-            # print(f"\n{chunk}\n")
-            doc = json.loads(chunk)
-            docs.append(doc)
 
+        client = httpx.Client()
+        with client.stream("POST", f"{self.aryn_url}/docsets/{query_params.docset_id}/read", headers=headers) as response:
+
+            docs = []
+            print(f"Reading from docset: {query_params.docset_id}")
+            buffer = io.BytesIO()
+            to_read = 0
+            start_new_doc = True
+            doc_size_buf = bytearray(4)
+            idx = 0
+            chunk_count = 0
+            t0 = time()
+            for chunk in response.iter_bytes():
+                cur_pos = 0
+                chunk_count += 1
+                remaining = len(chunk)
+                print(f"Chunk {chunk_count} size: {len(chunk)}")
+                assert len(chunk) >= 4, f"Chunk too small: {len(chunk)} < 4"
+                while cur_pos < len(chunk):
+                    if start_new_doc:
+                        doc_size_buf[idx:] = chunk[cur_pos:cur_pos + 4 - idx]
+                        to_read = struct.unpack('!i', doc_size_buf)[0]
+                        print(f"Reading doc of size: {to_read}")
+                        doc_size_buf = bytearray(4)
+                        idx = 0
+                        cur_pos += 4
+                        remaining = len(chunk) - cur_pos
+                        start_new_doc = False
+                    if to_read > remaining:
+                        buffer.write(chunk[cur_pos:])
+                        to_read -= remaining
+                        print(f"Remaining to read: {to_read}")
+                        # Read the next chunk
+                        break
+                    else:
+                        print("Reading the rest of the doc from the chunk")
+                        buffer.write(chunk[cur_pos:cur_pos + to_read])
+                        docs.append(json.loads(buffer.getvalue().decode()))
+                        buffer.flush()
+                        buffer.seek(0)
+                        cur_pos += to_read
+                        to_read = 0
+                        start_new_doc = True
+                        if (cur_pos - len(chunk)) < 4:
+                            idx = left_over = cur_pos - len(chunk)
+                            doc_size_buf[:left_over] = chunk[cur_pos:]
+                            # Need to get the rest of the next chunk
+                            break
+
+            t1 = time()
+            print(f"Reading took: {t1 - t0} seconds")
         return ArynQueryResponse(docs)
 
     def check_target_presence(self, query_params: "BaseDBReader.QueryParams") -> bool:
         return True
 
     @classmethod
-    def from_client_params(cls, params: "BaseDBReader.ClientParams") -> "ArynClient":
+    def from_client_params(cls, params: "BaseDBReader.ClientParams") -> "ArynReaderClient":
         assert isinstance(params, ArynClientParams)
-        return cls(params)
+        client = ArynClient(params.aryn_url, params.api_key)
+        return cls(client, params)
 
 
 class ArynReader(BaseDBReader):
-    Client = ArynClient
+    Client = ArynReaderClient
     Record = ArynQueryResponse
     ClientParams = ArynClientParams
     QueryParams = ArynQueryParams
+
+    def __init__(
+        self,
+        client_params: ArynClientParams,
+        query_params: ArynQueryParams,
+        **kwargs,
+    ):
+        super().__init__(client_params=client_params, query_params=query_params, **kwargs)
+
+    def _to_doc(self, doc: dict[str, Any]) -> dict[str, Any]:
+        elements = doc.get("elements", [])
+        doc = Document(**doc)
+        doc.data["elements"] = [create_element(**element) for element in elements]
+        return {"doc": Document.serialize(doc)}
+
+    def execute(self, **kwargs) -> "Dataset":
+
+        assert isinstance(self._client_params, ArynClientParams)
+        assert isinstance(self._query_params, ArynQueryParams)
+
+        client = self.Client.from_client_params(self._client_params)
+        aryn_client = client._client
+        docs = aryn_client.list_docs(self._query_params.docset_id)
+        print(f"Found {len(docs)} docs in docset: {self._query_params.docset_id}")
+        from ray.data import from_items
+        ds = from_items([{"doc_id": doc_id} for doc_id in docs])
+        return ds.map(self._to_doc)

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from jinja2.sandbox import SandboxedEnvironment
     from jinja2 import Template
 
+
 @dataclass
 class RenderedMessage:
     """Represents a message per the LLM messages interface - i.e. a role and a content string
@@ -470,12 +471,35 @@ def raise_no_render():
     raise NoRender()
 
 
-def compile_templates(templates: list[str], env: "SandboxedEnvironment") -> "Template":
+def compile_templates(templates: list[Optional[str]], env: "SandboxedEnvironment") -> list[Optional["Template"]]:
+    return [
+        env.from_string(source=t, globals={"norender": raise_no_render}) if t is not None else None for t in templates
+    ]
 
+
+def render_templates(sys: Optional["Template"], user: list["Template"], render_args: dict[str, Any]) -> RenderedPrompt:
+    messages = []
+    if sys is not None:
+        try:
+            system = sys.render(render_args)
+            messages.append(RenderedMessage(role="system", content=system))
+        except NoRender:
+            return RenderedPrompt(messages=[])
+    for ut in user:
+        try:
+            content = ut.render(render_args)
+            messages.append(RenderedMessage(role="user", content=content))
+        except NoRender:
+            return RenderedPrompt(messages=[])
+    return RenderedPrompt(messages=messages)
 
 
 def _deserialize_jinja_prompt(kwargs):
-    return JinjaPrompt(**kwargs)
+    cls = kwargs.pop("class")
+    if cls == "JinjaPrompt":
+        return JinjaPrompt(**kwargs)
+    if cls == "JinjaElementPrompt":
+        return JinjaElementPrompt(**kwargs)
 
 
 class JinjaPrompt(SycamorePrompt):
@@ -521,11 +545,13 @@ class JinjaPrompt(SycamorePrompt):
         self.kwargs = kwargs
         self._env = SandboxedEnvironment()
         self._sys_template: Optional[Template] = None
-        self._user_templates: Union[None, Template, list[Template]] = None
+        self._user_templates: Union[None, list[Template]] = None
 
     def __reduce__(self):
         # Cannot serialize compiled templates - so force recompilation
-        return _deserialize_jinja_prompt, ({"system": self.system, "user": self.user, **self.kwargs},)
+        return _deserialize_jinja_prompt, (
+            {"system": self.system, "user": self.user, "class": self.__class__.__name__, **self.kwargs},
+        )
 
     def render_document(self, doc: Document) -> RenderedPrompt:
         """Render this document using Jinja's template rendering system.
@@ -541,42 +567,17 @@ class JinjaPrompt(SycamorePrompt):
         Returns:
             A rendered prompt containing information from the document.
         """
-        if self._sys_template is None and self.system is not None:
-            self._sys_template = self._env.from_string(source=self.system, globals={"norender": raise_no_render})
-        if self._user_templates is None and self.user is not None:
-            if isinstance(self.user, str):
-                self._user_templates = self._env.from_string(source=self.user, globals={"norender": raise_no_render})
-            else:
-                self._user_templates = [
-                    self._env.from_string(source=u, globals={"norender": raise_no_render}) for u in self.user
-                ]
+        if self._user_templates is None:
+            userlist = self.user if isinstance(self.user, list) else [self.user]  # type: ignore
+            templates = compile_templates([self.system] + userlist, self._env)  # type: ignore
+            self._sys_template = templates[0]
+            self._user_templates = [t for t in templates[1:] if t is not None]
 
         render_args = copy.deepcopy(self.kwargs)
         render_args["doc"] = doc
 
-        messages = []
-        if self._sys_template is not None:
-            try:
-                system = self._sys_template.render(render_args)
-                messages.append(RenderedMessage(role="system", content=system))
-            except NoRender:
-                return RenderedPrompt(messages=[])
-        if self._user_templates is not None:
-            if isinstance(self._user_templates, list):
-                for t in self._user_templates:
-                    try:
-                        content = t.render(render_args)
-                        messages.append(RenderedMessage(role="user", content=content))
-                    except NoRender:
-                        return RenderedPrompt(messages=[])
-            else:
-                try:
-                    content = self._user_templates.render(render_args)
-                    messages.append(RenderedMessage(role="user", content=content))
-                except NoRender:
-                    return RenderedPrompt(messages=[])
-
-        return RenderedPrompt(messages=messages)
+        rendered = render_templates(self._sys_template, self._user_templates, render_args)
+        return rendered
 
 
 class JinjaElementPrompt(SycamorePrompt):
@@ -598,4 +599,34 @@ class JinjaElementPrompt(SycamorePrompt):
         self.kwargs = kwargs
         self._env = SandboxedEnvironment()
         self._sys_template: Optional[Template] = None
-        self._user_templates: Union[None, Template, list[Template]] = None
+        self._user_templates: Union[None, list[Template]] = None
+
+    def __reduce__(self):
+        # Cannot serialize compiled templates - so force recompilation
+        return _deserialize_jinja_prompt, (
+            {
+                "system": self.system,
+                "user": self.user,
+                "include_image": self.include_image,
+                "class": self.__class__.__name__,
+                **self.kwargs,
+            },
+        )
+
+    def render_element(self, elt: Element, doc: Document) -> RenderedPrompt:
+        if self._user_templates is None:
+            userlist = self.user if isinstance(self.user, list) else [self.user]  # type: ignore
+            templates = compile_templates([self.system] + userlist, self._env)  # type: ignore
+            self._sys_template = templates[0]
+            self._user_templates = [t for t in templates[1:] if t is not None]
+
+        render_args = copy.deepcopy(self.kwargs)
+        render_args["elt"] = elt
+        render_args["doc"] = doc
+
+        result = render_templates(self._sys_template, self._user_templates, render_args)
+        if self.include_image and len(result.messages) > 0:
+            from sycamore.utils.pdf_utils import get_element_image
+
+            result.messages[-1].images = [get_element_image(elt, doc)]
+        return result

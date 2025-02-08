@@ -4,6 +4,7 @@ import textwrap
 
 from sycamore.data import Document, ImageElement, Element
 from sycamore.llms.openai import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels
+from sycamore.llms.prompts.default_prompts import SummarizeImagesJinjaPrompt
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
@@ -171,7 +172,10 @@ class SummarizeImages(CompositeTransform):
 
     def __init__(self, child: Node, summarizer=OpenAIImageSummarizer(), **resource_args):
         super().__init__(child, [], **resource_args)
-        prompt = SummarizeImagesPrompt(user=summarizer.prompt, include_context=summarizer.include_context)
+        prompt = SummarizeImagesJinjaPrompt
+        if summarizer.prompt is not None:
+            prompt = prompt.set(user=summarizer.prompt)
+        prompt = prompt.set(include_context=summarizer.include_context)
         llm_map = LLMMapElements(
             child, prompt, output_field="summary", llm=summarizer.llm, filter=lambda e: e.type == "Image"
         )

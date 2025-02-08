@@ -94,7 +94,7 @@ EntityExtractorFewShotJinjaPrompt = JinjaPrompt(
 
 SummarizeImagesJinjaPrompt = JinjaElementPrompt(
     user=textwrap.dedent(
-        """\
+        """
         You are given an image from a PDF document along with with some snippets of text preceding
         and following the image on the page. Based on this context, please decide whether the image is a
         graph or not. An image is a graph if it is a bar chart or a line graph. If the image is a graph,
@@ -143,7 +143,7 @@ SummarizeImagesJinjaPrompt = JinjaElementPrompt(
         {%- endif -%}
         """
     ),
-    include_images=True,
+    include_image=True,
 )
 
 

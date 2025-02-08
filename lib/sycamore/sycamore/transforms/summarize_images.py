@@ -4,6 +4,7 @@ from typing import Optional
 from sycamore.data import Document, Element
 from sycamore.llms.openai import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels
 from sycamore.llms.prompts.default_prompts import SummarizeImagesJinjaPrompt
+from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.base_llm import LLMMapElements
@@ -129,7 +130,7 @@ class SummarizeImages(CompositeTransform):
 
     def __init__(self, child: Node, summarizer=OpenAIImageSummarizer(), **resource_args):
         super().__init__(child, [], **resource_args)
-        prompt = SummarizeImagesJinjaPrompt
+        prompt: SycamorePrompt = SummarizeImagesJinjaPrompt
         if summarizer.prompt != LLMImageSummarizer.DEFAULT_PROMPT:
             prompt = prompt.set(user=summarizer.prompt)
         prompt = prompt.set(include_context=summarizer.include_context)

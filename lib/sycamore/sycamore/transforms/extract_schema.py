@@ -192,6 +192,7 @@ class LLMPropertyExtractor(PropertyExtractor):
             "bool": bool,
             "date": lambda x: dateparser.parse(x),
             "datetime": lambda x: dateparser.parse(x),
+            "list": list,
         }
 
         for field in self._schema.fields:

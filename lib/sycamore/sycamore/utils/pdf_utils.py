@@ -10,7 +10,7 @@ import pdf2image
 from sycamore import DocSet
 from sycamore.functions.document import DrawBoxes, split_and_convert_to_image
 from sycamore.utils.image_utils import show_images, crop_to_bbox
-from sycamore.data import Document, Element
+from sycamore.data import Document, Element, ImageElement
 import json
 
 logger = logging.getLogger(__name__)
@@ -184,6 +184,8 @@ def promote_title(elements: list[Element], title_candidate_elements=["Section-he
 
 
 def get_element_image(element: Element, document: Document) -> Image.Image:
+    if isinstance(element, ImageElement) and (im := element.as_image()) is not None:
+        return im
     assert document.type == "pdf", "Cannot get picture of element from non-pdf"
     assert document.binary_representation is not None, "Cannot get image since there is not binary representation"
     assert element.bbox is not None, "Cannot get picture of element if it has no BBox"

@@ -216,14 +216,8 @@ class TestSchema:
         }
 
         property_extractor = LLMPropertyExtractor(llm)
-        pe_map = property_extractor.as_llm_map(None)
-        assert len(pe_map.children) == 1
-        pe_llm_map = pe_map.children[0]
-        assert isinstance(pe_llm_map, LLMMap)
-        assert isinstance(pe_map, Map)
-
-        docs = pe_llm_map.run([doc])
-        doc = pe_map.run(docs[0])
+        docs = property_extractor.extract_docs([doc])
+        doc = docs[0]
 
         assert len(doc.properties["AircraftIncident"]) == 0
 
@@ -264,7 +258,8 @@ class TestSchema:
             '"someOtherDate": "2024-01--1 00:01:01", '
             '"accidentNumber": "FTW95FA129", '
             '"latitude": "10.00353", '
-            '"injuryCount": "5"}'
+            '"injuryCount": "5", '
+            '"location": ["Fort Worth, TX", "Dallas, TX"]}'
         )
 
         doc = Document()
@@ -281,6 +276,7 @@ class TestSchema:
                 SchemaField(name="accidentNumber", field_type="str"),
                 SchemaField(name="injuryCount", field_type="int"),
                 SchemaField(name="latitude", field_type="float"),
+                SchemaField(name="location", field_type="list"),
             ]
         )
         property_extractor = LLMPropertyExtractor(llm, schema=schema)
@@ -299,3 +295,4 @@ class TestSchema:
         assert doc.properties["entity"]["someOtherDate"] == "2024-01--1 00:01:01"
         assert doc.properties["entity"]["injuryCount"] == 5
         assert doc.properties["entity"]["latitude"] == 10.00353
+        assert doc.properties["entity"]["location"] == ["Fort Worth, TX", "Dallas, TX"]

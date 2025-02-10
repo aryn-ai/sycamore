@@ -32,7 +32,8 @@ tokenizer_doc = [
                 properties={"_element_index": 2},
                 text_representation="very long element with many words that might exceed token limit."
                 " Specifically, it has so many words that even with the additional contextualization"
-                " like 'Element type' and 'page number' it still overflows",
+                " like 'Element type' and 'page number' it still overflows. So many words, in fact,"
+                " that even rendering the entire prompt still overflows it.",
             ),  # llm_filter result = 5
         ],
     ),

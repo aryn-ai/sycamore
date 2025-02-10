@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from neo4j import Auth
     from neo4j.auth_management import AuthManager
 
+from sycamore.connectors.base_writer import BaseDBWriter
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,7 @@ class DocSetWriter:
         index_settings: dict,
         insert_settings: Optional[dict] = None,
         execute: bool = True,
+        reliability_rewriter: bool = False,
         **kwargs,
     ) -> Optional["DocSet"]:
         """Writes the content of the DocSet into the specified OpenSearch index.
@@ -103,9 +105,9 @@ class DocSetWriter:
         """
 
         from sycamore.connectors.opensearch import (
-            OpenSearchWriter,
             OpenSearchWriterClientParams,
             OpenSearchWriterTargetParams,
+            OpenSearchWriter,
         )
         from typing import Any
         import copy
@@ -137,23 +139,30 @@ class DocSetWriter:
             os_client_args["hosts"] = _convert_to_host_port_list(hosts)
         client_params = OpenSearchWriterClientParams(**os_client_args)
 
-        target_params: OpenSearchWriterTargetParams
-        target_params_dict: dict[str, Any] = {"index_name": index_name}
-        if insert_settings:
-            target_params_dict["insert_settings"] = insert_settings
-        if index_settings:
-            target_params_dict["settings"] = index_settings.get("body", {}).get("settings", {})
-            target_params_dict["mappings"] = index_settings.get("body", {}).get("mappings", {})
-        target_params = OpenSearchWriterTargetParams(**target_params_dict)
+        target_params = OpenSearchWriterTargetParams.from_write_args(
+            index_name=index_name,
+            plan=self.plan,
+            context=self.context,
+            reliability_rewriter=reliability_rewriter,
+            execute=execute,
+            insert_settings=insert_settings,
+            index_settings=index_settings,
+        )
         os = OpenSearchWriter(
             self.plan, client_params=client_params, target_params=target_params, name="OsrchWrite", **kwargs
         )
+        client = None
+        if reliability_rewriter:
+            client = os.Client.from_client_params(client_params)
+            if client._client.indices.exists(index=index_name):
+                logger.info(f"\n\nWARNING WARNING WARNING: Deleting existing index {index_name}\n\n")
+                client._client.indices.delete(index=index_name)
 
         # We will probably want to break this at some point so that write
         # doesn't execute automatically, and instead you need to say something
         # like docset.write.opensearch().execute(), allowing sensible writes
         # to multiple locations and post-write operations.
-        return self._maybe_execute(os, execute)
+        return self._maybe_execute(os, execute, client)
 
     @requires_modules(["weaviate", "weaviate.collections.classes.config"], extra="weaviate")
     def weaviate(
@@ -849,10 +858,16 @@ class DocSetWriter:
 
         return self._maybe_execute(ds, True)
 
-    def _maybe_execute(self, node: Node, execute: bool) -> Optional[DocSet]:
+    def _maybe_execute(
+        self, node: Node, execute: bool, client: Optional[BaseDBWriter.Client] = None
+    ) -> Optional[DocSet]:
         ds = DocSet(self.context, node)
         if not execute:
             return ds
 
         ds.execute()
+
+        if client is not None:
+            if type(node) == BaseDBWriter:
+                client.reliability_assertor(node._target_params)
         return None

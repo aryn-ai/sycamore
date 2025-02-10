@@ -1545,7 +1545,10 @@ class DocSet:
 
         from sycamore.materialize import Materialize
 
-        return DocSet(self.context, Materialize(self.plan, self.context, path=path, source_mode=source_mode))
+        return DocSet(
+            self.context,
+            Materialize(self.plan, self.context, path=path, source_mode=source_mode),
+        )
 
     def clear_materialize(self, path: Optional[Union[Path, str]] = None, *, clear_non_local=False) -> None:
         """
@@ -1565,10 +1568,47 @@ class DocSet:
 
     def execute(self, **kwargs) -> None:
         """
-        Execute the pipeline, discard the results. Useful for side effects.
+
+        Execute the pipeline and discard the results. This method is primarily used for pipelines that produce
+        side effects, such as materializing data to disk.
+
+        Reliability mode is automatically enabled when:
+        - The pipeline ends with a Materialize node and the start of the pipeline is a read node.
+        - A MaterializeReadReliability rule is present in the context's rewrite rules
+
+        # Standard execution
+        ctx = sycamore.init()
+        ds = ctx.read....
+        ds.execute()  # Runs without reliability guarantees
+
+        # Reliable execution with materialize read
+
+        ctx = sycamore.init()
+        ctx.rewrite_rules.append(MaterializeReadReliability(max_batch=200, max_retries=20))
+        ds = ctx.read.materialize()\
+             ... \
+             .materialize()
+        ds.execute()  # Runs with batching, retries, and progress tracking
+
+
+        # Reliable execution with binary read
+
+        ctx = sycamore.init()
+        ctx.rewrite_rules.append(MaterializeReadReliability(max_batch=200, max_retries=20))
+        ds = ctx.read.binary()\
+             ... \
+             .materialize()
+        ds.execute()  # Runs with batching, retries, and progress tracking
+
+        For more details, see the MaterializeReadReliability class.
+
         """
-
         from sycamore.executor import Execution
+        from sycamore.materialize import MaterializeReadReliability
 
-        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+        if MaterializeReadReliability.maybe_execute_reliably(self):
             pass
+
+        else:
+            for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+                pass

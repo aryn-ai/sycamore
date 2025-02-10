@@ -1,11 +1,9 @@
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from sycamore.llms import OpenAI, OpenAIModels, Bedrock, BedrockModels, get_llm, MODELS
 from sycamore.llms.llms import FakeLLM
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
-from sycamore.llms.prompts import EntityExtractorFewShotGuidancePrompt, EntityExtractorZeroShotGuidancePrompt
 from sycamore.utils.cache import DiskCache
 import datetime
 from sycamore.utils.thread_local import ThreadLocalAccess
@@ -44,18 +42,6 @@ def test_add_llm_metadata(mock_add_metadata):
 def test_openai_davinci_fallback():
     llm = OpenAI(model_name=OpenAIModels.TEXT_DAVINCI.value)
     assert llm._model_name == OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value.name
-
-
-# Skip bc prompts are changing entirely
-@pytest.mark.skip
-def test_deprecated_prompt_fallback():
-    from sycamore.llms.prompts.default_prompts import ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT
-
-    assert isinstance(ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT, EntityExtractorZeroShotGuidancePrompt)
-
-    from sycamore.llms.prompts import ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT
-
-    assert isinstance(ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT, EntityExtractorFewShotGuidancePrompt)
 
 
 def test_model_list():

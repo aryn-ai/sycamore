@@ -6,9 +6,9 @@ import textwrap
 from sycamore.llms.prompts.prompts import (
     ElementListPrompt,
     ElementPrompt,
-    FieldValuePrompt,
     StaticPrompt,
-    ElementListIterPrompt,
+    JinjaPrompt,
+    JinjaElementPrompt,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,11 +55,14 @@ class _EntityExtractorZeroShotGuidancePrompt(_SimplePrompt):
     """
 
 
-EntityExtractorZeroShotGuidancePrompt = ElementListPrompt(
+EntityExtractorZeroShotJinjaPrompt = JinjaPrompt(
     system="You are a helpful entity extractor",
-    user="""You are given a few text elements of a document. The {entity} of the document is in these few text elements.
-    Using this context, FIND, COPY, and RETURN the {entity}. DO NOT REPHRASE OR MAKE UP AN ANSWER.
-    {elements}""",
+    user="""You are given a few text elements of a document. The {{ entity }} of the document is in these few text elements.
+    Using this context, FIND, COPY, and RETURN the {{ entity }}. DO NOT REPHRASE OR MAKE UP AN ANSWER.
+    {% for elt in doc.elements[:num_elements] %} ELEMENT {{ elt.element_index }}: {{ elt.field_to_value(field) }}
+    {% endfor %}""",
+    field="text_representation",
+    num_elements=35,
 )
 
 
@@ -75,15 +78,72 @@ class _EntityExtractorFewShotGuidancePrompt(SimplePrompt):
     """
 
 
-EntityExtractorFewShotGuidancePrompt = ElementListPrompt(
+EntityExtractorFewShotJinjaPrompt = JinjaPrompt(
     system="You are a helpful entity extractor",
-    user="""You are given a few text elements of a document. The {entity} of the document is in these few text elements. Here are
-    some example groups of text elements where the {entity} has been identified.
-    {examples}
-    Using the context from the document and the provided examples, FIND, COPY, and RETURN the {entity}. Only return the {entity} as part
+    user="""You are given a few text elements of a document. The {{ entity }} of the document is in these few text elements. Here are
+    some example groups of text elements where the {{ entity }} has been identified.
+    {{ examples }}
+    Using the context from the document and the provided examples, FIND, COPY, and RETURN the {{ entity }}. Only return the {{ entity }} as part
     of your answer. DO NOT REPHRASE OR MAKE UP AN ANSWER.
-    {elements}
-    """,
+    {% for elt in doc.elements[:num_elements] %} ELEMENT {{ elt.element_index }}: {{ elt.field_to_value(field) }}
+    {% endfor %}""",
+    field="text_representation",
+    num_elements=35,
+)
+
+
+SummarizeImagesJinjaPrompt = JinjaElementPrompt(
+    user=textwrap.dedent(
+        """
+        You are given an image from a PDF document along with with some snippets of text preceding
+        and following the image on the page. Based on this context, please decide whether the image is a
+        graph or not. An image is a graph if it is a bar chart or a line graph. If the image is a graph,
+        please summarize the axes, including their units, and provide a summary of the results in no more
+        than 5 sentences.
+
+        Return the results in the following JSON schema:
+
+        {
+            "is_graph": true,
+            "x-axis": string,
+            "y-axis": string,
+            "summary": string
+        }
+
+        If the image is not a graph, please summarize the contents of the image in no more than five sentences
+        in the following JSON format:
+
+        {
+            "is_graph": false,
+            "summary": string
+        }
+
+        In all cases return only JSON and check your work.
+
+        {% if include_context -%}
+            {%- set posns = namespace(pos=-1) -%}
+            {%- for e in doc.elements -%}
+                {%- if e is sameas elt -%}
+                    {%- set posns.pos = loop.index0 -%}
+                    {% break %}
+                {%- endif -%}
+            {%- endfor -%}
+            {%- if posns.pos > 0 -%}
+                {%- set pe = doc.elements[posns.pos - 1] -%}
+                {%- if pe.type in ["Section-header", "Caption", "Text"] -%}
+        The text preceding the image is: {{ pe.text_representation }}
+                {%- endif -%}
+            {%- endif %}
+            {% if posns.pos != -1 and posns.pos < doc.elements|count - 1 -%}
+                {%- set fe = doc.elements[posns.pos + 1] -%}
+                {%- if fe.type in ["Caption", "Text"] -%}
+        The text following the image is: {{ fe.text_representation }}
+                {%- endif -%}
+            {%- endif -%}
+        {%- endif -%}
+        """
+    ),
+    include_image=True,
 )
 
 

@@ -114,7 +114,9 @@ class PropertyExtractionFromDictPrompt(ElementListPrompt):
             format_args["entity"] = doc.properties.get("_schema_class", "entity")
         flat_props = flatten_data(doc.properties, prefix="doc_property", separator="_")
         format_args.update(flat_props)
-        format_args["elements"] = self._render_element_list_to_string
+        format_args["elements"] = self._render_element_list_to_string(doc)
+        if doc.text_representation is None:
+            format_args["doc_text"] = format_args["elements"]
 
         messages = _build_format_str(self.system, self.user, format_args)
         result = RenderedPrompt(messages=messages, response_format=schema)
@@ -244,6 +246,14 @@ class LLMPropertyExtractor(PropertyExtractor):
         self._num_of_elements = num_of_elements
         self._prompt_formatter = prompt_formatter
 
+    def extract_docs(self, docs: list[Document]) -> list[Document]:
+        jsonextract_node = self.as_llm_map(None)
+        assert len(jsonextract_node.children) == 1
+        llm_map_node = jsonextract_node.children[0]
+        assert isinstance(jsonextract_node, Map)
+        assert isinstance(llm_map_node, LLMMap)
+        return [jsonextract_node.run(d) for d in llm_map_node.run(docs)]
+
     def cast_types(self, fields: dict) -> dict:
         assert self._schema is not None, "Schema must be provided for property standardization."
         assert isinstance(self._schema, Schema), "Schema object must be provided for property standardization."
@@ -257,6 +267,7 @@ class LLMPropertyExtractor(PropertyExtractor):
             "bool": bool,
             "date": lambda x: dateparser.parse(x),
             "datetime": lambda x: dateparser.parse(x),
+            "list": list,
         }
 
         for field in self._schema.fields:

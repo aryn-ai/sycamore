@@ -220,6 +220,9 @@ class LLMPropertyExtractor(PropertyExtractor):
 
             if self._schema_name is not None:
                 prompt = prompt.set(entity=self._schema_name)
+        prompt = prompt.set(num_elements=self._num_of_elements)
+        if self._prompt_formatter is not element_list_formatter:
+            prompt = prompt.set(prompt_formatter=self._prompt_formatter)
 
         def parse_json_and_cast(d: Document) -> Document:
             entity_name = self._schema_name or "_entity"

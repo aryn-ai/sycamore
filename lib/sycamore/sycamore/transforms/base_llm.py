@@ -15,7 +15,6 @@ def _infer_prompts(
     if llm_mode == LLMMode.SYNC:
         res = []
         for p in prompts:
-            print(p)
             s = llm.generate(prompt=p)
             res.append(s)
         return res

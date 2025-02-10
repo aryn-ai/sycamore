@@ -10,6 +10,12 @@ from sycamore.llms.prompts.prompts import (
     JinjaPrompt,
     JinjaElementPrompt,
 )
+from sycamore.llms.prompts.jinja_fragments import (
+    J_DYNAMIC_DOC_TEXT,
+    J_FORMAT_SCHEMA_MACRO,
+    J_SET_ENTITY,
+    J_SET_SCHEMA,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -353,6 +359,43 @@ PropertiesZeroShotGuidancePrompt = ElementListPrompt(
     Only return JSON as part of your answer. If no entity is in the text, return "None".
     {text}
     """
+    ),
+)
+
+
+PropertiesZeroShotJinjaPrompt = JinjaPrompt(
+    system="You are a helpful property extractor. You only return JSON.",
+    user=J_SET_SCHEMA
+    + J_SET_ENTITY
+    + textwrap.dedent(
+        """\
+    You are given some text of a document. Extract JSON representing one entity of
+    class {{ entity }} from the document. The class only has properties {{ schema }}. Using
+    this context, FIND, FORMAT, and RETURN the JSON representing one {{ entity }}.
+    Only return JSON as part of your answer. If no entity is in the text, return "None".
+
+    Document:
+    """
+    )
+    + J_DYNAMIC_DOC_TEXT,
+)
+
+PropertiesFromSchemaJinjaPrompt = JinjaPrompt(
+    system="You are given text contents from a document.",
+    user=(
+        J_FORMAT_SCHEMA_MACRO
+        + """\
+Extract values for the following fields:
+{{ format_schema(schema) }}
+
+Document text:"""
+        + J_DYNAMIC_DOC_TEXT
+        + """
+
+Don't return extra information.
+If you cannot find a value for a requested property, use the provided default or the value 'None'.
+Return your answers as a valid json dictionary that will be parsed in python.
+"""
     ),
 )
 

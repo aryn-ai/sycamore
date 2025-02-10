@@ -533,7 +533,7 @@ def partition_file_async_list(
 
     result = response.json()["tasks"]
     for v in result.values():
-        del v["path"]
+        v.pop("action", None)
     return result
 
 

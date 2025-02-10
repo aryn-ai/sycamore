@@ -68,7 +68,9 @@ def test_extract_properties_from_schema(llm):
                 default="null",
             ),
             SchemaField(name="age", field_type="int", default=999),
-            SchemaField(name="date", field_type="str", description="Any date in the doc in YYYY-MM-DD format"),
+            SchemaField(
+                name="date", field_type="str", description="Any date in the doc, extracted in YYYY-MM-DD format"
+            ),
             SchemaField(
                 name="from_location",
                 field_type="str",

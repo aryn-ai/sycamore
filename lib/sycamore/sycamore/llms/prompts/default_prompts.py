@@ -134,7 +134,7 @@ SummarizeImagesJinjaPrompt = JinjaElementPrompt(
         The text preceding the image is: {{ pe.text_representation }}
                 {%- endif -%}
             {%- endif %}
-            {% if posns.pos != -1 and posns.pos < doc.elements|count -%}
+            {% if posns.pos != -1 and posns.pos < doc.elements|count - 1 -%}
                 {%- set fe = doc.elements[posns.pos + 1] -%}
                 {%- if fe.type in ["Caption", "Text"] -%}
         The text following the image is: {{ fe.text_representation }}

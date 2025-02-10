@@ -13,6 +13,9 @@ if TYPE_CHECKING:
     from jinja2 import Template
 
 
+ResponseFormat = Union[None, dict[str, Any], type[pydantic.BaseModel]]
+
+
 @dataclass
 class RenderedMessage:
     """Represents a message per the LLM messages interface - i.e. a role and a content string
@@ -39,7 +42,7 @@ class RenderedPrompt:
     """
 
     messages: list[RenderedMessage]
-    response_format: Union[None, dict[str, Any], type[pydantic.BaseModel]] = None
+    response_format: ResponseFormat = None
 
     def token_count(self, tokenizer: Tokenizer) -> int:
         total_text = " ".join(m.content for m in self.messages)
@@ -535,13 +538,21 @@ class JinjaPrompt(SycamorePrompt):
 
     """
 
-    def __init__(self, *, system: Optional[str] = None, user: Union[None, str, list[str]] = None, **kwargs):
+    def __init__(
+        self,
+        *,
+        system: Optional[str] = None,
+        user: Union[None, str, list[str]] = None,
+        response_format: ResponseFormat = None,
+        **kwargs,
+    ):
         from jinja2.sandbox import SandboxedEnvironment
         from jinja2 import Template
 
         super().__init__()
         self.system = system
         self.user = user
+        self.response_format = response_format
         self.kwargs = kwargs
         self._env = SandboxedEnvironment(extensions=["jinja2.ext.loopcontrols"])
         self._sys_template: Optional[Template] = None
@@ -577,6 +588,8 @@ class JinjaPrompt(SycamorePrompt):
         render_args["doc"] = doc
 
         rendered = render_templates(self._sys_template, self._user_templates, render_args)
+        if self.response_format is not None:
+            rendered.response_format = self.response_format
         return rendered
 
 
@@ -587,6 +600,7 @@ class JinjaElementPrompt(SycamorePrompt):
         system: Optional[str] = None,
         user: Union[None, str, list[str]] = None,
         include_image: bool = False,
+        response_format: ResponseFormat = None,
         **kwargs,
     ):
         from jinja2.sandbox import SandboxedEnvironment
@@ -596,6 +610,7 @@ class JinjaElementPrompt(SycamorePrompt):
         self.system = system
         self.user = user
         self.include_image = include_image
+        self.response_format = response_format
         self.kwargs = kwargs
         self._env = SandboxedEnvironment(extensions=["jinja2.ext.loopcontrols"])
         self._sys_template: Optional[Template] = None
@@ -629,5 +644,6 @@ class JinjaElementPrompt(SycamorePrompt):
             from sycamore.utils.pdf_utils import get_element_image
 
             result.messages[-1].images = [get_element_image(elt, doc)]
-        print(result)
+        if self.response_format is not None:
+            result.response_format = self.response_format
         return result

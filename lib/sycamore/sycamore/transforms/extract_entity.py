@@ -164,7 +164,9 @@ class OpenAIEntityExtractor(EntityExtractor):
 
         if self._prompt is not None:
             if isinstance(self._prompt, str):
-                return JinjaPrompt(system=None, user=self._prompt + "\n" + j_elements, **common_params)
+                return JinjaPrompt(
+                    system=None, user=self._prompt + "\n" + j_elements, response_format=None, **common_params
+                )
             else:
                 system = None
                 if len(self._prompt) > 0 and self._prompt[0]["role"] == "system":
@@ -172,7 +174,7 @@ class OpenAIEntityExtractor(EntityExtractor):
                     user = [p["content"] for p in self._prompt[1:]] + [j_elements]
                 else:
                     user = [p["content"] for p in self._prompt] + [j_elements]
-                return JinjaPrompt(system=system, user=user, **common_params)
+                return JinjaPrompt(system=system, user=user, response_format=None, **common_params)
         elif self._prompt_template is not None:
             return EntityExtractorFewShotJinjaPrompt.set(examples=self._prompt_template, **common_params)
         else:

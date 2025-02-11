@@ -11,12 +11,12 @@ on:
 # specific.
 jobs:
   mypy:
-    runs-on: ubuntu-latest
+    runs-on:  blacksmith-4vcpu-ubuntu-2204
     steps:
       - name: DF-1
         run: df -h
       - name: du-runner-initial
-        run: du -kx /home/runner | sort -rn | head -20
+        run: set -o pipefail && du -kx /home/runner | sort -rn | head -20
       - name: Move cache to /mnt
         run: sudo mkdir /mnt/cache && sudo chown $(whoami) /mnt/cache && mkdir -p /home/runner/.cache && sudo mount -o bind /mnt/cache /home/runner/.cache
       # Could free up other stuff as in:
@@ -29,7 +29,7 @@ jobs:
         run: df -h
       - name: Install poetry
         run: pipx install poetry
-      - uses: actions/setup-python@v4
+      - uses: useblacksmith/setup-python@v6
         with:
           python-version: '3.9'
           cache: 'poetry'
@@ -51,7 +51,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Install poetry
         run: pipx install poetry
-      - uses: actions/setup-python@v4
+      - uses: useblacksmith/setup-python@v6
         with:
           python-version: '3.9'
           cache: 'poetry'

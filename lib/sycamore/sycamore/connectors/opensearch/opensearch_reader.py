@@ -352,7 +352,7 @@ class OpenSearchReader(BaseDBReader):
         return ret
 
     @timetrace("OpenSearchReader")
-    def _to_doc(self, slice_query: dict[str, Any]) -> List[dict[str, Any]]:
+    def _to_doc(self, doc: dict[str, Any]) -> List[dict[str, Any]]:
         """
         Get all documents from a given slice.
         """
@@ -370,6 +370,7 @@ class OpenSearchReader(BaseDBReader):
                 raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
 
             os_client = client._client
+            slice_query = json.loads(doc["doc"])
             slice_count = get_doc_count_for_slice(os_client, slice_query)
             assert slice_count <= 10000, f"Slice count ({slice_count}) should return <= 10,000 documents"
 

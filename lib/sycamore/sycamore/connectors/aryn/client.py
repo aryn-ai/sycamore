@@ -3,9 +3,12 @@ from typing import Any
 
 import requests
 
+from sycamore.decorators import experimental
+
 logger = logging.getLogger(__name__)
 
 
+@experimental
 class ArynClient:
     def __init__(self, aryn_url: str, api_key: str):
         self.aryn_url = aryn_url
@@ -33,15 +36,11 @@ class ArynClient:
                 )
             doc = response.json()
             if doc is None:
-                print(f"Received None for doc {doc_id}")
-                return {}
-            print(f">>> DOC {doc}")
-            logger.info(f"Got doc {doc}")
+                raise ValueError(f"Received None for doc {doc_id}")
+            logger.debug(f"Got doc {doc}")
             return doc
         except Exception as e:
-            # raise ValueError(f"Error getting doc {doc_id}: {e}")
-            print(f"Error getting doc {doc_id}: {e}")
-            return {}
+            raise ValueError(f"Error getting doc {doc_id}: {e}")
 
     def create_docset(self, name: str) -> str:
         try:

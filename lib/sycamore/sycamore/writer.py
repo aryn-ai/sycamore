@@ -4,10 +4,12 @@ from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 import requests
 from pyarrow.fs import FileSystem
 
+from sycamore.connectors.aryn.client import ArynClient
 from sycamore.context import Context, ExecMode, context_params
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 from sycamore.data import Document
+from sycamore.decorators import experimental
 from sycamore.executor import Execution
 from sycamore.plan_nodes import Node
 from sycamore.docset import DocSet
@@ -543,6 +545,7 @@ class DocSetWriter:
         )
         return self._maybe_execute(es_docs, execute)
 
+    @experimental
     @requires_modules("neo4j", extra="neo4j")
     def neo4j(
         self,
@@ -811,6 +814,7 @@ class DocSetWriter:
 
         self._maybe_execute(node, True)
 
+    @experimental
     def aryn(
         self,
         docset_id: Optional[str] = None,
@@ -847,10 +851,8 @@ class DocSetWriter:
 
         if docset_id is None and name is not None:
             try:
-                headers = {"Authorization": f"Bearer {aryn_api_key}"}
-                res = requests.post(url=f"{aryn_url}/docsets", json={"name": name}, headers=headers)
-                print(res)
-                docset_id = res.json()["docset_id"]
+                aryn_client = ArynClient(aryn_url, aryn_api_key)
+                docset_id = aryn_client.create_docset(name)
                 logger.info(f"Created new docset with id {docset_id} and name {name}")
             except Exception as e:
                 logger.error(f"Error creating new docset: {e}")

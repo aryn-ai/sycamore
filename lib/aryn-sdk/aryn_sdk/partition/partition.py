@@ -31,6 +31,18 @@ class PartitionError(Exception):
         self.status_code = status_code
 
 
+class PartitionTaskError(Exception):
+    def __init__(self, message: str, status_code: int) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
+class PartitionTaskNotFoundError(Exception):
+    def __init__(self, message: str, status_code: int) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
 def partition_file(
     file: Union[BinaryIO, str, PathLike],
     *,
@@ -212,10 +224,7 @@ def _partition_file_inner(
     headers = _generate_headers(aryn_config.api_key(), webhook_url)
     resp = requests.post(docparse_url, files=files, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
-    if resp.status_code < 200 or resp.status_code > 299:
-        raise requests.exceptions.HTTPError(
-            f"Error: status_code: {resp.status_code}, reason: {resp.text}", response=resp
-        )
+    raise_error_on_non_2xx(resp)
 
     content = []
     partial_line = []
@@ -259,6 +268,13 @@ def _partition_file_inner(
         _logger.info(f"Error from ArynPartitioner: {error}")
         raise PartitionError(f"{prefix}: {error}\nPartial Status:\n{status}", code)
     return data
+
+
+def raise_error_on_non_2xx(resp: requests.Response) -> None:
+    if resp.status_code < 200 or resp.status_code > 299:
+        raise requests.exceptions.HTTPError(
+            f"Error: status_code: {resp.status_code}, reason: {resp.text}", response=resp
+        )
 
 
 def _process_config(aryn_api_key: Optional[str] = None, aryn_config: Optional[ArynConfig] = None) -> ArynConfig:
@@ -434,10 +450,12 @@ def partition_file_async_result(
 
     For examples of usage see README.md
 
+    Raises a `PartitionTaskNotFoundError` if the not task with the task_id can be found.
+
     Returns:
         A dict containing "status" and "status_code". When "status" is "done", the returned dict also contains "result"
-        which contains what would have been returned had `partition_file` been called directly. "status" can be "done",
-        "pending", "error", or "no_such_task".
+        which contains what would have been returned had `partition_file` been called directly. "status" can be "done"
+        or "pending".
 
         Unlike `partition_file`, this function does not raise an Exception if the partitioning failed.
     """
@@ -451,15 +469,15 @@ def partition_file_async_result(
     response = requests.get(
         specific_task_url, params=g_parameters, headers=headers, stream=_should_stream(), verify=ssl_verify
     )
-
     if response.status_code == 200:
-        return {"status": "done", "status_code": response.status_code, "result": response.json()}
+        return {"task_status": "done", "result": response.json()}
     elif response.status_code == 202:
-        return {"status": "pending", "status_code": response.status_code}
+        return {"task_status": "pending"}
     elif response.status_code == 404:
-        return {"status": "no_such_task", "status_code": response.status_code}
+        raise PartitionTaskNotFoundError("No such task", response.status_code)
     else:
-        return {"status": "error", "status_code": response.status_code}
+        raise_error_on_non_2xx(response)
+        raise PartitionTaskError("Unexpected response code", response.status_code)
 
 
 def partition_file_async_cancel(
@@ -469,17 +487,14 @@ def partition_file_async_cancel(
     aryn_config: Optional[ArynConfig] = None,
     ssl_verify: bool = True,
     async_cancel_url: Optional[str] = None,
-) -> bool:
+) -> None:
     """
     Cancel an asynchronous partitioning task by task_id. Meant to be used with `partition_file_async_submit`.
 
-    Returns:
-        A bool indicating whether the task was successfully cancelled by this request.
+    Raises an exception if there is no cancellable task found with the given task_id. A task can only be successfully
+    cancelled once.
 
-        A task can only be successfully cancelled once. A return value of false can mean the task was already cancelled,
-        the task is already done, or there was no task with the given task_id.
-
-        For an example of usage see README.md
+    For an example of usage see README.md
     """
     if not async_cancel_url:
         async_cancel_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/cancel", truncate=True)
@@ -492,11 +507,12 @@ def partition_file_async_cancel(
         specific_task_url, params=g_parameters, headers=headers, stream=_should_stream(), verify=ssl_verify
     )
     if response.status_code == 200:
-        return True
+        return
     elif response.status_code == 404:
-        return False
+        raise PartitionTaskNotFoundError("No such task", response.status_code)
     else:
-        raise Exception("Unexpected response code.")
+        raise_error_on_non_2xx(response)
+        raise PartitionTaskError("Unexpected response code.", response.status_code)
 
 
 def partition_file_async_list(
@@ -530,11 +546,16 @@ def partition_file_async_list(
     response = requests.get(
         async_list_url, params=g_parameters, headers=headers, stream=_should_stream(), verify=ssl_verify
     )
+    raise_error_on_non_2xx(response)
+    if response.status_code != 200:
+        raise PartitionTaskError("Unexpected response code", response.status_code)
 
-    result = response.json()["tasks"]
-    for v in result.values():
+    result = response.json()
+
+    tasks = result["tasks"]
+    for v in tasks.values():
         v.pop("action", None)
-    return result
+    return tasks
 
 
 # Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()

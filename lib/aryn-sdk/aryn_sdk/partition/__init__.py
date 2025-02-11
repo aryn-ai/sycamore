@@ -8,6 +8,8 @@ from .partition import (
     table_elem_to_dataframe,
     convert_image_element,
     PartitionError,
+    PartitionTaskError,
+    PartitionTaskNotFoundError,
 )
 from .art import draw_with_boxes
 
@@ -18,6 +20,8 @@ __all__ = [
     "draw_with_boxes",
     "convert_image_element",
     "PartitionError",
+    "PartitionTaskError",
+    "PartitionTaskNotFoundError",
     "partition_file_async_submit",
     "partition_file_async_result",
     "partition_file_async_cancel",

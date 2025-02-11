@@ -148,7 +148,7 @@ def partition_file(
                 )
             elements = data['elements']
     """
-    return _partition_file_inner(
+    return _partition_file_wrapper(
         file=file,
         aryn_api_key=aryn_api_key,
         aryn_config=aryn_config,
@@ -169,7 +169,7 @@ def partition_file(
     )
 
 
-def _partition_file_inner(
+def _partition_file_wrapper(
     file: Union[BinaryIO, str, PathLike],
     *,
     aryn_api_key: Optional[str] = None,
@@ -193,9 +193,58 @@ def _partition_file_inner(
     """Do not call this function directly. Use partition_file or partition_file_async_submit instead."""
 
     # If you hand me a path for the file, read it in instead of trying to send the path
-    if isinstance(file, (str, PathLike)):
-        with open(file, "rb") as f:
-            file = io.BytesIO(f.read())
+    should_close = False
+    try:
+        if isinstance(file, (str, PathLike)):
+            file = open(file, "rb")
+            should_close = True
+        return _partition_file_inner(
+            file=file,
+            aryn_api_key=aryn_api_key,
+            aryn_config=aryn_config,
+            threshold=threshold,
+            use_ocr=use_ocr,
+            ocr_images=ocr_images,
+            ocr_language=ocr_language,
+            extract_table_structure=extract_table_structure,
+            table_extraction_options=table_extraction_options,
+            extract_images=extract_images,
+            selected_pages=selected_pages,
+            chunking_options=chunking_options,
+            aps_url=aps_url,
+            docparse_url=docparse_url,
+            ssl_verify=ssl_verify,
+            output_format=output_format,
+            output_label_options=output_label_options,
+            webhook_url=webhook_url,
+        )
+    finally:
+        if should_close and isinstance(file, BinaryIO):
+            file.close()
+
+
+def _partition_file_inner(
+    file: BinaryIO,
+    *,
+    aryn_api_key: Optional[str] = None,
+    aryn_config: Optional[ArynConfig] = None,
+    threshold: Optional[Union[float, Literal["auto"]]] = None,
+    use_ocr: bool = False,
+    ocr_images: bool = False,
+    ocr_language: Optional[str] = None,
+    extract_table_structure: bool = False,
+    table_extraction_options: dict[str, Any] = {},
+    extract_images: bool = False,
+    selected_pages: Optional[list[Union[list[int], int]]] = None,
+    chunking_options: Optional[dict[str, Any]] = None,
+    aps_url: Optional[str] = None,  # deprecated in favor of docparse_url
+    docparse_url: Optional[str] = None,
+    ssl_verify: bool = True,
+    output_format: Optional[str] = None,
+    output_label_options: dict[str, Any] = {},
+    webhook_url: Optional[str] = None,
+):
+    """Do not call this function directly. Use partition_file or partition_file_async_submit instead."""
 
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
@@ -412,7 +461,7 @@ def partition_file_async_submit(
         if docparse_url:
             docparse_url = _convert_sync_to_async_url(docparse_url, "/submit", truncate=False)
 
-    return _partition_file_inner(
+    return _partition_file_wrapper(
         file=file,
         aryn_api_key=aryn_api_key,
         aryn_config=aryn_config,

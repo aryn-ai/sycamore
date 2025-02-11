@@ -248,10 +248,10 @@ def test_partition_file_async_with_unsupported_file_format():
     start = time.time()
     while True:
         actual_result = partition_file_async_result(task_id)
-        if actual_result["status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
+        if actual_result["task_status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
             break
         time.sleep(1)
-    assert actual_result["status"] == "done"
+    assert actual_result["task_status"] == "done"
     assert actual_result["result"] is not None
     assert actual_result["result"]["status_code"] == 500
     assert actual_result["result"]["error"] == "500: Failed to convert file to pdf"
@@ -281,11 +281,11 @@ def test_multiple_partition_file_async():
         start = time.time()
         while True:
             actual_result = partition_file_async_result(task_id)
-            if actual_result["status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
+            if actual_result["task_status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
                 break
             time.sleep(1)
             logging.info(f"\tContinuing to Poll Task {task_id} ({i + 1}/{num_tasks})")
-        assert actual_result["status"] == "done"
+        assert actual_result["task_status"] == "done"
         assert len(actual_result["result"]["elements"]) > 1000
 
 
@@ -294,7 +294,7 @@ def test_partition_file_async_cancel():
         task_id = partition_file_async_submit(f)["task_id"]
 
     before_cancel_result = partition_file_async_result(task_id)
-    assert before_cancel_result["status"] == "pending"
+    assert before_cancel_result["task_status"] == "pending"
     partition_file_async_cancel(task_id)
 
     # Cancellation is not reflected in the result immediately
@@ -302,9 +302,9 @@ def test_partition_file_async_cancel():
         for _ in range(10):
             time.sleep(0.1)
             after_cancel_result = partition_file_async_result(task_id)
-            if after_cancel_result["status"] != "pending":
+            if after_cancel_result["task_status"] != "pending":
                 break
-            assert after_cancel_result["status"] == "pending"
+            assert after_cancel_result["task_status"] == "pending"
 
 
 def test_smoke_webhook(mocker):

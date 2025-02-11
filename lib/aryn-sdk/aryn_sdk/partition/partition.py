@@ -470,9 +470,9 @@ def partition_file_async_result(
         specific_task_url, params=g_parameters, headers=headers, stream=_should_stream(), verify=ssl_verify
     )
     if response.status_code == 200:
-        return {"status": "done", "status_code": response.status_code, "result": response.json()}
+        return {"task_status": "done", "result": response.json()}
     elif response.status_code == 202:
-        return {"status": "pending", "status_code": response.status_code}
+        return {"task_status": "pending"}
     elif response.status_code == 404:
         raise PartitionTaskNotFoundError("No such task", response.status_code)
     else:

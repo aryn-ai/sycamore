@@ -554,7 +554,7 @@ def partition_file_async_list(
 
     tasks = result["tasks"]
     for v in tasks.values():
-        del v["path"]
+        v.pop("action", None)
     return tasks
 
 

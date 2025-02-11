@@ -51,6 +51,7 @@ def partition_file(
     threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
+    ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
     table_extraction_options: dict[str, Any] = {},
     extract_images: bool = False,
@@ -80,6 +81,8 @@ def partition_file(
             default: False
         ocr_images: attempt to use OCR to generate a text representation of detected images.
             default: False
+        ocr_language: specify the language to use for OCR. If not set, the language will be english.
+            default: English
         extract_table_structure: extract tables and their structural content.
             default: False
         table_extraction_options: Specify options for table extraction, currently only supports boolean
@@ -152,6 +155,7 @@ def partition_file(
         threshold=threshold,
         use_ocr=use_ocr,
         ocr_images=ocr_images,
+        ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
         table_extraction_options=table_extraction_options,
         extract_images=extract_images,
@@ -173,6 +177,7 @@ def _partition_file_inner(
     threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
+    ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
     table_extraction_options: dict[str, Any] = {},
     extract_images: bool = False,
@@ -209,6 +214,7 @@ def _partition_file_inner(
         threshold=threshold,
         use_ocr=use_ocr,
         ocr_images=ocr_images,
+        ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
         table_extraction_options=table_extraction_options,
         extract_images=extract_images,
@@ -311,6 +317,7 @@ def _json_options(
     threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
+    ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
     table_extraction_options: dict[str, Any] = {},
     extract_images: bool = False,
@@ -327,6 +334,8 @@ def _json_options(
         options["use_ocr"] = use_ocr
     if ocr_images:
         options["ocr_images"] = ocr_images
+    if ocr_language:
+        options["ocr_language"] = ocr_language
     if extract_images:
         options["extract_images"] = extract_images
     if extract_table_structure:
@@ -355,6 +364,7 @@ def partition_file_async_submit(
     threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
+    ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
     table_extraction_options: dict[str, Any] = {},
     extract_images: bool = False,
@@ -409,6 +419,7 @@ def partition_file_async_submit(
         threshold=threshold,
         use_ocr=use_ocr,
         ocr_images=ocr_images,
+        ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
         table_extraction_options=table_extraction_options,
         extract_images=extract_images,

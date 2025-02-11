@@ -222,7 +222,7 @@ class Table:
 
         cells = []
         caption = None
-
+        assert isinstance(root, Tag), "Expected root to be a Tag"
         # Traverse the tree of elements in a pre-order traversal.
         for tag in root.find_all(recursive=True):
             if tag.name == "tr":

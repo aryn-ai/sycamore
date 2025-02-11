@@ -1,56 +1,15 @@
 from typing import Optional
 
-import textwrap
 
-from sycamore.data import Document, ImageElement, Element
+from sycamore.data import Document, Element
 from sycamore.llms.openai import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels
-from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
+from sycamore.llms.prompts.default_prompts import SummarizeImagesJinjaPrompt
+from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.base_llm import LLMMapElements
 from sycamore.transforms.map import Map
 from sycamore.utils.extract_json import extract_json
-
-
-class SummarizeImagesPrompt(SycamorePrompt):
-    """A prompt for summarizing image elements. If given a non-image element
-    or an image element without image data, will render an empty prompt (which
-    is skipped by LLMMapElements).
-
-    Args:
-        user: Base user prompt. Defaults to LLMImageSummarizer.DEFAULT_PROMPT
-        include_context: Whether to include the text of the elements before
-            and after the image in the prompt. Only takes Section-headers,
-            Captions, and Text before the image and only Captions and Text
-            after the image.
-    """
-
-    def __init__(self, user: Optional[str] = None, include_context: bool = True):
-        self.include_context = include_context
-        self.user = user or textwrap.dedent(" " * 12 + LLMImageSummarizer.DEFAULT_PROMPT)
-        self.preceding = "\nThe text preceding the image is {preceding_context}"
-        self.following = "\nThe text following the image is {following_context}"
-
-    def render_element(self, elt: Element, doc: Document) -> RenderedPrompt:
-        if not isinstance(elt, ImageElement):
-            return RenderedPrompt(messages=[])
-        im = elt.as_image()
-        if im is None:
-            return RenderedPrompt(messages=[])
-        text = self.user
-        if self.include_context:
-            for i, e in enumerate(doc.elements):
-                if e.element_index == elt.element_index:
-                    if i > 0:
-                        pe = doc.elements[i - 1]
-                        if pe.type in {"Section-header", "Caption", "Text"}:
-                            text += self.preceding.format(preceding_context=pe.text_representation)
-                    if i < len(doc.elements) - 1:
-                        fe = doc.elements[i + 1]
-                        if fe.type in {"Caption", "Text"}:
-                            text += self.following.format(following_context=fe.text_representation)
-
-        return RenderedPrompt(messages=[RenderedMessage(role="user", content=text, images=[im])])
 
 
 def parse_summary_json(e: Element) -> Element:
@@ -171,7 +130,10 @@ class SummarizeImages(CompositeTransform):
 
     def __init__(self, child: Node, summarizer=OpenAIImageSummarizer(), **resource_args):
         super().__init__(child, [], **resource_args)
-        prompt = SummarizeImagesPrompt(user=summarizer.prompt, include_context=summarizer.include_context)
+        prompt: SycamorePrompt = SummarizeImagesJinjaPrompt
+        if summarizer.prompt != LLMImageSummarizer.DEFAULT_PROMPT:
+            prompt = prompt.set(user=summarizer.prompt)
+        prompt = prompt.set(include_context=summarizer.include_context)
         llm_map = LLMMapElements(
             child, prompt, output_field="summary", llm=summarizer.llm, filter=lambda e: e.type == "Image"
         )

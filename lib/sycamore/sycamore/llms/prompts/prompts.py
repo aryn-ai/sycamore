@@ -1,11 +1,19 @@
 from dataclasses import dataclass
-from typing import Any, Union, Optional, Callable
+from typing import Any, Union, Optional, Callable, TYPE_CHECKING
 import copy
 
 import pydantic
 from PIL import Image
 from sycamore.data.document import Document, Element
+from sycamore.functions.tokenizer import Tokenizer
 from sycamore.connectors.common import flatten_data
+
+if TYPE_CHECKING:
+    from jinja2.sandbox import SandboxedEnvironment
+    from jinja2 import Template
+
+
+ResponseFormat = Union[None, dict[str, Any], type[pydantic.BaseModel]]
 
 
 @dataclass
@@ -34,7 +42,11 @@ class RenderedPrompt:
     """
 
     messages: list[RenderedMessage]
-    response_format: Union[None, dict[str, Any], type[pydantic.BaseModel]] = None
+    response_format: ResponseFormat = None
+
+    def token_count(self, tokenizer: Tokenizer) -> int:
+        total_text = " ".join(m.content for m in self.messages)
+        return len(tokenizer.tokenize(total_text))
 
 
 class SycamorePrompt:
@@ -451,3 +463,187 @@ class StaticPrompt(SycamorePrompt):
 
     def render_multiple_documents(self, docs: list[Document]) -> RenderedPrompt:
         return self.render_generic()
+
+
+class NoRender(Exception):
+    def __init__(self):
+        super().__init__()
+
+
+def raise_no_render():
+    raise NoRender()
+
+
+def compile_templates(templates: list[Optional[str]], env: "SandboxedEnvironment") -> list[Optional["Template"]]:
+    return [
+        env.from_string(source=t, globals={"norender": raise_no_render}) if t is not None else None for t in templates
+    ]
+
+
+def render_templates(sys: Optional["Template"], user: list["Template"], render_args: dict[str, Any]) -> RenderedPrompt:
+    messages = []
+    if sys is not None:
+        try:
+            system = sys.render(render_args)
+            messages.append(RenderedMessage(role="system", content=system))
+        except NoRender:
+            return RenderedPrompt(messages=[])
+    for ut in user:
+        try:
+            content = ut.render(render_args)
+            messages.append(RenderedMessage(role="user", content=content))
+        except NoRender:
+            return RenderedPrompt(messages=[])
+    return RenderedPrompt(messages=messages)
+
+
+def _deserialize_jinja_prompt(kwargs):
+    cls = kwargs.pop("class")
+    if cls == "JinjaPrompt":
+        return JinjaPrompt(**kwargs)
+    if cls == "JinjaElementPrompt":
+        return JinjaElementPrompt(**kwargs)
+
+
+class JinjaPrompt(SycamorePrompt):
+    """A prompt that uses the Jinja templating system to render documents, with
+    a system and user prompt.
+
+    Args:
+        system: The system prompt template, using Jinja syntax.
+        user: The user prompt template or prompt templates, using Jinja syntax.
+        kwargs: Additional key-value pairs that will be made available to the
+            rendering engine.
+
+    Example:
+         .. code-block:: python
+
+            prompt = JinjaPrompt(
+                system="You are a helpful entity extractor that extracts a json object or list to"
+                        " populate a data processing system",
+                user='''Below, you will be given a series of segments of an NTSB report and a question.
+            Your job is to provide the answer to the question based on the value provided.
+            Your response should ONLY contain the answer to the question. If you are not able
+            to extract the new field given the information, respond with "None". The type
+            of your response should be a JSON list of strings.
+            Field value:
+            {% for elt in doc.elements[:10] %}
+            ELEMENT {{ elt.element_index }}: {{ elt.field_to_value(field) }}
+            {% endfor %}
+            Answer the question "{{ question }}":''',
+                question="What aircraft parts were damaged in this report?",
+                field="text_representation",
+            )
+            ds.llm_map(prompt, output_field="damaged_parts", llm=OpenAI(OpenAIModels.GPT_4O))
+
+    """
+
+    def __init__(
+        self,
+        *,
+        system: Optional[str] = None,
+        user: Union[None, str, list[str]] = None,
+        response_format: ResponseFormat = None,
+        **kwargs,
+    ):
+        from jinja2.sandbox import SandboxedEnvironment
+        from jinja2 import Template
+
+        super().__init__()
+        self.system = system
+        self.user = user
+        self.response_format = response_format
+        self.kwargs = kwargs
+        self._env = SandboxedEnvironment(extensions=["jinja2.ext.loopcontrols"])
+        self._sys_template: Optional[Template] = None
+        self._user_templates: Union[None, list[Template]] = None
+
+    def __reduce__(self):
+        # Cannot serialize compiled templates - so force recompilation
+        return _deserialize_jinja_prompt, (
+            {"system": self.system, "user": self.user, "class": self.__class__.__name__, **self.kwargs},
+        )
+
+    def render_document(self, doc: Document) -> RenderedPrompt:
+        """Render this document using Jinja's template rendering system.
+        The template gets references to:
+
+            - doc: the document
+            - **self.kwargs: other keyword arguments held by this prompt are
+                available by name.
+
+        Args:
+            doc: The document to render
+
+        Returns:
+            A rendered prompt containing information from the document.
+        """
+        if self._user_templates is None:
+            userlist = self.user if isinstance(self.user, list) else [self.user]  # type: ignore
+            templates = compile_templates([self.system] + userlist, self._env)  # type: ignore
+            self._sys_template = templates[0]
+            self._user_templates = [t for t in templates[1:] if t is not None]
+
+        render_args = copy.deepcopy(self.kwargs)
+        render_args["doc"] = doc
+
+        rendered = render_templates(self._sys_template, self._user_templates, render_args)
+        if self.response_format is not None:
+            rendered.response_format = self.response_format
+        return rendered
+
+
+class JinjaElementPrompt(SycamorePrompt):
+    def __init__(
+        self,
+        *,
+        system: Optional[str] = None,
+        user: Union[None, str, list[str]] = None,
+        include_image: bool = False,
+        response_format: ResponseFormat = None,
+        **kwargs,
+    ):
+        from jinja2.sandbox import SandboxedEnvironment
+        from jinja2 import Template
+
+        super().__init__()
+        self.system = system
+        self.user = user
+        self.include_image = include_image
+        self.response_format = response_format
+        self.kwargs = kwargs
+        self._env = SandboxedEnvironment(extensions=["jinja2.ext.loopcontrols"])
+        self._sys_template: Optional[Template] = None
+        self._user_templates: Union[None, list[Template]] = None
+
+    def __reduce__(self):
+        # Cannot serialize compiled templates - so force recompilation
+        return _deserialize_jinja_prompt, (
+            {
+                "system": self.system,
+                "user": self.user,
+                "include_image": self.include_image,
+                "class": self.__class__.__name__,
+                **self.kwargs,
+            },
+        )
+
+    def render_element(self, elt: Element, doc: Document) -> RenderedPrompt:
+        if self._user_templates is None:
+            userlist = self.user if isinstance(self.user, list) else [self.user]  # type: ignore
+            templates = compile_templates([self.system] + userlist, self._env)  # type: ignore
+            self._sys_template = templates[0]
+            self._user_templates = [t for t in templates[1:] if t is not None]
+
+        render_args = copy.deepcopy(self.kwargs)
+        render_args["elt"] = elt
+        render_args["doc"] = doc
+
+        result = render_templates(self._sys_template, self._user_templates, render_args)
+        if self.include_image and len(result.messages) > 0:
+            from sycamore.utils.pdf_utils import get_element_image
+
+            result.messages[-1].images = [get_element_image(elt, doc)]
+        if self.response_format is not None:
+            result.response_format = self.response_format
+        return result

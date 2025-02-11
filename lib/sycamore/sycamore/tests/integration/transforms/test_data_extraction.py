@@ -49,9 +49,9 @@ def test_extract_properties_from_dict_schema(llm):
     assert taken[0].properties["entity"]["age"] == 74
     assert "Honolulu" in taken[0].properties["entity"]["from_location"]
 
-    assert len(taken) == 3
-    assert taken[2].metadata["usage"]["prompt_tokens"] > 0
-    assert taken[2].metadata["usage"]["completion_tokens"] > 0
+    assert len(taken) == 4
+    assert taken[3].metadata["usage"]["prompt_tokens"] > 0
+    assert taken[3].metadata["usage"]["completion_tokens"] > 0
 
 
 @pytest.mark.parametrize("llm", llms)
@@ -68,7 +68,9 @@ def test_extract_properties_from_schema(llm):
                 default="null",
             ),
             SchemaField(name="age", field_type="int", default=999),
-            SchemaField(name="date", field_type="str", description="Any date in the doc in YYYY-MM-DD format"),
+            SchemaField(
+                name="date", field_type="str", description="Any date in the doc, extracted in YYYY-MM-DD format"
+            ),
             SchemaField(
                 name="from_location",
                 field_type="str",
@@ -97,8 +99,8 @@ def test_extract_properties_from_schema(llm):
     assert taken[1].properties["entity"]["from_location"] == "New Delhi"
     assert taken[1].properties["entity"]["date"] == "2014-01-11"
 
-    assert len(taken) == 5
-    assert taken[3].metadata["usage"]["prompt_tokens"] > 0
-    assert taken[3].metadata["usage"]["completion_tokens"] > 0
+    assert len(taken) == 6
     assert taken[4].metadata["usage"]["prompt_tokens"] > 0
     assert taken[4].metadata["usage"]["completion_tokens"] > 0
+    assert taken[5].metadata["usage"]["prompt_tokens"] > 0
+    assert taken[5].metadata["usage"]["completion_tokens"] > 0

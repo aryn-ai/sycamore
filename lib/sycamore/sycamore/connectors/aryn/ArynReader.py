@@ -13,6 +13,7 @@ from sycamore.connectors.aryn.client import ArynClient
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data import Document
 from sycamore.data.element import create_element
+from sycamore.decorators import experimental
 
 if TYPE_CHECKING:
     from ray.data import Dataset
@@ -127,6 +128,7 @@ class ArynReaderClient(BaseDBReader.Client):
         return cls(client, params)
 
 
+@experimental
 class ArynReader(BaseDBReader):
     Client = ArynReaderClient
     Record = ArynQueryResponse
@@ -149,8 +151,6 @@ class ArynReader(BaseDBReader):
         aryn_client = client._client
 
         doc = aryn_client.get_doc(self._query_params.docset_id, doc["doc_id"])
-        if 0 == len(doc.keys()):
-            return {"doc": Document.serialize(Document())}
         elements = doc.get("elements", [])
         doc = Document(**doc)
         doc.data["elements"] = [create_element(**element) for element in elements]

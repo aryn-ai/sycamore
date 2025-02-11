@@ -370,6 +370,9 @@ class OpenAIEntityExtractor(EntityExtractor):
 
     def _get_entities(self, content: str, prompt: Optional[Union[list[dict], str]] = None):
         assert self._llm is not None
+        assert not isinstance(
+            self._prompt, SycamorePrompt
+        ), f"cannot use old extract_entity interface with a SycamorePrompt: {self._prompt}"
         prompt = prompt or self._prompt
         assert prompt is not None, "No prompt found for entity extraction"
         if isinstance(self._prompt, str):

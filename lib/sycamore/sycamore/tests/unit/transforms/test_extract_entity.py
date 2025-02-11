@@ -221,7 +221,6 @@ class TestEntityExtraction:
         assert (taken[0].elements[1]["properties"]["_element_index"]) == 2
 
         # Element order should be changed in the prompt
-        print(taken[1])
         assert "ELEMENT 1: test2" in taken[1].properties[new_field]
         assert "ELEMENT 2: test1" in taken[1].properties[new_field]
 

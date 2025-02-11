@@ -144,6 +144,11 @@ def plan_llm_filter_as_llm_map(
         similarity_query=similarity_query,
         similarity_scorer=similarity_scorer,
     )
+    # entity_extractor.as_llm_map returns a CompositeTransform
+    # consisting of: (optionally a similarity scorer), a preprocess
+    # map to figure out the batches if a tokenizer is around (+ sorting),
+    # the llm map itself, and a postprocess map to assign the source_indices
+    # that got the property. asserts are for mypy type coercion.
     comptransform = entity_extractor.as_llm_map(child)
     assert isinstance(comptransform, CompositeTransform)
     llm_map = comptransform.nodes[-2]

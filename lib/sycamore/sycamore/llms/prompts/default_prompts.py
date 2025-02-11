@@ -428,20 +428,6 @@ class EntityExtractorMessagesPrompt(SimplePrompt):
             )
 
 
-class _LlmFilterMessagesPrompt(SimplePrompt):
-    def __init__(self, filter_question: str):
-        super().__init__()
-
-        self.system = "You are a helpful classifier that generously filters database entries based on questions."
-
-        self.user = (
-            "Given an entry and a question, you will answer the question relating "
-            "to the entry. You only respond with 0, 1, 2, 3, 4, or 5 based on your "
-            "confidence level. 0 is the most negative answer and 5 is the most positive "
-            f"answer. Question: {filter_question}; Entry: "
-        )
-
-
 LlmFilterMessagesJinjaPrompt = JinjaPrompt(
     system="You are a helpful classifier that generously filters database entries based on questions.",
     user=(

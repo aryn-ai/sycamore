@@ -1,6 +1,9 @@
+import logging
 from typing import Any
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 class ArynClient:
@@ -10,19 +13,41 @@ class ArynClient:
 
     def list_docs(self, docset_id: str) -> list[str]:
         try:
-            response = requests.get(f"{self.aryn_url}/docsets/{docset_id}/docs", headers={"Authorization": f"Bearer {self.api_key}"})
+            response = requests.get(
+                f"{self.aryn_url}/docsets/{docset_id}/docs", headers={"Authorization": f"Bearer {self.api_key}"}
+            )
             items = response.json()["items"]
             return [item["doc_id"] for item in items]
         except Exception as e:
             raise ValueError(f"Error listing docs: {e}")
 
     def get_doc(self, docset_id: str, doc_id: str) -> dict[str, Any]:
-        response = requests.get(f"{self.aryn_url}/docsets/{docset_id}/docs/{doc_id}", headers={"Authorization": f"Bearer {self.api_key}"})
-        return response.json()
+        try:
+            response = requests.get(
+                f"{self.aryn_url}/docsets/{docset_id}/docs/{doc_id}",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            )
+            if response.status_code != 200:
+                raise ValueError(
+                    f"Error getting doc {doc_id}, received {response.status_code} {response.text} {response.reason}"
+                )
+            doc = response.json()
+            if doc is None:
+                print(f"Received None for doc {doc_id}")
+                return {}
+            print(f">>> DOC {doc}")
+            logger.info(f"Got doc {doc}")
+            return doc
+        except Exception as e:
+            # raise ValueError(f"Error getting doc {doc_id}: {e}")
+            print(f"Error getting doc {doc_id}: {e}")
+            return {}
 
     def create_docset(self, name: str) -> str:
         try:
-            response = requests.post(f"{self.aryn_url}/docsets", json={"name": name}, headers={"Authorization": f"Bearer {self.api_key}"})
+            response = requests.post(
+                f"{self.aryn_url}/docsets", json={"name": name}, headers={"Authorization": f"Bearer {self.api_key}"}
+            )
             return response.json()["docset_id"]
         except Exception as e:
             raise ValueError(f"Error creating docset: {e}")

@@ -12,9 +12,11 @@ from sycamore.llms.prompts.prompts import (
 )
 from sycamore.llms.prompts.jinja_fragments import (
     J_DYNAMIC_DOC_TEXT,
+    J_FIELD_VALUE_MACRO,
     J_FORMAT_SCHEMA_MACRO,
     J_SET_ENTITY,
     J_SET_SCHEMA,
+    J_ELEMENT_BATCHED_LIST,
 )
 
 logger = logging.getLogger(__name__)
@@ -426,18 +428,24 @@ class EntityExtractorMessagesPrompt(SimplePrompt):
             )
 
 
-class LlmFilterMessagesPrompt(SimplePrompt):
-    def __init__(self, filter_question: str):
-        super().__init__()
-
-        self.system = "You are a helpful classifier that generously filters database entries based on questions."
-
-        self.user = (
-            "Given an entry and a question, you will answer the question relating "
-            "to the entry. You only respond with 0, 1, 2, 3, 4, or 5 based on your "
-            "confidence level. 0 is the most negative answer and 5 is the most positive "
-            f"answer. Question: {filter_question}; Entry: "
+LlmFilterMessagesJinjaPrompt = JinjaPrompt(
+    system="You are a helpful classifier that generously filters database entries based on questions.",
+    user=(
+        J_FIELD_VALUE_MACRO
+        + textwrap.dedent(
+            """\
+        Given an entry and a question, you will answer the question relating to the
+        entry. You only response with 0, 1, 2, 3, 4, or 5 based on your confidence
+        level. 0 is the most negative answer and 5 is the most positive answer.
+        Question: {{ filter_question }}
+        Entry: {% if field != "text_representation" or not use_elements -%}
+        Field Name: {{ field }}; Field Value: {{ field_value(doc, field, no_field_behavior) }}
+        {% else %}"""
         )
+        + J_ELEMENT_BATCHED_LIST
+        + "{% endif %}"
+    ),
+)
 
 
 class SummarizeDataMessagesPrompt(SimplePrompt):

@@ -225,7 +225,11 @@ def test_summarize_data():
 
 
 def test_llm_filter():
-    with (patch("sycamore.query.execution.sycamore_operator.LlmFilterMessagesPrompt") as MockLlmFilterMessagesPrompt,):
+    with (
+        patch(
+            "sycamore.query.execution.sycamore_operator.LlmFilterMessagesJinjaPrompt"
+        ) as MockLlmFilterMessagesJinjaPrompt,
+    ):
         context = sycamore.init(params={"default": {"llm": Mock(spec=LLM)}})
         doc_set = Mock(spec=DocSet)
         return_doc_set = Mock(spec=DocSet)
@@ -236,7 +240,7 @@ def test_llm_filter():
         result = sycamore_operator.execute()
 
         # assert LlmFilterMessagesPrompt called with expected arguments
-        MockLlmFilterMessagesPrompt.assert_called_once_with(
+        MockLlmFilterMessagesJinjaPrompt.set.assert_called_once_with(
             filter_question=logical_node.question,
         )
 

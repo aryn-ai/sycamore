@@ -68,9 +68,13 @@ class MockLLM(LLM):
             return "4"
         elif prompt.messages[0].content == "test1":
             return "4"
+        elif prompt.messages[-1].content.strip().endswith("test1"):
+            return "4"
         elif asdict(prompt) == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
             return "2"
         elif prompt.messages[0].content == "test2":
+            return "2"
+        elif prompt.messages[-1].content.strip().endswith("test2"):
             return "2"
 
         elif prompt.messages[-1].content.endswith('"1, 2, one, two, 1, 3".'):
@@ -117,6 +121,7 @@ class TestSimilarityScorer(SimilarityScorer):
 
 class MockTokenizer:
     def tokenize(self, text):
+        print(len(text.split()))
         return text.split()
 
 

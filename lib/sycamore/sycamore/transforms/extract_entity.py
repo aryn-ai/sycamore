@@ -109,7 +109,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element], str], str] = element_list_formatter,
         use_elements: Optional[bool] = True,
-        prompt: Optional[Union[list[dict], str]] = None,
+        prompt: Optional[Union[list[dict], str, SycamorePrompt]] = None,
         field: str = "text_representation",
         max_tokens: int = 512,
         tokenizer: Optional[Tokenizer] = None,
@@ -160,9 +160,12 @@ class OpenAIEntityExtractor(EntityExtractor):
             "batch_key": vars["batch_key"],
             "iteration_var": vars["iteration_var_name"],
             "entity": self._entity_name,
+            "use_elements": self._use_elements,
         }
 
         if self._prompt is not None:
+            if isinstance(self._prompt, SycamorePrompt):
+                return self._prompt.set(**common_params)
             if isinstance(self._prompt, str):
                 return JinjaPrompt(
                     system=None, user=self._prompt + "\n" + j_elements, response_format=None, **common_params
@@ -198,7 +201,6 @@ class OpenAIEntityExtractor(EntityExtractor):
             batches = []
             if self._tokenizer is not None:
                 curr_club = []
-                curr_tks = 0
                 # We'll create a dummy document and consecutively
                 # add more elements to it, rendering out to a prompt
                 # at each step and counting tokens to find breakpoints.
@@ -212,17 +214,17 @@ class OpenAIEntityExtractor(EntityExtractor):
                     dummy.properties[vars["batch_key"]] = [curr_club]
                     rendered = prompt.render_document(dummy)
                     tks = rendered.token_count(self._tokenizer)
-                    if tks + curr_tks > self._max_tokens:
+                    if tks > self._max_tokens:
                         curr_club.pop()
-                        batches.append(curr_club)
+                        if len(curr_club) > 0:
+                            batches.append(curr_club)
                         curr_club = [i]
                         e.properties[vars["source_idx_key"]] = curr_club
-                        dummy.elements = [e]
-                        curr_tks = 0
+                        # dummy.elements = [e]
                     else:
                         e.properties[vars["source_idx_key"]] = curr_club
-                        curr_tks += tks
-                batches.append(curr_club)
+                if len(curr_club) > 0:
+                    batches.append(curr_club)
             else:
                 # If no tokenizer, we run a single batch with the first num_of_elements.
                 batches = [[i for e, i in elements[: self._num_of_elements]]]
@@ -368,6 +370,9 @@ class OpenAIEntityExtractor(EntityExtractor):
 
     def _get_entities(self, content: str, prompt: Optional[Union[list[dict], str]] = None):
         assert self._llm is not None
+        assert not isinstance(
+            self._prompt, SycamorePrompt
+        ), f"cannot use old extract_entity interface with a SycamorePrompt: {self._prompt}"
         prompt = prompt or self._prompt
         assert prompt is not None, "No prompt found for entity extraction"
         if isinstance(self._prompt, str):

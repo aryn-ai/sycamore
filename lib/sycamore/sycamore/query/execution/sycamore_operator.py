@@ -5,7 +5,10 @@ from sycamore.connectors.opensearch.utils import get_knn_query
 from sycamore.context import get_val_from_context, OperationTypes
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms import LLM
-from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LlmFilterMessagesPrompt
+from sycamore.llms.prompts.default_prompts import (
+    EntityExtractorMessagesPrompt,
+    LlmFilterMessagesJinjaPrompt,
+)
 from sycamore.query.logical_plan import Node
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
@@ -160,7 +163,7 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
 os_query["query"]["knn"]["embedding"]["filter"] = {self.logical_node.opensearch_filter}"""
         result += f"""
 {output_var or get_var_name(self.logical_node)} = context.read.opensearch(
-    index_name='{self.logical_node.index}', 
+    index_name='{self.logical_node.index}',
     query=os_query,
     reconstruct_document=True
 ).rerank(query='{self.logical_node.query_phrase}')
@@ -263,7 +266,7 @@ class SycamoreLlmFilter(SycamoreOperator):
 
         # load into local vars for Ray serialization magic
 
-        prompt = LlmFilterMessagesPrompt(filter_question=question).as_messages()
+        prompt = LlmFilterMessagesJinjaPrompt.set(filter_question=question)
 
         result = self.inputs[0].llm_filter(
             new_field="_autogen_LLMFilterOutput",

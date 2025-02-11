@@ -1060,13 +1060,14 @@ class DocSet:
 
         return self.map(process_doc, **resource_args)
 
+    @deprecated(version="0.1.31", reason="use llm_map and a plain filter instead")
     @context_params(OperationTypes.BINARY_CLASSIFIER)
     @context_params(OperationTypes.TEXT_SIMILARITY)
     def llm_filter(
         self,
         llm: LLM,
         new_field: str,
-        prompt: Union[list[dict], str],
+        prompt: SycamorePrompt,
         field: str = "text_representation",
         threshold: int = 3,
         keep_none: bool = False,
@@ -1100,55 +1101,24 @@ class DocSet:
         Returns:
             A filtered DocSet.
         """
-        entity_extractor = OpenAIEntityExtractor(
-            entity_name=new_field, llm=llm, use_elements=False, prompt=prompt, field=field
+        from sycamore.transforms.llm_filter import plan_llm_filter_as_llm_map
+
+        mapfilter = plan_llm_filter_as_llm_map(
+            self.plan,
+            llm,
+            new_field,
+            prompt,
+            field,
+            threshold,
+            keep_none,
+            use_elements,
+            similarity_query,
+            similarity_scorer,
+            max_tokens,
+            tokenizer,
+            **resource_args,
         )
-
-        if not use_elements:
-            from sycamore.transforms.llm_filter import document_threshold_llm_filter
-
-            def f(doc):
-                return document_threshold_llm_filter(
-                    doc, field=field, entity_extractor=entity_extractor, threshold=threshold, keep_none=keep_none
-                )
-
-            return self.filter(f, **resource_args)
-
-        from sycamore.transforms.llm_filter import (
-            tokenized_threshold_llm_filter,
-            untokenized_threshold_llm_filter,
-        )
-        from sycamore.utils.similarity import make_element_sorter_fn
-
-        element_sorter = make_element_sorter_fn(field, similarity_query, similarity_scorer)
-
-        if tokenizer is not None:
-
-            def g(doc):
-                return tokenized_threshold_llm_filter(
-                    doc,
-                    field=field,
-                    entity_extractor=entity_extractor,
-                    threshold=threshold,
-                    keep_none=keep_none,
-                    element_sorter=element_sorter,
-                    max_tokens=max_tokens,
-                    tokenizer=tokenizer,
-                )
-
-            return self.filter(g, **resource_args)
-
-        def h(doc):
-            return untokenized_threshold_llm_filter(
-                doc,
-                field=field,
-                entity_extractor=entity_extractor,
-                threshold=threshold,
-                keep_none=keep_none,
-                element_sorter=element_sorter,
-            )
-
-        return self.filter(h, **resource_args)
+        return DocSet(self.context, mapfilter)
 
     def map_batch(
         self,

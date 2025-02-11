@@ -465,18 +465,33 @@ class StaticPrompt(SycamorePrompt):
         return self.render_generic()
 
 
-class NoRender(Exception):
+class PromptNoRender(Exception):
     def __init__(self):
         super().__init__()
 
 
+class PromptException(Exception):
+    def __init__(self, msg: str):
+        super().__init__()
+        self.msg = msg
+
+
 def raise_no_render():
-    raise NoRender()
+    raise PromptNoRender()
+
+
+def raise_uncaught(msg: str):
+    raise PromptException(msg)
 
 
 def compile_templates(templates: list[Optional[str]], env: "SandboxedEnvironment") -> list[Optional["Template"]]:
     return [
-        env.from_string(source=t, globals={"norender": raise_no_render}) if t is not None else None for t in templates
+        (
+            env.from_string(source=t, globals={"norender": raise_no_render, "raise": raise_uncaught})
+            if t is not None
+            else None
+        )
+        for t in templates
     ]
 
 
@@ -486,13 +501,13 @@ def render_templates(sys: Optional["Template"], user: list["Template"], render_a
         try:
             system = sys.render(render_args)
             messages.append(RenderedMessage(role="system", content=system))
-        except NoRender:
+        except PromptNoRender:
             return RenderedPrompt(messages=[])
     for ut in user:
         try:
             content = ut.render(render_args)
             messages.append(RenderedMessage(role="user", content=content))
-        except NoRender:
+        except PromptNoRender:
             return RenderedPrompt(messages=[])
     return RenderedPrompt(messages=messages)
 

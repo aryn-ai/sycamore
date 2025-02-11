@@ -1,10 +1,17 @@
 import copy
 import re
-from typing import Callable
+from typing import Callable, Optional
 
 from sycamore.data import Document
-from sycamore.functions.tokenizer import Tokenizer
-from sycamore.transforms.extract_entity import EntityExtractor
+from sycamore.functions.tokenizer import Tokenizer, CharacterTokenizer
+from sycamore.llms.llms import LLM
+from sycamore.llms.prompts.prompts import SycamorePrompt
+from sycamore.plan_nodes import Node
+from sycamore.transforms.base_llm import LLMMap
+from sycamore.transforms.basics import Filter
+from sycamore.transforms.base import CompositeTransform
+from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
+from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.utils.llm_utils import merge_elements
 
 
@@ -101,3 +108,72 @@ def untokenized_threshold_llm_filter(
     if evaluated_elements == 0:  # no elements found for property
         return keep_none
     return False
+
+
+def plan_llm_filter_as_llm_map(
+    child: Node,
+    llm: LLM,
+    new_field: str,
+    prompt: SycamorePrompt,
+    field: str,
+    threshold: int = 3,
+    keep_none: bool = False,
+    use_elements: bool = False,
+    similarity_query: Optional[str] = None,
+    similarity_scorer: Optional[SimilarityScorer] = None,
+    max_tokens: int = 512,
+    tokenizer: Optional[Tokenizer] = None,
+    **kwargs,
+) -> Node:
+    if tokenizer is None:
+        # create single-element batches
+        tokenizer = CharacterTokenizer()
+        max_tokens = 1
+    if keep_none:
+        prompt = prompt.set(no_field_behavior="empty")
+    else:
+        prompt = prompt.set(no_field_behavior="crash")
+    entity_extractor = OpenAIEntityExtractor(
+        entity_name=new_field,
+        llm=llm,
+        use_elements=use_elements,
+        prompt=prompt,
+        field=field,
+        tokenizer=tokenizer,
+        max_tokens=max_tokens,
+        similarity_query=similarity_query,
+        similarity_scorer=similarity_scorer,
+    )
+    # entity_extractor.as_llm_map returns a CompositeTransform
+    # consisting of: (optionally a similarity scorer), a preprocess
+    # map to figure out the batches if a tokenizer is around (+ sorting),
+    # the llm map itself, and a postprocess map to assign the source_indices
+    # that got the property. asserts are for mypy type coercion.
+    comptransform = entity_extractor.as_llm_map(child)
+    assert isinstance(comptransform, CompositeTransform)
+    llm_map = comptransform.nodes[-2]
+    assert isinstance(llm_map, LLMMap)
+
+    def llmmap_validate(doc: Document) -> bool:
+        if keep_none and len(doc.elements) == 0:
+            return True
+        try:
+            score = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[0])
+        except IndexError:
+            return False
+        return score >= threshold
+
+    llm_map._validate = llmmap_validate
+
+    def filter_fn(doc: Document) -> bool:
+        try:
+            score = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[0])
+            doc.properties[new_field] = score
+        except IndexError:
+            return keep_none
+        return score >= threshold
+
+    filter = Filter(child=comptransform.nodes[-1], f=filter_fn)
+    new_comptransform = CompositeTransform(child, [])
+    new_comptransform.nodes = comptransform.nodes + [filter]
+    return new_comptransform

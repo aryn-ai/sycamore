@@ -7,6 +7,10 @@ from typing import Any
 def extract_json(payload: str) -> Any:
     """Given the provided payload, extract the JSON block from it."""
 
+    # Replace Python's None with JSON's null, being careful to not replace
+    # strings that might contain "None" as part of their content
+    payload = re.sub(r":\s*None\b", ": null", payload)
+
     try:
         return json.loads(payload)
     except (ValueError, TypeError, JSONDecodeError) as exc:

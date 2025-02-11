@@ -207,6 +207,7 @@ def test_partition_file_async_submit(mocker):
 
 def test_partiton_file_async_url_forwarding(mocker):
     dummy = open("/dev/null", "rb")
+
     def call_partition_file(base_url: str):
         partition_file_async_submit(dummy, docparse_url=base_url)
         partition_file_async_submit(dummy, aps_url=base_url)

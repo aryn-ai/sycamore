@@ -1,3 +1,4 @@
+import json
 import logging
 from copy import deepcopy
 
@@ -288,7 +289,7 @@ class OpenSearchReader(BaseDBReader):
         logger.info(f"OpenSearchReader using PIT: {self.use_pit}")
 
     @timetrace("OpenSearchReader")
-    def _to_parent_doc(self, slice_query: dict[str, Any]) -> List[dict[str, Any]]:
+    def _to_parent_doc(self, doc: dict[str, Any]) -> List[dict[str, Any]]:
         """
         Get all parent documents from a given slice.
         """
@@ -304,6 +305,7 @@ class OpenSearchReader(BaseDBReader):
                 raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
 
             os_client = client._client
+            slice_query = json.loads(doc["doc"])
 
             assert (
                 get_doc_count_for_slice(os_client, slice_query) < 10000
@@ -341,7 +343,7 @@ class OpenSearchReader(BaseDBReader):
             logger.info(f"Read {len(results)} documents from {self._query_params.index_name}")
 
         except Exception as e:
-            raise ValueError(f"Error reading from target: {e}")
+            raise ValueError(f"Error reading from target: {e}, query: {slice_query}")
         finally:
             if client is not None:
                 client.close()
@@ -547,7 +549,8 @@ class OpenSearchReader(BaseDBReader):
                 }
                 if "query" in query:
                     _query["query"] = query["query"]
-                docs.append(_query)
+
+                docs.append({"doc": json.dumps(_query)})
                 logger.debug(f"Added slice {i} to the query {_query}")
         except Exception as e:
             raise ValueError(f"Error reading from target: {e}")

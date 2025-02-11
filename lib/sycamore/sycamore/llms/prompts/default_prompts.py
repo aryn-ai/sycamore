@@ -11,10 +11,13 @@ from sycamore.llms.prompts.prompts import (
     JinjaElementPrompt,
 )
 from sycamore.llms.prompts.jinja_fragments import (
+    J_BATCH_OOB_CHECK,
     J_DYNAMIC_DOC_TEXT,
+    J_FIELD_VALUE_MACRO,
     J_FORMAT_SCHEMA_MACRO,
     J_SET_ENTITY,
     J_SET_SCHEMA,
+    J_ELEMENT_BATCHED_LIST,
 )
 
 logger = logging.getLogger(__name__)
@@ -440,23 +443,22 @@ class _LlmFilterMessagesPrompt(SimplePrompt):
         )
 
 
-LlmFilterMessagesPrompt = ElementListIterPrompt(
+LlmFilterMessagesJinjaPrompt = JinjaPrompt(
     system="You are a helpful classifier that generously filters database entries based on questions.",
     user=(
-        "Given an entry and a question, you will answer the question relating "
-        "to the entry. You only respond with 0, 1, 2, 3, 4, or 5 based on your "
-        "confidence level. 0 is the most negative answer and 5 is the most positive "
-        "answer. Question: {filter_question}; Entry: {elements}"
-    ),
-)
-
-LlmFilterDocValuePrompt = FieldValuePrompt(
-    system="You are a helpful classifier that generously filters database entries based on questions.",
-    user=(
-        "Given a field value and a question, you will answer the question relating "
-        "to the field value. You only respond with 0, 1, 2, 3, 4, or 5 based on your "
-        "confidence level. 0 is the most negative answer and 5 is the most positive "
-        "answer. Question: {filter_question}; Field Name: {field_name}; Field Value: {value}"
+        J_FIELD_VALUE_MACRO
+        + textwrap.dedent(
+            """\
+        Given an entry and a question, you will answer the question relating to the
+        entry. You only response with 0, 1, 2, 3, 4, or 5 based on your confidence
+        level. 0 is the most negative answer and 5 is the most positive answer.
+        Question: {{ filter_question }}
+        Entry: {% if field != "text_representation" or not use_elements -%}
+        Field Name: {{ field }}; Field Value: {{ field_value(doc, field, no_field_behavior) }}
+        {% else %}"""
+        )
+        + J_ELEMENT_BATCHED_LIST
+        + "{% endif %}"
     ),
 )
 

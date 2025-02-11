@@ -332,56 +332,6 @@ class ElementListIterPrompt(ElementListPrompt):
         return RenderedPrompt(messages=[])
 
 
-class FieldValuePrompt(SycamorePrompt):
-
-    def __init__(
-        self,
-        *,
-        system: Optional[str],
-        user: Union[None, str, list[str]],
-        field_name: str = "unset",
-        no_field_behavior: Union[Literal["crash"], Literal["none"], Literal["empty"]] = "none",
-        **kwargs,
-    ):
-        self.system = system
-        self.user = user
-        self.field_name = field_name
-        self.no_field_behavior = no_field_behavior
-
-        self.kwargs = kwargs
-
-    def _lookup_field(self, doc: Document) -> Optional[str]:
-        keys = self.field_name.split(sep=".")
-        curr = doc.data
-        while len(keys) > 0:
-            k = keys[0]
-            if not hasattr(curr, "__getitem__"):
-                return None
-            if k in curr:
-                curr = curr[k]
-            else:
-                return None
-        return str(curr)
-
-    def render_document(self, doc: Document) -> RenderedPrompt:
-        format_args = copy.deepcopy(self.kwargs)
-        value = self._lookup_field(doc)
-        if value is None:
-            if self.no_field_behavior == "crash":
-                raise KeyError(f"Could not find key {self.field_name} in doc: {doc}")
-            elif self.no_field_behavior == "none":
-                value = "None"
-            elif self.no_field_behavior == "empty":
-                return RenderedPrompt(messages=[])
-            else:
-                raise ValueError(f"prompt.no_field_behavior was an unrecognized value: {self.no_field_behavior}")
-        format_args["value"] = value
-        format_args["field_name"] = self.field_name
-
-        messages = _build_format_str(self.system, self.user, format_args)
-        return RenderedPrompt(messages=messages)
-
-
 class ElementPrompt(SycamorePrompt):
     """A prompt for rendering an element with utilities for capturing information
     from the element's parent document, with a system and user prompt.
@@ -515,18 +465,29 @@ class StaticPrompt(SycamorePrompt):
         return self.render_generic()
 
 
-class NoRender(Exception):
+class JinjaNoRender(Exception):
     def __init__(self):
         super().__init__()
 
 
+class JinjaDie(Exception):
+    def __init__(self, msg: str):
+        super().__init__()
+        self.msg = msg
+
+
 def raise_no_render():
-    raise NoRender()
+    raise JinjaNoRender()
+
+
+def raise_die(msg: str):
+    raise JinjaDie(msg)
 
 
 def compile_templates(templates: list[Optional[str]], env: "SandboxedEnvironment") -> list[Optional["Template"]]:
     return [
-        env.from_string(source=t, globals={"norender": raise_no_render}) if t is not None else None for t in templates
+        env.from_string(source=t, globals={"norender": raise_no_render, "raise": raise_die}) if t is not None else None
+        for t in templates
     ]
 
 
@@ -536,13 +497,13 @@ def render_templates(sys: Optional["Template"], user: list["Template"], render_a
         try:
             system = sys.render(render_args)
             messages.append(RenderedMessage(role="system", content=system))
-        except NoRender:
+        except JinjaNoRender:
             return RenderedPrompt(messages=[])
     for ut in user:
         try:
             content = ut.render(render_args)
             messages.append(RenderedMessage(role="user", content=content))
-        except NoRender:
+        except JinjaNoRender:
             return RenderedPrompt(messages=[])
     return RenderedPrompt(messages=messages)
 

@@ -7,7 +7,9 @@ from sycamore.context import Context, OperationTypes, ExecMode
 from sycamore.data import Document, Element
 from sycamore.functions import Tokenizer
 from sycamore.llms import LLM
-from sycamore.llms.prompts.default_prompts import LlmFilterDocValuePrompt, LlmFilterMessagesPrompt
+from sycamore.llms.prompts.default_prompts import (
+    LlmFilterMessagesJinjaPrompt,
+)
 from sycamore.plan_nodes import Node
 from sycamore.tests.unit.test_docset import MockLLM, TestSimilarityScorer, MockTokenizer
 from sycamore.transforms.extract_entity import EntityExtractor
@@ -73,7 +75,7 @@ class TestLLMFilter:
 
         filtered_docset = docset.llm_filter(
             new_field=new_field,
-            prompt=LlmFilterMessagesPrompt.set(filter_question="wha?"),
+            prompt=LlmFilterMessagesJinjaPrompt.set(filter_question="wha?"),
             field="text_representation",
             threshold=4,
             use_elements=True,
@@ -88,12 +90,12 @@ class TestLLMFilter:
         # doc level field checks
         assert taken[0].properties[new_field] == 4
         assert taken[1].properties[new_field] == 4
-        assert taken[0].properties[new_field + "_source_element_indices"] == {None}  # no index
-        assert taken[1].properties[new_field + "_source_element_indices"] == {2}
+        assert taken[0].properties[new_field + "_source_indices"] == [0]
+        assert taken[1].properties[new_field + "_source_indices"] == [1]
 
         filtered_docset = docset.llm_filter(
             new_field=new_field,
-            prompt=LlmFilterMessagesPrompt.set(filter_question="wha?"),
+            prompt=LlmFilterMessagesJinjaPrompt.set(filter_question="wha?"),
             field="text_representation",
             threshold=2,
             use_elements=True,
@@ -142,7 +144,7 @@ class TestLLMFilter:
         )
         docset = context.read.document(doc_list)
         new_field = "_autogen_LLMFilterOutput"
-        prompt = LlmFilterMessagesPrompt.set(filter_question="wha?")
+        prompt = LlmFilterMessagesJinjaPrompt.set(filter_question="wha?")
 
         filtered_docset = docset.llm_filter(
             new_field=new_field,
@@ -189,8 +191,7 @@ class TestLLMFilter:
         context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": MockLLM()}}, exec_mode=ExecMode.LOCAL)
         docset = context.read.document(doc_list)
         new_field = "_autogen_LLMFilterOutput"
-        prompt = LlmFilterMessagesPrompt.set(filter_question="wha?")
-        prompt = prompt.set(user=prompt.user.replace("{elements}", "{doc_text}"))
+        prompt = LlmFilterMessagesJinjaPrompt.set(filter_question="wha?")
 
         filtered_docset = docset.llm_filter(
             new_field=new_field, prompt=prompt, field="text_representation", threshold=3
@@ -220,7 +221,7 @@ class TestLLMFilter:
         context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": mock_llm}}, exec_mode=ExecMode.LOCAL)
         docset = context.read.document(doc_list)
         new_field = "_autogen_LLMFilterOutput"
-        prompt = LlmFilterDocValuePrompt.set(filter_question="wha?", field="missing_field", no_field_behavior="empty")
+        prompt = LlmFilterMessagesJinjaPrompt.set(filter_question="wha?")
 
         filtered_docset = docset.llm_filter(
             new_field=new_field,
@@ -247,16 +248,17 @@ class TestLLMFilter:
 
         filtered_docset = docset.llm_filter(
             new_field=new_field,
-            prompt=LlmFilterMessagesPrompt.set(filter_question="wha?"),
+            prompt=LlmFilterMessagesJinjaPrompt.set(filter_question="wha?"),
             field="text_representation",
             threshold=3,
             use_elements=True,
             tokenizer=mock_tokenizer,
-            max_tokens=20,  # Low token limit to test windowing
+            max_tokens=80,  # Low token limit to test windowing
         )
 
         taken = filtered_docset.take()
 
+        print(taken[0])
         assert len(taken) == 2
         assert taken[0].doc_id == "doc_1"
         assert mock_llm.generate.call_count == 3
@@ -264,11 +266,11 @@ class TestLLMFilter:
         # Check the properties of the filtered document
         assert taken[0].properties[new_field] == 4
         assert taken[1].properties[new_field] == 5
-        assert taken[0].elements[0]["properties"]["_autogen_LLMFilterOutput_source_element_indices"] == {0, 1, 2}
-        assert taken[0].elements[1]["properties"]["_autogen_LLMFilterOutput_source_element_indices"] == {0, 1, 2}
-        assert taken[0].elements[2]["properties"]["_autogen_LLMFilterOutput_source_element_indices"] == {0, 1, 2}
-        assert taken[1].elements[0]["properties"]["_autogen_LLMFilterOutput_source_element_indices"] == {1}
-        assert taken[1].elements[1]["properties"]["_autogen_LLMFilterOutput_source_element_indices"] == {2}
+        assert taken[0].elements[0]["properties"]["_autogen_LLMFilterOutput_source_indices"] == [0, 1, 2]
+        assert taken[0].elements[1]["properties"]["_autogen_LLMFilterOutput_source_indices"] == [0, 1, 2]
+        assert taken[0].elements[2]["properties"]["_autogen_LLMFilterOutput_source_indices"] == [0, 1, 2]
+        assert taken[1].elements[0]["properties"]["_autogen_LLMFilterOutput_source_indices"] == [0]
+        assert taken[1].elements[1]["properties"]["_autogen_LLMFilterOutput_source_indices"] == [1]
         # assert taken[0].elements[0]["properties"]["_autogen_LLMFilterOutput"] == 4
         # assert taken[0].elements[1]["properties"]["_autogen_LLMFilterOutput"] == 4
         # assert taken[0].elements[2]["properties"]["_autogen_LLMFilterOutput"] == 4

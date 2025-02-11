@@ -10,7 +10,6 @@ from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts import SycamorePrompt
-from sycamore.llms.prompts.prompts import ElementListIterPrompt
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
     LlmClusterEntityFormGroupsMessagesPrompt,
@@ -1068,7 +1067,7 @@ class DocSet:
         self,
         llm: LLM,
         new_field: str,
-        prompt: ElementListIterPrompt,
+        prompt: SycamorePrompt,
         field: str = "text_representation",
         threshold: int = 3,
         keep_none: bool = False,
@@ -1109,6 +1108,7 @@ class DocSet:
             llm,
             new_field,
             prompt,
+            field,
             threshold,
             keep_none,
             use_elements,

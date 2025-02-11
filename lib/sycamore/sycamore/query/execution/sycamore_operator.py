@@ -5,7 +5,11 @@ from sycamore.connectors.opensearch.utils import get_knn_query
 from sycamore.context import get_val_from_context, OperationTypes
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms import LLM
-from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LlmFilterMessagesPrompt
+from sycamore.llms.prompts.default_prompts import (
+    EntityExtractorMessagesPrompt,
+    LlmFilterMessagesJinjaPrompt,
+    LlmFilterMessagesPrompt,
+)
 from sycamore.query.logical_plan import Node
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
@@ -263,7 +267,7 @@ class SycamoreLlmFilter(SycamoreOperator):
 
         # load into local vars for Ray serialization magic
 
-        prompt = LlmFilterMessagesPrompt.set(filter_question=question)
+        prompt = LlmFilterMessagesJinjaPrompt.set(filter_question=question)
 
         result = self.inputs[0].llm_filter(
             new_field="_autogen_LLMFilterOutput",

@@ -3,14 +3,15 @@ import re
 from typing import Callable, Optional
 
 from sycamore.data import Document, Element
-from sycamore.functions.tokenizer import Tokenizer
+from sycamore.functions.tokenizer import Tokenizer, CharacterTokenizer
 from sycamore.llms.llms import LLM
-from sycamore.llms.prompts.prompts import ElementListIterPrompt
+from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.transforms.base_llm import LLMMap
 from sycamore.transforms.basics import Filter
-from sycamore.transforms.extract_entity import EntityExtractor
+from sycamore.transforms.base import CompositeTransform
+from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.utils.llm_utils import merge_elements
 
@@ -114,7 +115,8 @@ def plan_llm_filter_as_llm_map(
     child: Node,
     llm: LLM,
     new_field: str,
-    prompt: ElementListIterPrompt,
+    prompt: SycamorePrompt,
+    field: str,
     threshold: int = 3,
     keep_none: bool = False,
     use_elements: bool = False,
@@ -124,50 +126,29 @@ def plan_llm_filter_as_llm_map(
     tokenizer: Optional[Tokenizer] = None,
     **kwargs,
 ) -> Node:
-
-    source_idx_key = f"{new_field}_source_element_indices"
-    iteration_var_name = f"{new_field}_i"
-    if not use_elements:
-
-        def eb(elts: list[Element]) -> list[list[Element]]:
-            source_indices = {e.element_index for e in elts}
-            for e in elts:
-                e.properties[source_idx_key] = source_indices
-            return [elts]
-
-    elif tokenizer is None:
-
-        def eb(elts: list[Element]) -> list[list[Element]]:
-            for e in elts:
-                e.properties[source_idx_key] = {e.element_index}
-            return [[e] for e in elts]
-
+    if tokenizer is None:
+        # create single-element batches
+        tokenizer = CharacterTokenizer()
+        max_tokens = 1
+    if keep_none:
+        prompt = prompt.set(no_field_behavior="empty")
     else:
-
-        def eb(elts: list[Element]) -> list[list[Element]]:
-            curr_tks = 0
-            curr_batch: list[Element] = []
-            batches = []
-            source_indices = set()
-            assert tokenizer is not None, "Cannot batch elements based on token counts because tokenizer is None"
-            for e in elts:
-                eltl = prompt.element_list_constructor([e])
-                tks = len(tokenizer.tokenize(eltl))
-                if tks + curr_tks > max_tokens:
-                    batches.append(curr_batch)
-                    curr_tks = tks
-                    curr_batch = [e]
-                    source_indices = {e.element_index}
-                    e.properties[source_idx_key] = source_indices
-                else:
-                    e.properties[source_idx_key] = source_indices
-                    source_indices.add(e.element_index)
-                    curr_batch.append(e)
-                    curr_tks += tks
-            batches.append(curr_batch)
-            return batches
-
-    prompt = prompt.set(element_batcher=eb, iteration_var_name=iteration_var_name)  # type: ignore
+        prompt = prompt.set(no_field_behavior="crash")
+    entity_extractor = OpenAIEntityExtractor(
+        entity_name=new_field,
+        llm=llm,
+        use_elements=use_elements,
+        prompt=prompt,
+        field=field,
+        tokenizer=tokenizer,
+        max_tokens=max_tokens,
+        similarity_query=similarity_query,
+        similarity_scorer=similarity_scorer,
+    )
+    comptransform = entity_extractor.as_llm_map(child)
+    assert isinstance(comptransform, CompositeTransform)
+    llm_map = comptransform.nodes[-2]
+    assert isinstance(llm_map, LLMMap)
 
     def llmmap_validate(doc: Document) -> bool:
         if keep_none and len(doc.elements) == 0:
@@ -178,18 +159,7 @@ def plan_llm_filter_as_llm_map(
             return False
         return score >= threshold
 
-    def postprocess(doc: Document) -> Document:
-        last_eclub: set[int] = set()
-        club_idx = 0
-        target_club_idx = doc.properties[iteration_var_name]
-        for e in doc.elements:
-            if len(last_eclub) > 0 and e.properties[source_idx_key] != last_eclub:
-                club_idx += 1
-            last_eclub = e.properties[source_idx_key]
-            if club_idx == target_club_idx:
-                doc.properties[source_idx_key] = last_eclub
-                break
-        return doc
+    llm_map._validate = llmmap_validate
 
     def filter_fn(doc: Document) -> bool:
         try:
@@ -199,16 +169,7 @@ def plan_llm_filter_as_llm_map(
             return keep_none
         return score >= threshold
 
-    llm_map = LLMMap(
-        child=child,
-        prompt=prompt,
-        output_field=new_field,
-        llm=llm,
-        iteration_var=iteration_var_name,
-        validate=llmmap_validate,
-        **kwargs,
-    )
-    pp_map = Map(child=llm_map, f=postprocess)
-    filter = Filter(child=pp_map, f=filter_fn)
-
-    return filter
+    filter = Filter(child=comptransform.nodes[-1], f=filter_fn)
+    new_comptransform = CompositeTransform(child, [])
+    new_comptransform.nodes = comptransform.nodes + [filter]
+    return new_comptransform

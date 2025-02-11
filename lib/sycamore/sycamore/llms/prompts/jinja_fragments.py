@@ -50,11 +50,19 @@ J_DYNAMIC_DOC_TEXT = (
     + "{% endif %}"
 )
 
-J_FORMAT_SCHEMA_MACRO = """{% macro format_schema(schema) -%}
+J_FORMAT_SCHEMA_MACRO = """{%- macro format_schema(schema) -%}
 {% for field in schema.fields %}
 {{ loop.index }} {{ field.name }}: {{ field.field_type }}: default={{ field.default }}
 {% if field.description %}    Decription: {{ field.description }}{% endif %}
 {% if field.examples %}    Example values: {{ field.examples }}{% endif %}
 {%- endfor -%}
 {%- endmacro %}
+"""
+
+J_FIELD_VALUE_MACRO = """{%- macro field_value(doc, field, no_field_behavior='none') -%}
+{%- if no_field_behavior == "none" -%}{{ doc.field_to_value(field) }}
+{%- elif no_field_behavior == "crash" -%}{% set v = doc.field_to_value(field) %}{{ v if v is not none else raise("Could not find field " + field) }}
+{%- elif no_field_behavior == "empty" -%}{% set v = doc.field_to_value(field) %}{{ v if v is not none else norender() }}
+{%- endif -%}
+{%- endmacro -%}
 """

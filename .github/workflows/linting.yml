@@ -16,7 +16,7 @@ jobs:
       - name: DF-1
         run: df -h
       - name: du-runner-initial
-        run: du -kx /home/runner | sort -rn | head -20
+        run: du -sh /home/runner/* | sort -rh | head -n 20
       - name: Move cache to /mnt
         run: sudo mkdir /mnt/cache && sudo chown $(whoami) /mnt/cache && mkdir -p /home/runner/.cache && sudo mount -o bind /mnt/cache /home/runner/.cache
       # Could free up other stuff as in:

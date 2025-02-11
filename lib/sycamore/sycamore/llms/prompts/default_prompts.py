@@ -11,7 +11,6 @@ from sycamore.llms.prompts.prompts import (
     JinjaElementPrompt,
 )
 from sycamore.llms.prompts.jinja_fragments import (
-    J_BATCH_OOB_CHECK,
     J_DYNAMIC_DOC_TEXT,
     J_FIELD_VALUE_MACRO,
     J_FORMAT_SCHEMA_MACRO,

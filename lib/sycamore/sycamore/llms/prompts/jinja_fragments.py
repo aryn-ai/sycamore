@@ -61,7 +61,8 @@ J_FORMAT_SCHEMA_MACRO = """{%- macro format_schema(schema) -%}
 
 J_FIELD_VALUE_MACRO = """{%- macro field_value(doc, field, no_field_behavior='none') -%}
 {%- if no_field_behavior == "none" -%}{{ doc.field_to_value(field) }}
-{%- elif no_field_behavior == "crash" -%}{% set v = doc.field_to_value(field) %}{{ v if v is not none else raise("Could not find field " + field) }}
+{%- elif no_field_behavior == "crash" -%}{%- set v = doc.field_to_value(field) -%}
+{{ v if v is not none else raise("Could not find field " + field) }}
 {%- elif no_field_behavior == "empty" -%}{% set v = doc.field_to_value(field) %}{{ v if v is not none else norender() }}
 {%- endif -%}
 {%- endmacro -%}

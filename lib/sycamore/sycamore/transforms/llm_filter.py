@@ -2,12 +2,11 @@ import copy
 import re
 from typing import Callable, Optional
 
-from sycamore.data import Document, Element
+from sycamore.data import Document
 from sycamore.functions.tokenizer import Tokenizer, CharacterTokenizer
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.plan_nodes import Node
-from sycamore.transforms.map import Map
 from sycamore.transforms.base_llm import LLMMap
 from sycamore.transforms.basics import Filter
 from sycamore.transforms.base import CompositeTransform

@@ -8,7 +8,6 @@ from sycamore.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
     EntityExtractorMessagesPrompt,
     LlmFilterMessagesJinjaPrompt,
-    LlmFilterMessagesPrompt,
 )
 from sycamore.query.logical_plan import Node
 from sycamore.query.operators.count import Count

@@ -3,7 +3,19 @@ from abc import ABC
 from typing import Any, Optional, Type
 import textwrap
 
-from sycamore.llms.prompts.prompts import ElementListPrompt, ElementPrompt, StaticPrompt, JinjaPrompt
+from sycamore.llms.prompts.prompts import (
+    ElementListPrompt,
+    ElementPrompt,
+    StaticPrompt,
+    JinjaPrompt,
+    JinjaElementPrompt,
+)
+from sycamore.llms.prompts.jinja_fragments import (
+    J_DYNAMIC_DOC_TEXT,
+    J_FORMAT_SCHEMA_MACRO,
+    J_SET_ENTITY,
+    J_SET_SCHEMA,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +95,61 @@ EntityExtractorFewShotJinjaPrompt = JinjaPrompt(
     {% endfor %}""",
     field="text_representation",
     num_elements=35,
+)
+
+
+SummarizeImagesJinjaPrompt = JinjaElementPrompt(
+    user=textwrap.dedent(
+        """
+        You are given an image from a PDF document along with with some snippets of text preceding
+        and following the image on the page. Based on this context, please decide whether the image is a
+        graph or not. An image is a graph if it is a bar chart or a line graph. If the image is a graph,
+        please summarize the axes, including their units, and provide a summary of the results in no more
+        than 5 sentences.
+
+        Return the results in the following JSON schema:
+
+        {
+            "is_graph": true,
+            "x-axis": string,
+            "y-axis": string,
+            "summary": string
+        }
+
+        If the image is not a graph, please summarize the contents of the image in no more than five sentences
+        in the following JSON format:
+
+        {
+            "is_graph": false,
+            "summary": string
+        }
+
+        In all cases return only JSON and check your work.
+
+        {% if include_context -%}
+            {%- set posns = namespace(pos=-1) -%}
+            {%- for e in doc.elements -%}
+                {%- if e is sameas elt -%}
+                    {%- set posns.pos = loop.index0 -%}
+                    {% break %}
+                {%- endif -%}
+            {%- endfor -%}
+            {%- if posns.pos > 0 -%}
+                {%- set pe = doc.elements[posns.pos - 1] -%}
+                {%- if pe.type in ["Section-header", "Caption", "Text"] -%}
+        The text preceding the image is: {{ pe.text_representation }}
+                {%- endif -%}
+            {%- endif %}
+            {% if posns.pos != -1 and posns.pos < doc.elements|count - 1 -%}
+                {%- set fe = doc.elements[posns.pos + 1] -%}
+                {%- if fe.type in ["Caption", "Text"] -%}
+        The text following the image is: {{ fe.text_representation }}
+                {%- endif -%}
+            {%- endif -%}
+        {%- endif -%}
+        """
+    ),
+    include_image=True,
 )
 
 
@@ -292,6 +359,43 @@ PropertiesZeroShotGuidancePrompt = ElementListPrompt(
     Only return JSON as part of your answer. If no entity is in the text, return "None".
     {text}
     """
+    ),
+)
+
+
+PropertiesZeroShotJinjaPrompt = JinjaPrompt(
+    system="You are a helpful property extractor. You only return JSON.",
+    user=J_SET_SCHEMA
+    + J_SET_ENTITY
+    + textwrap.dedent(
+        """\
+    You are given some text of a document. Extract JSON representing one entity of
+    class {{ entity }} from the document. The class only has properties {{ schema }}. Using
+    this context, FIND, FORMAT, and RETURN the JSON representing one {{ entity }}.
+    Only return JSON as part of your answer. If no entity is in the text, return "None".
+
+    Document:
+    """
+    )
+    + J_DYNAMIC_DOC_TEXT,
+)
+
+PropertiesFromSchemaJinjaPrompt = JinjaPrompt(
+    system="You are given text contents from a document.",
+    user=(
+        J_FORMAT_SCHEMA_MACRO
+        + """\
+Extract values for the following fields:
+{{ format_schema(schema) }}
+
+Document text:"""
+        + J_DYNAMIC_DOC_TEXT
+        + """
+
+Don't return extra information.
+If you cannot find a value for a requested property, use the provided default or the value 'None'.
+Return your answers as a valid json dictionary that will be parsed in python.
+"""
     ),
 )
 

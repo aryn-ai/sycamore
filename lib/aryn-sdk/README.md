@@ -116,7 +116,7 @@ task_id = response["task_id"]
 # Poll for the results
 while True:
     result = partition_file_async_result(task_id)
-    if result["status"] != "pending":
+    if result["task_status"] != "pending":
         break
     time.sleep(5)
 ```
@@ -151,7 +151,7 @@ results = [None] * len(files)
 for i, task_id in enumerate(task_ids):
     while True:
         result = partition_file_async_result(task_id)
-        if result["status"] != "pending":
+        if result["task_status"] != "pending":
             break
         time.sleep(5)
     results[i] = result

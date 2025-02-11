@@ -1,6 +1,6 @@
 from os import PathLike
 from typing import BinaryIO, Union
-from aryn_sdk.partition.partition import convert_image_element, tables_to_pandas, ARYN_DOCPARSE_URL
+from aryn_sdk.partition.partition import ARYN_DOCPARSE_URL
 import pytest
 import json
 import time
@@ -14,6 +14,9 @@ from aryn_sdk.partition import (
     partition_file_async_cancel,
     partition_file_async_list,
     PartitionError,
+    PartitionTaskNotFoundError,
+    convert_image_element,
+    tables_to_pandas,
 )
 from requests.exceptions import HTTPError
 
@@ -182,8 +185,8 @@ def test_convert_img():
 
 
 def test_invalid_task_id():
-    response = partition_file_async_result("INVALID_JOB_ID")
-    assert response["status"] == "no_such_task"
+    with pytest.raises(PartitionTaskNotFoundError):
+        partition_file_async_result("INVALID_JOB_ID")
 
 
 def test_partition_file_async_submit(mocker):
@@ -245,10 +248,10 @@ def test_partition_file_async_with_unsupported_file_format():
     start = time.time()
     while True:
         actual_result = partition_file_async_result(task_id)
-        if actual_result["status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
+        if actual_result["task_status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
             break
         time.sleep(1)
-    assert actual_result["status"] == "done"
+    assert actual_result["task_status"] == "done"
     assert actual_result["result"] is not None
     assert actual_result["result"]["status_code"] == 500
     assert actual_result["result"]["error"] == "500: Failed to convert file to pdf"
@@ -278,11 +281,11 @@ def test_multiple_partition_file_async():
         start = time.time()
         while True:
             actual_result = partition_file_async_result(task_id)
-            if actual_result["status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
+            if actual_result["task_status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
                 break
             time.sleep(1)
             logging.info(f"\tContinuing to Poll Task {task_id} ({i + 1}/{num_tasks})")
-        assert actual_result["status"] == "done"
+        assert actual_result["task_status"] == "done"
         assert len(actual_result["result"]["elements"]) > 1000
 
 
@@ -291,17 +294,17 @@ def test_partition_file_async_cancel():
         task_id = partition_file_async_submit(f)["task_id"]
 
     before_cancel_result = partition_file_async_result(task_id)
-    assert before_cancel_result["status"] == "pending"
-    assert partition_file_async_cancel(task_id)
+    assert before_cancel_result["task_status"] == "pending"
+    partition_file_async_cancel(task_id)
 
     # Cancellation is not reflected in the result immediately
-    for _ in range(10):
-        time.sleep(0.1)
-        after_cancel_result = partition_file_async_result(task_id)
-        if after_cancel_result["status"] != "pending":
-            break
-        assert after_cancel_result["status"] == "pending"
-    assert after_cancel_result["status"] == "no_such_task"
+    with pytest.raises(PartitionTaskNotFoundError):
+        for _ in range(10):
+            time.sleep(0.1)
+            after_cancel_result = partition_file_async_result(task_id)
+            if after_cancel_result["task_status"] != "pending":
+                break
+            assert after_cancel_result["task_status"] == "pending"
 
 
 def test_smoke_webhook(mocker):

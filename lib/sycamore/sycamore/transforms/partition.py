@@ -2,7 +2,7 @@ from abc import abstractmethod, ABC
 import io
 from typing import Any, Literal, Optional, Union
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
@@ -312,6 +312,7 @@ class HtmlPartitioner(Partitioner):
         if self._extract_tables:
             for table in soup.find_all("table"):
                 # ignore nested tables
+                assert isinstance(table, Tag)
                 if len(table.find_all("table")) > 0:
                     continue
 

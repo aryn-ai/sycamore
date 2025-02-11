@@ -10,6 +10,13 @@ def extract_json(payload: str) -> Any:
     try:
         return json.loads(payload)
     except (ValueError, TypeError, JSONDecodeError) as exc:
+        # Sometimes the LLM makes up an escape code. In that case,
+        # replace the escape char with its representation (e.g. \\x07)
+        # and recurse.
+        if isinstance(exc, JSONDecodeError) and "Invalid \\escape" in exc.msg:
+            c = payload[exc.pos]
+            payload = payload[: exc.pos] + repr(c)[1:-1] + payload[exc.pos + 1 :]
+            return extract_json(payload)
         # It is possible that the LLM response includes a code block with JSON data.
         # Pull the JSON content out from it.
         pattern = r"```json([\s\S]*?)```"

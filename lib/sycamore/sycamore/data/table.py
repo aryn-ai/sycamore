@@ -202,7 +202,7 @@ class Table:
 
         if (html_str is not None and html_tag is not None) or (html_str is None and html_tag is None):
             raise ValueError("Exactly one of html_str and html_tag must be specified.")
-
+        root: Union[Tag, BeautifulSoup]
         if html_str is not None:
             html_str = html_str.strip()
             if not html_str.startswith("<table") or not html_str.endswith("</table>"):
@@ -222,9 +222,10 @@ class Table:
 
         cells = []
         caption = None
-
+        assert isinstance(root, Tag), "Expected root to be a Tag"
         # Traverse the tree of elements in a pre-order traversal.
         for tag in root.find_all(recursive=True):
+            assert isinstance(tag, Tag), "Expected root to be a Tag"
             if tag.name == "tr":
                 cur_row += 1  # TODO: Should this be based on rowspan?
                 cur_col = 0
@@ -234,9 +235,12 @@ class Table:
                 # they have a thead.
                 if cur_row < 0:
                     cur_row += 1
-
-                rowspan = int(tag.attrs.get("rowspan", "1"))
-                colspan = int(tag.attrs.get("colspan", "1"))
+                if rowspan_str := tag.attrs.get("rowspan", "1"):
+                    assert isinstance(rowspan_str, str)  # For mypy
+                    rowspan = int(rowspan_str)
+                if colspan_str := tag.attrs.get("colspan", "1"):
+                    assert isinstance(colspan_str, str)  # For mypy
+                    colspan = int(colspan_str)
 
                 content = tag.get_text()
 

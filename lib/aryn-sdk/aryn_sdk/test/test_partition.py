@@ -242,6 +242,8 @@ def test_partiton_file_async_url_forwarding(mocker):
     call_partition_file(nonstandard_url_example)
     call_partition_file(nonstandard_async_url_example)
 
+    dummy.close()
+
 
 def test_partition_file_async_with_unsupported_file_format():
     with open(RESOURCE_DIR / "image" / "unsupported-format-test-document-image.heic", "rb") as f:

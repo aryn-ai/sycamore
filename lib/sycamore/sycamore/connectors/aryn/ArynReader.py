@@ -150,9 +150,11 @@ class ArynReader(BaseDBReader):
         client = self.Client.from_client_params(self._client_params)
         aryn_client = client._client
 
+        doc_id = doc["doc_id"]
         doc = aryn_client.get_doc(self._query_params.docset_id, doc["doc_id"])
         elements = doc.get("elements", [])
         doc = Document(**doc)
+        doc.doc_id = doc_id
         doc.data["elements"] = [create_element(**element) for element in elements]
         return {"doc": Document.serialize(doc)}
 

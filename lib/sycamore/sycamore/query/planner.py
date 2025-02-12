@@ -1,5 +1,6 @@
 import logging
 import typing
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Type, Union
 
@@ -366,6 +367,12 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
         ),
     ),
 ]
+
+
+class Planner:
+    @abstractmethod
+    def plan(self, question: str) -> LogicalPlan:
+        raise NotImplementedError
 
 
 class LlmPlanner:

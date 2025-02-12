@@ -28,7 +28,7 @@ from sycamore.llms import LLM, get_llm, MODELS
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
-from sycamore.query.planner import LlmPlanner, PlannerExample
+from sycamore.query.planner import LlmPlanner, PlannerExample, Planner
 from sycamore.query.result import SycamoreQueryResult
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaFetcher
 from sycamore.query.strategy import DefaultQueryPlanStrategy, QueryPlanStrategy
@@ -131,6 +131,7 @@ class SycamoreQueryClient:
         sycamore_exec_mode: ExecMode = ExecMode.RAY,
         llm: Optional[Union[LLM, str]] = None,
         query_plan_strategy: Optional[QueryPlanStrategy] = None,
+        query_planner: Optional[Planner] = None,
     ):
         from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 
@@ -139,6 +140,7 @@ class SycamoreQueryClient:
         self.cache_dir = cache_dir
         self.sycamore_exec_mode = sycamore_exec_mode
         self.query_plan_strategy = query_plan_strategy
+        self.query_planner = query_planner
 
         # TODO: remove these assertions and simplify the code to get all customization via the
         # context.
@@ -194,19 +196,22 @@ class SycamoreQueryClient:
             natural_language_response: Whether to generate a natural language response. If False,
                 raw data will be returned.
         """
-        llm_client = self.context.params.get("default", {}).get("llm")
-        if not llm_client:
-            llm_client = OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(self.llm_cache_dir))
-        planner = LlmPlanner(
-            index,
-            data_schema=schema,
-            os_config=self.os_config,
-            os_client=self._os_client,
-            llm_client=llm_client,
-            strategy=self.query_plan_strategy or DefaultQueryPlanStrategy(),
-            examples=examples,
-            natural_language_response=natural_language_response,
-        )
+        if self.query_planner is None:
+            llm_client = self.context.params.get("default", {}).get("llm")
+            if not llm_client:
+                llm_client = OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(self.llm_cache_dir))
+            planner = LlmPlanner(
+                index,
+                data_schema=schema,
+                os_config=self.os_config,
+                os_client=self._os_client,
+                llm_client=llm_client,
+                strategy=self.query_plan_strategy or DefaultQueryPlanStrategy(),
+                examples=examples,
+                natural_language_response=natural_language_response,
+            )
+        else:
+            planner = self.query_planner
         plan = planner.plan(query)
         return plan
 

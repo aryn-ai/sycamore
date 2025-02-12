@@ -153,14 +153,14 @@ class ArynReader(BaseDBReader):
         doc_id = doc["doc_id"]
         doc = aryn_client.get_doc(self._query_params.docset_id, doc["doc_id"])
         elements = doc.get("elements", [])
-        doc = Document(**doc)
-        doc.doc_id = doc_id
-        doc.data["elements"] = []
+        document = Document(**doc)
+        document.doc_id = doc_id
+        document.data["elements"] = []
         for json_element in elements:
             element = create_element(**json_element)
             element.data["doc_id"] = json_element["id"]
-            doc.data["elements"].append(element)
-        return {"doc": Document.serialize(doc)}
+            document.data["elements"].append(element)
+        return {"doc": Document.serialize(document)}
 
     def execute(self, **kwargs) -> "Dataset":
 

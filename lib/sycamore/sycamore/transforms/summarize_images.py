@@ -2,7 +2,7 @@ from typing import Optional
 
 
 from sycamore.data import Document, Element
-from sycamore.llms.openai import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels
+from sycamore.llms import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels, 
 from sycamore.llms.prompts.default_prompts import SummarizeImagesJinjaPrompt
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.plan_nodes import Node
@@ -109,6 +109,33 @@ class OpenAIImageSummarizer(LLMImageSummarizer):
 
         super().__init__(llm=openai, prompt=prompt, include_context=include_context)
 
+class GeminiImageSummarizer(LLMImageSummarizer):
+    """Implementation of the LLMImageSummarizer for Gemini models.
+
+    Args:
+       gemini_model: The Gemini instance to use. If not set, one will be created.
+       client_wrapper: The OpenAIClientWrapper to use when creating an OpenAI instance.
+           Not used if openai_model is set.
+       prompt: The prompt to use to pass to the model, as a string.
+       include_context: Whether to include the immediately preceding and following text elements as context.
+    """
+
+    model = OpenAIModels.GPT_4O
+
+    def __init__(
+        self,
+        openai_model: Optional[OpenAI] = None,
+        client_wrapper: Optional[OpenAIClientWrapper] = None,
+        prompt: Optional[str] = None,
+        include_context: bool = True,
+    ):
+        if openai_model is not None:
+            openai = openai_model
+        else:
+            openai = OpenAI(model_name=self.model, client_wrapper=client_wrapper)
+
+        super().__init__(llm=openai, prompt=prompt, include_context=include_context)
+
 
 class SummarizeImages(CompositeTransform):
     """SummarizeImages is a transform for summarizing context into text using an LLM.
@@ -140,3 +167,7 @@ class SummarizeImages(CompositeTransform):
         parse_summary = Map(llm_map, f=_parse_summary_json_on_all_elts)
         self.nodes = [llm_map, parse_summary]
         self.summarizer = summarizer
+
+    @classmethod
+    def summarize_images(cls, child: Node, summarizer=LLMImageSummarizer, **resource_args):
+        return cls(child, summarizer, **resource_args)

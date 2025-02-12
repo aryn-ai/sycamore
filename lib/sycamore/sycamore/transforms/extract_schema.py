@@ -161,7 +161,7 @@ class LLMPropertyExtractor(PropertyExtractor):
         llm: LLM,
         schema_name: Optional[str] = None,
         schema: Optional[Union[dict[str, str], Schema]] = None,
-        num_of_elements: int = 10,
+        num_of_elements: Optional[int] = None,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
     ):
         super().__init__()
@@ -221,7 +221,8 @@ class LLMPropertyExtractor(PropertyExtractor):
 
             if self._schema_name is not None:
                 prompt = prompt.set(entity=self._schema_name)
-        prompt = prompt.set(num_elements=self._num_of_elements)
+        if self._num_of_elements is not None:
+            prompt = prompt.set(num_elements=self._num_of_elements)
         if self._prompt_formatter is not element_list_formatter:
             prompt = prompt.set(prompt_formatter=self._prompt_formatter)
 

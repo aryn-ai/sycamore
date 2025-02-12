@@ -375,7 +375,7 @@ class Planner:
         raise NotImplementedError
 
 
-class LlmPlanner:
+class LlmPlanner(Planner):
     """The top-level query planner for SycamoreQuery. This class is responsible for generating
     a logical query plan from a user query using the OpenAI LLM.
 

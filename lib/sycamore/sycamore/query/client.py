@@ -196,6 +196,7 @@ class SycamoreQueryClient:
             natural_language_response: Whether to generate a natural language response. If False,
                 raw data will be returned.
         """
+        planner: Planner
         if self.query_planner is None:
             llm_client = self.context.params.get("default", {}).get("llm")
             if not llm_client:

@@ -36,13 +36,10 @@ jobs:
         uses: useblacksmith/setup-java@v5
         with:
           java-version: 17
-      - name: Install Poetry
-        run: pipx install poetry
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: useblacksmith/setup-python@v6
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'poetry'
+          version: "latest"
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -50,4 +47,4 @@ jobs:
       - name: Install RPS
         run: make install_rps
       - name: Run Tests
-        run: poetry run pytest test/integration/
+        run: uv run pytest test/integration/

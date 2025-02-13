@@ -1,23 +1,31 @@
-[tool.poetry]
+[project]
 name = "sycamore-jupyter"
 version = "0.0.1"
 description = "Jupyter container with sycamore preinstalled"
-authors = ["aryn.ai <opensource@aryn.ai>"]
+authors = [{ name = "aryn.ai", email = "opensource@aryn.ai" }]
+requires-python = ">=3.9,<3.13"
 readme = "README.md"
-repository = "https://github.com/aryn-ai/sycamore.git"
+dependencies = [
+    "sycamore-ai[opensearch]>=0.1.13,<0.2",
+    "jupyterlab>=4.0.11,<5",
+    "jupyter-lsp>=2.2.2,<3",
+    "ipywidgets>=8.1.0,<9",
+    "notebook>=7.1.2,<8",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.9,<3.13"
-sycamore-ai = {extras = ["opensearch"], version = "^0.1.13"}
+[project.urls]
+Repository = "https://github.com/aryn-ai/sycamore.git"
 
-jupyterlab = "^4.0.11"
-jupyter-lsp = "^2.2.2"
-ipywidgets = "^8.1.0"
-notebook = "^7.1.2"
+[dependency-groups]
+dev = ["sycamore-ai"]
+sycamore_poetry_lock = ["sycamore-poetry-lock"]
 
+[tool.uv]
+default-groups = [
+    "dev",
+    "sycamore_poetry_lock",
+]
 
-[tool.poetry.group.dev.dependencies]
-sycamore-ai = { path = "../../lib/sycamore", develop = true }
-
-[tool.poetry.group.sycamore_poetry_lock.dependencies]
-sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
+[tool.uv.sources]
+sycamore-ai = { path = "../../lib/sycamore", editable = true }
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", editable = true }

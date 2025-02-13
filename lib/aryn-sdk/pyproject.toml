@@ -1,27 +1,21 @@
-[tool.poetry]
+[project]
 name = "aryn-sdk"
 version = "0.1.14"
 description = "The client library for Aryn services"
-authors = ["aryn.ai <opensource@aryn.ai>"]
-license = "Apache 2.0"
+authors = [{ name = "aryn.ai", email = "opensource@aryn.ai" }]
+requires-python = ">=3.9"
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = ">=3.9"
-requests = "^2.32"
-pandas = ">=2.0"
-numpy = ">=1.21.5"
-pyyaml = "^6.0.1"
-pdf2image = "^1.16.3"
-pillow = ">=11.1.0"
-
-# To make sure this dir has consistent lock entries to the sycamore dir,
-# add ",<3.13" to the above python dependency and uncomment the following
-#
-# [tool.poetry.group.dev.dependencies]
-# sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
-packaging = "^24.1"
+license = "Apache 2.0"
+dependencies = [
+    "requests~=2.32",
+    "pandas>=2.0",
+    "numpy>=1.21.5",
+    "pyyaml>=6.0.1,<7",
+    "pdf2image>=1.16.3,<2",
+    "pillow>=11.1.0",
+    "packaging~=24.1",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"

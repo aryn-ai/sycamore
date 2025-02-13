@@ -1,24 +1,36 @@
-[tool.poetry]
+[project]
 name = "remote-processor-service"
 version = "0.1.0"
 description = "Service that runs remote processors"
-authors = ["Henry Lindeman <henry@aryn.ai>"]
+authors = [{ name = "Henry Lindeman", email = "henry@aryn.ai" }]
+requires-python = ">=3.9.0,<3.13"
 readme = "README.md"
-packages = [{include = "remote_processor_service"}]
+dependencies = ["click>=8.1.7,<9"]
 
-[tool.poetry.dependencies]
-python = ">=3.9.0,<3.13"
-click = "^8.1.7"
-
-[tool.poetry.group.dev.dependencies]
-remote-processors = { path = "../../lib/remote-processors", develop = true }
-sycamore-ai = { path = "../../lib/sycamore", develop = true }
-sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
-
-[tool.poetry.scripts]
+[project.scripts]
 test_cfg = "remote_processor_service.cli:read_cfg"
 server = "remote_processor_service.cli:serve"
 
+[dependency-groups]
+dev = [
+    "remote-processors",
+    "sycamore-ai",
+    "sycamore-poetry-lock",
+]
+
+[tool.uv]
+
+[tool.uv.sources]
+remote-processors = { path = "../../lib/remote-processors", editable = true }
+sycamore-ai = { path = "../../lib/sycamore", editable = true }
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", editable = true }
+
+[tool.hatch.build.targets.sdist]
+include = ["remote_processor_service"]
+
+[tool.hatch.build.targets.wheel]
+include = ["remote_processor_service"]
+
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"

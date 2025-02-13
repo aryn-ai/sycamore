@@ -1,37 +1,48 @@
-[tool.poetry]
+[project]
 name = "remote-processors"
 version = "0.1.0"
 description = "A service for hosting search processors extrnal to opensearch"
-authors = ["HenryL27 <hmlindeman@yahoo.com>"]
+authors = [{ name = "HenryL27", email = "hmlindeman@yahoo.com" }]
+requires-python = ">=3.9,<3.13"
 readme = "README.md"
+dependencies = [
+    "pyyaml>=6.0.1,<7",
+    "grpcio>=1.60.0,<2",
+    "cbor2>=5.6.0,<6",
+    "sycamore-ai>=0.1.13,<0.2",
+    "protobuf==4.25.3",
+]
 
+[dependency-groups]
+test = [
+    "pytest~=7.4",
+    "pytest-mock>=3.12.0,<4",
+    "docker>=7.0.0,<8",
+    "opensearch-py>=2.4.2,<3",
+]
+dev = [
+    "sycamore-ai",
+    "sycamore-poetry-lock",
+]
+build = [
+    "grpcio-tools>=1.60.1,<2",
+    "protoletariat>=3.2.19,<4",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.9,<3.13"
-pyyaml = "^6.0.1"
-grpcio = "^1.60.0"
-cbor2 = "^5.6.0"
-sycamore-ai = "^0.1.13"
-protobuf = "4.25.3" # See poetry-lock/pyproject.toml
+[tool.uv]
+default-groups = [
+    "test",
+    "dev",
+    "build",
+]
 
-[tool.poetry.group.test.dependencies]
-pytest = "^7.4"
-pytest-mock = "^3.12.0"
-docker = "^7.0.0"
-opensearch-py = "^2.4.2"
-
-[tool.poetry.group.dev.dependencies]
-sycamore-ai = { path = "../sycamore", develop = true }
-sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
-
-[tool.poetry.group.build.dependencies]
-grpcio-tools = "^1.60.1"
-protoletariat = "^3.2.19"
+[tool.uv.sources]
+sycamore-ai = { path = "../sycamore", editable = true }
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", editable = true }
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 markers = [

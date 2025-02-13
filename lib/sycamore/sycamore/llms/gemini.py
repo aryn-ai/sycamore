@@ -5,12 +5,13 @@ import json
 from typing import Any, Optional, Union
 
 from PIL import Image
-from google.genai import Client
+from google.genai import Client, types
 
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.import_utils import requires_modules
+from sycamore.utils.image_utils import base64_data
 
 DEFAULT_MAX_TOKENS = 1024
 
@@ -22,7 +23,7 @@ class GeminiModel:
 
 
 class GeminiModels(Enum):
-    """Represents available Gemini models."""
+    """Represents available Gemini models. More info: https://googleapis.github.io/python-genai/"""
 
     # Note that the models available on a given Gemini account may vary.
     GEMINI_2_FLASH = GeminiModel(name="gemini-2.0-flash-exp", is_chat=True)
@@ -61,7 +62,8 @@ class Gemini(LLM):
             self.model = GeminiModel(name=model_name)
         if api_key is not None:
             self._client = Client(api_key=api_key)
-        self._client = Client()
+        else:
+            self._client = Client()
         super().__init__(self.model.name, cache)
 
     def __reduce__(self):
@@ -81,6 +83,10 @@ class Gemini(LLM):
             **(llm_kwargs or {}),
         }
         kwargs["max_tokens"] = kwargs.get("max_tokens", DEFAULT_MAX_TOKENS)
+        content = []
+        for message in prompt.messages:
+            if message.images:
+            
 
         # Anthropic models require _exactly_ alternation between "user" and "assistant"
         # roles, so we break the messages into groups of consecutive user/assistant
@@ -138,10 +144,6 @@ class Gemini(LLM):
         start = datetime.datetime.now()
         response = self._client.models.generate_content(
             model=self.model.name,
-        )
-
-        self._client.invoke_model(
-            body=body, modelId=self.model.name, accept="application/json", contentType="application/json"
         )
         wall_latency = datetime.datetime.now() - start
         md = response["ResponseMetadata"]

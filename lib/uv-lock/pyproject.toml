@@ -10,7 +10,7 @@ dependencies = [
     "fsspec==2024.2.0",
     "pytest==7.4.0",
     "guidance==0.1.14",
-    "ray==2.36.0",
+    "ray>=2.41.0",
     "pandas==2.1.1",
     "weaviate-client==4.6.4",
     "scipy==1.13.1",

@@ -16,7 +16,7 @@ class HuggingFaceScan(MaterializedScan):
         self,
         dataset: Union[Dataset, "IterableDataset"],
         doc_extractor: Callable[[dict[str, Any]], dict[str, EvaluationDataPoint]],
-        **resource_args
+        **resource_args,
     ):
         super().__init__(**resource_args)
         self._dataset = dataset
@@ -40,7 +40,7 @@ class EvaluationDataSetReader:
         self,
         dataset: Union[Dataset, "IterableDataset"],
         doc_extractor: Callable[[dict[str, Any]], dict[str, EvaluationDataPoint]],
-        **resource_args
+        **resource_args,
     ) -> DocSet:
         json_scan = HuggingFaceScan(dataset=dataset, doc_extractor=doc_extractor, **resource_args)
         return DocSet(self._context, json_scan)

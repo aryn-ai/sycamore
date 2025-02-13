@@ -157,7 +157,7 @@ class MapBatch(BaseMapTransform):
         f_kwargs: Optional[dict[str, Any]] = None,
         f_constructor_args: Optional[Iterable[Any]] = None,
         f_constructor_kwargs: Optional[dict[str, Any]] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             child,
@@ -166,7 +166,7 @@ class MapBatch(BaseMapTransform):
             kwargs=f_kwargs,
             constructor_args=f_constructor_args,
             constructor_kwargs=f_constructor_kwargs,
-            **kwargs
+            **kwargs,
         )
 
     def run(self, docs: list[Document]) -> list[Document]:

@@ -868,6 +868,6 @@ class DocSetWriter:
         ds.execute()
 
         if client is not None:
-            if type(node) == BaseDBWriter:
+            if isinstance(node, BaseDBWriter):
                 client.reliability_assertor(node._target_params)
         return None

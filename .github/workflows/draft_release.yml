@@ -14,20 +14,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install poetry
-        run: pipx install poetry
-      - uses: useblacksmith/setup-python@v6
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.11'
-          cache: 'poetry'
+          version: "latest"
       - name: Install
-        run: poetry install
+        run: uv sync
         working-directory: lib/sycamore
       - name: Copy README
         working-directory: lib/sycamore
         run: cp ../../README.md README.md
       - name: build
-        run: poetry build
+        run: uv build
         working-directory: lib/sycamore
       - name: Release
         uses: softprops/action-gh-release@v1

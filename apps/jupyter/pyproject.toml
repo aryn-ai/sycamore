@@ -18,14 +18,14 @@ Repository = "https://github.com/aryn-ai/sycamore.git"
 
 [dependency-groups]
 dev = ["sycamore-ai"]
-sycamore_poetry_lock = ["sycamore-poetry-lock"]
+sycamore_uv_lock = ["sycamore-uv-lock"]
 
 [tool.uv]
 default-groups = [
     "dev",
-    "sycamore_poetry_lock",
+    "sycamore_uv_lock",
 ]
 
 [tool.uv.sources]
 sycamore-ai = { path = "../../lib/sycamore", editable = true }
-sycamore-poetry-lock = { path = "../../lib/poetry-lock", editable = true }
+sycamore-uv-lock = { path = "../../lib/uv-lock", editable = true }

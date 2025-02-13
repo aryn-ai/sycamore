@@ -15,7 +15,7 @@ server = "remote_processor_service.cli:serve"
 dev = [
     "remote-processors",
     "sycamore-ai",
-    "sycamore-poetry-lock",
+    "sycamore-uv-lock",
 ]
 
 [tool.uv]
@@ -23,7 +23,7 @@ dev = [
 [tool.uv.sources]
 remote-processors = { path = "../../lib/remote-processors", editable = true }
 sycamore-ai = { path = "../../lib/sycamore", editable = true }
-sycamore-poetry-lock = { path = "../../lib/poetry-lock", editable = true }
+sycamore-uv-lock = { path = "../../lib/uv-lock", editable = true }
 
 [tool.hatch.build.targets.sdist]
 include = ["remote_processor_service"]

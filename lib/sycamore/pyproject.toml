@@ -87,7 +87,7 @@ test = [
     "pytest-xdist>=3.6.1,<4",
 ]
 dev = [
-    "sycamore-poetry-lock",
+    "sycamore-uv-lock",
     "ruff>=0.0.287,<0.0.288",
     "black~=24.4",
     "pre-commit>=3.4.0,<4",
@@ -115,7 +115,7 @@ default-groups = [
 ]
 
 [tool.uv.sources]
-sycamore-poetry-lock = { path = "../../lib/poetry-lock", editable = true }
+sycamore-uv-lock = { path = "../../lib/uv-lock", editable = true }
 
 [tool.hatch.build.targets.sdist]
 include = ["sycamore"]

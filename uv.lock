@@ -2091,7 +2091,7 @@ name = "importlib-metadata"
 version = "8.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.11'" },
+    { name = "zipp", marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/33/08/c1395a292bb23fd03bdf572a1357c5a733d3eecbab877641ceacab23db6e/importlib_metadata-8.6.1.tar.gz", hash = "sha256:310b41d755445d74569f993ccfc22838295d9fe005425094fad953d7f15c8580", size = 55767 }
 wheels = [
@@ -2140,7 +2140,7 @@ dependencies = [
     { name = "docker" },
     { name = "opensearch-py" },
     { name = "pytest" },
-    { name = "sycamore-poetry-lock" },
+    { name = "sycamore-uv-lock" },
     { name = "testcontainers" },
 ]
 
@@ -2149,7 +2149,7 @@ requires-dist = [
     { name = "docker", specifier = ">=7.0.0,<8" },
     { name = "opensearch-py", specifier = ">=2.5.0,<3" },
     { name = "pytest", specifier = "==7.4.0" },
-    { name = "sycamore-poetry-lock", editable = "lib/poetry-lock" },
+    { name = "sycamore-uv-lock", editable = "lib/uv-lock" },
     { name = "testcontainers", specifier = ">=4.3.1,<5" },
 ]
 
@@ -3149,8 +3149,8 @@ name = "mkl"
 version = "2021.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "intel-openmp" },
-    { name = "tbb" },
+    { name = "intel-openmp", marker = "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "tbb", marker = "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ce/c6/892fe3bc91e811b78e4f85653864f2d92541d5e5c306b0cb3c2311e9ca64/mkl-2021.4.0-py2.py3-none-win32.whl", hash = "sha256:439c640b269a5668134e3dcbcea4350459c4a8bc46469669b2d67e07e3d330e8", size = 129048357 },
@@ -3797,7 +3797,7 @@ name = "nvidia-cudnn-cu12"
 version = "8.9.2.26"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12" },
+    { name = "nvidia-cublas-cu12", marker = "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/74/a2e2be7fb83aaedec84f391f082cf765dfb635e7caa9b49065f73e4835d8/nvidia_cudnn_cu12-8.9.2.26-py3-none-manylinux1_x86_64.whl", hash = "sha256:5ccb288774fdfb07a7e7025ffec286971c06d8d7b4fb162525334616d7629ff9", size = 731725872 },
@@ -3824,9 +3824,9 @@ name = "nvidia-cusolver-cu12"
 version = "11.4.5.107"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12" },
-    { name = "nvidia-cusparse-cu12" },
-    { name = "nvidia-nvjitlink-cu12" },
+    { name = "nvidia-cublas-cu12", marker = "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "nvidia-cusparse-cu12", marker = "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "nvidia-nvjitlink-cu12", marker = "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bc/1d/8de1e5c67099015c834315e333911273a8c6aaba78923dd1d1e25fc5f217/nvidia_cusolver_cu12-11.4.5.107-py3-none-manylinux1_x86_64.whl", hash = "sha256:8a7ec542f0412294b15072fa7dab71d31334014a69f953004ea7a118206fe0dd", size = 124161928 },
@@ -3837,7 +3837,7 @@ name = "nvidia-cusparse-cu12"
 version = "12.1.0.106"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12" },
+    { name = "nvidia-nvjitlink-cu12", marker = "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/65/5b/cfaeebf25cd9fdec14338ccb16f6b2c4c7fa9163aefcf057d86b9cc248bb/nvidia_cusparse_cu12-12.1.0.106-py3-none-manylinux1_x86_64.whl", hash = "sha256:f3b50f42cf363f86ab21f720998517a659a48131e8d538dc02f8768237bd884c", size = 195958278 },
@@ -5468,7 +5468,7 @@ build = [
 ]
 dev = [
     { name = "sycamore-ai", editable = "lib/sycamore" },
-    { name = "sycamore-poetry-lock", editable = "lib/poetry-lock" },
+    { name = "sycamore-uv-lock", editable = "lib/uv-lock" },
 ]
 test = [
     { name = "docker", specifier = ">=7.0.0,<8" },
@@ -6340,7 +6340,7 @@ dev = [
     { name = "nbmake", specifier = ">=1.4.5,<2" },
     { name = "pre-commit", specifier = ">=3.4.0,<4" },
     { name = "ruff", specifier = ">=0.0.287,<0.0.288" },
-    { name = "sycamore-poetry-lock", editable = "lib/poetry-lock" },
+    { name = "sycamore-uv-lock", editable = "lib/uv-lock" },
 ]
 docker = [
     { name = "redis-om", specifier = ">=0.3,<0.4" },
@@ -6363,7 +6363,7 @@ test = [
 [[package]]
 name = "sycamore-monorepo"
 version = "0.0.1"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "rouge" },
     { name = "structlog" },
@@ -6390,7 +6390,7 @@ dev = [
     { name = "remote-processors" },
     { name = "ruff" },
     { name = "sycamore-ai", extra = ["anthropic", "duckdb", "elasticsearch", "eval", "legacy-partitioners", "local-inference", "neo4j", "opensearch", "pinecone", "weaviate"] },
-    { name = "sycamore-poetry-lock" },
+    { name = "sycamore-uv-lock" },
 ]
 docs = [
     { name = "sycamore-ai", extra = ["docs"] },
@@ -6461,7 +6461,7 @@ dev = [
     { name = "remote-processors", editable = "lib/remote-processors" },
     { name = "ruff", specifier = ">=0.0.287,<0.0.288" },
     { name = "sycamore-ai", extras = ["eval", "duckdb", "elasticsearch", "neo4j", "opensearch", "pinecone", "weaviate", "local-inference", "legacy-partitioners", "anthropic"], editable = "lib/sycamore" },
-    { name = "sycamore-poetry-lock", editable = "lib/poetry-lock" },
+    { name = "sycamore-uv-lock", editable = "lib/uv-lock" },
 ]
 docs = [{ name = "sycamore-ai", extras = ["docs"], editable = "lib/sycamore" }]
 duckdb = [{ name = "sycamore-ai", extras = ["duckdb"], editable = "lib/sycamore" }]
@@ -6488,9 +6488,9 @@ test = [
 weaviate = [{ name = "sycamore-ai", extras = ["weaviate"], editable = "lib/sycamore" }]
 
 [[package]]
-name = "sycamore-poetry-lock"
+name = "sycamore-uv-lock"
 version = "0.0.1"
-source = { editable = "lib/poetry-lock" }
+source = { editable = "lib/uv-lock" }
 dependencies = [
     { name = "aiohttp" },
     { name = "fsspec" },
@@ -6941,7 +6941,7 @@ name = "triton"
 version = "2.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "filelock", marker = "python_full_version < '3.12'" },
+    { name = "filelock", marker = "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/69/8a9fde07d2d27a90e16488cdfe9878e985a247b2496a4b5b1a2126042528/triton-2.3.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3c84595cbe5e546b1b290d2a58b1494df5a2ef066dd890655e5b8a8a92205c33", size = 168055249 },

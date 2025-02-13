@@ -1352,7 +1352,7 @@ name = "importlib-metadata"
 version = "8.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.11'" },
+    { name = "zipp", marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/33/08/c1395a292bb23fd03bdf572a1357c5a733d3eecbab877641ceacab23db6e/importlib_metadata-8.6.1.tar.gz", hash = "sha256:310b41d755445d74569f993ccfc22838295d9fe005425094fad953d7f15c8580", size = 55767 }
 wheels = [
@@ -4122,7 +4122,7 @@ dev = [
     { name = "nbmake", specifier = ">=1.4.5,<2" },
     { name = "pre-commit", specifier = ">=3.4.0,<4" },
     { name = "ruff", specifier = ">=0.0.287,<0.0.288" },
-    { name = "sycamore-poetry-lock", editable = "../../lib/poetry-lock" },
+    { name = "sycamore-uv-lock", editable = "../../lib/uv-lock" },
 ]
 docker = [
     { name = "redis-om", specifier = ">=0.3,<0.4" },
@@ -4158,8 +4158,8 @@ dependencies = [
 dev = [
     { name = "sycamore-ai" },
 ]
-sycamore-poetry-lock = [
-    { name = "sycamore-poetry-lock" },
+sycamore-uv-lock = [
+    { name = "sycamore-uv-lock" },
 ]
 
 [package.metadata]
@@ -4173,12 +4173,12 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [{ name = "sycamore-ai", editable = "../../lib/sycamore" }]
-sycamore-poetry-lock = [{ name = "sycamore-poetry-lock", editable = "../../lib/poetry-lock" }]
+sycamore-uv-lock = [{ name = "sycamore-uv-lock", editable = "../../lib/uv-lock" }]
 
 [[package]]
-name = "sycamore-poetry-lock"
+name = "sycamore-uv-lock"
 version = "0.0.1"
-source = { editable = "../../lib/poetry-lock" }
+source = { editable = "../../lib/uv-lock" }
 dependencies = [
     { name = "aiohttp" },
     { name = "fsspec" },

@@ -1,5 +1,5 @@
 [project]
-name = "sycamore_poetry_lock"
+name = "sycamore_uv_lock"
 version = "0.0.1"
 description = "A fake meta-package to make it easier to force different poetry directories to lock to the same version."
 authors = [{ name = "aryn.ai", email = "opensource@aryn.ai" }]
@@ -29,6 +29,9 @@ Repository = "https://github.com/aryn-ai/sycamore.git"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["sycamore_uv_lock"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

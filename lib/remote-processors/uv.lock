@@ -3148,7 +3148,7 @@ build = [
 ]
 dev = [
     { name = "sycamore-ai" },
-    { name = "sycamore-poetry-lock" },
+    { name = "sycamore-uv-lock" },
 ]
 test = [
     { name = "docker" },
@@ -3173,7 +3173,7 @@ build = [
 ]
 dev = [
     { name = "sycamore-ai", editable = "../sycamore" },
-    { name = "sycamore-poetry-lock", editable = "../poetry-lock" },
+    { name = "sycamore-uv-lock", editable = "../uv-lock" },
 ]
 test = [
     { name = "docker", specifier = ">=7.0.0,<8" },
@@ -3584,7 +3584,7 @@ dev = [
     { name = "nbmake", specifier = ">=1.4.5,<2" },
     { name = "pre-commit", specifier = ">=3.4.0,<4" },
     { name = "ruff", specifier = ">=0.0.287,<0.0.288" },
-    { name = "sycamore-poetry-lock", editable = "../poetry-lock" },
+    { name = "sycamore-uv-lock", editable = "../uv-lock" },
 ]
 docker = [
     { name = "redis-om", specifier = ">=0.3,<0.4" },
@@ -3605,9 +3605,9 @@ test = [
 ]
 
 [[package]]
-name = "sycamore-poetry-lock"
+name = "sycamore-uv-lock"
 version = "0.0.1"
-source = { editable = "../poetry-lock" }
+source = { editable = "../uv-lock" }
 dependencies = [
     { name = "aiohttp" },
     { name = "fsspec" },

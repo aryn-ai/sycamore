@@ -956,7 +956,7 @@ dependencies = [
     { name = "docker" },
     { name = "opensearch-py" },
     { name = "pytest" },
-    { name = "sycamore-poetry-lock" },
+    { name = "sycamore-uv-lock" },
     { name = "testcontainers" },
 ]
 
@@ -965,7 +965,7 @@ requires-dist = [
     { name = "docker", specifier = ">=7.0.0,<8" },
     { name = "opensearch-py", specifier = ">=2.5.0,<3" },
     { name = "pytest", specifier = "==7.4.0" },
-    { name = "sycamore-poetry-lock", editable = "../../lib/poetry-lock" },
+    { name = "sycamore-uv-lock", editable = "../../lib/uv-lock" },
     { name = "testcontainers", specifier = ">=4.3.1,<5" },
 ]
 
@@ -2674,9 +2674,9 @@ wheels = [
 ]
 
 [[package]]
-name = "sycamore-poetry-lock"
+name = "sycamore-uv-lock"
 version = "0.0.1"
-source = { editable = "../../lib/poetry-lock" }
+source = { editable = "../../lib/uv-lock" }
 dependencies = [
     { name = "aiohttp" },
     { name = "fsspec" },

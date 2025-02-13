@@ -5,19 +5,19 @@ description = "Integration Testing for Sycamore"
 authors = [{ name = "aryn.ai", email = "opensource@aryn.ai" }]
 requires-python = ">=3.9,<3.13"
 readme = "README.md"
-license = "Apache 2.0"
+license = "Apache-2.0"
 dependencies = [
     "docker>=7.0.0,<8",
     "pytest==7.4.0",
     "opensearch-py>=2.5.0,<3",
     "testcontainers>=4.3.1,<5",
-    "sycamore-poetry-lock",
+    "sycamore-uv-lock",
 ]
 
 [tool.uv]
 
 [tool.uv.sources]
-sycamore-poetry-lock = { path = "../../lib/poetry-lock", editable = true }
+sycamore-uv-lock = { path = "../../lib/uv-lock", editable = true }
 
 [build-system]
 requires = ["hatchling"]

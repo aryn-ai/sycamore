@@ -22,7 +22,7 @@ test = [
 ]
 dev = [
     "sycamore-ai",
-    "sycamore-poetry-lock",
+    "sycamore-uv-lock",
 ]
 build = [
     "grpcio-tools>=1.60.1,<2",
@@ -38,7 +38,7 @@ default-groups = [
 
 [tool.uv.sources]
 sycamore-ai = { path = "../sycamore", editable = true }
-sycamore-poetry-lock = { path = "../../lib/poetry-lock", editable = true }
+sycamore-uv-lock = { path = "../../lib/uv-lock", editable = true }
 
 [build-system]
 requires = ["hatchling"]

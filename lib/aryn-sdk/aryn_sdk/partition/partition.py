@@ -62,6 +62,7 @@ def partition_file(
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
     output_label_options: dict[str, Any] = {},
+    trace_id: Optional[str] = None,
 ) -> dict:
     """
     Sends file to Aryn DocParse and returns a dict of its document structure and text
@@ -127,6 +128,7 @@ def partition_file(
                     "orientation_correction": True
                 }
             default: None (no element is promoted to "Title")
+        trace_id: for internal use
 
 
     Returns:
@@ -166,6 +168,7 @@ def partition_file(
         ssl_verify=ssl_verify,
         output_format=output_format,
         output_label_options=output_label_options,
+        trace_id=trace_id,
     )
 
 
@@ -189,6 +192,7 @@ def _partition_file_wrapper(
     output_format: Optional[str] = None,
     output_label_options: dict[str, Any] = {},
     webhook_url: Optional[str] = None,
+    trace_id: Optional[str] = None,
 ):
     """Do not call this function directly. Use partition_file or partition_file_async_submit instead."""
 
@@ -216,6 +220,7 @@ def _partition_file_wrapper(
             ssl_verify=ssl_verify,
             output_format=output_format,
             output_label_options=output_label_options,
+            trace_id=trace_id,
             webhook_url=webhook_url,
         )
     finally:
@@ -242,6 +247,7 @@ def _partition_file_inner(
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
     output_label_options: dict[str, Any] = {},
+    trace_id: Optional[str] = None,
     webhook_url: Optional[str] = None,
 ):
     """Do not call this function directly. Use partition_file or partition_file_async_submit instead."""
@@ -276,7 +282,7 @@ def _partition_file_inner(
     _logger.debug(f"{options_str}")
 
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
-    headers = _generate_headers(aryn_config.api_key(), webhook_url)
+    headers = _generate_headers(aryn_config.api_key(), webhook_url, trace_id)
     resp = requests.post(docparse_url, files=files, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
     raise_error_on_non_2xx(resp)
@@ -342,10 +348,14 @@ def _process_config(aryn_api_key: Optional[str] = None, aryn_config: Optional[Ar
     return aryn_config
 
 
-def _generate_headers(aryn_api_key: str, webhook_url: Optional[str] = None) -> dict[str, str]:
+def _generate_headers(
+    aryn_api_key: str, webhook_url: Optional[str] = None, trace_id: Optional[str] = None
+) -> dict[str, str]:
     headers = {"Authorization": f"Bearer {aryn_api_key}", "User-Agent": f"aryn-sdk/{g_version}"}
     if webhook_url:
         headers["X-Aryn-Webhook"] = webhook_url
+    if trace_id:
+        headers["X-Aryn-Trace-ID"] = trace_id
     return headers
 
 
@@ -424,6 +434,7 @@ def partition_file_async_submit(
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
     output_label_options: dict[str, Any] = {},
+    trace_id: Optional[str] = None,
     webhook_url: Optional[str] = None,
     async_submit_url: Optional[str] = None,
 ) -> dict[str, Any]:
@@ -479,6 +490,7 @@ def partition_file_async_submit(
         ssl_verify=ssl_verify,
         output_format=output_format,
         output_label_options=output_label_options,
+        trace_id=trace_id,
         webhook_url=webhook_url,
     )
 

@@ -8,7 +8,7 @@ repository = "https://github.com/aryn-ai/sycamore.git"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-sycamore-ai = {extras = ["opensearch"], version = "^0.1.13"}
+sycamore-ai = {extras = ["opensearch"], version = "^0.1.30"}
 
 jupyterlab = "^4.0.11"
 jupyter-lsp = "^2.2.2"
@@ -17,7 +17,7 @@ notebook = "^7.1.2"
 
 
 [tool.poetry.group.dev.dependencies]
-sycamore-ai = { path = "../../lib/sycamore", develop = true }
+sycamore-ai = { path = "../../lib/sycamore", extras = ["opensearch"], develop = true }
 
 [tool.poetry.group.sycamore_poetry_lock.dependencies]
 sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }

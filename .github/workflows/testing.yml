@@ -168,7 +168,7 @@ jobs:
         with:
           version: "latest"
       - name: Install sycamore
-        run: uv sync --all-extras
+        run: uv sync --all-extras --all-packages --all-groups
       - name: Download nltk packages
         run: uv run python -m nltk.downloader punkt_tab averaged_perceptron_tagger_eng
       - name: Update Apt

@@ -79,12 +79,16 @@ default-groups = [
     "weaviate",
 ]
 
+
 [tool.uv.sources]
-sycamore-ai = { path = "lib/sycamore", editable = true }
+sycamore-ai = { workspace = true }
 remote-processors = { path = "lib/remote-processors", editable = true }
 integration = { path = "apps/integration", editable = true }
 sycamore-uv-lock = { path = "lib/uv-lock", editable = true }
 aryn-sdk = { path = "lib/aryn-sdk", editable = true }
+
+[tool.uv.workspace]
+members = ["lib/sycamore"]
 
 [tool.ruff]
 line-length = 120

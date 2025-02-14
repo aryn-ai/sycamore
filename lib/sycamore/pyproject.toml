@@ -144,6 +144,7 @@ legacy-partitioners = ["unstructured", "python-pptx", "nltk"]
 
 # LLM extras
 anthropic = ["anthropic"]
+google-genai = ["google-genai"]
 
 [tool.ruff]
 line-length = 120

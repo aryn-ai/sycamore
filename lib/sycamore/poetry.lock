@@ -9943,6 +9943,7 @@ docs = ["furo", "myst-parser", "sphinx"]
 duckdb = ["duckdb"]
 elasticsearch = ["elasticsearch"]
 eval = ["apted", "datasets", "rouge"]
+google-genai = ["google-genai"]
 legacy-partitioners = ["nltk", "python-pptx", "unstructured"]
 local-inference = ["easyocr", "paddleocr", "pdfminer-six", "pytesseract", "sentence-transformers", "timm", "torch", "torchvision", "transformers"]
 neo4j = ["neo4j"]
@@ -9954,4 +9955,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "b3d1c82fdc7f6d50b745d3acdc7474b375a0d89ecf9e3ec02286910d15ee0b91"
+content-hash = "d8ce4686a3c23cb77033c0c0d64402451de6ef501d04083fcd3deeafc1fc0897"

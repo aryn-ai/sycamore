@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import datetime
 from enum import Enum
 from typing import Any, Optional, Union
+import os
 
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import RenderedPrompt
@@ -57,10 +58,8 @@ class Gemini(LLM):
             self.model = model_name.value
         elif isinstance(model_name, str):
             self.model = GeminiModel(name=model_name)
-        if api_key is not None:
-            self._client = Client(api_key=api_key)
-        else:
-            self._client = Client()
+        api_key = api_key if api_key else os.getenv("GEMINI_API_KEY")
+        self._client = Client(api_key=api_key)
         super().__init__(self.model.name, cache)
 
     def __reduce__(self):
@@ -116,13 +115,13 @@ class Gemini(LLM):
 
         start = datetime.datetime.now()
         response = self._client.models.generate_content(
-            model=self.model.name, content=kwargs["content"], config=kwargs["config"]
+            model=self.model.name, contents=kwargs["content"], config=kwargs["config"]
         )
         wall_latency = datetime.datetime.now() - start
         md = response.usage_metadata
-        in_tokens = int(md.prompt_token_count) if md else 0
-        out_tokens = int(md.candidates_token_count) if md else 0
-        output = response.candidates[0].content
+        in_tokens = int(md.prompt_token_count) if md and md.prompt_token_count else 0
+        out_tokens = int(md.candidates_token_count) if md and md.candidates_token_count else 0
+        output = " ".join(part.text if part else "" for part in response.candidates[0].content.parts)
         ret = {
             "output": output,
             "wall_latency": wall_latency,

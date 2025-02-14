@@ -43,7 +43,7 @@ class Gemini(LLM):
         cache: A cache object to use for caching results.
     """
 
-    @requires_modules("google-genai", extra="google-genai")
+    @requires_modules("google.genai", extra="google-genai")
     def __init__(
         self,
         model_name: Union[GeminiModels, str],

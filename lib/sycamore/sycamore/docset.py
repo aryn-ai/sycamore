@@ -497,6 +497,7 @@ class DocSet:
         llm_map = entity_extractor.as_llm_map(self.plan, context=self.context, **kwargs)
         return DocSet(self.context, llm_map)
 
+    @deprecated(version="0.1.31", reason="Use llm_map with SchemaZeroShotJinjaPrompt instead")
     def extract_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
         """
         Extracts a JSON schema of extractable properties from each document in this DocSet.

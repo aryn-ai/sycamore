@@ -115,7 +115,7 @@ class Anthropic(LLM):
         cache: A cache object to use for caching results.
     """
 
-    @requires_modules("qdrant_client", extra="anthropic")
+    @requires_modules("anthropic", extra="anthropic")
     def __init__(
         self,
         model_name: Union[AnthropicModels, str],

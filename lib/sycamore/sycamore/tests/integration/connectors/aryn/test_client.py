@@ -7,6 +7,7 @@ from sycamore.connectors.aryn.client import ArynClient
 
 aryn_endpoint = os.getenv("ARYN_ENDPOINT")
 
+
 @pytest.mark.skip(reason="For manual testing only")
 def test_list_docs():
     aryn_api_key = os.getenv("ARYN_TEST_API_KEY")

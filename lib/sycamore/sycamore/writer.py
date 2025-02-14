@@ -1,7 +1,6 @@
 import logging
 from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 
-import requests
 from pyarrow.fs import FileSystem
 
 from sycamore.connectors.aryn.client import ArynClient

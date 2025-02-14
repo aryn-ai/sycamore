@@ -107,7 +107,6 @@ class Gemini(LLM):
     def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if isinstance(ret, dict):
-            print(f"cache return {ret}")
             return ret
         assert ret is None
 

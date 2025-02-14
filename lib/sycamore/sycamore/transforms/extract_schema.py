@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Any, Optional, Union
+from typing import Callable, Optional, Union
 import json
 
 from sycamore.data import Element, Document
 from sycamore.schema import Schema
 from sycamore.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
-    _SchemaZeroShotGuidancePrompt,
     PropertiesZeroShotJinjaPrompt,
     PropertiesFromSchemaJinjaPrompt,
     SchemaZeroShotJinjaPrompt,
@@ -118,33 +117,9 @@ class LLMSchemaExtractor(SchemaExtractor):
 
     @timetrace("ExtrSchema")
     def extract_schema(self, document: Document) -> Document:
-        entities = self._handle_zero_shot_prompting(document)
-
-        try:
-            payload = entities
-            answer = extract_json(payload)
-        except (json.JSONDecodeError, ValueError):
-            answer = entities
-
-        document.properties.update({"_schema": answer, "_schema_class": self._entity_name})
-
-        return document
-
-    def _handle_zero_shot_prompting(self, document: Document) -> Any:
-        sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
-
-        prompt = _SchemaZeroShotGuidancePrompt()
-
-        entities = self._llm.generate_old(
-            prompt_kwargs={
-                "prompt": prompt,
-                "entity": self._entity_name,
-                "max_num_properties": self._max_num_properties,
-                "query": self._prompt_formatter(sub_elements),
-            }
-        )
-
-        return entities
+        comptransform = self.as_llm_map(None)
+        assert isinstance(comptransform, CompositeTransform)
+        return comptransform._local_process([document])[0]
 
 
 class OpenAISchemaExtractor(LLMSchemaExtractor):
@@ -373,9 +348,7 @@ class ExtractBatchSchema(Map):
 
         def __call__(self, d: Document) -> Document:
             if self._schema is None:
-                comptransform = self._schema_extractor.as_llm_map(None)
-                assert isinstance(comptransform, CompositeTransform), "Unreachable, typecheck coercion"
-                s = comptransform._local_process([d])[0]
+                s = self._schema_extractor.extract_schema(d)
                 self._schema = {"_schema": s.properties["_schema"], "_schema_class": s.properties["_schema_class"]}
 
             d.properties.update(self._schema)

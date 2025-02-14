@@ -3,8 +3,6 @@ import datetime
 from enum import Enum
 from typing import Any, Optional, Union
 
-from google.genai import Client, types
-
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
@@ -51,6 +49,8 @@ class Gemini(LLM):
         cache: Optional[Cache] = None,
         api_key: Optional[str] = None,
     ):
+        from google.genai import Client
+
         self.model_name = model_name
 
         if isinstance(model_name, GeminiModels):
@@ -75,6 +75,8 @@ class Gemini(LLM):
         return True
 
     def get_generate_kwargs(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+        from google.genai import types
+
         kwargs: dict[str, Any] = {}
         config = {
             "temperature": 0,
@@ -113,7 +115,7 @@ class Gemini(LLM):
         kwargs = self.get_generate_kwargs(prompt, llm_kwargs)
 
         start = datetime.datetime.now()
-        response: types.GenerateContentResponse = self._client.models.generate_content(
+        response = self._client.models.generate_content(
             model=self.model.name, content=kwargs["content"], config=kwargs["config"]
         )
         wall_latency = datetime.datetime.now() - start

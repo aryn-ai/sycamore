@@ -206,11 +206,13 @@ def test_partition_file_async_submit(mocker):
 
 
 def test_partiton_file_async_url_forwarding(mocker):
+    dummy = open("/dev/null", "rb")
+
     def call_partition_file(base_url: str):
-        partition_file_async_submit("", docparse_url=base_url)
-        partition_file_async_submit("", aps_url=base_url)
-        partition_file_async_submit("", aps_url="https://example.com/v1/document/partition", docparse_url=base_url)
-        partition_file_async_submit("", aps_url=base_url, docparse_url=base_url)
+        partition_file_async_submit(dummy, docparse_url=base_url)
+        partition_file_async_submit(dummy, aps_url=base_url)
+        partition_file_async_submit(dummy, aps_url="https://example.com/v1/document/partition", docparse_url=base_url)
+        partition_file_async_submit(dummy, aps_url=base_url, docparse_url=base_url)
 
     standard_async_url = ARYN_DOCPARSE_URL.replace("/v1/", "/v1/async/submit/")
 
@@ -222,7 +224,7 @@ def test_partiton_file_async_url_forwarding(mocker):
         assert url == standard_async_url
 
     mocker.patch("aryn_sdk.partition.partition._partition_file_inner", side_effect=check_standard_url)
-    partition_file_async_submit("")
+    partition_file_async_submit(dummy)
     call_partition_file(ARYN_DOCPARSE_URL)
     call_partition_file(standard_async_url)
 
@@ -239,6 +241,8 @@ def test_partiton_file_async_url_forwarding(mocker):
     mocker.patch("aryn_sdk.partition.partition._partition_file_inner", side_effect=check_nonstandard_url)
     call_partition_file(nonstandard_url_example)
     call_partition_file(nonstandard_async_url_example)
+
+    dummy.close()
 
 
 def test_partition_file_async_with_unsupported_file_format():

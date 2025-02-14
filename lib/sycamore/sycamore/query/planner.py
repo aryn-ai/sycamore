@@ -1,5 +1,6 @@
 import logging
 import typing
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Type, Union
 
@@ -368,7 +369,13 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
 ]
 
 
-class LlmPlanner:
+class Planner:
+    @abstractmethod
+    def plan(self, question: str) -> LogicalPlan:
+        raise NotImplementedError
+
+
+class LlmPlanner(Planner):
     """The top-level query planner for SycamoreQuery. This class is responsible for generating
     a logical query plan from a user query using the OpenAI LLM.
 

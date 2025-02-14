@@ -9,9 +9,11 @@ from sycamore.llms.prompts.default_prompts import (
     _SchemaZeroShotGuidancePrompt,
     PropertiesZeroShotJinjaPrompt,
     PropertiesFromSchemaJinjaPrompt,
+    SchemaZeroShotJinjaPrompt,
 )
 from sycamore.llms.prompts import SycamorePrompt
 from sycamore.plan_nodes import Node
+from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.map import Map
 from sycamore.transforms.base_llm import LLMMap
 from sycamore.utils.extract_json import extract_json
@@ -30,6 +32,10 @@ def element_list_formatter(elements: list[Element]) -> str:
 class SchemaExtractor(ABC):
     def __init__(self, entity_name: str):
         self._entity_name = entity_name
+
+    @abstractmethod
+    def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        pass
 
     @abstractmethod
     def extract_schema(self, document: Document) -> Document:
@@ -83,6 +89,32 @@ class LLMSchemaExtractor(SchemaExtractor):
         self._num_of_elements = num_of_elements
         self._prompt_formatter = prompt_formatter
         self._max_num_properties = max_num_properties
+
+    def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        prompt = SchemaZeroShotJinjaPrompt.set(
+            entity=self._entity_name,
+            max_num_properties=self._max_num_properties,
+            num_elements=self._num_of_elements,
+            field="text_representation",
+        )
+        if self._prompt_formatter is not element_list_formatter:
+            prompt = prompt.set(prompt_formatter=self._prompt_formatter)
+
+        def parse_json(doc: Document) -> Document:
+            schemastr = doc.properties.get("_schema", "{}")
+            try:
+                schema = extract_json(schemastr)
+            except (json.JSONDecodeError, AttributeError, ValueError):
+                schema = schemastr
+            doc.properties["_schema"] = schema
+            doc.properties["_schema_class"] = self._entity_name
+            return doc
+
+        llm_map = LLMMap(child, prompt=prompt, output_field="_schema", llm=self._llm)
+        json_map = Map(llm_map, f=parse_json)
+        comptransform = CompositeTransform(child, [])
+        comptransform.nodes = [llm_map, json_map]
+        return comptransform
 
     @timetrace("ExtrSchema")
     def extract_schema(self, document: Document) -> Document:
@@ -341,7 +373,9 @@ class ExtractBatchSchema(Map):
 
         def __call__(self, d: Document) -> Document:
             if self._schema is None:
-                s = self._schema_extractor.extract_schema(d)
+                comptransform = self._schema_extractor.as_llm_map(None)
+                assert isinstance(comptransform, CompositeTransform), "Unreachable, typecheck coercion"
+                s = comptransform._local_process([d])[0]
                 self._schema = {"_schema": s.properties["_schema"], "_schema_class": s.properties["_schema_class"]}
 
             d.properties.update(self._schema)

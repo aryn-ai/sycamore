@@ -1,12 +1,14 @@
 import datetime
 import random
 import string
+from typing import Optional
 
 from ray.util import inspect_serializability
 
-from sycamore.llms.prompts.default_prompts import _SchemaZeroShotGuidancePrompt
 from sycamore.data import Document, Element
 from sycamore.llms.llms import LLM, FakeLLM
+from sycamore.llms.prompts import RenderedPrompt
+from sycamore.plan_nodes import Node
 from sycamore.schema import Schema, SchemaField
 from sycamore.transforms.base_llm import LLMMap
 from sycamore.transforms.map import Map
@@ -18,6 +20,9 @@ from sycamore.utils.ray_utils import check_serializable
 class TrivialExtractor(SchemaExtractor):
     def __init__(self):
         super().__init__("foo")
+
+    def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        return child
 
     def extract_schema(self, document: Document) -> Document:
         return document
@@ -39,7 +44,7 @@ class TestSchema:
 
     def test_extract_schema(self, mocker):
         llm = mocker.Mock(spec=LLM)
-        generate = mocker.patch.object(llm, "generate_old")
+        generate = mocker.patch.object(llm, "generate")
         generate.return_value = '```json {"accidentNumber": "string"}```'
 
         num_of_elements = 10
@@ -56,7 +61,7 @@ class TestSchema:
         schema_extractor = LLMSchemaExtractor(
             class_name, llm, num_of_elements=num_of_elements, max_num_properties=max_num_properties
         )
-        doc = schema_extractor.extract_schema(doc)
+        doc = schema_extractor.as_llm_map(None)._local_process([doc])[0]
 
         ground_truth = {
             "_schema": {
@@ -64,20 +69,19 @@ class TestSchema:
             },
             "_schema_class": "AircraftIncident",
         }
-        print(doc.properties)
         assert doc.properties == ground_truth
-        generate.assert_called_once_with(
-            prompt_kwargs={
-                "prompt": _SchemaZeroShotGuidancePrompt(),
-                "entity": class_name,
-                "max_num_properties": max_num_properties,
-                "query": schema_extractor._prompt_formatter(doc.elements),
-            }
-        )
+        generate.assert_called_once()
+        ca = generate.call_args
+        rp = ca.kwargs["prompt"]
+        assert isinstance(rp, RenderedPrompt)
+        messages = rp.messages
+        assert len(messages) == 2
+        assert f"ELEMENT None: {element1.text_representation}" in messages[1].content
+        assert f"ELEMENT None: {element2.text_representation}" in messages[1].content
 
     def test_extract_batch_schema(self, mocker):
         llm = mocker.Mock(spec=LLM)
-        generate = mocker.patch.object(llm, "generate_old")
+        generate = mocker.patch.object(llm, "generate")
         generate.return_value = '```json {"accidentNumber": "string"}```'
         schema_extractor = LLMSchemaExtractor("AircraftIncident", llm)
 

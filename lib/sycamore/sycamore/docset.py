@@ -534,11 +534,8 @@ class DocSet:
                     .partition(partitioner=ArynPartitioner())
                     .extract_schema(schema_extractor=schema_extractor)
         """
-
-        from sycamore.transforms import ExtractSchema
-
-        schema = ExtractSchema(self.plan, schema_extractor=schema_extractor)
-        return DocSet(self.context, schema)
+        comptransform = schema_extractor.as_llm_map(self.plan, **kwargs)
+        return DocSet(self.context, comptransform)
 
     def extract_batch_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
         """

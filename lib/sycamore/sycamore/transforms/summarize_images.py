@@ -93,7 +93,7 @@ class LLMImageSummarizer:
             The summarized image as a string.
         """
         messages = []
-        if context is not None and self.include_context:
+        if context is not None:
             messages = [RenderedMessage(role="system", content=context)]
         messages.append(RenderedMessage(role="user", content=self.prompt, images=[image]))
 
@@ -141,11 +141,12 @@ class GeminiImageSummarizer(LLMImageSummarizer):
 
     def __init__(
         self,
-        gemini_model: Gemini,
+        gemini_model: Optional[Gemini] = None,
         prompt: Optional[str] = None,
         include_context: bool = True,
     ):
-
+        if gemini_model is None:
+            gemini_model = Gemini(model_name=self.model)
         super().__init__(llm=gemini_model, prompt=prompt, include_context=include_context)
 
 

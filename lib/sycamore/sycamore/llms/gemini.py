@@ -44,7 +44,7 @@ class Gemini(LLM):
         cache: A cache object to use for caching results.
     """
 
-    @requires_modules("google-genai")
+    @requires_modules("google-genai", extra="google-genai")
     def __init__(
         self,
         model_name: Union[GeminiModels, str],
@@ -82,6 +82,9 @@ class Gemini(LLM):
             **(llm_kwargs or {}),
         }
         config["max_output_tokens"] = config.get("max_output_tokens", DEFAULT_MAX_TOKENS)
+        if prompt.response_format:
+            config["response_mime_type"] = "application/json"
+            config["response_schema"] = prompt.response_format
         content_list = []
         for message in prompt.messages:
             if message.role == "system":

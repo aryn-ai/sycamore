@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   dependency-review:
-    runs-on: blacksmith
+    runs-on: ubuntu-latest
     steps:
       - name: 'Checkout repository'
         uses: actions/checkout@v4

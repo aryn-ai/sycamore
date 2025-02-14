@@ -7,6 +7,7 @@ from pyarrow.filesystem import FileSystem
 
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.context import context_params
+from sycamore.decorators import experimental
 from sycamore.plan_nodes import Node
 from sycamore import Context, DocSet
 from sycamore.data import Document
@@ -634,6 +635,7 @@ class DocSetReader:
         )
         return DocSet(self._context, wr)
 
+    @experimental
     def aryn(
         self, docset_id: str, aryn_api_key: Optional[str] = None, aryn_url: Optional[str] = None, **kwargs
     ) -> DocSet:

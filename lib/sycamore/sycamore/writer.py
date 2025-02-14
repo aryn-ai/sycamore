@@ -1,13 +1,14 @@
 import logging
 from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 
-import requests
 from pyarrow.fs import FileSystem
 
+from sycamore.connectors.aryn.client import ArynClient
 from sycamore.context import Context, ExecMode, context_params
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 from sycamore.data import Document
+from sycamore.decorators import experimental
 from sycamore.executor import Execution
 from sycamore.plan_nodes import Node
 from sycamore.docset import DocSet
@@ -543,6 +544,7 @@ class DocSetWriter:
         )
         return self._maybe_execute(es_docs, execute)
 
+    @experimental
     @requires_modules("neo4j", extra="neo4j")
     def neo4j(
         self,
@@ -811,6 +813,7 @@ class DocSetWriter:
 
         self._maybe_execute(node, True)
 
+    @experimental
     def aryn(
         self,
         docset_id: Optional[str] = None,
@@ -824,8 +827,6 @@ class DocSetWriter:
 
         Args:
             docset_id: The id of the docset to write to. If not provided, a new docset will be created.
-            create_new_docset: If true, a new docset will be created. If false, the docset with the provided
-                               id will be used.
             name: The name of the new docset to create. Required if create_new_docset is true.
             aryn_api_key: The api key to use for authentication. If not provided, the api key from the config
                           file will be used.
@@ -848,10 +849,13 @@ class DocSetWriter:
             raise ValueError("Either docset_id or name must be provided")
 
         if docset_id is None and name is not None:
-            headers = {"Authorization": f"Bearer {aryn_api_key}"}
-            res = requests.post(url=f"{aryn_url}/docsets", data={"name": name}, headers=headers)
-            docset_id = res.json()["docset_id"]
-
+            try:
+                aryn_client = ArynClient(aryn_url, aryn_api_key)
+                docset_id = aryn_client.create_docset(name)
+                logger.info(f"Created new docset with id {docset_id} and name {name}")
+            except Exception as e:
+                logger.error(f"Error creating new docset: {e}")
+                raise e
         client_params = ArynWriterClientParams(aryn_url, aryn_api_key)
         target_params = ArynWriterTargetParams(docset_id)
         ds = ArynWriter(self.plan, client_params=client_params, target_params=target_params, **kwargs)

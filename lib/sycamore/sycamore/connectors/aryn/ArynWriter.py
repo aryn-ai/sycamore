@@ -5,6 +5,7 @@ import requests
 
 from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.data import Document
+from sycamore.decorators import experimental
 
 
 @dataclass
@@ -67,6 +68,7 @@ class ArynWriterClient(BaseDBWriter.Client):
         pass
 
 
+@experimental
 class ArynWriter(BaseDBWriter):
     Client = ArynWriterClient
     Record = ArynWriterRecord

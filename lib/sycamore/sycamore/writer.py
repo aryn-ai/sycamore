@@ -858,9 +858,9 @@ class DocSetWriter:
                 raise e
         client_params = ArynWriterClientParams(aryn_url, aryn_api_key)
         target_params = ArynWriterTargetParams(docset_id)
-        ds = ArynWriter(self.plan, client_params=client_params, target_params=target_params, **kwargs)
+        writer: Node = ArynWriter(self.plan, client_params=client_params, target_params=target_params, **kwargs)
 
-        return self._maybe_execute(ds, True)
+        return self._maybe_execute(writer, True)
 
     def _maybe_execute(
         self, node: Node, execute: bool, client: Optional[BaseDBWriter.Client] = None

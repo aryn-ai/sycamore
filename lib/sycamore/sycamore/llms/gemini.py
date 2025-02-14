@@ -1,17 +1,14 @@
 from dataclasses import dataclass
 import datetime
 from enum import Enum
-import json
 from typing import Any, Optional, Union
 
-from PIL import Image
 from google.genai import Client, types
 
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.import_utils import requires_modules
-from sycamore.utils.image_utils import base64_data
 
 DEFAULT_MAX_TOKENS = 1024
 
@@ -78,57 +75,29 @@ class Gemini(LLM):
         return True
 
     def get_generate_kwargs(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
-        kwargs = {
+        kwargs: dict[str, Any] = {}
+        config = {
             "temperature": 0,
+            "candidate_count": 1,
             **(llm_kwargs or {}),
         }
-        kwargs["max_tokens"] = kwargs.get("max_tokens", DEFAULT_MAX_TOKENS)
-        content = []
+        config["max_output_tokens"] = config.get("max_output_tokens", DEFAULT_MAX_TOKENS)
+        content_list = []
         for message in prompt.messages:
+            if message.role == "system":
+                config["system_message"] = message.content
+                continue
+            role = "model" if message.role == "assistant" else "user"
+            content = types.Content(parts=[types.Part.from_text(text=message.content)], role=role)
             if message.images:
-            
-
-        # Anthropic models require _exactly_ alternation between "user" and "assistant"
-        # roles, so we break the messages into groups of consecutive user/assistant
-        # messages, treating "system" as "user". Then crunch each group down to a single
-        # message to ensure alternation.
-        message_groups = []  # type: ignore
-        last_role = None
-
-        for m in prompt.messages:
-            r = m.role
-            if r == "system":
-                r = "user"
-            if r != last_role:
-                message_groups.append([])
-            message_groups[-1].append(m)
-            last_role = r
-
-        messages = []
-        for group in message_groups:
-            role = group[0].role
-            if role == "system":
-                role = "user"
-            content = "\n".join(m.content for m in group)
-            if any(m.images is not None for m in group):
-                images = [im for m in group for im in m.images]
-                contents = [{"type": "text", "text": content}]
-                for im in images:
-                    contents.append(
-                        {  # type: ignore
-                            "type": "image",
-                            "source": {  # type: ignore
-                                "type": "base64",
-                                "media_type": "image/png",
-                                "data": base64_data(im),
-                            },
-                        }
-                    )
-                messages.append({"role": role, "content": contents})
-            else:
-                messages.append({"role": role, "content": content})
-
-        kwargs["messages"] = messages
+                for image in message.images:
+                    image_bytes = image.convert("RGB").tobytes()
+                    content.parts.append(types.Part.from_bytes(image_bytes, media_type="image/png"))
+            content_list.append(content)
+        kwargs["config"] = None
+        if config:
+            kwargs["config"] = types.GenerateContentConfig(**config)
+        kwargs["content"] = content
         return kwargs
 
     def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
@@ -140,24 +109,18 @@ class Gemini(LLM):
 
         kwargs = self.get_generate_kwargs(prompt, llm_kwargs)
 
-        body = json.dumps(kwargs)
         start = datetime.datetime.now()
-        response = self._client.models.generate_content(
-            model=self.model.name,
+        response: types.GenerateContentResponse = self._client.models.generate_content(
+            model=self.model.name, content=kwargs["content"], config=kwargs["config"]
         )
         wall_latency = datetime.datetime.now() - start
-        md = response["ResponseMetadata"]
-        assert md["HTTPStatusCode"] == 200, f"Request failed {md['HTTPStatusCode']}"
-        hdrs = md["HTTPHeaders"]
-        server_latency = datetime.timedelta(milliseconds=int(hdrs["x-amzn-bedrock-invocation-latency"]))
-        in_tokens = int(hdrs["x-amzn-bedrock-input-token-count"])
-        out_tokens = int(hdrs["x-amzn-bedrock-output-token-count"])
-        response_body = json.loads(response.get("body").read())
-        output = response_body.get("content", {})[0].get("text", "")
+        md = response.usage_metadata
+        in_tokens = int(md.prompt_token_count) if md else 0
+        out_tokens = int(md.candidates_token_count) if md else 0
+        output = response.candidates[0].content
         ret = {
             "output": output,
             "wall_latency": wall_latency,
-            "server_latency": server_latency,
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }

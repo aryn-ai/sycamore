@@ -1,10 +1,11 @@
 from typing import Optional
 
+from PIL import Image
 
 from sycamore.data import Document, Element
-from sycamore.llms import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels, 
+from sycamore.llms import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels, Gemini, GeminiModels
 from sycamore.llms.prompts.default_prompts import SummarizeImagesJinjaPrompt
-from sycamore.llms.prompts.prompts import SycamorePrompt
+from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedMessage, RenderedPrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.base_llm import LLMMapElements
@@ -81,6 +82,23 @@ class LLMImageSummarizer:
         self.prompt = prompt
         self.include_context = include_context
 
+    def summarize_image(self, image: Image.Image, context: Optional[str]) -> str:
+        """Summarize the image using the LLM. Helper method to use this class without creating an instance.
+
+        Args:
+            image: The image to summarize.
+            context: The context to use for summarization.
+
+        Returns:
+            The summarized image as a string.
+        """
+        messages = []
+        if context is not None and self.include_context:
+            messages = [RenderedMessage(role="system", content=context)]
+        messages.append(RenderedMessage(role="user", content=self.prompt, images=[image]))
+
+        return self.llm.generate(prompt=RenderedPrompt(messages=messages))
+
 
 class OpenAIImageSummarizer(LLMImageSummarizer):
     """Implementation of the LLMImageSummarizer for OpenAI models.
@@ -109,32 +127,26 @@ class OpenAIImageSummarizer(LLMImageSummarizer):
 
         super().__init__(llm=openai, prompt=prompt, include_context=include_context)
 
+
 class GeminiImageSummarizer(LLMImageSummarizer):
     """Implementation of the LLMImageSummarizer for Gemini models.
 
     Args:
        gemini_model: The Gemini instance to use. If not set, one will be created.
-       client_wrapper: The OpenAIClientWrapper to use when creating an OpenAI instance.
-           Not used if openai_model is set.
        prompt: The prompt to use to pass to the model, as a string.
        include_context: Whether to include the immediately preceding and following text elements as context.
     """
 
-    model = OpenAIModels.GPT_4O
+    model = GeminiModels.GEMINI_2_FLASH
 
     def __init__(
         self,
-        openai_model: Optional[OpenAI] = None,
-        client_wrapper: Optional[OpenAIClientWrapper] = None,
+        gemini_model: Gemini,
         prompt: Optional[str] = None,
         include_context: bool = True,
     ):
-        if openai_model is not None:
-            openai = openai_model
-        else:
-            openai = OpenAI(model_name=self.model, client_wrapper=client_wrapper)
 
-        super().__init__(llm=openai, prompt=prompt, include_context=include_context)
+        super().__init__(llm=gemini_model, prompt=prompt, include_context=include_context)
 
 
 class SummarizeImages(CompositeTransform):
@@ -167,7 +179,3 @@ class SummarizeImages(CompositeTransform):
         parse_summary = Map(llm_map, f=_parse_summary_json_on_all_elts)
         self.nodes = [llm_map, parse_summary]
         self.summarizer = summarizer
-
-    @classmethod
-    def summarize_images(cls, child: Node, summarizer=LLMImageSummarizer, **resource_args):
-        return cls(child, summarizer, **resource_args)

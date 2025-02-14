@@ -111,7 +111,7 @@ class LLMSchemaExtractor(SchemaExtractor):
 
         llm_map = LLMMap(child, prompt=prompt, output_field="_schema", llm=self._llm)
         json_map = Map(llm_map, f=parse_json)
-        comptransform = CompositeTransform(child, [])
+        comptransform = CompositeTransform(child, [])  # type: ignore
         comptransform.nodes = [llm_map, json_map]
         return comptransform
 

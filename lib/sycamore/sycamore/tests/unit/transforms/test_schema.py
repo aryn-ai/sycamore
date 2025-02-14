@@ -22,7 +22,7 @@ class TrivialExtractor(SchemaExtractor):
         super().__init__("foo")
 
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
-        return child
+        return child  # type: ignore
 
     def extract_schema(self, document: Document) -> Document:
         return document

@@ -497,6 +497,7 @@ class DocSet:
         llm_map = entity_extractor.as_llm_map(self.plan, context=self.context, **kwargs)
         return DocSet(self.context, llm_map)
 
+    @deprecated(version="0.1.31", reason="Use llm_map with SchemaZeroShotJinjaPrompt instead")
     def extract_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
         """
         Extracts a JSON schema of extractable properties from each document in this DocSet.
@@ -534,11 +535,8 @@ class DocSet:
                     .partition(partitioner=ArynPartitioner())
                     .extract_schema(schema_extractor=schema_extractor)
         """
-
-        from sycamore.transforms import ExtractSchema
-
-        schema = ExtractSchema(self.plan, schema_extractor=schema_extractor)
-        return DocSet(self.context, schema)
+        comptransform = schema_extractor.as_llm_map(self.plan, **kwargs)
+        return DocSet(self.context, comptransform)
 
     def extract_batch_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
         """

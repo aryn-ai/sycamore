@@ -1,10 +1,11 @@
 from typing import Optional
 
+from PIL import Image
 
 from sycamore.data import Document, Element
-from sycamore.llms.openai import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels
+from sycamore.llms import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels, Gemini, GeminiModels
 from sycamore.llms.prompts.default_prompts import SummarizeImagesJinjaPrompt
-from sycamore.llms.prompts.prompts import SycamorePrompt
+from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedMessage, RenderedPrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.base_llm import LLMMapElements
@@ -81,6 +82,23 @@ class LLMImageSummarizer:
         self.prompt = prompt
         self.include_context = include_context
 
+    def summarize_image(self, image: Image.Image, context: Optional[str]) -> str:
+        """Summarize the image using the LLM. Helper method to use this class without creating an instance.
+
+        Args:
+            image: The image to summarize.
+            context: The context to use for summarization.
+
+        Returns:
+            The summarized image as a string.
+        """
+        messages = []
+        if context is not None:
+            messages = [RenderedMessage(role="system", content=context)]
+        messages.append(RenderedMessage(role="user", content=self.prompt, images=[image]))
+
+        return self.llm.generate(prompt=RenderedPrompt(messages=messages))
+
 
 class OpenAIImageSummarizer(LLMImageSummarizer):
     """Implementation of the LLMImageSummarizer for OpenAI models.
@@ -108,6 +126,28 @@ class OpenAIImageSummarizer(LLMImageSummarizer):
             openai = OpenAI(model_name=self.model, client_wrapper=client_wrapper)
 
         super().__init__(llm=openai, prompt=prompt, include_context=include_context)
+
+
+class GeminiImageSummarizer(LLMImageSummarizer):
+    """Implementation of the LLMImageSummarizer for Gemini models.
+
+    Args:
+       gemini_model: The Gemini instance to use. If not set, one will be created.
+       prompt: The prompt to use to pass to the model, as a string.
+       include_context: Whether to include the immediately preceding and following text elements as context.
+    """
+
+    model = GeminiModels.GEMINI_2_FLASH
+
+    def __init__(
+        self,
+        gemini_model: Optional[Gemini] = None,
+        prompt: Optional[str] = None,
+        include_context: bool = True,
+    ):
+        if gemini_model is None:
+            gemini_model = Gemini(model_name=self.model)
+        super().__init__(llm=gemini_model, prompt=prompt, include_context=include_context)
 
 
 class SummarizeImages(CompositeTransform):

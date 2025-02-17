@@ -4,6 +4,7 @@ from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI, OpenAIClientType, OpenAIModels, OpenAIClientParameters, OpenAIClientWrapper
 from sycamore.llms.bedrock import Bedrock, BedrockModels
 from sycamore.llms.anthropic import Anthropic, AnthropicModels
+from sycamore.llms.gemini import Gemini, GeminiModels
 
 # Register the model constructors.
 MODELS: Dict[str, Callable[..., LLM]] = {}
@@ -16,6 +17,7 @@ MODELS.update(
 MODELS.update(
     {f"anthropic.{model.value}": lambda **kwargs: Anthropic(model.value, **kwargs) for model in AnthropicModels}
 )
+MODELS.update({f"gemini.{model.value}": lambda **kwargs: Gemini(model.value.name, **kwargs) for model in GeminiModels})
 
 
 def get_llm(model_name: str) -> Callable[..., LLM]:
@@ -38,4 +40,6 @@ __all__ = [
     "BedrockModels",
     "Anthropic",
     "AnthropicModels",
+    "Gemini",
+    "GeminiModels",
 ]

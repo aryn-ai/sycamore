@@ -23,7 +23,6 @@ from sycamore.transforms import (
     Map,
     MapBatch,
     Partition,
-    ExtractSchema,
     ExtractBatchSchema,
     Query,
 )
@@ -31,7 +30,7 @@ from sycamore.transforms import Filter
 from sycamore.transforms.base import get_name_from_callable, CompositeTransform
 from sycamore.transforms.base_llm import LLMMap
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
-from sycamore.transforms.extract_schema import SchemaExtractor, LLMPropertyExtractor
+from sycamore.transforms.extract_schema import SchemaExtractor, LLMPropertyExtractor, LLMSchemaExtractor
 from sycamore.transforms.query import QueryExecutor
 from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.transforms.sort import Sort
@@ -269,10 +268,11 @@ class TestDocSet:
 
     def test_extract_schema(self, mocker):
         context = mocker.Mock(spec=Context)
-        func = mocker.Mock(spec=Callable, extract_schema=lambda d: {})
+        llm = mocker.Mock(spec=LLM)
+        extractor = LLMSchemaExtractor(entity_name="", llm=llm)
         docset = DocSet(context, None)
-        docset = docset.extract_schema(func)
-        assert isinstance(docset.lineage(), ExtractSchema)
+        docset = docset.extract_schema(extractor)
+        assert isinstance(docset.lineage(), CompositeTransform)
 
     def test_extract_batch_schema(self, mocker):
         context = mocker.Mock(spec=Context)

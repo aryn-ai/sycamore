@@ -4,6 +4,20 @@
 # variables for use on a shared instance.
 # git config --global credential.helper ..../git-credentials-from-env.py
 # git config --global credential.useHttpPath true
+#
+# To make a fine grained access token:
+# Github console upper right -> Settings -> Developer settings (lower left)
+#   -> Personal access tokens -> Fine-grained tokens -> Generate new token
+#
+# You will likely need to change the resource owner to your organization.
+# After selecting a repository, make sure to set the right repository permisisons
+# To push and pull you will need Contents = Read and write; and Metadata = Read-only
+#
+# Get the token to the remote machine, you can
+# 1. gpg encrypt it, mail it and decrypt it; or
+# 2. type it in manually. To verify correct typing, use a checksum.
+#    linux: sha256sum <file
+#    windows: certutil -hashfile file SHA256
 
 import sys
 import logging

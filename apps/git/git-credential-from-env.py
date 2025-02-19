@@ -1,4 +1,10 @@
-#!/aryn/.venv/bin/python
+#!/usr/bin/env python3
+#
+# Credential helper to enable people to store fine grained access tokens in ssh environment
+# variables for use on a shared instance.
+# git config --global credential.helper ..../git-credentials-from-env.py
+# git config --global credential.useHttpPath true
+
 import sys
 import logging
 import os
@@ -17,7 +23,7 @@ for line in sys.stdin:
         continue
     d[p[0]] = p[1]
 
-if d["host"] == "github.com" and "aryn-ai" in d["path"]:
+if d.get("host", "") == "github.com" and "aryn-ai" in d.get("path", ""):
     assert "ARYN_GITHUB_USER" in os.environ
     assert "ARYN_GITHUB_KEY" in os.environ
     print("protocol=https")

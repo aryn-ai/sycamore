@@ -56,5 +56,5 @@ if "CUSTOMER_USER" in os.environ and "CUSTOMER_KEY" in os.environ:
     exit(0)
 
 logging.error(f"WARNING from {__file__}: Unable to find CUSTOMER_USER and CUSTOMER_KEY in environ.")
-logging.error(f"WARNING since the helper was enabled, this is probably an error.")
+logging.error("WARNING since the helper was enabled, this is probably an error.")
 exit(0)

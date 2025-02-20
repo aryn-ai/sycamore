@@ -14,11 +14,9 @@ from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
 )
 from sycamore.transforms.summarize import (
-    NUM_TEXT_CHARS_GENERATE,
     DocumentSummarizer,
     collapse,
     QuestionAnsweringSummarizer,
-    BASE_PROPS,
 )
 
 log = structlog.get_logger(__name__)

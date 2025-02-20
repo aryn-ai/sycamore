@@ -735,10 +735,6 @@ class DocSet:
         """
         map = summarizer.as_llm_map(self.plan, **kwargs)
         return DocSet(self.context, map)
-        from sycamore.transforms import Summarize
-
-        summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)
-        return DocSet(self.context, summaries)
 
     def mark_bbox_preset(self, tokenizer: Tokenizer, token_limit: int = 512, **kwargs) -> "DocSet":
         """

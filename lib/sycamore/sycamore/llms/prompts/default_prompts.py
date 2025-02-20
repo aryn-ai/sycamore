@@ -172,7 +172,7 @@ TextSummarizerGuidancePrompt = ElementPrompt(
     """,
 )
 
-TextSummarizerJinjaPrompt = JinjaPrompt(
+TextSummarizerJinjaPrompt = JinjaElementPrompt(
     system="You are a helpful text summarizer.",
     user="""Write a summary of the following. Use only the information provided.
     Include as many key details as possible. Do not make up your answer. Only return the summary as part of your answer.

@@ -122,6 +122,7 @@ def _docset_to_singledoc(ds: DocSet) -> Document:
     into an Element of a global parent document. Essentially a reverse
     explode.
     """
+    return Document(elements=[Element(**d.data) for d in ds.take_all()])
     if ds.context.exec_mode == ExecMode.RAY:
         return _ray_docset_to_singledoc(ds)
     else:
@@ -155,6 +156,7 @@ def _ray_docset_to_singledoc(ds: DocSet) -> Document:
         name="doc",
     )
     doc = ds.plan.execute().aggregate(agg)
+    ds.plan.traverse(visit=lambda n: n.finalize())
     return doc["doc"]
 
 

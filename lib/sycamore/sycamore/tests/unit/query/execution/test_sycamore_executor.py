@@ -1,17 +1,30 @@
 import os
 import tempfile
 from unittest.mock import patch, Mock
+from typing import Optional
 
 import pytest
 
 import sycamore
 from sycamore.llms import LLM
+from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.operators.summarize_data import SummarizeData
 from sycamore.query.result import SycamoreQueryResult
+
+
+class MockLLM(LLM):
+    def __init__(self):
+        pass
+
+    def is_chat_mode(self):
+        return True
+
+    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        return ""
 
 
 @pytest.fixture
@@ -124,7 +137,7 @@ def test_run_summarize_data_plan(mock_sycamore_docsetreader):
         ):
             context = sycamore.init(
                 params={
-                    "default": {"llm": Mock(spec=LLM)},
+                    "default": {"llm": MockLLM()},
                     "opensearch": {
                         "os_client_args": {
                             "hosts": [{"host": "localhost", "port": 9200}],

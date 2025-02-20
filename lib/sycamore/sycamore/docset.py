@@ -920,7 +920,14 @@ class DocSet:
         mapping = Map(self.plan, f=f, **resource_args)
         return DocSet(self.context, mapping)
 
-    def kmeans(self, K: int, iterations: int = 20, init_mode: str = "random", epsilon: float = 1e-4):
+    def kmeans(
+        self,
+        K: int,
+        iterations: int = 20,
+        init_mode: str = "random",
+        epsilon: float = 1e-4,
+        field_name: Optional[str] = None,
+    ):
         """
         Apply kmeans over embedding field
 
@@ -929,23 +936,35 @@ class DocSet:
             iterations: the max iteration runs before converge
             init_mode: how the initial centroids are select
             epsilon: the condition for determining if it's converged
+            field_name: the field used to run kmeans, use default embedding if it's None
         Return a list of max K centroids
         """
 
+        def filter_meta(row):
+            doc = Document.from_row(row)
+            return not isinstance(doc, MetadataDocument)
+
         def init_embedding(row):
             doc = Document.from_row(row)
-            return {"vector": doc.embedding, "cluster": -1}
+            return (
+                {"vector": doc.embedding, "cluster": -1}
+                if field_name is None
+                else {"vector": doc[field_name], "cluster": -1}
+            )
 
-        embeddings = self.plan.execute().map(init_embedding).materialize()
+        embeddings = self.plan.execute().filter(filter_meta).map(init_embedding)
 
         initial_centroids = KMeans.init(embeddings, K, init_mode)
         centroids = KMeans.update(embeddings, initial_centroids, iterations, epsilon)
         return centroids
 
-    def clustering(self, centroids, cluster_field_name, **resource_args) -> "DocSet":
+    def clustering(self, centroids, cluster_field_name, field_name=None, **resource_args) -> "DocSet":
+        # TODO, need to add field for do the clustering
         def cluster(doc: Document) -> Document:
-            idx = KMeans.closest(doc.embedding, centroids)
-            doc[cluster_field_name] = idx
+            if not isinstance(doc, MetadataDocument):
+                embedding = doc[field_name] if field_name else doc.embedding
+                idx = KMeans.closest(embedding, centroids)
+                doc[cluster_field_name] = idx
             return doc
 
         from sycamore.transforms import Map

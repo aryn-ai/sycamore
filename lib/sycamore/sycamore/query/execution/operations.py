@@ -4,10 +4,12 @@ from typing import Any, List, Union, Optional
 import structlog
 
 from sycamore import DocSet
+from sycamore import ExecMode
 from sycamore.context import context_params, Context
-from sycamore.data import MetadataDocument
+from sycamore.data import MetadataDocument, Document, Element
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.llms.llms import LLM
+from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
 )
@@ -81,84 +83,81 @@ def summarize_data(
     Returns:
         Conversational response to question.
     """
-    text = _get_text_for_summarize_data(
-        result_description=result_description,
-        result_data=result_data,
-        use_elements=use_elements,
-        num_elements=num_elements,
-        max_tokens=max_tokens,
-        tokenizer=tokenizer,
-        **kwargs,
-    )
+    if all(isinstance(d, DocSet) for d in result_data):
+        return summarize_data_docsets(llm, question, result_data)
+
+    # If data is not DocSets, text is this list here
+    # TODO: Jinjify.
+    text = f"Data description: {result_description}\n"
+    for i, d in enumerate(result_data):
+        text += f"Input {i + 1}: {str(d)}\n"
+
     messages = SummarizeDataMessagesPrompt(question=question, text=text).as_messages()
-    prompt_kwargs = {"messages": messages}
-
-    # call to LLM
-    completion = llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
-
-    # LLM response
+    prompt = RenderedPrompt(messages=[RenderedMessage(role=m["role"], content=m["content"]) for m in messages])
+    completion = llm.generate(prompt=prompt)
     return completion
 
 
-def _get_text_for_summarize_data(
-    result_description: str,
-    result_data: List[Any],
-    use_elements: bool,
-    num_elements: int,
-    max_tokens: Optional[int] = None,
-    tokenizer: Optional[Tokenizer] = None,
-    **kwargs,
+def summarize_data_docsets(
+    llm: LLM,
+    question: str,
+    result_data: List[DocSet],
+    summaries_as_text: bool = False,
 ) -> str:
-    text = f"Data description: {result_description}\n"
-    if (max_tokens is not None and tokenizer is None) or (max_tokens is None and tokenizer is not None):
-        raise ValueError("Both max_tokens and tokenizer must be provided together.")
+    if summaries_as_text:
 
-    for i, result in enumerate(result_data):
-        text += f"Input {i + 1}:\n"
+        def sum_to_text(d: Document) -> Document:
+            d.text_representation = d.properties.pop("summary")
+            return d
 
-        # consolidates relevant properties to give to LLM
-        if isinstance(result, DocSet):
-            done = False
-            # For query result caching in the executor, we need to consume the documents
-            # so that the materialized data is complete, even if they are not all included
-            # in the input prompt to the LLM.
-            for di, doc in enumerate(result.take_all()):
-                if isinstance(doc, MetadataDocument):
-                    continue
-                if done:
-                    continue
-                props_dict = doc.properties.get("entity", {})
-                props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
-                doc_text = f"Document {di}:\n"
-                for k, v in props_dict.items():
-                    doc_text += f"{k}: {v}\n"
+        result_data = [ds.summarize(DocumentSummarizer(llm)).map(sum_to_text) for ds in result_data]
 
-                doc_text_representation = ""
-                if not use_elements:
-                    if doc.text_representation is not None:
-                        doc_text_representation += doc.text_representation[:NUM_TEXT_CHARS_GENERATE]
-                else:
-                    for element in doc.elements[:num_elements]:
-                        # Greedy fill doc level text length
-                        if len(doc_text_representation) >= NUM_TEXT_CHARS_GENERATE:
-                            break
-                        doc_text_representation += (element.text_representation or "") + "\n"
-                doc_text += f"Text contents:\n{doc_text_representation}\n"
+    single_docs = [_docset_to_singledoc(ds) for ds in result_data]
+    agged_ds = result_data[0].context.read.document(single_docs).summarize(DocumentSummarizer(llm, question))
+    texts = [d.properties["summary"] for d in agged_ds.take_all()]
+    return "\n".join(texts)
 
-                if tokenizer is not None and max_tokens is not None:  # for mypy
-                    total_token_count = len(tokenizer.tokenize(text + doc_text))
-                    if total_token_count > max_tokens:
-                        log.warn(
-                            "Unable to add all text from to the LLM summary request due to token limit."
-                            f" Sending text from {di + 1} docs."
-                        )
-                        done = True
-                        continue
-                text += doc_text + "\n"
-        else:
-            text += str(result) + "\n"
 
-    return text
+def _docset_to_singledoc(ds: DocSet) -> Document:
+    """
+    Converts a docset into a single document by turning every Document
+    into an Element of a global parent document. Essentially a reverse
+    explode.
+    """
+    if ds.context.exec_mode == ExecMode.RAY:
+        return _ray_docset_to_singledoc(ds)
+    else:
+        docs = ds.take_all()
+        new_doc = Document()
+        new_doc.elements = [Element(**doc.data) for doc in docs]
+        return new_doc
+
+
+def _ray_docset_to_singledoc(ds: DocSet) -> Document:
+    """
+    See _docset_to_singledoc, except do it in ray.
+    """
+    from ray.data.aggregate import AggregateFn
+
+    def accumulate(collector, doc):
+        ddoc = Document.deserialize(doc["doc"])
+        if isinstance(ddoc, MetadataDocument):
+            return collector
+        collector.elements.append(Element(**ddoc.data))
+        return collector
+
+    def merge(a, b):
+        a.elements.extend(b.elements)
+        return a
+
+    agg = AggregateFn(  # type: ignore
+        init=lambda c: Document(),
+        merge=merge,
+        accumulate_row=accumulate,
+        name="doc",
+    )
+    doc = ds.plan.execute().aggregate(agg)
+    return doc["doc"]
 
 
 @context_params

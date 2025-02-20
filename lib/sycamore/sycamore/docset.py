@@ -733,6 +733,8 @@ class DocSet:
                     .partition(partitioner=ArynPartitioner())
                     .summarize(summarizer=summarizer)
         """
+        map = summarizer.as_llm_map(self.plan, **kwargs)
+        return DocSet(self.context, map)
         from sycamore.transforms import Summarize
 
         summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)

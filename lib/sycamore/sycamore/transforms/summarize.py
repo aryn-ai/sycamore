@@ -1,17 +1,22 @@
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import Callable, Optional
+from typing import Callable, Optional, Literal, Union
 
 
 from sycamore.data import Element, Document
-from sycamore.functions import Tokenizer, CharacterTokenizer
-from sycamore.llms.prompts.default_prompts import SummarizeDataMessagesPrompt
+from sycamore.functions.tokenizer import Tokenizer
+from sycamore.llms.prompts.default_prompts import (
+    SummarizeBranchingFactorJinjaPrompt,
+    SummarizeDataMessagesPrompt,
+    TextSummarizerJinjaPrompt,
+)
+from sycamore.llms.prompts.prompts import JinjaElementPrompt, RenderedPrompt, RenderedMessage
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
-from sycamore.llms.prompts.default_prompts import _TextSummarizerGuidancePrompt
 from sycamore.transforms.map import Map
-from sycamore.utils.time_trace import timetrace
+from sycamore.transforms.base import CompositeTransform
+from sycamore.transforms.base_llm import LLMMapElements
 
 NUM_DOCS_GENERATE = 60
 NUM_TEXT_CHARS_GENERATE = 2500
@@ -30,8 +35,13 @@ BASE_PROPS = [
 
 
 class Summarizer(ABC):
-    @abstractmethod
     def summarize(self, document: Document) -> Document:
+        map = self.as_llm_map(None)
+        assert hasattr(map, "_local_process")
+        return map._local_process([document])[0]
+
+    @abstractmethod
+    def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
         pass
 
 
@@ -61,28 +71,13 @@ class LLMElementTextSummarizer(Summarizer):
         self._llm = llm
         self._element_operator = element_operator
 
-    def summarize(self, document: Document) -> Document:
-        elements = []
+    def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
         if self._element_operator is not None:
-            for element in document.elements:
-                if self._element_operator(element):
-                    elements.append(self._summarize_text_element(element))
-                else:
-                    elements.append(element)
+            return LLMMapElements(
+                child, TextSummarizerJinjaPrompt, output_field="summary", llm=self._llm, filter=self._element_operator
+            )
         else:
-            elements = [self._summarize_text_element(element) for element in document.elements]
-
-        document.elements = elements
-        return document
-
-    @timetrace("SummText")
-    def _summarize_text_element(self, element: Element) -> Element:
-        prompt = _TextSummarizerGuidancePrompt()
-
-        if element.text_representation:
-            response = self._llm.generate_old(prompt_kwargs={"prompt": prompt, "query": element.text_representation})
-            element.properties["summary"] = response
-        return element
+            return LLMMapElements(child, TextSummarizerJinjaPrompt, output_field="summary", llm=self._llm)
 
 
 class QuestionAnsweringSummarizer:
@@ -92,11 +87,11 @@ class QuestionAnsweringSummarizer:
 
     def __call__(self, text: str) -> str:
         messages = SummarizeDataMessagesPrompt(question=self.question, text=text).as_messages()
-        prompt_kwargs = {"messages": messages}
+        prompt = RenderedPrompt(messages=[RenderedMessage(role=m["role"], content=m["content"]) for m in messages])
 
         t0 = time.time()
         # call to LLM
-        summary = self.llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
+        summary = self.llm.generate(prompt=prompt, llm_kwargs={"temperature": 0})
         t1 = time.time()
         logging.info(f"Summarizer took {t1 - t0} seconds to generate summary.")
 
@@ -147,47 +142,78 @@ class DocumentSummarizer(Summarizer):
     def __init__(
         self,
         llm: LLM,
-        question: str,
-        chunk_size: int = 10 * 1000,
-        tokenizer: Tokenizer = CharacterTokenizer(),
-        chunk_overlap: int = 0,
-        use_elements: bool = False,
-        num_elements: int = 5,
+        question: Optional[str] = None,
+        prompt: Optional[JinjaElementPrompt] = None,
+        fields: Union[None, Literal["*"], list[str]] = None,
+        element_batch_size: Optional[int] = None,
     ):
         self.llm = llm
         self.question = question
-        self.chunk_size = chunk_size
-        self.tokenizer = tokenizer
-        self.chunk_overlap = chunk_overlap
-        self.use_elements = use_elements
-        self.num_elements = num_elements
+        self.prompt = prompt or SummarizeBranchingFactorJinjaPrompt
+        self.fields = fields
+        self.element_batch_size = element_batch_size
 
-    def summarize(self, document: Document) -> Document:
-        text = self.get_text(document)
-        summary = collapse(text, self.chunk_size, self.tokenizer, QuestionAnsweringSummarizer(self.llm, self.question))
-        document.properties["summary"] = summary
-        return document
+    def get_const_vars(self) -> dict[str, str]:
+        return {
+            "iteration_var": "_summarize_round",
+            "num_elements_key": "_num_total_elements",
+            "index_key": "_summarizer_element_index",
+            "intermediate_summary_key": "_partial_summary",
+        }
 
-    def get_text(self, doc: Document) -> str:
-        doc_text = ""
-        props_dict = doc.properties.get("entity", {})
-        props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
-        for k, v in props_dict.items():
-            doc_text += f"{k}: {v}\n"
+    def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        vars = self.get_const_vars()
 
-        doc_text_representation = ""
-        if not self.use_elements:
-            if doc.text_representation is not None:
-                doc_text_representation += doc.text_representation[:NUM_TEXT_CHARS_GENERATE]
-        else:
-            for element in doc.elements[: self.num_elements]:
-                # Greedy fill doc level text length
-                if len(doc_text_representation) >= NUM_TEXT_CHARS_GENERATE:
-                    break
-                doc_text_representation += (element.text_representation or "") + "\n"
-        doc_text += f"Text contents:\n{doc_text_representation}\n"
+        prompt = self.prompt.set(
+            iteration_var=vars["iteration_var"],
+            intermediate_summary_key=vars["intermediate_summary_key"],
+            index_key=vars["index_key"],
+        )
+        if self.element_batch_size is not None:
+            prompt = prompt.set(branching_factor=self.element_batch_size)
+        if self.fields is not None:
+            prompt = prompt.set(fields=self.fields)
+        if self.question is not None:
+            prompt = prompt.set(question=self.question)
 
-        return doc_text
+        def preprocess(doc: Document) -> Document:
+            for i, e in enumerate(doc.elements):
+                e.properties[vars["num_elements_key"]] = len(doc.elements)
+                e.properties[vars["index_key"]] = i
+            return doc
+
+        def validate(elt: Element) -> bool:
+            iv = elt.properties[vars["iteration_var"]]
+            num_elts = elt.properties[vars["num_elements_key"]]
+            assert isinstance(prompt, JinjaElementPrompt)
+            branching_factor = prompt.kwargs["branching_factor"]
+            return branching_factor ** (iv + 1) > num_elts
+
+        def cleanup(doc: Document) -> Document:
+            if len(doc.elements) == 0:
+                doc.properties["summary"] = ""
+                return doc
+            doc.properties["summary"] = doc.elements[0].properties[vars["intermediate_summary_key"]]
+            for e in doc.elements:
+                for k in vars:
+                    if k in e.properties:
+                        del e.properties[k]
+            return doc
+
+        premap = Map(child, f=preprocess)
+        llm_map = LLMMapElements(
+            child=premap,
+            prompt=prompt,
+            output_field=vars["intermediate_summary_key"],
+            llm=self.llm,
+            iteration_var=vars["iteration_var"],
+            validate=validate,
+            max_tries=20,  # If you hit this then your document has at least 2^20 elements in it.
+        )
+        postmap = Map(llm_map, f=cleanup)
+        comptransform = CompositeTransform(child, [])  # type: ignore
+        comptransform.nodes = [premap, llm_map, postmap]
+        return comptransform
 
 
 class Summarize(NonCPUUser, NonGPUUser, Map):

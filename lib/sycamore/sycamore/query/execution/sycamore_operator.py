@@ -283,7 +283,7 @@ class SycamoreLlmFilter(SycamoreOperator):
         input_str = input_var or get_var_name(self.logical_node.input_nodes()[0])
         output_str = output_var or get_var_name(self.logical_node)
         result = f"""
-prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}').as_messages()
+prompt = LlmFilterMessagesJinjaPrompt.set(filter_question='{self.logical_node.question}')
 {output_str} = {input_str}.llm_filter(
     new_field='_autogen_LLMFilterOutput',
     prompt=prompt,
@@ -293,7 +293,7 @@ prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}')
 )
 """
         return result, [
-            "from sycamore.llms.prompts.default_prompts import LlmFilterMessagesPrompt",
+            "from sycamore.llms.prompts.default_prompts import LlmFilterMessagesJinjaPrompt",
         ]
 
 

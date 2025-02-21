@@ -11,6 +11,7 @@ from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.llms.prompts.default_prompts import (
+    SummarizeDataHeirarchicalPrompt,
     SummarizeDataMessagesPrompt,
 )
 from sycamore.transforms.summarize import (
@@ -52,13 +53,10 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
 @context_params
 def summarize_data(
     llm: LLM,
-    question: str,
+    question: Optional[str],
     result_description: str,
     result_data: List[Any],
-    use_elements: bool = False,
-    num_elements: int = 5,
-    max_tokens: int = 120 * 1000,
-    tokenizer: Tokenizer = CharacterTokenizer(),
+    summaries_as_text: bool = False,
     context: Optional[Context] = None,
     **kwargs,
 ) -> str:
@@ -82,7 +80,9 @@ def summarize_data(
         Conversational response to question.
     """
     if all(isinstance(d, DocSet) for d in result_data):
-        return summarize_data_docsets(llm, question, result_data)
+        return summarize_data_docsets(
+            llm, question, result_data, data_description=result_description, summaries_as_text=summaries_as_text
+        )
 
     # If data is not DocSets, text is this list here
     # TODO: Jinjify.
@@ -98,20 +98,29 @@ def summarize_data(
 
 def summarize_data_docsets(
     llm: LLM,
-    question: str,
+    question: Optional[str],
     result_data: List[DocSet],
+    data_description: Optional[str] = None,
     summaries_as_text: bool = False,
 ) -> str:
     if summaries_as_text:
 
         def sum_to_text(d: Document) -> Document:
-            d.text_representation = d.properties.pop("summary")
+            if "summary" in d.properties:
+                d.text_representation = d.properties.pop("summary")
             return d
 
         result_data = [ds.summarize(DocumentSummarizer(llm)).map(sum_to_text) for ds in result_data]
 
+    main_prompt = SummarizeDataHeirarchicalPrompt
+    if data_description is not None:
+        main_prompt = main_prompt.set(data_description=data_description)
     single_docs = [_docset_to_singledoc(ds) for ds in result_data]
-    agged_ds = result_data[0].context.read.document(single_docs).summarize(DocumentSummarizer(llm, question))
+    agged_ds = (
+        result_data[0]
+        .context.read.document(single_docs)
+        .summarize(DocumentSummarizer(llm, question, prompt=main_prompt))  # type: ignore
+    )
     texts = [d.properties["summary"] for d in agged_ds.take_all()]
     return "\n".join(texts)
 

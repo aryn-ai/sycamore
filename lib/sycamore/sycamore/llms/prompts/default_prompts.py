@@ -536,6 +536,77 @@ SummarizeBranchingFactorJinjaPrompt = JinjaElementPrompt(
     branching_factor=10,
 )
 
+SummarizeDataHeirarchicalPrompt = JinjaElementPrompt(
+    system=textwrap.dedent(
+        """
+        {% if question is defined %}You are a helpful research assistant. You answer questions based on text you are presented with.
+        {% else %}You are a helpful data summarizer. You concisely summarize text you are presented with, including as much detail as possible.
+        {% endif %}
+        """
+    ),
+    user=textwrap.dedent(
+        """
+        {#-
+            get_text macro: returns text for an element. If this is the first
+            round of summarization:
+                If `fields` is provided to the template, add a list of key-value
+                pairs to the text (if fields is the string "*", use all properties).
+                Always include the text representation
+            If this is after the first round of summarization:
+                use only the element's summary field
+        -#}
+        {%- macro get_text(element) %}
+            {%- if elt.properties[iteration_var] == 0 -%}
+                {%- if fields is defined -%}
+                    {%- if fields == "*" %}{% for p in element.properties %}{% if p.startswith('_') %}{% continue %}{% endif %}
+            {{ p }}: {{ element.properties[p] }}
+                    {% endfor -%}
+                    {%- else %}{% for f in fields %}
+            {{ f }}: {{ element.field_to_value(f) }}
+                    {% endfor %}{% endif -%}
+                {%- endif -%}
+            Text: {{ element.text_representation }}
+            {%- else -%}
+            Summary: {{ element.properties[intermediate_summary_key] }}
+            {% endif -%}
+        {% endmacro -%}
+        {%- macro get_data_description() -%}
+            {%- if data_description is defined -%}
+        {{ data_description }}
+            {%- else -%}
+        some documents
+            {%- endif -%}
+        {%- endmacro -%}
+
+        {%- set exponent = elt.properties[iteration_var] + 1 -%}
+        {%- if elt.properties[index_key] % (branching_factor ** exponent) != 0 %}{{ norender() }}{% endif -%}
+        {% if elt.properties[iteration_var] == 0 and question is defined -%}
+        You are given {{ get_data_description() }}. Please use only the information found in these elements to determine an answer
+        to the question "{{ question }}". If you cannot answer the question based on the data provided, instead respond with any data
+        that might be relevant to the question.
+        Elements:
+        {% elif elt.properties[iteration_var] == 0 and question is not defined %}
+        You are given {{ get_data_description() }}. Please generate a concise and detailed summary of the information found in the
+        elements.
+        Elements:
+        {% elif question is defined %}
+        You are given a list of partial answers to the question "{{ question }}" based on {{ get_data_description() }}.
+        Please combine these partial answers into a coherent single answer to the question "{{ question }}". Some answers may not
+        be particularly relevent, so don't pay them too much mind.
+        Answers:
+        {% else %}
+        You are given a series of summaries of {{ get_data_description() }}. Please generate a concise and detailed summary of the summaries.
+        Summaries:
+        {% endif %}
+        {%- for i in range(elt.properties[index_key], elt.properties[index_key] + (branching_factor ** exponent), branching_factor ** (exponent - 1)) -%}
+            {%- if i >= doc.elements|count %}{% break %}{% endif -%}
+        {{ i }}: {{ get_text(doc.elements[i]) }}
+        {% endfor %}
+        """
+    ),
+    branching_factor=10,
+)
+
 
 class LlmClusterEntityFormGroupsMessagesPrompt(SimplePrompt):
     def __init__(self, field: str, instruction: str, text: str):

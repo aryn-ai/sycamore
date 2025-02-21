@@ -1,6 +1,6 @@
 import os
 import tempfile
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 from typing import Optional
 
 import pytest

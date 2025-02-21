@@ -18,7 +18,6 @@ from sycamore.transforms import (
     Embedder,
     Embed,
     Partitioner,
-    Summarize,
     FlatMap,
     Map,
     MapBatch,
@@ -29,7 +28,7 @@ from sycamore.transforms import (
 )
 from sycamore.transforms import Filter
 from sycamore.transforms.base import get_name_from_callable, CompositeTransform
-from sycamore.transforms.base_llm import LLMMap
+from sycamore.transforms.base_llm import LLMMap, LLMMapElements
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, LLMPropertyExtractor
 from sycamore.transforms.query import QueryExecutor
@@ -246,7 +245,7 @@ class TestDocSet:
         llm = mocker.Mock(spec=LLM)
         docset = DocSet(context, None)
         docset = docset.summarize(llm=llm, summarizer=LLMElementTextSummarizer(llm))
-        assert isinstance(docset.lineage(), Summarize)
+        assert isinstance(docset.lineage(), LLMMapElements)
 
     def test_filter(self, mocker):
         context = mocker.Mock(spec=Context)

@@ -193,11 +193,16 @@ class DocumentSummarizer(Summarizer):
             if len(doc.elements) == 0:
                 doc.properties["summary"] = ""
                 return doc
-            doc.properties["summary"] = doc.elements[0].properties[vars["intermediate_summary_key"]]
+            found_summary = False
             for e in doc.elements:
+                if not found_summary and vars["intermediate_summary_key"] in e.properties:
+                    doc.properties["summary"] = doc.elements[0].properties[vars["intermediate_summary_key"]]
+                    found_summary = True
                 for k in vars:
                     if k in e.properties:
                         del e.properties[k]
+            if not found_summary:
+                doc.properties["summary"] = ""
             return doc
 
         premap = Map(child, f=preprocess)

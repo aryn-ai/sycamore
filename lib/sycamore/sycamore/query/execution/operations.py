@@ -90,7 +90,7 @@ def summarize_data(
     for i, d in enumerate(result_data):
         text += f"Input {i + 1}: {str(d)}\n"
 
-    messages = SummarizeDataMessagesPrompt(question=question, text=text).as_messages()
+    messages = SummarizeDataMessagesPrompt(question=question or "", text=text).as_messages()
     prompt = RenderedPrompt(messages=[RenderedMessage(role=m["role"], content=m["content"]) for m in messages])
     completion = llm.generate(prompt=prompt)
     return completion
@@ -114,7 +114,7 @@ def summarize_data_docsets(
 
     main_prompt = SummarizeDataHeirarchicalPrompt
     if data_description is not None:
-        main_prompt = main_prompt.set(data_description=data_description)
+        main_prompt = main_prompt.set(data_description=data_description)  # type: ignore
     single_docs = [_docset_to_singledoc(ds) for ds in result_data]
     agged_ds = (
         result_data[0]

@@ -379,8 +379,6 @@ class ArynPartitioner(Partitioner):
         use_ocr: Whether to use OCR to extract text from the PDF. If false, we will attempt to extract
              the text from the underlying PDF.
             default: False
-        ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
-            default: False
         ocr_model: model to use for OCR. Choices are "easyocr", "paddle", "tesseract" and "legacy", which
             correspond to EasyOCR, PaddleOCR, and Tesseract respectively, with "legacy" being a combination of
             Tesseract for text and EasyOCR for tables. If you choose paddle make sure to install
@@ -446,7 +444,6 @@ class ArynPartitioner(Partitioner):
         model_name_or_path=ARYN_DETR_MODEL,
         threshold: Optional[Union[float, Literal["auto"]]] = None,
         use_ocr: bool = False,
-        ocr_images: bool = False,
         ocr_model: str = "easyocr",
         per_element_ocr: bool = True,
         extract_table_structure: bool = False,
@@ -489,7 +486,6 @@ class ArynPartitioner(Partitioner):
             self._threshold = threshold
 
         self._use_ocr = use_ocr
-        self._ocr_images = ocr_images
         self._ocr_model = ocr_model
         self._per_element_ocr = per_element_ocr
         self._extract_table_structure = extract_table_structure
@@ -519,7 +515,6 @@ class ArynPartitioner(Partitioner):
                 binary,
                 self._threshold,
                 use_ocr=self._use_ocr,
-                ocr_images=self._ocr_images,
                 per_element_ocr=self._per_element_ocr,
                 ocr_model=self._ocr_model,
                 extract_table_structure=self._extract_table_structure,
@@ -561,7 +556,6 @@ class SycamorePartitioner(ArynPartitioner):
         model_name_or_path=ARYN_DETR_MODEL,
         threshold: float = 0.4,
         use_ocr=False,
-        ocr_images=False,
         ocr_tables=False,
         extract_table_structure=False,
         table_structure_extractor=None,
@@ -574,7 +568,6 @@ class SycamorePartitioner(ArynPartitioner):
             model_name_or_path=model_name_or_path,
             threshold=threshold,
             use_ocr=use_ocr,
-            ocr_images=ocr_images,
             extract_table_structure=extract_table_structure,
             extract_images=extract_images,
             device=device,

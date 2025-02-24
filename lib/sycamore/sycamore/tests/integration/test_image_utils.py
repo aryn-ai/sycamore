@@ -2,6 +2,7 @@ import pytest
 
 import pdf2image
 from PIL import Image
+from copy import deepcopy
 
 
 import sycamore
@@ -27,9 +28,14 @@ def image_boxes() -> list[BoundingBox]:
 
 
 @pytest.fixture(scope="module")
-def source_image() -> Image.Image:
+def source_image_module_scope() -> Image.Image:
     images = pdf2image.convert_from_path(path)
     return images[0].convert(mode="RGBA")
+
+
+@pytest.fixture(scope="function")
+def source_image(source_image_module_scope) -> Image.Image:
+    return deepcopy(source_image_module_scope)
 
 
 # Checks that the image contains blue pixels. This is of course an imperfect check, but
@@ -38,7 +44,7 @@ def source_image() -> Image.Image:
 def check_image(image: Image.Image, expected_color=(0, 0, 255, 255)) -> None:
     raw_colors = image.getcolors(64_000)
     assert raw_colors is not None, "Image has too many colors to count"
-    assert expected_color in set((color_tup[1] for color_tup in raw_colors))
+    assert expected_color in set((color_tup[1] for color_tup in raw_colors)), "Did not draw boxes"
 
 
 def test_draw_boxes_bbox(source_image, image_boxes) -> None:
@@ -86,11 +92,13 @@ def test_draw_boxes_dict(source_image, image_boxes) -> None:
 
 def test_invalid_list(source_image, image_boxes):
     boxes = [[b.coordinates] for b in image_boxes]
-    with pytest.raises(ValueError):
-        try_draw_boxes(source_image, boxes)
+    output: Image.Image = try_draw_boxes(source_image, boxes)
+    with pytest.raises(AssertionError, match=r".*Did not draw boxes.*"):
+        check_image(output)
 
 
 def test_invalid_dict(source_image, image_boxes):
     boxes = [{"bboxes": b.coordinates} for b in image_boxes]
-    with pytest.raises(ValueError):
-        try_draw_boxes(source_image, boxes)
+    output: Image.Image = try_draw_boxes(source_image, boxes)
+    with pytest.raises(AssertionError, match=r".*Did not draw boxes.*"):
+        check_image(output)

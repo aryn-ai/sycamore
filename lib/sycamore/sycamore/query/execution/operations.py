@@ -15,12 +15,13 @@ from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
 )
 from sycamore.transforms.summarize import (
-    DocumentSummarizer,
+    HeirarchicalDocumentSummarizer,
     collapse,
     QuestionAnsweringSummarizer,
 )
 
 log = structlog.get_logger(__name__)
+DEFAULT_DOCSET_SUMMARIZER = HeirarchicalDocumentSummarizer
 
 
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
@@ -110,7 +111,7 @@ def summarize_data_docsets(
                 d.text_representation = d.properties.pop("summary")
             return d
 
-        result_data = [ds.summarize(DocumentSummarizer(llm)).map(sum_to_text) for ds in result_data]
+        result_data = [ds.summarize(HeirarchicalDocumentSummarizer(llm)).map(sum_to_text) for ds in result_data]
 
     main_prompt = SummarizeDataHeirarchicalPrompt
     if data_description is not None:
@@ -119,7 +120,7 @@ def summarize_data_docsets(
     agged_ds = (
         result_data[0]
         .context.read.document(single_docs)
-        .summarize(DocumentSummarizer(llm, question, prompt=main_prompt))  # type: ignore
+        .summarize(HeirarchicalDocumentSummarizer(llm, question, prompt=main_prompt))  # type: ignore
     )
     texts = [d.properties["summary"] for d in agged_ds.take_all()]
     return "\n".join(texts)

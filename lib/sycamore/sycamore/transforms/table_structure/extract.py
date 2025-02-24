@@ -171,6 +171,9 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         objects = table_transformers.outputs_to_objects(
             outputs, cropped_image.size, structure_id2label, apply_thresholds=apply_thresholds
         )
+        import copy
+
+        element.properties["objects"] = copy.deepcopy(objects)
 
         # Convert the raw objects to our internal table representation. This involves multiple
         # phases of postprocessing.
@@ -279,6 +282,84 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         """
         model = self._pick_model(element, doc_image)
         return model.extract(element, doc_image, union_tokens)
+
+
+class CharacterDensityHybridTableStructureExtractor(HybridTableStructureExtractor):
+
+    def _pick_model(
+        self, element: TableElement, doc_image: Image.Image
+    ) -> Union[TableTransformerStructureExtractor, DeformableTableStructureExtractor]:
+        if element.bbox is None or element.tokens is None:
+            return self._tatr
+        characters = len(" ".join(tk["text"] for tk in element.tokens))
+        if characters < 500:
+            return self._tatr
+        else:
+            return self._deformable
+
+
+class CombinedTableStructureExtractor(TableTransformerStructureExtractor):
+
+    class CombinedStructureModel:
+        def __init__(self, model_1, model_2):
+            self._m1 = model_1
+            self._m2 = model_2
+
+        @property
+        def config(self):
+            return self._m1.config
+
+        def __call__(self, *args, **kwargs):
+            import torch
+
+            m1out = self._m1(*args, **kwargs)
+            m2out = self._m2(*args, **kwargs)
+            out_cls = m1out.__class__
+            logits = torch.cat((m1out.logits, m2out.logits), dim=1)
+            boxes = torch.cat((m1out["pred_boxes"], m2out["pred_boxes"]), dim=1)
+            out = out_cls(logits=logits, pred_boxes=boxes)
+            print(out)
+
+            # print(m1out)
+            # print(m2out)
+            return out
+
+    def __init__(
+        self,
+        deformable_model: str,
+        tatr_model: str = TableTransformerStructureExtractor.DEFAULT_TATR_MODEL,
+        device=None,
+    ):
+        super().__init__(device=device)
+        self._deformable = deformable_model
+        self._tatr = tatr_model
+        self.structure_model = None
+
+    def _init_structure_model(self):
+        from sycamore.utils.model_load import load_deformable_detr
+        from transformers import TableTransformerForObjectDetection
+
+        deformable_model = load_deformable_detr(self._deformable, self._get_device())
+        tatr_model = TableTransformerForObjectDetection.from_pretrained(self.model).to(self._get_device())
+        self.structure_model = self.CombinedStructureModel(deformable_model, tatr_model)
+
+    def extract(
+        self, element: TableElement, doc_image: Image.Image, union_tokens=False, apply_thresholds=True
+    ) -> TableElement:
+        """Extracts the table structure from the specified element using a DeformableDETR model.
+
+        Takes a TableElement containing a bounding box, for example from the SycamorePartitioner,
+        and populates the table property with information about the cells.
+
+        Args:
+          element: A TableElement. The bounding box must be non-null.
+          doc_image: A PIL object containing an image of the Document page containing the element.
+               Used for bounding box calculations.
+          union_tokens: Make sure that ocr/pdfminer tokens are _all_ included in the table.
+          apply_thresholds: Apply class thresholds to the objects output by the model.
+        """
+        # Literally just call the super but change the default for apply_thresholds
+        return super().extract(element, doc_image, union_tokens, apply_thresholds)
 
 
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor

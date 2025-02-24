@@ -5,7 +5,7 @@ from typing import Callable, Optional, Literal, Union
 
 
 from sycamore.data import Element, Document
-from sycamore.functions.tokenizer import Tokenizer
+from sycamore.functions.tokenizer import Tokenizer, CharacterTokenizer
 from sycamore.llms.prompts.default_prompts import (
     SummarizeBranchingFactorJinjaPrompt,
     SummarizeDataMessagesPrompt,
@@ -138,7 +138,7 @@ def collapse(text: str, tokens_per_chunk: int, tokenizer: Tokenizer, summarizer_
     return cur_summary
 
 
-class DocumentSummarizer(Summarizer):
+class HeirarchicalDocumentSummarizer(Summarizer):
     def __init__(
         self,
         llm: LLM,
@@ -219,6 +219,56 @@ class DocumentSummarizer(Summarizer):
         comptransform = CompositeTransform(child, [])  # type: ignore
         comptransform.nodes = [premap, llm_map, postmap]
         return comptransform
+
+
+class CollapseDocumentSummarizer(Summarizer):
+    def __init__(
+        self,
+        llm: LLM,
+        question: str,
+        chunk_size: int = 10 * 1000,
+        tokenizer: Tokenizer = CharacterTokenizer(),
+        chunk_overlap: int = 0,
+        use_elements: bool = False,
+        num_elements: int = 5,
+    ):
+        self.llm = llm
+        self.question = question
+        self.chunk_size = chunk_size
+        self.tokenizer = tokenizer
+        self.chunk_overlap = chunk_overlap
+        self.use_elements = use_elements
+        self.num_elements = num_elements
+
+    def as_llm_map(self, child: Optional[Node], **kwargs):
+        return Map(child, f=self.summarize)  # type: ignore
+
+    def summarize(self, document: Document) -> Document:
+        text = self.get_text(document)
+        summary = collapse(text, self.chunk_size, self.tokenizer, QuestionAnsweringSummarizer(self.llm, self.question))
+        document.properties["summary"] = summary
+        return document
+
+    def get_text(self, doc: Document) -> str:
+        doc_text = ""
+        props_dict = doc.properties.get("entity", {})
+        props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
+        for k, v in props_dict.items():
+            doc_text += f"{k}: {v}\n"
+
+        doc_text_representation = ""
+        if not self.use_elements:
+            if doc.text_representation is not None:
+                doc_text_representation += doc.text_representation[:NUM_TEXT_CHARS_GENERATE]
+        else:
+            for element in doc.elements[: self.num_elements]:
+                # Greedy fill doc level text length
+                if len(doc_text_representation) >= NUM_TEXT_CHARS_GENERATE:
+                    break
+                doc_text_representation += (element.text_representation or "") + "\n"
+        doc_text += f"Text contents:\n{doc_text_representation}\n"
+
+        return doc_text
 
 
 class Summarize(NonCPUUser, NonGPUUser, Map):

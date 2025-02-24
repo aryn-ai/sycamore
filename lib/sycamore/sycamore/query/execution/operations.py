@@ -1,5 +1,5 @@
 import math
-from typing import Any, List, Union, Optional
+from typing import Any, List, Union, Optional, Type
 
 import structlog
 
@@ -16,6 +16,9 @@ from sycamore.llms.prompts.default_prompts import (
 )
 from sycamore.transforms.summarize import (
     HeirarchicalDocumentSummarizer,
+    LLMElementTextSummarizer,
+    Summarizer,
+    CollapseDocumentSummarizer,
     collapse,
     QuestionAnsweringSummarizer,
 )
@@ -59,6 +62,7 @@ def summarize_data(
     result_data: List[Any],
     summaries_as_text: bool = False,
     context: Optional[Context] = None,
+    docset_summarizer: Optional[Type[Summarizer]] = None,
     **kwargs,
 ) -> str:
     """
@@ -80,9 +84,20 @@ def summarize_data(
     Returns:
         Conversational response to question.
     """
+    if docset_summarizer is None:
+        docset_summarizer = DEFAULT_DOCSET_SUMMARIZER
+
     if all(isinstance(d, DocSet) for d in result_data):
+        summarizer = _setup_docset_summarizer(
+            summarizer_cls=docset_summarizer, llm=llm, question=question, data_description=result_description, **kwargs
+        )
         return summarize_data_docsets(
-            llm, question, result_data, data_description=result_description, summaries_as_text=summaries_as_text
+            llm,
+            question,
+            result_data,
+            docset_summarizer=summarizer,
+            data_description=result_description,
+            summaries_as_text=summaries_as_text,
         )
 
     # If data is not DocSets, text is this list here
@@ -97,33 +112,42 @@ def summarize_data(
     return completion
 
 
+def sum_to_text(d: Document) -> Document:
+    if "summary" in d.properties:
+        d.text_representation = d.properties.pop("summary")
+    return d
+
+
 def summarize_data_docsets(
     llm: LLM,
     question: Optional[str],
     result_data: List[DocSet],
+    docset_summarizer: Summarizer,
     data_description: Optional[str] = None,
     summaries_as_text: bool = False,
 ) -> str:
     if summaries_as_text:
-
-        def sum_to_text(d: Document) -> Document:
-            if "summary" in d.properties:
-                d.text_representation = d.properties.pop("summary")
-            return d
-
         result_data = [ds.summarize(HeirarchicalDocumentSummarizer(llm)).map(sum_to_text) for ds in result_data]
 
-    main_prompt = SummarizeDataHeirarchicalPrompt
-    if data_description is not None:
-        main_prompt = main_prompt.set(data_description=data_description)  # type: ignore
     single_docs = [_docset_to_singledoc(ds) for ds in result_data]
-    agged_ds = (
-        result_data[0]
-        .context.read.document(single_docs)
-        .summarize(HeirarchicalDocumentSummarizer(llm, question, prompt=main_prompt))  # type: ignore
-    )
+    agged_ds = result_data[0].context.read.document(single_docs).summarize(docset_summarizer)
     texts = [d.properties["summary"] for d in agged_ds.take_all()]
     return "\n".join(texts)
+
+
+def _setup_docset_summarizer(summarizer_cls: Type[Summarizer], **kwargs) -> Summarizer:
+    if summarizer_cls is LLMElementTextSummarizer:
+        raise ValueError("LLMElementTextSummarizer cannot summarize an entire docset")
+    if summarizer_cls is HeirarchicalDocumentSummarizer:
+        if "prompt" not in kwargs:
+            prompt = SummarizeDataHeirarchicalPrompt
+            if "data_description" in kwargs:
+                prompt.set(data_description=kwargs.pop("data_description"))
+                kwargs["prompt"] = prompt
+        return HeirarchicalDocumentSummarizer(**kwargs)
+    if summarizer_cls is CollapseDocumentSummarizer:
+        return CollapseDocumentSummarizer(**kwargs)
+    raise ValueError(f"Unrecognized summarizer class: {summarizer_cls}")
 
 
 def _docset_to_singledoc(ds: DocSet) -> Document:

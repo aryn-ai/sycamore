@@ -57,7 +57,11 @@ class OpenSearchSchemaFetcher:
         logger.debug(f"Getting schema for index {self._index}")
         # Fetch example values.
         query["index"] = self._index
-        query["query"] = {"query": {"match_all": {}}, "size": self.NUM_EXAMPLES}
+        query["query"] = {
+            "query": {"match_all": {}},
+            "size": self.NUM_EXAMPLES,
+            "sort": [{"_script": {"type": "number", "script": {"source": "Math.random()"}}}],
+        }
         random_sample = self._query_executor.query(query)["result"]["hits"]["hits"]
 
         result = OpenSearchSchema(

@@ -4,7 +4,6 @@ from typing import Any, List, Union, Optional, Type
 import structlog
 
 from sycamore import DocSet
-from sycamore import ExecMode
 from sycamore.context import context_params, Context
 from sycamore.data import MetadataDocument, Document, Element
 from sycamore.functions import CharacterTokenizer, Tokenizer
@@ -19,7 +18,7 @@ from sycamore.transforms.summarize import (
     LLMElementTextSummarizer,
     Summarizer,
     CollapseDocumentSummarizer,
-    RoundRobinSummarizer,
+    RoundRobinDocumentSummarizer,
     collapse,
     QuestionAnsweringSummarizer,
 )
@@ -148,8 +147,8 @@ def _setup_docset_summarizer(summarizer_cls: Type[Summarizer], **kwargs) -> Summ
         return HeirarchicalDocumentSummarizer(**kwargs)
     if summarizer_cls is CollapseDocumentSummarizer:
         return CollapseDocumentSummarizer(**kwargs)
-    if summarizer_cls is RoundRobinSummarizer:
-        return RoundRobinSummarizer(**kwargs)
+    if summarizer_cls is RoundRobinDocumentSummarizer:
+        return RoundRobinDocumentSummarizer(**kwargs)
     raise ValueError(f"Unrecognized summarizer class: {summarizer_cls}")
 
 
@@ -160,41 +159,6 @@ def _docset_to_singledoc(ds: DocSet) -> Document:
     explode.
     """
     return Document(elements=[Element(**d.data) for d in ds.take_all()])
-    if ds.context.exec_mode == ExecMode.RAY:
-        return _ray_docset_to_singledoc(ds)
-    else:
-        docs = ds.take_all()
-        new_doc = Document()
-        new_doc.elements = [Element(**doc.data) for doc in docs]
-        return new_doc
-
-
-def _ray_docset_to_singledoc(ds: DocSet) -> Document:
-    """
-    See _docset_to_singledoc, except do it in ray.
-    """
-    from ray.data.aggregate import AggregateFn
-
-    def accumulate(collector, doc):
-        ddoc = Document.deserialize(doc["doc"])
-        if isinstance(ddoc, MetadataDocument):
-            return collector
-        collector.elements.append(Element(**ddoc.data))
-        return collector
-
-    def merge(a, b):
-        a.elements.extend(b.elements)
-        return a
-
-    agg = AggregateFn(  # type: ignore
-        init=lambda c: Document(),
-        merge=merge,
-        accumulate_row=accumulate,
-        name="doc",
-    )
-    doc = ds.plan.execute().aggregate(agg)
-    ds.plan.traverse(visit=lambda n: n.finalize())
-    return doc["doc"]
 
 
 @context_params
@@ -215,7 +179,7 @@ def summarize_map_reduce(
             docs = (
                 result.filter(lambda d: isinstance(d, MetadataDocument) is False)
                 .summarize(
-                    summarizer=DocumentSummarizer(llm, question)
+                    summarizer=CollapseDocumentSummarizer(llm, question)
                 )  # document-level summarization can be parallelized (per DocSet)
                 .take_all()
             )

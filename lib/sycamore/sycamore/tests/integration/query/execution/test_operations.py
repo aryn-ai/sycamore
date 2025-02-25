@@ -8,7 +8,7 @@ from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.query.execution.operations import (
     QuestionAnsweringSummarizer,
     collapse,
-    DocumentSummarizer,
+    CollapseDocumentSummarizer,
     summarize_map_reduce,
 )
 from sycamore.tests.config import TEST_DIR
@@ -30,7 +30,7 @@ class TestOperations:
 
         """
         Use this code to generate the text file.
-        
+
         path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
         context = sycamore.init(exec_mode=EXEC_RAY)
         result = (
@@ -109,7 +109,7 @@ class TestOperations:
         docs = [Document(item) for item in dicts]
 
         question = "What is"
-        doc_summarizer = DocumentSummarizer(llm, question)
+        doc_summarizer = CollapseDocumentSummarizer(llm, question)
 
         docs[0].text_representation = text[:10000]
         doc = doc_summarizer.summarize(docs[0])
@@ -117,7 +117,7 @@ class TestOperations:
 
     def test_document_summarizer_in_sycamore(self, llm):
         question = "What is"
-        doc_summarizer = DocumentSummarizer(llm, question)
+        doc_summarizer = CollapseDocumentSummarizer(llm, question)
         path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
         context = sycamore.init(exec_mode=EXEC_RAY)
         result = (

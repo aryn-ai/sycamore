@@ -8,6 +8,7 @@ import copy
 from sycamore.data import Element, Document
 from sycamore.functions.tokenizer import Tokenizer, CharacterTokenizer
 from sycamore.llms.prompts.default_prompts import (
+    MaxTokensHeirarchicalSummarizerPrompt,
     SummarizeBranchingFactorJinjaPrompt,
     SummarizeDataMessagesPrompt,
     TextSummarizerJinjaPrompt,
@@ -228,13 +229,15 @@ class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
         self,
         llm: LLM,
         question: str,
-        prompt: SycamorePrompt,
+        prompt: SycamorePrompt = MaxTokensHeirarchicalSummarizerPrompt,
+        fields: Union[None, Literal["*"], list[str]] = None,
         max_tokens: int = 10 * 1000,
         tokenizer: Tokenizer = CharacterTokenizer(),
         rounds: int = 4,
     ):
         self.llm = llm
         self.prompt = prompt.set(**self.get_const_vars())
+        self.fields = fields
         self.question = question
         self.max_tokens = max_tokens
         self.tokenizer = tokenizer
@@ -281,6 +284,10 @@ class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
         return doc
 
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        if self.fields is not None:
+            self.prompt = self.prompt.set(fields=self.fields)
+        if self.question is not None:
+            self.prompt = self.prompt.set(question=self.question)
         nodes = []
         last = child
         for round in range(self.rounds):

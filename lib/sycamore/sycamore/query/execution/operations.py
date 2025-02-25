@@ -25,6 +25,7 @@ from sycamore.transforms.summarize import (
 
 log = structlog.get_logger(__name__)
 DEFAULT_DOCSET_SUMMARIZER = HeirarchicalDocumentSummarizer
+DEFAULT_SUMMARIZER_KWARGS = {}
 
 
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
@@ -63,6 +64,7 @@ def summarize_data(
     summaries_as_text: bool = False,
     context: Optional[Context] = None,
     docset_summarizer: Optional[Type[Summarizer]] = None,
+    summarizer_kwargs: dict[str, Any] = {},
     **kwargs,
 ) -> str:
     """
@@ -86,10 +88,17 @@ def summarize_data(
     """
     if docset_summarizer is None:
         docset_summarizer = DEFAULT_DOCSET_SUMMARIZER
+        for k, v in DEFAULT_SUMMARIZER_KWARGS.items():
+            if k not in summarizer_kwargs:
+                summarizer_kwargs[k] = v
 
     if all(isinstance(d, DocSet) for d in result_data):
         summarizer = _setup_docset_summarizer(
-            summarizer_cls=docset_summarizer, llm=llm, question=question, data_description=result_description, **kwargs
+            summarizer_cls=docset_summarizer,
+            llm=llm,
+            question=question,
+            data_description=result_description,
+            **summarizer_kwargs,
         )
         return summarize_data_docsets(
             llm,
@@ -142,7 +151,7 @@ def _setup_docset_summarizer(summarizer_cls: Type[Summarizer], **kwargs) -> Summ
         if "prompt" not in kwargs:
             prompt = SummarizeDataHeirarchicalPrompt
             if "data_description" in kwargs:
-                prompt.set(data_description=kwargs.pop("data_description"))
+                prompt = prompt.set(data_description=kwargs.pop("data_description"))
                 kwargs["prompt"] = prompt
         return HeirarchicalDocumentSummarizer(**kwargs)
     if summarizer_cls is CollapseDocumentSummarizer:

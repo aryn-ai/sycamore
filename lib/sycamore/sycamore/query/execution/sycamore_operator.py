@@ -202,7 +202,6 @@ class SycamoreSummarizeData(SycamoreOperator):
             result_description=description,
             result_data=self.inputs,
             context=self.context,
-            use_elements=True,
             **self.get_execute_args(),
         )
         return result

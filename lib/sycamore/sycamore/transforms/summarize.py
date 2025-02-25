@@ -278,7 +278,7 @@ class EtCetera:
     many additional properties as you can within the token limit'"""
 
 
-class RoundRobinDocumentSummarizer(Summarizer):
+class RoundRobinOneshotDocumentSummarizer(Summarizer):
     def __init__(
         self,
         llm: LLM,

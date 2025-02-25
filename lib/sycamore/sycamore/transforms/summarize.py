@@ -13,7 +13,7 @@ from sycamore.llms.prompts.default_prompts import (
     TextSummarizerJinjaPrompt,
     RoundRobinSummarizerPrompt,
 )
-from sycamore.llms.prompts.prompts import JinjaElementPrompt, RenderedPrompt, RenderedMessage
+from sycamore.llms.prompts.prompts import JinjaElementPrompt, RenderedPrompt, RenderedMessage, SycamorePrompt
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
 from sycamore.transforms.map import Map
@@ -221,6 +221,78 @@ class HeirarchicalDocumentSummarizer(Summarizer):
         comptransform = CompositeTransform(child, [])  # type: ignore
         comptransform.nodes = [premap, llm_map, postmap]
         return comptransform
+
+
+class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
+    def __init__(
+        self,
+        llm: LLM,
+        question: str,
+        prompt: SycamorePrompt,
+        max_tokens: int = 10 * 1000,
+        tokenizer: Tokenizer = CharacterTokenizer(),
+        rounds: int = 4,
+    ):
+        self.llm = llm
+        self.prompt = prompt.set(**self.get_const_vars())
+        self.question = question
+        self.max_tokens = max_tokens
+        self.tokenizer = tokenizer
+        self.rounds = 4
+
+    @staticmethod
+    def get_const_vars() -> dict[str, str]:
+        return {
+            "skip_me_key": "_skip_me",
+            "batch_key": "_batch",
+            "round_key": "_round",
+        }
+
+    def prep_batches(self, doc: Document, round: int = 0) -> Document:
+        vars = self.get_const_vars()
+        for i, elt in enumerate(doc.elements):
+            elt.properties[vars["round_key"]] = round
+            if vars["skip_me_key"] not in elt.properties:
+                elt.properties[vars["skip_me_key"]] = False
+            if elt.properties[vars["skip_me_key"]]:
+                continue
+            this_batch = [i]
+            elt.properties[vars["batch_key"]] = this_batch
+            for j, e2 in doc.elements[i + 1 :]:
+                if e2.properties.get(vars["skip_me_key"], False):
+                    continue
+                this_batch.append(j)
+                tks = self.prompt.render_element(elt, doc).token_count(self.tokenizer)
+                if tks > self.max_tokens:
+                    this_batch.pop()
+                    break
+                e2.properties[vars["skip_me_key"]] = True
+        return doc
+
+    def cleanup(self, doc: Document) -> Document:
+        if len(doc.elements) == 0:
+            return doc
+        doc.properties["summary"] = doc.elements[0].properties["summary"]
+        vars = self.get_const_vars()
+        for e in doc.elements:
+            for v in vars:
+                if v in e.properties:
+                    del e.properties[v]
+        return doc
+
+    def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        nodes = []
+        last = child
+        for round in range(self.rounds):
+            prep_round = Map(child=last, f=self.prep_batches, f_kwargs={"round": round})
+            llm_round = LLMMapElements(child=prep_round, prompt=self.prompt, output_field="summary", llm=self.llm)
+            nodes.extend([prep_round, llm_round])
+            last = llm_round
+        cleanup = Map(child=last, f=self.cleanup)
+        nodes.append(cleanup)
+        ct = CompositeTransform(child, [])  # type: ignore
+        ct.nodes = nodes
+        return ct
 
 
 class CollapseDocumentSummarizer(Summarizer):

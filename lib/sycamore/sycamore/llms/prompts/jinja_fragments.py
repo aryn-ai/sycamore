@@ -78,8 +78,8 @@ J_GET_ELEMENT_TEXT_MACRO = """
     If this is after the first round of summarization:
         use only the element's summary field
 -#}
-{%- macro get_text(element) %}
-    {%- if elt.properties[iteration_var] == 0 -%}
+{%- macro get_text(element, itvarname) %}
+    {%- if elt.properties[itvarname] == 0 -%}
         {%- if fields is defined -%}
             {%- if fields == "*" %}{% for p in element.properties %}{% if p.startswith('_') %}{% continue %}{% endif %}
     {{ p }}: {{ element.properties[p] }}
@@ -100,6 +100,6 @@ J_HEIRARCHICAL_EXPONENTIAL_COLLECT = """
 {%- if elt.properties[index_key] % (branching_factor ** exponent) != 0 %}{{ norender() }}{% endif -%}
 {%- for i in range(elt.properties[index_key], elt.properties[index_key] + (branching_factor ** exponent), branching_factor ** (exponent - 1)) -%}
     {%- if i >= doc.elements|count %}{% break %}{% endif -%}
-{{ i }}: {{ get_text(doc.elements[i]) }}
+{{ i }}: {{ get_text(doc.elements[i], iteration_var) }}
 {% endfor %}
 """

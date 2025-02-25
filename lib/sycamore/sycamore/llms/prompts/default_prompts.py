@@ -552,6 +552,54 @@ SummarizeDataHeirarchicalPrompt = JinjaElementPrompt(
     branching_factor=10,
 )
 
+MaxTokensHeirarchicalSummarizerPrompt = JinjaElementPrompt(
+    system=textwrap.dedent(
+        """
+        {% if question is defined %}You are a helpful research assistant. You answer questions based on text you are presented with.
+        {% else %}You are a helpful data summarizer. You concisely summarize text you are presented with, including as much detail as possible.
+        {% endif %}
+        """
+    ),
+    user=J_GET_ELEMENT_TEXT_MACRO
+    + textwrap.dedent(
+        """
+        {%- macro get_data_description() -%}
+            {%- if data_description is defined -%}
+        {{ data_description }}
+            {%- else -%}
+        some documents
+            {%- endif -%}
+        {%- endmacro -%}
+
+        {%- if elt.properties[skip_me_key] -%}{{ norender() }}{%- endif -%}
+        {%- if batch_key in elt.properties and elt.properties[batch_key]|count == 1 and "summary" in elt.properties -%}{{ norender() }}{%- endif -%}
+        {%- if batch_key not in elt.properties -%}{{ norender() }}{%- endif -%}
+
+        {% if elt.properties[round_key] == 0 and question is defined -%}
+        You are given {{ get_data_description() }}. Please use only the information found in these elements to determine an answer
+        to the question "{{ question }}". If you cannot answer the question based on the data provided, instead respond with any data
+        that might be relevant to the question.
+        Elements:
+        {% elif elt.properties[round_key] == 0 and question is not defined %}
+        You are given {{ get_data_description() }}. Please generate a concise and detailed summary of the information found in the
+        elements.
+        Elements:
+        {% elif question is defined %}
+        You are given a list of partial answers to the question "{{ question }}" based on {{ get_data_description() }}.
+        Please combine these partial answers into a coherent single answer to the question "{{ question }}". Some answers may not
+        be particularly relevent, so don't pay them too much mind.
+        Answers:
+        {% else %}
+        You are given a series of summaries of {{ get_data_description() }}. Please generate a concise and detailed summary of the summaries.
+        Summaries:
+        {% endif -%}
+        {%- for idx in elt.properties[batch_key] %}
+        {{ loop.index }}: {{ get_element_text(doc.elements[idx], round_key) }}
+        {% endfor %}
+        """
+    ),
+)
+
 RoundRobinSummarizerPrompt = JinjaPrompt(
     system="You are a helpful text summarizer",
     user=textwrap.dedent(
@@ -563,6 +611,8 @@ RoundRobinSummarizerPrompt = JinjaPrompt(
             {% for f in doc.properties[fields_key] %}
             {{ f }}: {{ elt.field_to_value(f) }}
             {% endfor -%}
+            {%- if doc.properties[numel_key] > 0 %}    Text:
+            {% endif -%}
             {%- for subel in elt.data.get("elements", [])[:doc.properties[numel_key]] -%}
                 {{ subel.text_representation }}
             {% endfor %}

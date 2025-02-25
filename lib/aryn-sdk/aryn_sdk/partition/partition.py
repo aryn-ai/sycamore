@@ -50,6 +50,7 @@ def partition_file(
     aryn_config: Optional[ArynConfig] = None,
     threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
+    summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
     table_extraction_options: dict[str, Any] = {},
@@ -79,6 +80,7 @@ def partition_file(
             default: None (Aryn DocParse will choose)
         use_ocr: extract text using an OCR model instead of extracting embedded text in PDF.
             default: False
+        summarize_images: Generate a text summary of detected images using a VLM.
         ocr_language: specify the language to use for OCR. If not set, the language will be english.
             default: English
         extract_table_structure: extract tables and their structural content.
@@ -153,6 +155,7 @@ def partition_file(
         aryn_config=aryn_config,
         threshold=threshold,
         use_ocr=use_ocr,
+        summarize_images=summarize_images,
         ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
         table_extraction_options=table_extraction_options,
@@ -175,6 +178,7 @@ def _partition_file_wrapper(
     aryn_config: Optional[ArynConfig] = None,
     threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
+    summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
     table_extraction_options: dict[str, Any] = {},
@@ -203,6 +207,7 @@ def _partition_file_wrapper(
             aryn_config=aryn_config,
             threshold=threshold,
             use_ocr=use_ocr,
+            summarize_images=summarize_images,
             ocr_language=ocr_language,
             extract_table_structure=extract_table_structure,
             table_extraction_options=table_extraction_options,
@@ -229,6 +234,7 @@ def _partition_file_inner(
     aryn_config: Optional[ArynConfig] = None,
     threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
+    summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
     table_extraction_options: dict[str, Any] = {},
@@ -261,6 +267,7 @@ def _partition_file_inner(
     options_str = _json_options(
         threshold=threshold,
         use_ocr=use_ocr,
+        summarize_images=summarize_images,
         ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
         table_extraction_options=table_extraction_options,
@@ -367,6 +374,7 @@ def _should_stream() -> bool:
 def _json_options(
     threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
+    summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
     table_extraction_options: dict[str, Any] = {},
@@ -382,6 +390,8 @@ def _json_options(
         options["threshold"] = threshold
     if use_ocr:
         options["use_ocr"] = use_ocr
+    if summarize_images:
+        options["summarize_images"] = summarize_images
     if ocr_language:
         options["ocr_language"] = ocr_language
     if extract_images:
@@ -411,6 +421,7 @@ def partition_file_async_submit(
     aryn_config: Optional[ArynConfig] = None,
     threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
+    summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
     table_extraction_options: dict[str, Any] = {},
@@ -466,6 +477,7 @@ def partition_file_async_submit(
         aryn_config=aryn_config,
         threshold=threshold,
         use_ocr=use_ocr,
+        summarize_images=summarize_images,
         ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
         table_extraction_options=table_extraction_options,

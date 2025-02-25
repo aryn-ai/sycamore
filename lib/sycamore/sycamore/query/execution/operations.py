@@ -25,7 +25,7 @@ from sycamore.transforms.summarize import (
 
 log = structlog.get_logger(__name__)
 DEFAULT_DOCSET_SUMMARIZER = HeirarchicalDocumentSummarizer
-DEFAULT_SUMMARIZER_KWARGS = {}
+DEFAULT_SUMMARIZER_KWARGS: dict[str, Any] = {}
 
 
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
@@ -151,8 +151,8 @@ def _setup_docset_summarizer(summarizer_cls: Type[Summarizer], **kwargs) -> Summ
         if "prompt" not in kwargs:
             prompt = SummarizeDataHeirarchicalPrompt
             if "data_description" in kwargs:
-                prompt = prompt.set(data_description=kwargs.pop("data_description"))
-                kwargs["prompt"] = prompt
+                prompt = prompt.set(data_description=kwargs.pop("data_description"))  # type: ignore
+            kwargs["prompt"] = prompt
         return HeirarchicalDocumentSummarizer(**kwargs)
     if summarizer_cls is CollapseDocumentSummarizer:
         return CollapseDocumentSummarizer(**kwargs)

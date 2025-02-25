@@ -14,6 +14,8 @@ from sycamore.llms.prompts.jinja_fragments import (
     J_DYNAMIC_DOC_TEXT,
     J_FIELD_VALUE_MACRO,
     J_FORMAT_SCHEMA_MACRO,
+    J_GET_ELEMENT_TEXT_MACRO,
+    J_HEIRARCHICAL_EXPONENTIAL_COLLECT,
     J_SET_ENTITY,
     J_SET_SCHEMA,
     J_ELEMENT_BATCHED_LIST,
@@ -480,35 +482,9 @@ SummarizeBranchingFactorJinjaPrompt = JinjaElementPrompt(
         {% endif %}
         """
     ),
-    user=textwrap.dedent(
+    user=J_GET_ELEMENT_TEXT_MACRO
+    + textwrap.dedent(
         """
-        {#-
-            get_text macro: returns text for an element. If this is the first
-            round of summarization:
-                If `fields` is provided to the template, add a list of key-value
-                pairs to the text (if fields is the string "*", use all properties).
-                Always include the text representation
-            If this is after the first round of summarization:
-                use only the element's summary field
-        -#}
-        {%- macro get_text(element) %}
-            {%- if elt.properties[iteration_var] == 0 -%}
-                {%- if fields is defined -%}
-                    {%- if fields == "*" %}{% for p in element.properties %}{% if p.startswith('_') %}{% continue %}{% endif %}
-            {{ p }}: {{ element.properties[p] }}
-                    {% endfor -%}
-                    {%- else %}{% for f in fields %}
-            {{ f }}: {{ element.field_to_value(f) }}
-                    {% endfor %}{% endif -%}
-                {%- endif -%}
-            Text: {{ element.text_representation }}
-            {%- else -%}
-            Summary: {{ element.properties[intermediate_summary_key] }}
-            {% endif -%}
-        {% endmacro -%}
-
-        {%- set exponent = elt.properties[iteration_var] + 1 -%}
-        {%- if elt.properties[index_key] % (branching_factor ** exponent) != 0 %}{{ norender() }}{% endif -%}
         {% if elt.properties[iteration_var] == 0 and question is defined -%}
         You are given some elements of a document. Please use only the information found in these elements to determine an answer
         to the question "{{ question }}". If you cannot answer the question based on the data provided, instead respond with any data
@@ -527,12 +503,9 @@ SummarizeBranchingFactorJinjaPrompt = JinjaElementPrompt(
         You are given a series of summaries of sections of a document. Please generate a concise and detailed summary of the summaries.
         Summaries:
         {% endif %}
-        {%- for i in range(elt.properties[index_key], elt.properties[index_key] + (branching_factor ** exponent), branching_factor ** (exponent - 1)) -%}
-            {%- if i >= doc.elements|count %}{% break %}{% endif -%}
-        {{ i }}: {{ get_text(doc.elements[i]) }}
-        {% endfor %}
         """
-    ),
+    )
+    + J_HEIRARCHICAL_EXPONENTIAL_COLLECT,
     branching_factor=10,
 )
 
@@ -544,32 +517,9 @@ SummarizeDataHeirarchicalPrompt = JinjaElementPrompt(
         {% endif %}
         """
     ),
-    user=textwrap.dedent(
+    user=J_GET_ELEMENT_TEXT_MACRO
+    + textwrap.dedent(
         """
-        {#-
-            get_text macro: returns text for an element. If this is the first
-            round of summarization:
-                If `fields` is provided to the template, add a list of key-value
-                pairs to the text (if fields is the string "*", use all properties).
-                Always include the text representation
-            If this is after the first round of summarization:
-                use only the element's summary field
-        -#}
-        {%- macro get_text(element) %}
-            {%- if elt.properties[iteration_var] == 0 -%}
-                {%- if fields is defined -%}
-                    {%- if fields == "*" %}{% for p in element.properties %}{% if p.startswith('_') %}{% continue %}{% endif %}
-            {{ p }}: {{ element.properties[p] }}
-                    {% endfor -%}
-                    {%- else %}{% for f in fields %}
-            {{ f }}: {{ element.field_to_value(f) }}
-                    {% endfor %}{% endif -%}
-                {%- endif -%}
-            Text: {{ element.text_representation }}
-            {%- else -%}
-            Summary: {{ element.properties[intermediate_summary_key] }}
-            {% endif -%}
-        {% endmacro -%}
         {%- macro get_data_description() -%}
             {%- if data_description is defined -%}
         {{ data_description }}
@@ -578,8 +528,6 @@ SummarizeDataHeirarchicalPrompt = JinjaElementPrompt(
             {%- endif -%}
         {%- endmacro -%}
 
-        {%- set exponent = elt.properties[iteration_var] + 1 -%}
-        {%- if elt.properties[index_key] % (branching_factor ** exponent) != 0 %}{{ norender() }}{% endif -%}
         {% if elt.properties[iteration_var] == 0 and question is defined -%}
         You are given {{ get_data_description() }}. Please use only the information found in these elements to determine an answer
         to the question "{{ question }}". If you cannot answer the question based on the data provided, instead respond with any data
@@ -598,12 +546,9 @@ SummarizeDataHeirarchicalPrompt = JinjaElementPrompt(
         You are given a series of summaries of {{ get_data_description() }}. Please generate a concise and detailed summary of the summaries.
         Summaries:
         {% endif %}
-        {%- for i in range(elt.properties[index_key], elt.properties[index_key] + (branching_factor ** exponent), branching_factor ** (exponent - 1)) -%}
-            {%- if i >= doc.elements|count %}{% break %}{% endif -%}
-        {{ i }}: {{ get_text(doc.elements[i]) }}
-        {% endfor %}
         """
-    ),
+    )
+    + J_HEIRARCHICAL_EXPONENTIAL_COLLECT,
     branching_factor=10,
 )
 

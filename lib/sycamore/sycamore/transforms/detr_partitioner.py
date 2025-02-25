@@ -218,10 +218,9 @@ class ArynPDFPartitioner:
         stop=stop_after_delay(_TEN_MINUTES),
     )
     def _call_remote_partitioner(file: BinaryIO, **kwargs) -> list[Element]:
-        file.seek(0)
         try:
-            with file as f:
-                response_json = partition_file(f, **kwargs)
+            file.seek(0)
+            response_json = partition_file(file, **kwargs)
         except Exception as e:
             raise ArynPDFPartitionerException(f"Error calling Aryn DocParse: {e}", can_retry=True)
         if (kwargs.get("output_format") == "markdown") and ((md := response_json.get("markdown")) is not None):

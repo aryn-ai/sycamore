@@ -4,11 +4,9 @@ import os
 import tempfile
 import tracemalloc
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
 from typing import Any, BinaryIO, Literal, Union, Optional
 from itertools import repeat
 
-import json
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 import base64
 from PIL import Image

@@ -24,9 +24,9 @@ class GeminiModels(Enum):
 
     # Note that the models available on a given Gemini account may vary.
     GEMINI_2_FLASH = GeminiModel(name="gemini-2.0-flash", is_chat=True)
-    GEMINI_2_FLASH_LITE = GeminiModel(name="gemini-2.0-flash-lite-preview-02-05", is_chat=True)
-    GEMINI_2_FLASH_THINKING = GeminiModel(name="gemini-2.0-flash-thinking-exp-01-21", is_chat=True)
-    GEMINI_2_PRO = GeminiModel(name="gemini-2.0-pro-exp-02-05", is_chat=True)
+    GEMINI_2_FLASH_LITE = GeminiModel(name="gemini-2.0-flash-lite", is_chat=True)
+    GEMINI_2_FLASH_THINKING = GeminiModel(name="gemini-2.0-flash-thinking-exp", is_chat=True)
+    GEMINI_1_5_PRO = GeminiModel(name="gemini-1.5-pro", is_chat=True)
 
     @classmethod
     def from_name(cls, name: str):

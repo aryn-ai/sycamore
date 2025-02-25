@@ -1,7 +1,9 @@
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import Callable, Optional, Literal, Union
+from typing import Callable, Optional, Literal, Union, Type
+import textwrap
+import copy
 
 
 from sycamore.data import Element, Document
@@ -10,13 +12,14 @@ from sycamore.llms.prompts.default_prompts import (
     SummarizeBranchingFactorJinjaPrompt,
     SummarizeDataMessagesPrompt,
     TextSummarizerJinjaPrompt,
+    RoundRobinSummarizerPrompt,
 )
 from sycamore.llms.prompts.prompts import JinjaElementPrompt, RenderedPrompt, RenderedMessage
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
 from sycamore.transforms.map import Map
 from sycamore.transforms.base import CompositeTransform
-from sycamore.transforms.base_llm import LLMMapElements
+from sycamore.transforms.base_llm import LLMMapElements, LLMMap
 
 NUM_DOCS_GENERATE = 60
 NUM_TEXT_CHARS_GENERATE = 2500
@@ -269,6 +272,81 @@ class CollapseDocumentSummarizer(Summarizer):
         doc_text += f"Text contents:\n{doc_text_representation}\n"
 
         return doc_text
+
+
+class EtCetera:
+    """Sentinel value to sit at the end of a list of fields, signifying 'add as
+    many additional properties as you can within the token limit'"""
+
+
+class RoundRobinDocumentSummarizer(Summarizer):
+    def __init__(
+        self,
+        llm: LLM,
+        question: str,
+        token_limit: int = 10 * 1000,
+        tokenizer: Tokenizer = CharacterTokenizer(),
+        fields: list[Union[str, Type[EtCetera]]] = [],
+    ):
+        self.llm = llm
+        self.question = question
+        self.token_limit = token_limit
+        self.tokenizer = tokenizer
+        assert EtCetera not in fields[:-1], "EtCetera must be at the end of the list of fields if provided"
+        self.fields = fields
+        self.prompt = RoundRobinSummarizerPrompt.set(**self.get_const_vars())
+
+    @staticmethod
+    def get_const_vars() -> dict[str, str]:
+        return {
+            "fields_key": "_fields",
+            "numel_key": "_num_elements",
+        }
+
+    def preprocess(self, doc: Document) -> Document:
+        vars = self.get_const_vars()
+        fields = copy.deepcopy(self.fields)
+        etc = False
+        if len(fields) > 0 and fields[-1] is EtCetera:
+            etc = True
+            fields = fields[:-1]
+        doc.properties[vars["fields_key"]] = fields
+        doc.properties[vars["numel_key"]] = 0
+        last = self.prompt.render_document(doc)
+        if len(fields) == 0 or etc:
+            for p in doc.properties:
+                if p in fields:
+                    continue
+                fields.append(p)
+                last = self.prompt.render_document(doc)
+                ntk = last.token_count(self.tokenizer)
+                if ntk > self.token_limit:
+                    fields.pop()
+                    return doc
+        doc.properties[vars["numel_key"]] += 1
+        while last != (this := self.prompt.render_document(doc)):
+            ntk = this.token_count(self.tokenizer)
+            if ntk > self.token_limit:
+                doc.properties[vars["numel_key"]] -= 1
+                return doc
+            last = this
+        return doc
+
+    def cleanup(self, doc: Document) -> Document:
+        vars = self.get_const_vars()
+        if vars["fields_key"] in doc.properties:
+            del doc.properties[vars["fields_key"]]
+        if vars["numel_key"] in doc.properties:
+            del doc.properties[vars["numel_key"]]
+        return doc
+
+    def as_llm_map(self, child: Optional[Node], **kwargs):
+        preprocess = Map(child, f=self.preprocess)
+        llm_map = LLMMap(preprocess, prompt=self.prompt, output_field="summary", llm=self.llm, **kwargs)
+        postprocess = Map(llm_map, f=self.cleanup)
+        comptransform = CompositeTransform(child, [])  # type: ignore
+        comptransform.nodes = [preprocess, llm_map, postprocess]
+        return comptransform
 
 
 class Summarize(NonCPUUser, NonGPUUser, Map):

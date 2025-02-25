@@ -19,6 +19,7 @@ from sycamore.transforms.summarize import (
     LLMElementTextSummarizer,
     Summarizer,
     CollapseDocumentSummarizer,
+    RoundRobinSummarizer,
     collapse,
     QuestionAnsweringSummarizer,
 )
@@ -147,6 +148,8 @@ def _setup_docset_summarizer(summarizer_cls: Type[Summarizer], **kwargs) -> Summ
         return HeirarchicalDocumentSummarizer(**kwargs)
     if summarizer_cls is CollapseDocumentSummarizer:
         return CollapseDocumentSummarizer(**kwargs)
+    if summarizer_cls is RoundRobinSummarizer:
+        return RoundRobinSummarizer(**kwargs)
     raise ValueError(f"Unrecognized summarizer class: {summarizer_cls}")
 
 

@@ -607,6 +607,25 @@ SummarizeDataHeirarchicalPrompt = JinjaElementPrompt(
     branching_factor=10,
 )
 
+RoundRobinSummarizerPrompt = JinjaPrompt(
+    system="You are a helpful text summarizer",
+    user=textwrap.dedent(
+        """
+        You are given a series of database entries that answer the question "{{ question }}".
+        Generate a concise, conversational summary of the data to answer the question.
+        {%- for elt in doc.elements %}
+        Entry {{ loop.index }}:
+            {% for f in doc.properties[fields_key] %}
+            {{ f }}: {{ elt.field_to_value(f) }}
+            {% endfor -%}
+            {%- for subel in elt.data.get("elements", [])[:doc.properties[numel_key]] -%}
+                {{ subel.text_representation }}
+            {% endfor %}
+        {% endfor %}
+        """
+    ),
+)
+
 
 class LlmClusterEntityFormGroupsMessagesPrompt(SimplePrompt):
     def __init__(self, field: str, instruction: str, text: str):

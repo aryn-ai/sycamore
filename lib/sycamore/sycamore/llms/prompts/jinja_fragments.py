@@ -102,4 +102,4 @@ J_HEIRARCHICAL_EXPONENTIAL_COLLECT = """
     {%- if i >= doc.elements|count %}{% break %}{% endif -%}
 {{ i }}: {{ get_text(doc.elements[i], iteration_var) }}
 {% endfor %}
-"""
+"""  # noqa: E501 # (line too long)

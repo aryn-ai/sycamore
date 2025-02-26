@@ -142,11 +142,36 @@ def collapse(text: str, tokens_per_chunk: int, tokenizer: Tokenizer, summarizer_
 
 
 class HeirarchicalDocumentSummarizer(Summarizer):
+    """
+    Summarizes a document by constructing a heirarchical tree of batches of elements,
+    summarizing each one, and then repeating the process on the remaining summaries. For
+    example, with element_batch_size=3:
+        Elements - e0 - e1 - e2 - e3 - e4 - e5 - e6 - e7 - e8 - e9 - e10
+                    |    |    |    |    |    |    |    |    |    |    |
+                   summary 0-2  - summary 3-5  - summary 6-8  - summary 9-10
+                    |              |              |              |
+                   summary 0-8                                  summary 9-10
+                    |                                            |
+                   summary 0-10
+
+    Args:
+        llm: The llm to use to summarize
+        question: Optional question to use as context for summarization. If set, the llm
+            will attempt to use the data it's summarizing to answer the question
+        prompt: Prompt to use for each summarization. Caution: The default (SummarizeBranchingFactorJinjaPrompt)
+            has some fairly complicated logic encoded in it to make the tree construction work
+            correctly.
+        fields: List of fields to include in each element's representation in the prompt. Specify
+            with dotted notation (e.g. properties.title), or use "*" to capture everything. If None,
+            will include no fields.
+        element_batch_size: Branching factor of the constructed tree. Default is 10.
+    """
+
     def __init__(
         self,
         llm: LLM,
         question: Optional[str] = None,
-        prompt: Optional[JinjaElementPrompt] = None,
+        prompt: Optional[SycamorePrompt] = None,
         fields: Union[None, Literal["*"], list[str]] = None,
         element_batch_size: Optional[int] = None,
     ):
@@ -225,6 +250,27 @@ class HeirarchicalDocumentSummarizer(Summarizer):
 
 
 class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
+    """
+    Summarizes a document by constructing a tree, similarly to HeirarchicalDocumentSummarizer.
+    Each batch of elements is determined by the number of tokens - each sub-summarization takes
+    as many elements as possible within the token limit.
+
+    Args:
+        llm: LLM to use for summarization
+        question: Optional question to use as context for the summarization. If set, the llm will
+            attempt to answer the question with the data provided
+        prompt: Prompt to use for each summarization. Caution: The default (MaxTokensHeirarchicalSummarizerPrompt)
+            has some fairly complicated logic encoded in it to make the tree construction work correctly.
+        fields: List of fields to include in each element's representation in the prompt. Specify
+            with dotted notation (e.g. properties.title), or use "*" to capture everything. If None,
+            will include no fields.
+        max_tokens: token limit for each summarization. Default is 10k (default tokenizer is by character).
+        tokenizer: tokenizer to use when computing how many tokens a prompt will take. Default is
+            CharacterTokenizer
+        rounds: number of rounds of heirarchical summarization to perform. The number of elements that can be
+            included in the summary is O(e^rounds), so rounds can be small. Default is 4.
+    """
+
     def __init__(
         self,
         llm: LLM,
@@ -311,6 +357,22 @@ class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
 
 
 class CollapseDocumentSummarizer(Summarizer):
+    """
+    Summarizes a document by converting it all to text, then iteratively summarizing chunks
+    of the text + the existing summary to build up a full summary.
+
+    Args:
+        llm: LLM to use for summarization
+        question: Question to use as context for the summarization. The llm will attempt to
+            answer the question using the data in the document.
+        chunk_size: Size of the chunks to add in each round of summarization
+        tokenizer: Tokenizer to use to compute chunk sizes
+        use_elements: If True, will include data from the elements of the document as well
+            as the document itself. Default is False
+        num_elements: Limit on the number of elements to include if use_elements is true (take
+            the first num_elements elements). Default is 5
+    """
+
     def __init__(
         self,
         llm: LLM,
@@ -366,6 +428,26 @@ class EtCetera:
 
 
 class RoundRobinOneshotDocumentSummarizer(Summarizer):
+    """
+    Summarizes a document in a single LLM call by taking as much data as possible
+    from every element, spread across them evenly. Intended for use with summarize_data,
+    where a summarizer is used to summarize an entire docset.
+
+    Args:
+        llm: LLM to use for summarization
+        question: Question to use as context for the summary. The llm will attempt to
+            use the data provided to answer the question.
+        token_limit: Token limit for the prompt. Default is 10k (default tokenizer is
+            by character)
+        tokenizer: Tokenizer to use to count tokens (to not exceed the token limit).
+            Default is CharacterTokenizer
+        fields: List of fields to include from every element. To include any additional
+            fields (after the ones specified), end the list with `EtCetera`. Default is
+            empty list, which stands for 'as many fields as fit within the token limit'
+            and is equivalent to `[EtCetera]`
+
+    """
+
     def __init__(
         self,
         llm: LLM,

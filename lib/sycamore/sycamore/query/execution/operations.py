@@ -76,11 +76,13 @@ def summarize_data(
         question: Question to answer.
         result_description: Description of each of the inputs in result_data.
         result_data: List of inputs.
-        use_elements: Use text contents from document.elements instead of document.text_representation.
-        num_elements: Number of elements whose text to use from each document.
-        max_tokens: Maximum number of tokens allowed in the summary to send to the LLM.
-        tokenizer: Tokenizer to use for counting against max_tokens.
+        summaries_as_text: If true, summarize all documents in the result_data docsets and treat
+            those summaries as the text representation for the final summarize step.
         context: Optional Context object to get default parameters from.
+        docset_summarizer: Summarizer class to use to summarize the docset.
+            Default is `DEFAULT_DOCSET_SUMMARIZER`
+        summarizer_kwargs: keyword arguments to pass to the docset summarizer constructor. e.g.
+            `tokenizer`, `token_limit`, and `element_batch_size`
         **kwargs: Additional keyword arguments.
 
     Returns:

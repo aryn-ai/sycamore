@@ -3,18 +3,22 @@ import time
 from abc import ABC, abstractmethod
 from typing import Callable, Optional, Literal, Union, Type
 import copy
+import textwrap
 
 
 from sycamore.data import Element, Document
 from sycamore.functions.tokenizer import Tokenizer, CharacterTokenizer
 from sycamore.llms.prompts.default_prompts import (
-    MaxTokensHeirarchicalSummarizerPrompt,
-    SummarizeBranchingFactorJinjaPrompt,
     SummarizeDataMessagesPrompt,
     TextSummarizerJinjaPrompt,
-    RoundRobinSummarizerPrompt,
 )
-from sycamore.llms.prompts.prompts import JinjaElementPrompt, RenderedPrompt, RenderedMessage, SycamorePrompt
+from sycamore.llms.prompts.prompts import (
+    JinjaElementPrompt,
+    RenderedPrompt,
+    RenderedMessage,
+    SycamorePrompt,
+    JinjaPrompt,
+)
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
 from sycamore.transforms.map import Map
@@ -141,119 +145,86 @@ def collapse(text: str, tokens_per_chunk: int, tokenizer: Tokenizer, summarizer_
     return cur_summary
 
 
-class HeirarchicalDocumentSummarizer(Summarizer):
+J_GET_ELEMENT_TEXT_MACRO = """
+{#-
+    get_text macro: returns text for an element. If this is the first
+    round of summarization:
+        If `fields` is provided to the template, add a list of key-value
+        pairs to the text (if fields is the string "*", use all properties).
+        Always include the text representation
+    If this is after the first round of summarization:
+        use only the element's summary field
+-#}
+{%- macro get_text(element, itvarname) %}
+    {%- if elt.properties[itvarname] == 0 -%}
+        {%- if fields is defined -%}
+            {%- if fields == "*" %}{% for p in element.properties %}{% if p.startswith('_') %}{% continue %}{% endif %}
+    {{ p }}: {{ element.properties[p] }}
+            {%- endfor -%}
+            {%- else %}{% for f in fields %}
+    {{ f }}: {{ element.field_to_value(f) }}
+            {%- endfor %}{% endif -%}
+        {%- endif -%}
+    Text: {{ element.text_representation }}
+    {%- else -%}
+    Summary: {{ element.properties[intermediate_summary_key] }}
+    {% endif -%}
+{% endmacro -%}
+"""
+
+MaxTokensHeirarchyPrompt = JinjaElementPrompt(
+    system=textwrap.dedent(
+        """
+        {% if question is defined %}You are a helpful research assistant. You answer questions based on text you are presented with.
+        {% else %}You are a helpful data summarizer. You concisely summarize text you are presented with, including as much detail as possible.
+        {% endif %}
+        """
+    ),
+    user=J_GET_ELEMENT_TEXT_MACRO
+    + textwrap.dedent(
+        """
+        {%- macro get_data_description() -%}
+            {%- if data_description is defined -%}
+        {{ data_description }}
+            {%- else -%}
+        some documents
+            {%- endif -%}
+        {%- endmacro -%}
+
+        {%- if elt.properties[skip_me_key] -%}{{ norender() }}{%- endif -%}
+        {%- if batch_key in elt.properties and elt.properties[batch_key]|count == 1 and intermediate_summary_key in elt.properties -%}{{ norender() }}{%- endif -%}
+        {%- if batch_key not in elt.properties -%}{{ norender() }}{%- endif -%}
+
+        {% if elt.properties[round_key] == 0 -%}
+        You are given {{ get_data_description() }}. Please use only the information found in these elements to determine an answer
+        to the question "{{ question }}". If you cannot answer the question based on the data provided, instead respond with any data
+        that might be relevant to the question.
+        Elements:
+        {% else %}
+        You are given a list of partial answers to the question "{{ question }}" based on {{ get_data_description() }}.
+        Please combine these partial answers into a coherent single answer to the question "{{ question }}". Some answers may not
+        be particularly relevent, so don't pay them too much mind.
+        Answers:
+        {%- endif -%}
+        {%- for idx in elt.properties[batch_key] %}
+        {{ loop.index }}: {{ get_text(doc.elements[idx], round_key) }}
+        {% endfor %}
+        """
+    ),
+    question="What is the summary of this data?",
+)
+
+
+class MultiStepDocumentSummarizer(Summarizer):
     """
-    Summarizes a document by constructing a heirarchical tree of batches of elements,
-    summarizing each one, and then repeating the process on the remaining summaries. For
-    example, with element_batch_size=3:
-        Elements - e0 - e1 - e2 - e3 - e4 - e5 - e6 - e7 - e8 - e9 - e10
-                    |    |    |    |    |    |    |    |    |    |    |
-                   summary 0-2  - summary 3-5  - summary 6-8  - summary 9-10
-                    |              |              |              |
-                   summary 0-8                                  summary 9-10
-                    |                                            |
-                   summary 0-10
-
-    Args:
-        llm: The llm to use to summarize
-        question: Optional question to use as context for summarization. If set, the llm
-            will attempt to use the data it's summarizing to answer the question
-        prompt: Prompt to use for each summarization. Caution: The default (SummarizeBranchingFactorJinjaPrompt)
-            has some fairly complicated logic encoded in it to make the tree construction work
-            correctly.
-        fields: List of fields to include in each element's representation in the prompt. Specify
-            with dotted notation (e.g. properties.title), or use "*" to capture everything. If None,
-            will include no fields.
-        element_batch_size: Branching factor of the constructed tree. Default is 10.
-    """
-
-    def __init__(
-        self,
-        llm: LLM,
-        question: Optional[str] = None,
-        prompt: Optional[SycamorePrompt] = None,
-        fields: Union[None, Literal["*"], list[str]] = None,
-        element_batch_size: Optional[int] = None,
-    ):
-        self.llm = llm
-        self.question = question
-        self.prompt = prompt or SummarizeBranchingFactorJinjaPrompt
-        self.fields = fields
-        self.element_batch_size = element_batch_size
-
-    def get_const_vars(self) -> dict[str, str]:
-        return {
-            "iteration_var": "_summarize_round",
-            "num_elements_key": "_num_total_elements",
-            "index_key": "_summarizer_element_index",
-            "intermediate_summary_key": "_partial_summary",
-        }
-
-    def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
-        vars = self.get_const_vars()
-
-        prompt = self.prompt.set(
-            iteration_var=vars["iteration_var"],
-            intermediate_summary_key=vars["intermediate_summary_key"],
-            index_key=vars["index_key"],
-        )
-        if self.element_batch_size is not None:
-            prompt = prompt.set(branching_factor=self.element_batch_size)
-        if self.fields is not None:
-            prompt = prompt.set(fields=self.fields)
-        if self.question is not None:
-            prompt = prompt.set(question=self.question)
-
-        def preprocess(doc: Document) -> Document:
-            for i, e in enumerate(doc.elements):
-                e.properties[vars["num_elements_key"]] = len(doc.elements)
-                e.properties[vars["index_key"]] = i
-            return doc
-
-        def validate(elt: Element) -> bool:
-            iv = elt.properties[vars["iteration_var"]]
-            num_elts = elt.properties[vars["num_elements_key"]]
-            assert isinstance(prompt, JinjaElementPrompt)
-            branching_factor = prompt.kwargs["branching_factor"]
-            return branching_factor ** (iv + 1) > num_elts
-
-        def cleanup(doc: Document) -> Document:
-            if len(doc.elements) == 0:
-                doc.properties["summary"] = ""
-                return doc
-            found_summary = False
-            for e in doc.elements:
-                if not found_summary and vars["intermediate_summary_key"] in e.properties:
-                    doc.properties["summary"] = doc.elements[0].properties[vars["intermediate_summary_key"]]
-                    found_summary = True
-                for k in vars:
-                    if k in e.properties:
-                        del e.properties[k]
-            if not found_summary:
-                doc.properties["summary"] = ""
-            return doc
-
-        premap = Map(child, f=preprocess)
-        llm_map = LLMMapElements(
-            child=premap,
-            prompt=prompt,
-            output_field=vars["intermediate_summary_key"],
-            llm=self.llm,
-            iteration_var=vars["iteration_var"],
-            validate=validate,
-            max_tries=20,  # If you hit this then your document has at least 2^20 elements in it.
-        )
-        postmap = Map(llm_map, f=cleanup)
-        comptransform = CompositeTransform(child, [])  # type: ignore
-        comptransform.nodes = [premap, llm_map, postmap]
-        return comptransform
-
-
-class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
-    """
-    Summarizes a document by constructing a tree, similarly to HeirarchicalDocumentSummarizer.
-    Each batch of elements is determined by the number of tokens - each sub-summarization takes
-    as many elements as possible within the token limit.
+    Summarizes a document by constructing a tree of summaries. Each leaf contains as many consecutive
+    elements as possible within the token limit, and each vertex of the tree contains as many sub-
+    summaries as possible within the token limit. e.g with max_tokens=10
+    Elements: (3 tokens) - (3 tokens) - (5 tokens) - (8 tokens)
+                   |            |            |            |
+                 (4 token summary) - (3 token summary) - (2 token summary)
+                               \\             |            /
+                                      (5 token summary)
 
     Args:
         llm: LLM to use for summarization
@@ -275,7 +246,7 @@ class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
         self,
         llm: LLM,
         question: Optional[str] = None,
-        prompt: SycamorePrompt = MaxTokensHeirarchicalSummarizerPrompt,
+        prompt: SycamorePrompt = MaxTokensHeirarchyPrompt,
         fields: Union[None, Literal["*"], list[str]] = None,
         max_tokens: int = 10 * 1000,
         tokenizer: Tokenizer = CharacterTokenizer(),
@@ -422,12 +393,34 @@ class CollapseDocumentSummarizer(Summarizer):
         return doc_text
 
 
+OneStepSummarizerPrompt = JinjaPrompt(
+    system="You are a helpful text summarizer",
+    user=textwrap.dedent(
+        """
+        You are given a series of database entries that answer the question "{{ question }}".
+        Generate a concise, conversational summary of the data to answer the question.
+        {%- for elt in doc.elements %}
+        Entry {{ loop.index }}:
+            {% for f in doc.properties[fields_key] %}{#{% if f.startswith("_") %}{% continue %}{% endif %}#}
+            {{ f }}: {{ elt.field_to_value(f) }}
+            {% endfor -%}
+            {%- if doc.properties[numel_key] is not none and doc.properties[numel_key] > 0 %}    Text:
+            {% endif -%}
+            {%- for subel in elt.data.get("elements", [])[:doc.properties[numel_key]] -%}
+                {{ subel.text_representation }}
+            {% endfor %}
+        {% endfor %}
+        """
+    ),
+)
+
+
 class EtCetera:
     """Sentinel value to sit at the end of a list of fields, signifying 'add as
     many additional properties as you can within the token limit'"""
 
 
-class RoundRobinOneshotDocumentSummarizer(Summarizer):
+class OneStepDocumentSummarizer(Summarizer):
     """
     Summarizes a document in a single LLM call by taking as much data as possible
     from every element, spread across them evenly. Intended for use with summarize_data,
@@ -462,7 +455,7 @@ class RoundRobinOneshotDocumentSummarizer(Summarizer):
         self.tokenizer = tokenizer
         assert EtCetera not in fields[:-1], "EtCetera must be at the end of the list of fields if provided"
         self.fields = fields
-        self.prompt = RoundRobinSummarizerPrompt.set(**self.get_const_vars())
+        self.prompt = OneStepSummarizerPrompt.set(**self.get_const_vars())
 
     @staticmethod
     def get_const_vars() -> dict[str, str]:

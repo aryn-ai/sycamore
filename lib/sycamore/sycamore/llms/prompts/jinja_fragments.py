@@ -67,39 +67,3 @@ J_FIELD_VALUE_MACRO = """{%- macro field_value(doc, field, no_field_behavior='no
 {%- endif -%}
 {%- endmacro -%}
 """
-
-J_GET_ELEMENT_TEXT_MACRO = """
-{#-
-    get_text macro: returns text for an element. If this is the first
-    round of summarization:
-        If `fields` is provided to the template, add a list of key-value
-        pairs to the text (if fields is the string "*", use all properties).
-        Always include the text representation
-    If this is after the first round of summarization:
-        use only the element's summary field
--#}
-{%- macro get_text(element, itvarname) %}
-    {%- if elt.properties[itvarname] == 0 -%}
-        {%- if fields is defined -%}
-            {%- if fields == "*" %}{% for p in element.properties %}{% if p.startswith('_') %}{% continue %}{% endif %}
-    {{ p }}: {{ element.properties[p] }}
-            {% endfor -%}
-            {%- else %}{% for f in fields %}
-    {{ f }}: {{ element.field_to_value(f) }}
-            {% endfor %}{% endif -%}
-        {%- endif -%}
-    Text: {{ element.text_representation }}
-    {%- else -%}
-    Summary: {{ element.properties[intermediate_summary_key] }}
-    {% endif -%}
-{% endmacro -%}
-"""
-
-J_HEIRARCHICAL_EXPONENTIAL_COLLECT = """
-{%- set exponent = elt.properties[iteration_var] + 1 -%}
-{%- if elt.properties[index_key] % (branching_factor ** exponent) != 0 %}{{ norender() }}{% endif -%}
-{%- for i in range(elt.properties[index_key], elt.properties[index_key] + (branching_factor ** exponent), branching_factor ** (exponent - 1)) -%}
-    {%- if i >= doc.elements|count %}{% break %}{% endif -%}
-{{ i }}: {{ get_text(doc.elements[i], iteration_var) }}
-{% endfor %}
-"""  # noqa: E501 # (line too long)

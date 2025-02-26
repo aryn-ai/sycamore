@@ -145,33 +145,6 @@ def collapse(text: str, tokens_per_chunk: int, tokenizer: Tokenizer, summarizer_
     return cur_summary
 
 
-J_GET_ELEMENT_TEXT_MACRO = """
-{#-
-    get_text macro: returns text for an element. If this is the first
-    round of summarization:
-        If `fields` is provided to the template, add a list of key-value
-        pairs to the text (if fields is the string "*", use all properties).
-        Always include the text representation
-    If this is after the first round of summarization:
-        use only the element's summary field
--#}
-{%- macro get_text(element, itvarname) %}
-    {%- if elt.properties[itvarname] == 0 -%}
-        {%- if fields is defined -%}
-            {%- if fields == "*" %}{% for p in element.properties %}{% if p.startswith('_') %}{% continue %}{% endif %}
-    {{ p }}: {{ element.properties[p] }}
-            {%- endfor -%}
-            {%- else %}{% for f in fields %}
-    {{ f }}: {{ element.field_to_value(f) }}
-            {%- endfor %}{% endif -%}
-        {%- endif -%}
-    Text: {{ element.text_representation }}
-    {%- else -%}
-    Summary: {{ element.properties[intermediate_summary_key] }}
-    {% endif -%}
-{% endmacro -%}
-"""
-
 MaxTokensHeirarchyPrompt = JinjaElementPrompt(
     system=textwrap.dedent(
         """
@@ -182,9 +155,33 @@ MaxTokensHeirarchyPrompt = JinjaElementPrompt(
         {% endif %}
         """
     ),
-    user=J_GET_ELEMENT_TEXT_MACRO
-    + textwrap.dedent(
+    user=textwrap.dedent(
         """
+        {#-
+            get_text macro: returns text for an element. If this is the first
+            round of summarization:
+                If `fields` is provided to the template, add a list of key-value
+                pairs to the text (if fields is the string "*", use all properties).
+                Always include the text representation
+            If this is after the first round of summarization:
+                use only the element's summary field
+        -#}
+        {%- macro get_text(element, itvarname) %}
+            {%- if elt.properties[itvarname] == 0 -%}
+                {%- if fields is defined -%}
+                    {%- if fields == "*" %}{% for p in element.properties %}{% if p.startswith('_') %}{% continue %}{% endif %}
+            {{ p }}: {{ element.properties[p] }}
+                    {%- endfor -%}
+                    {%- else %}{% for f in fields %}
+            {{ f }}: {{ element.field_to_value(f) }}
+                    {%- endfor %}{% endif -%}
+                {%- endif -%}
+            Text: {{ element.text_representation }}
+            {%- else -%}
+            Summary: {{ element.properties[intermediate_summary_key] }}
+            {% endif -%}
+        {% endmacro -%}
+
         {%- macro get_data_description() -%}
             {%- if data_description is defined -%}
         {{ data_description }}

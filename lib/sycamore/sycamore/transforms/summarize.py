@@ -175,8 +175,10 @@ J_GET_ELEMENT_TEXT_MACRO = """
 MaxTokensHeirarchyPrompt = JinjaElementPrompt(
     system=textwrap.dedent(
         """
-        {% if question is defined %}You are a helpful research assistant. You answer questions based on text you are presented with.
-        {% else %}You are a helpful data summarizer. You concisely summarize text you are presented with, including as much detail as possible.
+        {% if question is defined %}You are a helpful research assistant. You answer questions based on
+        text you are presented with.
+        {% else %}You are a helpful data summarizer. You concisely summarize text you are presented with,
+        including as much detail as possible.
         {% endif %}
         """
     ),
@@ -192,18 +194,19 @@ MaxTokensHeirarchyPrompt = JinjaElementPrompt(
         {%- endmacro -%}
 
         {%- if elt.properties[skip_me_key] -%}{{ norender() }}{%- endif -%}
-        {%- if batch_key in elt.properties and elt.properties[batch_key]|count == 1 and intermediate_summary_key in elt.properties -%}{{ norender() }}{%- endif -%}
+        {%- if (batch_key in elt.properties and elt.properties[batch_key]|count == 1
+                and intermediate_summary_key in elt.properties) -%}{{ norender() }}{%- endif -%}
         {%- if batch_key not in elt.properties -%}{{ norender() }}{%- endif -%}
 
         {% if elt.properties[round_key] == 0 -%}
-        You are given {{ get_data_description() }}. Please use only the information found in these elements to determine an answer
-        to the question "{{ question }}". If you cannot answer the question based on the data provided, instead respond with any data
-        that might be relevant to the question.
+        You are given {{ get_data_description() }}. Please use only the information found in these elements
+        to determine an answer to the question "{{ question }}". If you cannot answer the question based on
+        the data provided, instead respond with any data that might be relevant to the question.
         Elements:
         {% else %}
         You are given a list of partial answers to the question "{{ question }}" based on {{ get_data_description() }}.
-        Please combine these partial answers into a coherent single answer to the question "{{ question }}". Some answers may not
-        be particularly relevent, so don't pay them too much mind.
+        Please combine these partial answers into a coherent single answer to the question "{{ question }}".
+        Some answers may not be particularly relevent, so don't pay them too much mind.
         Answers:
         {%- endif -%}
         {%- for idx in elt.properties[batch_key] %}

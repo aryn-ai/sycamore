@@ -3,12 +3,10 @@ import string
 
 from sycamore.data import Document, Element
 from sycamore.llms import LLM
-from sycamore.llms.prompts.default_prompts import SummarizeDataHeirarchicalPrompt
 from sycamore.transforms.summarize import (
-    HeirarchicalDocumentSummarizer,
     LLMElementTextSummarizer,
-    MaxTokensHeirarchicalDocumentSummarizer,
-    RoundRobinOneshotDocumentSummarizer,
+    OneStepDocumentSummarizer,
+    MultiStepDocumentSummarizer,
     EtCetera,
 )
 from sycamore.transforms.standardizer import USStateStandardizer
@@ -45,22 +43,22 @@ class TestSummarize:
         assert doc.elements[1].properties == {"summary": "this is the summary"}
 
 
-class TestHeirarchicalSummarize:
+class TestMultiStepSummarize:
     doc = Document(
         elements=[
-            Element(text_representation="a", properties={"key": "m"}),
-            Element(text_representation="b", properties={"key": "n"}),
-            Element(text_representation="c", properties={"key": "o"}),
-            Element(text_representation="d", properties={"key": "p"}),
-            Element(text_representation="e", properties={"key": "q"}),
+            Element(text_representation="aaaaaaaa", properties={"key": "m"}),
+            Element(text_representation="bbbbbbbb", properties={"key": "n"}),
+            Element(text_representation="cccccccc", properties={"key": "o"}),
+            Element(text_representation="dddddddd", properties={"key": "p"}),
+            Element(text_representation="eeeeeeee", properties={"key": "q"}),
         ]
     )
 
-    def test_heirarchical_calls_noargs(self, mocker):
+    def test_base(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = HeirarchicalDocumentSummarizer(llm=llm)
+        summarizer = MultiStepDocumentSummarizer(llm=llm)
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"
@@ -71,11 +69,11 @@ class TestHeirarchicalSummarize:
             assert f"Text: {e.text_representation}" in usermessage
             assert f"properties.key: {e.properties['key']}" not in usermessage
 
-    def test_heirarchical_set_fields(self, mocker):
+    def test_multistep_set_fields(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = HeirarchicalDocumentSummarizer(llm=llm, fields=["properties.key"])
+        summarizer = MultiStepDocumentSummarizer(llm=llm, fields=["properties.key"])
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"
@@ -86,11 +84,11 @@ class TestHeirarchicalSummarize:
             assert f"Text: {e.text_representation}" in usermessage
             assert f"properties.key: {e.properties['key']}" in usermessage
 
-    def test_heirarchical_all_fields(self, mocker):
+    def test_multistep_all_fields(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = HeirarchicalDocumentSummarizer(llm=llm, fields="*")
+        summarizer = MultiStepDocumentSummarizer(llm=llm, fields="*")
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"
@@ -101,92 +99,18 @@ class TestHeirarchicalSummarize:
             assert f"Text: {e.text_representation}" in usermessage
             assert f"key: {e.properties['key']}" in usermessage
 
-    def test_heirarchical_set_question(self, mocker):
+    def test_multistep_set_question(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = HeirarchicalDocumentSummarizer(llm=llm, question="say what?")
+        summarizer = MultiStepDocumentSummarizer(llm=llm, question="loser says what?")
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"
         assert generate.call_count == 1
         prompt = generate.call_args.kwargs["prompt"]
         usermessage = prompt.messages[-1].content
-        assert "say what?" in usermessage
-        for e in self.doc.elements:
-            assert f"Text: {e.text_representation}" in usermessage
-
-    def test_heirarchical_num_elements(self, mocker):
-        llm = mocker.Mock(spec=LLM)
-        generate = mocker.patch.object(llm, "generate")
-        generate.return_value = "sum"
-        summarizer = HeirarchicalDocumentSummarizer(llm=llm, element_batch_size=3)
-        d = summarizer.summarize(self.doc)
-
-        assert d.properties["summary"] == "sum"
-        assert generate.call_count == 3
-        first_call = generate.call_args_list[0]
-        second_call = generate.call_args_list[1]
-        third_call = generate.call_args_list[2]
-
-        prompt = first_call.kwargs["prompt"]
-        usermessage = prompt.messages[-1].content
-        for e in self.doc.elements[:3]:
-            assert f"Text: {e.text_representation}" in usermessage
-        for e in self.doc.elements[3:]:
-            assert f"Text: {e.text_representation}" not in usermessage
-
-        prompt = second_call.kwargs["prompt"]
-        usermessage = prompt.messages[-1].content
-        for e in self.doc.elements[:3]:
-            assert f"Text: {e.text_representation}" not in usermessage
-        for e in self.doc.elements[3:]:
-            assert f"Text: {e.text_representation}" in usermessage
-
-        prompt = third_call.kwargs["prompt"]
-        usermessage = prompt.messages[-1].content
-        assert "Summary: sum" in usermessage
-
-    def test_heirarchical_set_prompt(self, mocker):
-        llm = mocker.Mock(spec=LLM)
-        generate = mocker.patch.object(llm, "generate")
-        generate.return_value = "sum"
-        summarizer = HeirarchicalDocumentSummarizer(
-            llm=llm, prompt=SummarizeDataHeirarchicalPrompt.set(data_description="FINDME")  # type: ignore
-        )
-        d = summarizer.summarize(self.doc)
-
-        assert d.properties["summary"] == "sum"
-        assert generate.call_count == 1
-        prompt = generate.call_args.kwargs["prompt"]
-        usermessage = prompt.messages[-1].content
-        assert "FINDME" in usermessage
-        for e in self.doc.elements:
-            assert f"Text: {e.text_representation}" in usermessage
-
-
-class TestMaxTokensHeirarchicalSummarize:
-    doc = Document(
-        elements=[
-            Element(text_representation="aaaaa", properties={"key": "m"}),
-            Element(text_representation="bbbbb", properties={"key": "n"}),
-            Element(text_representation="ccccc", properties={"key": "o"}),
-            Element(text_representation="ddddd", properties={"key": "p"}),
-            Element(text_representation="eeeee", properties={"key": "q"}),
-        ]
-    )
-
-    def test_base(self, mocker):
-        llm = mocker.Mock(spec=LLM)
-        generate = mocker.patch.object(llm, "generate")
-        generate.return_value = "sum"
-        summarizer = MaxTokensHeirarchicalDocumentSummarizer(llm=llm)
-        d = summarizer.summarize(self.doc)
-
-        assert d.properties["summary"] == "sum"
-        assert generate.call_count == 1
-        prompt = generate.call_args.kwargs["prompt"]
-        usermessage = prompt.messages[-1].content
+        assert "loser says what?" in usermessage
         for e in self.doc.elements:
             assert f"Text: {e.text_representation}" in usermessage
             assert f"properties.key: {e.properties['key']}" not in usermessage
@@ -195,7 +119,7 @@ class TestMaxTokensHeirarchicalSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = MaxTokensHeirarchicalDocumentSummarizer(llm=llm, max_tokens=310)  # 310 chars = first 3 elements
+        summarizer = MultiStepDocumentSummarizer(llm=llm, max_tokens=470)  # 310 chars = first 3 elements
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"
@@ -220,10 +144,10 @@ class TestMaxTokensHeirarchicalSummarize:
 
         prompt = third_call.kwargs["prompt"]
         usermessage = prompt.messages[-1].content
-        assert "Summary: sum" in usermessage
+        assert occurrences(usermessage, "Summary: sum") == 2
 
 
-class TestRoundRobinOneshotSummarize:
+class TestOneStepSummarize:
     doc = Document(
         elements=[
             Element(
@@ -284,7 +208,7 @@ class TestRoundRobinOneshotSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = RoundRobinOneshotDocumentSummarizer(llm, question="say what?")
+        summarizer = OneStepDocumentSummarizer(llm, question="say what?")
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"
@@ -301,9 +225,7 @@ class TestRoundRobinOneshotSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = RoundRobinOneshotDocumentSummarizer(
-            llm, question="say what?", fields=["properties.title", EtCetera]
-        )
+        summarizer = OneStepDocumentSummarizer(llm, question="say what?", fields=["properties.title", EtCetera])
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"
@@ -326,7 +248,7 @@ class TestRoundRobinOneshotSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = RoundRobinOneshotDocumentSummarizer(llm, question="say what?", fields=["properties.title"])
+        summarizer = OneStepDocumentSummarizer(llm, question="say what?", fields=["properties.title"])
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"
@@ -342,9 +264,7 @@ class TestRoundRobinOneshotSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = RoundRobinOneshotDocumentSummarizer(
-            llm, question="say what?", fields=["properties.title"], token_limit=1000
-        )
+        summarizer = OneStepDocumentSummarizer(llm, question="say what?", fields=["properties.title"], token_limit=1000)
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"
@@ -360,9 +280,7 @@ class TestRoundRobinOneshotSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = RoundRobinOneshotDocumentSummarizer(
-            llm, question="say what?", fields=["properties.title"], token_limit=500
-        )
+        summarizer = OneStepDocumentSummarizer(llm, question="say what?", fields=["properties.title"], token_limit=500)
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"

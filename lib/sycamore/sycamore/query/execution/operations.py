@@ -1,5 +1,5 @@
 import math
-from typing import Any, List, Union, Optional, Type
+from typing import Any, List, Union, Optional
 
 import structlog
 
@@ -10,21 +10,18 @@ from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.llms.prompts.default_prompts import (
-    SummarizeDataHeirarchicalPrompt,
     SummarizeDataMessagesPrompt,
 )
 from sycamore.transforms.summarize import (
-    HeirarchicalDocumentSummarizer,
-    LLMElementTextSummarizer,
+    MultiStepDocumentSummarizer,
     Summarizer,
     CollapseDocumentSummarizer,
-    RoundRobinOneshotDocumentSummarizer,
     collapse,
     QuestionAnsweringSummarizer,
 )
 
 log = structlog.get_logger(__name__)
-DEFAULT_DOCSET_SUMMARIZER = HeirarchicalDocumentSummarizer
+DEFAULT_DOCSET_SUMMARIZER_CLS = MultiStepDocumentSummarizer
 DEFAULT_SUMMARIZER_KWARGS: dict[str, Any] = {}
 
 
@@ -63,8 +60,7 @@ def summarize_data(
     result_data: List[Any],
     summaries_as_text: bool = False,
     context: Optional[Context] = None,
-    docset_summarizer: Optional[Type[Summarizer]] = None,
-    summarizer_kwargs: dict[str, Any] = {},
+    docset_summarizer: Optional[Summarizer] = None,
     **kwargs,
 ) -> str:
     """
@@ -89,24 +85,14 @@ def summarize_data(
         Conversational response to question.
     """
     if docset_summarizer is None:
-        docset_summarizer = DEFAULT_DOCSET_SUMMARIZER
-        for k, v in DEFAULT_SUMMARIZER_KWARGS.items():
-            if k not in summarizer_kwargs:
-                summarizer_kwargs[k] = v
+        docset_summarizer = DEFAULT_DOCSET_SUMMARIZER_CLS(llm=llm, question=question, **DEFAULT_SUMMARIZER_KWARGS)
 
     if all(isinstance(d, DocSet) for d in result_data):
-        summarizer = _setup_docset_summarizer(
-            summarizer_cls=docset_summarizer,
-            llm=llm,
-            question=question,
-            data_description=result_description,
-            **summarizer_kwargs,
-        )
         return summarize_data_docsets(
             llm,
             question,
             result_data,
-            docset_summarizer=summarizer,
+            docset_summarizer=docset_summarizer,
             data_description=result_description,
             summaries_as_text=summaries_as_text,
         )
@@ -138,29 +124,12 @@ def summarize_data_docsets(
     summaries_as_text: bool = False,
 ) -> str:
     if summaries_as_text:
-        result_data = [ds.summarize(HeirarchicalDocumentSummarizer(llm)).map(sum_to_text) for ds in result_data]
+        result_data = [ds.summarize(docset_summarizer).map(sum_to_text) for ds in result_data]
 
     single_docs = [_docset_to_singledoc(ds) for ds in result_data]
     agged_ds = result_data[0].context.read.document(single_docs).summarize(docset_summarizer)
     texts = [d.properties["summary"] for d in agged_ds.take_all()]
     return "\n".join(texts)
-
-
-def _setup_docset_summarizer(summarizer_cls: Type[Summarizer], **kwargs) -> Summarizer:
-    if summarizer_cls is LLMElementTextSummarizer:
-        raise ValueError("LLMElementTextSummarizer cannot summarize an entire docset")
-    if summarizer_cls is HeirarchicalDocumentSummarizer:
-        if "prompt" not in kwargs:
-            prompt = SummarizeDataHeirarchicalPrompt
-            if "data_description" in kwargs:
-                prompt = prompt.set(data_description=kwargs.pop("data_description"))  # type: ignore
-            kwargs["prompt"] = prompt
-        return HeirarchicalDocumentSummarizer(**kwargs)
-    if summarizer_cls is CollapseDocumentSummarizer:
-        return CollapseDocumentSummarizer(**kwargs)
-    if summarizer_cls is RoundRobinOneshotDocumentSummarizer:
-        return RoundRobinOneshotDocumentSummarizer(**kwargs)
-    raise ValueError(f"Unrecognized summarizer class: {summarizer_cls}")
 
 
 def _docset_to_singledoc(ds: DocSet) -> Document:

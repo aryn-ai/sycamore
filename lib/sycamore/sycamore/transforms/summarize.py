@@ -228,7 +228,7 @@ class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
     def __init__(
         self,
         llm: LLM,
-        question: str,
+        question: Optional[str] = None,
         prompt: SycamorePrompt = MaxTokensHeirarchicalSummarizerPrompt,
         fields: Union[None, Literal["*"], list[str]] = None,
         max_tokens: int = 10 * 1000,
@@ -249,6 +249,7 @@ class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
             "skip_me_key": "_skip_me",
             "batch_key": "_batch",
             "round_key": "_round",
+            "intermediate_summary_key": "_summary",
         }
 
     def prep_batches(self, doc: Document, round: int = 0) -> Document:
@@ -261,7 +262,8 @@ class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
                 continue
             this_batch = [i]
             elt.properties[vars["batch_key"]] = this_batch
-            for j, e2 in doc.elements[i + 1 :]:
+            for j in range(i + 1, len(doc.elements)):
+                e2 = doc.elements[j]
                 if e2.properties.get(vars["skip_me_key"], False):
                     continue
                 this_batch.append(j)
@@ -275,8 +277,8 @@ class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
     def cleanup(self, doc: Document) -> Document:
         if len(doc.elements) == 0:
             return doc
-        doc.properties["summary"] = doc.elements[0].properties["summary"]
         vars = self.get_const_vars()
+        doc.properties["summary"] = doc.elements[0].properties[vars["intermediate_summary_key"]]
         for e in doc.elements:
             for v in vars:
                 if v in e.properties:
@@ -284,6 +286,7 @@ class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
         return doc
 
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        vars = self.get_const_vars()
         if self.fields is not None:
             self.prompt = self.prompt.set(fields=self.fields)
         if self.question is not None:
@@ -291,8 +294,13 @@ class MaxTokensHeirarchicalDocumentSummarizer(Summarizer):
         nodes = []
         last = child
         for round in range(self.rounds):
-            prep_round = Map(child=last, f=self.prep_batches, f_kwargs={"round": round})
-            llm_round = LLMMapElements(child=prep_round, prompt=self.prompt, output_field="summary", llm=self.llm)
+            prep_round = Map(child=last, f=self.prep_batches, kwargs={"round": round})
+            llm_round = LLMMapElements(
+                child=prep_round,
+                prompt=self.prompt,
+                output_field=vars["intermediate_summary_key"],
+                llm=self.llm,
+            )
             nodes.extend([prep_round, llm_round])
             last = llm_round
         cleanup = Map(child=last, f=self.cleanup)
@@ -388,11 +396,12 @@ class RoundRobinOneshotDocumentSummarizer(Summarizer):
         if len(fields) > 0 and fields[-1] is EtCetera:
             etc = True
             fields = fields[:-1]
+        all_element_property_names = {f"properties.{k}" for e in doc.elements for k in e.properties}
         doc.properties[vars["fields_key"]] = fields
         doc.properties[vars["numel_key"]] = 0
         last = self.prompt.render_document(doc)
         if len(fields) == 0 or etc:
-            for p in doc.properties:
+            for p in all_element_property_names:
                 if p in fields:
                     continue
                 fields.append(p)
@@ -402,12 +411,16 @@ class RoundRobinOneshotDocumentSummarizer(Summarizer):
                     fields.pop()
                     return doc
         doc.properties[vars["numel_key"]] += 1
-        while last != (this := self.prompt.render_document(doc)):
+        this = self.prompt.render_document(doc)
+        while last != this:
             ntk = this.token_count(self.tokenizer)
+            print(ntk)
             if ntk > self.token_limit:
                 doc.properties[vars["numel_key"]] -= 1
                 return doc
             last = this
+            doc.properties[vars["numel_key"]] += 1
+            this = self.prompt.render_document(doc)
         return doc
 
     def cleanup(self, doc: Document) -> Document:
@@ -419,8 +432,11 @@ class RoundRobinOneshotDocumentSummarizer(Summarizer):
         return doc
 
     def as_llm_map(self, child: Optional[Node], **kwargs):
+        prompt = self.prompt
+        if self.question is not None:
+            prompt = prompt.set(question=self.question)
         preprocess = Map(child, f=self.preprocess)
-        llm_map = LLMMap(preprocess, prompt=self.prompt, output_field="summary", llm=self.llm, **kwargs)
+        llm_map = LLMMap(preprocess, prompt=prompt, output_field="summary", llm=self.llm, **kwargs)
         postprocess = Map(llm_map, f=self.cleanup)
         comptransform = CompositeTransform(child, [])  # type: ignore
         comptransform.nodes = [preprocess, llm_map, postprocess]

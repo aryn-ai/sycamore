@@ -572,7 +572,7 @@ MaxTokensHeirarchicalSummarizerPrompt = JinjaElementPrompt(
         {%- endmacro -%}
 
         {%- if elt.properties[skip_me_key] -%}{{ norender() }}{%- endif -%}
-        {%- if batch_key in elt.properties and elt.properties[batch_key]|count == 1 and "summary" in elt.properties -%}{{ norender() }}{%- endif -%}
+        {%- if batch_key in elt.properties and elt.properties[batch_key]|count == 1 and intermediate_summary_key in elt.properties -%}{{ norender() }}{%- endif -%}
         {%- if batch_key not in elt.properties -%}{{ norender() }}{%- endif -%}
 
         {% if elt.properties[round_key] == 0 and question is defined -%}
@@ -594,7 +594,7 @@ MaxTokensHeirarchicalSummarizerPrompt = JinjaElementPrompt(
         Summaries:
         {% endif -%}
         {%- for idx in elt.properties[batch_key] %}
-        {{ loop.index }}: {{ get_element_text(doc.elements[idx], round_key) }}
+        {{ loop.index }}: {{ get_text(doc.elements[idx], round_key) }}
         {% endfor %}
         """
     ),
@@ -608,10 +608,10 @@ RoundRobinSummarizerPrompt = JinjaPrompt(
         Generate a concise, conversational summary of the data to answer the question.
         {%- for elt in doc.elements %}
         Entry {{ loop.index }}:
-            {% for f in doc.properties[fields_key] %}
+            {% for f in doc.properties[fields_key] %}{#{% if f.startswith("_") %}{% continue %}{% endif %}#}
             {{ f }}: {{ elt.field_to_value(f) }}
             {% endfor -%}
-            {%- if doc.properties[numel_key] > 0 %}    Text:
+            {%- if doc.properties[numel_key] is not none and doc.properties[numel_key] > 0 %}    Text:
             {% endif -%}
             {%- for subel in elt.data.get("elements", [])[:doc.properties[numel_key]] -%}
                 {{ subel.text_representation }}

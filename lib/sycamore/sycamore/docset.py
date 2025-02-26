@@ -1,3 +1,4 @@
+assert False
 from collections.abc import Mapping
 import logging
 from pathlib import Path

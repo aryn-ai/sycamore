@@ -151,7 +151,9 @@ class TestHeirarchicalSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = HeirarchicalDocumentSummarizer(llm=llm, prompt=SummarizeDataHeirarchicalPrompt.set(data_description="FINDME"))  # type: ignore
+        summarizer = HeirarchicalDocumentSummarizer(
+            llm=llm, prompt=SummarizeDataHeirarchicalPrompt.set(data_description="FINDME")  # type: ignore
+        )
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"

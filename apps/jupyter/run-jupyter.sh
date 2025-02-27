@@ -5,7 +5,6 @@ die() {
     exit 1
 }
 
-source run-jupyter-env.sh
 mkdir -p $HOME/.jupyter
 if [[ -f /.dockerenv ]]; then
     if [[ $(whoami) == "aryn" ]]; then

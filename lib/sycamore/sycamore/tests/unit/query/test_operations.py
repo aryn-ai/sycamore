@@ -16,7 +16,7 @@ from sycamore.query.execution.operations import (
     summarize_data,
     math_operation,
 )
-from sycamore.transforms.summarize import NUM_DOCS_GENERATE
+from sycamore.transforms.summarize import NUM_DOCS_GENERATE, MultiStepDocumentSummarizer
 
 
 class MockLLM(LLM):
@@ -143,7 +143,13 @@ class TestOperations:
     def test_get_text_for_summarize_data_docset(self, words_and_ids_docset):
         llm = MockLLM()
         summarize_data(
-            llm=llm, question=None, result_description="List of unique cities", result_data=[words_and_ids_docset]
+            llm=llm,
+            question=None,
+            result_description="List of unique cities",
+            result_data=[words_and_ids_docset],
+            docset_summarizer=MultiStepDocumentSummarizer(
+                llm=llm, question=None, data_description="List of unique cities"
+            ),
         )
         captured = llm.capture[-1]
         mcontent = captured.messages[-1].content
@@ -160,9 +166,12 @@ class TestOperations:
             result_description="List of unique cities",
             result_data=[big_words_and_ids_docset],
             summaries_as_text=True,
+            docset_summarizer=MultiStepDocumentSummarizer(
+                llm=llm, question=None, data_description="List of unique cities", max_tokens=1000
+            ),
         )
         captured = llm.capture
-        assert len(captured) == 45  # 45 llm calls
+        assert len(captured) == 44  # 44 llm calls
         assert response == "merged summary"
 
     def test_get_text_for_summarize_data_non_docset(self, words_and_ids_docset):

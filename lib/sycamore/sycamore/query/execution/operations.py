@@ -1,5 +1,5 @@
 import math
-from typing import Any, List, Union, Optional
+from typing import Any, List, Union, Optional, Type
 
 import structlog
 
@@ -21,14 +21,15 @@ from sycamore.transforms.summarize import (
 
 log = structlog.get_logger(__name__)
 # multistep
-DEFAULT_DOCSET_SUMMARIZER_CLS = MultiStepDocumentSummarizer
+DEFAULT_DOCSET_SUMMARIZER_CLS = MultiStepDocumentSummarizer  # type: ignore
+
 DEFAULT_SUMMARIZER_KWARGS: dict[str, Any] = {
     "fields": "*",
     "tokenizer": OpenAITokenizer("gpt-4o"),
     "max_tokens": 80_000,
 }
 # onestep
-DEFAULT_DOCSET_SUMMARIZER_CLS = OneStepDocumentSummarizer
+DEFAULT_DOCSET_SUMMARIZER_CLS = OneStepDocumentSummarizer  # type: ignore
 DEFAULT_SUMMARIZER_KWARGS = {"fields": [EtCetera], "tokenizer": OpenAITokenizer("gpt-4o"), "token_limit": 80_000}
 
 
@@ -92,7 +93,7 @@ def summarize_data(
         Conversational response to question.
     """
     if docset_summarizer is None:
-        docset_summarizer = DEFAULT_DOCSET_SUMMARIZER_CLS(llm=llm, question=question, **DEFAULT_SUMMARIZER_KWARGS)
+        docset_summarizer = DEFAULT_DOCSET_SUMMARIZER_CLS(llm=llm, question=question, **DEFAULT_SUMMARIZER_KWARGS)  # type: ignore
 
     if all(isinstance(d, DocSet) for d in result_data):
         return summarize_data_docsets(

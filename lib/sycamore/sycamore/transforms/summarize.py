@@ -184,6 +184,7 @@ class MultiStepDocumentSummarizer(Summarizer):
         self,
         llm: LLM,
         question: Optional[str] = None,
+        data_description: Optional[str] = None,
         prompt: SycamorePrompt = MaxTokensHeirarchyPrompt,
         fields: Union[None, Literal["*"], list[str]] = None,
         max_tokens: int = 10 * 1000,
@@ -194,6 +195,7 @@ class MultiStepDocumentSummarizer(Summarizer):
         self.prompt = prompt.set(**self.get_const_vars())
         self.fields = fields
         self.question = question
+        self.data_description = data_description
         self.max_tokens = max_tokens
         self.tokenizer = tokenizer
         self.rounds = 4
@@ -246,6 +248,8 @@ class MultiStepDocumentSummarizer(Summarizer):
             self.prompt = self.prompt.set(fields=self.fields)
         if self.question is not None:
             self.prompt = self.prompt.set(question=self.question)
+        if self.data_description is not None:
+            self.prompt = self.prompt.set(data_description=self.data_description)
         nodes = []
         last = child
         for round in range(self.rounds):
@@ -361,7 +365,6 @@ class OneStepDocumentSummarizer(Summarizer):
         this = self.prompt.render_document(doc)
         while last != this:
             ntk = this.token_count(self.tokenizer)
-            print(ntk)
             if ntk > self.token_limit:
                 doc.properties[vars["numel_key"]] -= 1
                 return doc

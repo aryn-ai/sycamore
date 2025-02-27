@@ -53,6 +53,7 @@ def partition_file(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
+    text_extraction_options: dict[str, Any] = {},
     table_extraction_options: dict[str, Any] = {},
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
@@ -85,6 +86,7 @@ def partition_file(
             default: English
         extract_table_structure: extract tables and their structural content.
             default: False
+        text_extraction_options: Specify options for text extraction, currently only supports boolean
         table_extraction_options: Specify options for table extraction, currently only supports boolean
             'include_additional_text': if table extraction is enabled, attempt to enhance the table
             structure by merging in tokens from text extraction. This can be useful for tables with missing
@@ -158,6 +160,7 @@ def partition_file(
         summarize_images=summarize_images,
         ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
+        text_extraction_options=text_extraction_options,
         table_extraction_options=table_extraction_options,
         extract_images=extract_images,
         selected_pages=selected_pages,
@@ -181,6 +184,7 @@ def _partition_file_wrapper(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
+    text_extraction_options: dict[str, Any] = {},
     table_extraction_options: dict[str, Any] = {},
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
@@ -210,6 +214,7 @@ def _partition_file_wrapper(
             summarize_images=summarize_images,
             ocr_language=ocr_language,
             extract_table_structure=extract_table_structure,
+            text_extraction_options=text_extraction_options,
             table_extraction_options=table_extraction_options,
             extract_images=extract_images,
             selected_pages=selected_pages,
@@ -237,6 +242,7 @@ def _partition_file_inner(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
+    text_extraction_options: dict[str, Any] = {},
     table_extraction_options: dict[str, Any] = {},
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
@@ -270,6 +276,7 @@ def _partition_file_inner(
         summarize_images=summarize_images,
         ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
+        text_extraction_options=text_extraction_options,
         table_extraction_options=table_extraction_options,
         extract_images=extract_images,
         selected_pages=selected_pages,
@@ -377,6 +384,7 @@ def _json_options(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
+    text_extraction_options: dict[str, Any] = {},
     table_extraction_options: dict[str, Any] = {},
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
@@ -398,6 +406,8 @@ def _json_options(
         options["extract_images"] = extract_images
     if extract_table_structure:
         options["extract_table_structure"] = extract_table_structure
+    if text_extraction_options:
+        options["text_extraction_options"] = text_extraction_options
     if table_extraction_options:
         options["table_extraction_options"] = table_extraction_options
     if selected_pages:
@@ -424,6 +434,7 @@ def partition_file_async_submit(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
+    text_extraction_options: dict[str, Any] = {},
     table_extraction_options: dict[str, Any] = {},
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
@@ -480,6 +491,7 @@ def partition_file_async_submit(
         summarize_images=summarize_images,
         ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
+        text_extraction_options=text_extraction_options,
         table_extraction_options=table_extraction_options,
         extract_images=extract_images,
         selected_pages=selected_pages,

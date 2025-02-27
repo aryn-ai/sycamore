@@ -7,6 +7,8 @@ from enum import Enum
 from PIL import Image
 from typing import Any, Dict, Optional, Tuple, Union
 from datetime import datetime
+import asyncio
+import random
 
 from openai import AzureOpenAI as AzureOpenAIClient
 from openai import AsyncAzureOpenAI as AsyncAzureOpenAIClient
@@ -15,6 +17,7 @@ from openai import AsyncOpenAI as AsyncOpenAIClient
 from openai import max_retries as DEFAULT_MAX_RETRIES
 from openai.lib.azure import AzureADTokenProvider
 from openai.lib._parsing import type_to_response_format_param
+from openai import APIConnectionError
 
 
 import pydantic
@@ -29,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 # Base URL for Helicone API, if configured using the SYCAMORE_HELICONE_API_KEY environment variable.
 HELICONE_BASE_URL = "https://oai.helicone.ai/v1"
+INITIAL_BACKOFF = 0.2
 
 
 class OpenAIClientType(Enum):
@@ -416,10 +420,20 @@ class OpenAI(LLM):
         if llm_kwargs is None:
             raise ValueError("Must include llm_kwargs to generate future call")
 
-        if prompt.response_format is not None:
-            ret = await self._generate_awaitable_using_openai_structured(prompt, llm_kwargs)
-        else:
-            ret = await self._generate_awaitable_using_openai(prompt, llm_kwargs)
+        done = False
+        retries = 0
+        while not done:
+            try:
+                if prompt.response_format is not None:
+                    ret = await self._generate_awaitable_using_openai_structured(prompt, llm_kwargs)
+                else:
+                    ret = await self._generate_awaitable_using_openai(prompt, llm_kwargs)
+                done = True
+            except APIConnectionError:
+                backoff = INITIAL_BACKOFF * (2**retries)
+                jitter = random.uniform(0, 0.1 * backoff)
+                await asyncio.sleep(backoff + jitter)
+                retries += 1
 
         self._llm_cache_set(prompt, llm_kwargs, ret)
         return ret
@@ -432,6 +446,7 @@ class OpenAI(LLM):
                 model=self._model_name, **kwargs
             )
             response_text = completion.choices[0].message.content
+            wall_latency = datetime.now() - starttime
         else:
             completion = await self.client_wrapper.get_async_client().completions.create(
                 model=self._model_name, **kwargs

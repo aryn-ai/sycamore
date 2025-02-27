@@ -1,5 +1,5 @@
 from sycamore.data import Document, Element
-from sycamore.llms.llms import LLM
+from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt, SycamorePrompt
 from sycamore.llms.prompts.prompts import RenderedMessage
 from sycamore.transforms.base_llm import LLMMap, LLMMapElements
@@ -16,6 +16,9 @@ class FakeLLM(LLM):
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         return "".join(m.content for m in prompt.messages)
+
+    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        return self.generate(prompt=prompt, llm_kwargs=llm_kwargs)
 
 
 class FakeDocPrompt(SycamorePrompt):
@@ -41,12 +44,13 @@ class TestLLMMap:
             _ = LLMMap(None, prompt, "out", llm)
         assert "FakeEltPrompt" in str(einfo.value)
 
-    def test_happy_path(self):
+    @pytest.mark.parametrize("mode", [LLMMode.SYNC, LLMMode.ASYNC])
+    def test_happy_path(self, mode):
         prompt = FakeDocPrompt()
         llm = FakeLLM()
         doc1 = Document({"text_representation": "ooga"})
         doc2 = Document({"text_representation": "booga"})
-        map = LLMMap(None, prompt, "out", llm)
+        map = LLMMap(None, prompt, "out", llm, llm_mode=mode)
         outdocs = map.llm_map([doc1, doc2])
 
         assert outdocs[0].text_representation == "ooga"
@@ -54,7 +58,8 @@ class TestLLMMap:
         assert outdocs[1].text_representation == "booga"
         assert outdocs[1].properties["out"] == "booga"
 
-    def test_validate(self):
+    @pytest.mark.parametrize("mode", [LLMMode.SYNC, LLMMode.ASYNC])
+    def test_validate(self, mode):
         prompt = FakeDocPrompt()
         llm = FakeLLM()
         doc1 = Document({"text_representation": "ooga"})
@@ -66,7 +71,7 @@ class TestLLMMap:
             count += 1
             return count > 1
 
-        map = LLMMap(None, prompt, "out", llm, validate=valfn)
+        map = LLMMap(None, prompt, "out", llm, validate=valfn, llm_mode=mode)
         _ = map.llm_map([doc1, doc2])
 
         assert count == 2
@@ -80,7 +85,8 @@ class TestLLMMapElements:
             _ = LLMMapElements(None, prompt, "out", llm)
         assert "FakeDocPrompt" in str(einfo.value)
 
-    def test_happy_path(self):
+    @pytest.mark.parametrize("mode", [LLMMode.SYNC, LLMMode.ASYNC])
+    def test_happy_path(self, mode):
         prompt = FakeEltPrompt()
         llm = FakeLLM()
         doc1 = Document(
@@ -91,7 +97,7 @@ class TestLLMMapElements:
             }
         )
         doc2 = Document({"doc_id": "2", "elements": [{"text_representation": "booga"}, {}]})
-        map = LLMMapElements(None, prompt, "out", llm)
+        map = LLMMapElements(None, prompt, "out", llm, llm_mode=mode)
         outdocs = map.llm_map_elements([doc1, doc2])
 
         assert outdocs[0].elements[0].properties["out"] == "oogayo"
@@ -99,7 +105,8 @@ class TestLLMMapElements:
         assert outdocs[1].elements[0].properties["out"] == "Nonebooga"
         assert outdocs[1].elements[1].properties["out"] == "NoneNone"
 
-    def test_postprocess(self):
+    @pytest.mark.parametrize("mode", [LLMMode.SYNC, LLMMode.ASYNC])
+    def test_postprocess(self, mode):
         prompt = FakeEltPrompt()
         llm = FakeLLM()
         doc1 = Document(
@@ -117,7 +124,7 @@ class TestLLMMapElements:
             count += 1
             return count > 1
 
-        map = LLMMapElements(None, prompt, "out", llm, validate=valfn)
+        map = LLMMapElements(None, prompt, "out", llm, validate=valfn, llm_mode=mode)
         _ = map.llm_map_elements([doc1, doc2])
 
         assert count == 4

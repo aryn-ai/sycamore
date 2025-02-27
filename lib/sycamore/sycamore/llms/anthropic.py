@@ -2,6 +2,8 @@ from datetime import datetime
 from enum import Enum
 import logging
 from typing import Any, Optional, Union
+import asyncio
+import random
 
 from PIL import Image
 
@@ -12,6 +14,7 @@ from sycamore.utils.image_utils import base64_data
 from sycamore.utils.import_utils import requires_modules
 
 DEFAULT_MAX_TOKENS = 1000
+INITIAL_BACKOFF = 1
 
 
 class AnthropicModels(Enum):
@@ -125,6 +128,7 @@ class Anthropic(LLM):
         # We import this here so we can share utility code with the Bedrock
         # LLM implementation without requiring an Anthropic dependency.
         from anthropic import Anthropic as AnthropicClient
+        from anthropic import AsyncAnthropic as AsyncAnthropicClient
 
         self.model_name = model_name
 
@@ -137,6 +141,7 @@ class Anthropic(LLM):
             self.model = model
 
         self._client = AnthropicClient()
+        self._async_client = AsyncAnthropicClient()
         super().__init__(self.model.value, cache)
 
     def __reduce__(self):
@@ -153,18 +158,8 @@ class Anthropic(LLM):
     def format_image(self, image: Image.Image) -> dict[str, Any]:
         return format_image(image)
 
-    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
-        ret = self._llm_cache_get(prompt, llm_kwargs)
-        if isinstance(ret, dict):
-            return ret
-
-        kwargs = get_generate_kwargs(prompt, llm_kwargs)
-
-        start = datetime.now()
-
-        response = self._client.messages.create(model=self.model.value, **kwargs)
-
-        wall_latency = datetime.now() - start
+    def _metadata_from_response(self, kwargs, response, starttime) -> dict:
+        wall_latency = datetime.now() - starttime
         in_tokens = response.usage.input_tokens
         out_tokens = response.usage.output_tokens
         output = response.content[0].text
@@ -176,6 +171,18 @@ class Anthropic(LLM):
             "out_tokens": out_tokens,
         }
         self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
+        return ret
+
+    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+        ret = self._llm_cache_get(prompt, llm_kwargs)
+        if isinstance(ret, dict):
+            return ret
+
+        kwargs = get_generate_kwargs(prompt, llm_kwargs)
+        start = datetime.now()
+
+        response = self._client.messages.create(model=self.model.value, **kwargs)
+        ret = self._metadata_from_response(kwargs, response, start)
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
         self._llm_cache_set(prompt, llm_kwargs, ret)
@@ -184,3 +191,30 @@ class Anthropic(LLM):
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
         return d["output"]
+
+    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        from anthropic import RateLimitError, APIConnectionError
+
+        ret = self._llm_cache_get(prompt, llm_kwargs)
+        if isinstance(ret, dict):
+            return ret["output"]
+
+        kwargs = get_generate_kwargs(prompt, llm_kwargs)
+        start = datetime.now()
+        done = False
+        retries = 0
+        while not done:
+            try:
+                response = await self._async_client.messages.create(model=self.model.value, **kwargs)
+                done = True
+            except (RateLimitError, APIConnectionError):
+                backoff = INITIAL_BACKOFF * (2**retries)
+                jitter = random.uniform(0, 0.1 * backoff)
+                await asyncio.sleep(backoff + jitter)
+                retries += 1
+
+        ret = self._metadata_from_response(kwargs, response, start)
+        logging.debug(f"Generated response from Anthropic model: {ret}")
+
+        self._llm_cache_set(prompt, llm_kwargs, ret)
+        return ret["output"]

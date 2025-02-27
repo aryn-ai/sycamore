@@ -37,7 +37,7 @@ def _infer_prompts(
             res[i] = rs
         return res
     elif llm_mode == LLMMode.BATCH:
-        raise NotImplementedError("Haven't done batch yet")
+        return llm.generate_batch(prompts=prompts)
     else:
         raise NotImplementedError("Unknown LLM Mode")
 

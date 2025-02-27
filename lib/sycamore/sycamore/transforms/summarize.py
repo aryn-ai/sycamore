@@ -1,5 +1,3 @@
-import logging
-import time
 from abc import ABC, abstractmethod
 from typing import Callable, Optional, Literal, Union, Type
 import copy
@@ -9,13 +7,10 @@ import textwrap
 from sycamore.data import Element, Document
 from sycamore.functions.tokenizer import Tokenizer, CharacterTokenizer
 from sycamore.llms.prompts.default_prompts import (
-    SummarizeDataMessagesPrompt,
     TextSummarizerJinjaPrompt,
 )
 from sycamore.llms.prompts.prompts import (
     JinjaElementPrompt,
-    RenderedPrompt,
-    RenderedMessage,
     SycamorePrompt,
     JinjaPrompt,
 )
@@ -85,64 +80,6 @@ class LLMElementTextSummarizer(Summarizer):
             )
         else:
             return LLMMapElements(child, TextSummarizerJinjaPrompt, output_field="summary", llm=self._llm)
-
-
-class QuestionAnsweringSummarizer:
-    def __init__(self, llm: LLM, question: str):
-        self.llm = llm
-        self.question = question
-
-    def __call__(self, text: str) -> str:
-        messages = SummarizeDataMessagesPrompt(question=self.question, text=text).as_messages()
-        prompt = RenderedPrompt(messages=[RenderedMessage(role=m["role"], content=m["content"]) for m in messages])
-
-        t0 = time.time()
-        # call to LLM
-        summary = self.llm.generate(prompt=prompt, llm_kwargs={"temperature": 0})
-        t1 = time.time()
-        logging.info(f"Summarizer took {t1 - t0} seconds to generate summary.")
-
-        return summary
-
-
-def collapse(text: str, tokens_per_chunk: int, tokenizer: Tokenizer, summarizer_fn: Callable[[str], str]) -> str:
-    """
-    Collapses text iteratively, summarizing the first chunk and incorporating it in the summary for the next chunk.
-
-    Args:
-        text: Text to collapse.
-        chunk_size: Size of each chunk.
-        tokenizer: Tokenizer to use for counting against max_tokens.
-
-    Returns:
-        List of chunks.
-    """
-    tokens = tokenizer.tokenize(text)
-    total = len(tokens)
-    if total <= tokens_per_chunk:
-        return text
-    done = False
-    i = 0
-    additional = i + tokens_per_chunk
-    cur_summary = ""
-    while not done:
-        input = ""
-        if cur_summary:
-            input = f"{cur_summary}\n"
-        input += "".join([str(tk) for tk in tokens[i : i + additional]])  # make mypy happy
-        print(f"input size: {len(input)}")
-        cur_summary = summarizer_fn(input)
-        assert (
-            len(cur_summary) <= tokens_per_chunk
-        ), f"Summarizer output is longer than input chunk {len(cur_summary)} > {tokens_per_chunk} !!!"
-        print(f"summary to chunk ratio: {len(cur_summary) / tokens_per_chunk}")
-        i += additional
-        remaining = tokens_per_chunk - len(cur_summary)
-        additional = min(remaining, total - i)
-        if additional == 0:
-            break
-
-    return cur_summary
 
 
 MaxTokensHeirarchyPrompt = JinjaElementPrompt(

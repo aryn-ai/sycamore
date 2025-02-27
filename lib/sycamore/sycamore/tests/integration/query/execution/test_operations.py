@@ -3,11 +3,8 @@ import pytest
 import sycamore
 from sycamore import EXEC_RAY
 from sycamore.data import Document
-from sycamore.functions import CharacterTokenizer
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.query.execution.operations import (
-    QuestionAnsweringSummarizer,
-    collapse,
     MultiStepDocumentSummarizer,
     summarize_data,
 )
@@ -23,39 +20,6 @@ def llm():
 
 
 class TestOperations:
-
-    def test_collapse(self, llm):
-        question = "What is"
-        summarizer_fn = QuestionAnsweringSummarizer(llm, question)
-
-        """
-        Use this code to generate the text file.
-
-        path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
-        context = sycamore.init(exec_mode=EXEC_RAY)
-        result = (
-            context.read.binary(path, binary_format="pdf")
-            .partition(partitioner=UnstructuredPdfPartitioner())
-            .explode()
-            #.summarize(summarizer=LLMElementTextSummarizer(llm))
-            .take_all()
-        )
-        text = ""
-        for doc in result:
-            #for element in doc.elements:
-            if doc.text_representation:
-                text += doc.text_representation + "\n"
-            # text += "\n"
-        """
-
-        text_path = str(TEST_DIR / "resources/data/texts/Ray.txt")
-        text = open(text_path, "r").read()
-
-        max_tokens = 10000
-        tokenizer = CharacterTokenizer()
-        summary = collapse(text, max_tokens, tokenizer, summarizer_fn)
-        assert summary is not None
-        print(f"{len(summary)}\n\n{summary}")
 
     def test_document_summarizer(self, llm):
         text_path = str(TEST_DIR / "resources/data/texts/Ray.txt")

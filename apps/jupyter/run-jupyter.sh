@@ -5,9 +5,16 @@ die() {
     exit 1
 }
 
+source run-jupyter-env.sh
 mkdir -p $HOME/.jupyter
 if [[ -f /.dockerenv ]]; then
-    APP_DIR=/app
+    if [[ $(whoami) == "aryn" ]]; then
+        APP_DIR=/aryn/aryn/lib/sycamore/apps/jupyter
+        ARYN_DIR=/aryn
+    else
+        APP_DIR=/app
+        ARYN_DIR=/app
+    fi
 else
     APP_DIR=$(cd "$(dirname "$0")"; pwd)
 fi
@@ -36,13 +43,32 @@ if [[ "${JUPYTER_CONFIG_RESET}" == yes ]]; then
 fi
 
 if [[ ! -f "${JUPYTER_CONFIG_DOCKER}" ]]; then
-    TOKEN=$(openssl rand -hex 24)
+    s3_token="s3://${JUPYTER_S3_BUCKET}/${JUPYTER_S3_PREFIX}/jupyter_token"
+    [[ ${s3_token} == "s3:///jupyter_token" ]] && s3_token=""
+    if [[ ${s3_token} != "" ]]; then
+	if [[ ! -f ${VOLUME}/token ]]; then
+	    echo "Trying to fetch token from ${s3_token}"
+	    aws s3 cp ${s3_token} "${VOLUME}/token"
+	fi
+    fi
+    if [[ -f "${VOLUME}/token" ]]; then
+	echo "Re-using token"
+	TOKEN=$(cat ${VOLUME}/token)
+    else
+	TOKEN=$(openssl rand -hex 24)
+	echo $TOKEN >${VOLUME}/token
+	if [[ ${s3_token} != "" ]]; then
+	    echo "Storing jupyter token as ${s3_token}"
+	    aws s3 cp ${VOLUME}/token ${s3_token}
+	fi
+    fi
     cat >"${JUPYTER_CONFIG_DOCKER}".tmp <<EOF
 # Configuration file for notebook.
 
 c = get_config()  #noqa
 
 c.IdentityProvider.token = '${TOKEN}'
+
 EOF
 
     if [[ "${JUPYTER_S3_BUCKET}" ]]; then
@@ -57,7 +83,7 @@ EOF
             "") : ;;
             */)
                 echo "ERROR: JUPYTER_S3_PREFIX ${JUPYTER_S3_PREFIX} must not end in / or no file will be accessible"
-                exit 1
+                SETUP_FAILED=true
               ;;
             *)
                 echo "Using S3 Prefix ${JUPYTER_S3_PREFIX}"
@@ -130,5 +156,6 @@ fi
 
 trap "kill $!" EXIT
 
-cd "${WORK_DIR}"
-poetry run jupyter lab "${SSLARG[@]}" --no-browser --ip 0.0.0.0 "$@"
+cd "${ARYN_DIR}"
+poetry run jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
+poetry run jupyter lab "${SSLARG[@]}" --no-browser --ip 0.0.0.0 "$@" 

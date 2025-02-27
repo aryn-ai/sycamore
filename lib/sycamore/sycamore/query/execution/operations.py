@@ -1,5 +1,5 @@
 import math
-from typing import Any, List, Union, Optional, Type
+from typing import Any, List, Union, Optional
 
 import structlog
 
@@ -93,7 +93,9 @@ def summarize_data(
         Conversational response to question.
     """
     if docset_summarizer is None:
-        docset_summarizer = DEFAULT_DOCSET_SUMMARIZER_CLS(llm=llm, question=question, **DEFAULT_SUMMARIZER_KWARGS)  # type: ignore
+        docset_summarizer = DEFAULT_DOCSET_SUMMARIZER_CLS(
+            llm=llm, question=question, **DEFAULT_SUMMARIZER_KWARGS  # type: ignore
+        )
 
     if all(isinstance(d, DocSet) for d in result_data):
         return summarize_data_docsets(

@@ -5,24 +5,31 @@ import structlog
 
 from sycamore import DocSet
 from sycamore.context import context_params, Context
-from sycamore.data import MetadataDocument, Document, Element
-from sycamore.functions import CharacterTokenizer, Tokenizer
+from sycamore.data import Document, Element
+from sycamore.functions.tokenizer import OpenAITokenizer
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
 )
 from sycamore.transforms.summarize import (
+    EtCetera,
     MultiStepDocumentSummarizer,
+    OneStepDocumentSummarizer,
     Summarizer,
-    CollapseDocumentSummarizer,
-    collapse,
-    QuestionAnsweringSummarizer,
 )
 
 log = structlog.get_logger(__name__)
+# multistep
 DEFAULT_DOCSET_SUMMARIZER_CLS = MultiStepDocumentSummarizer
-DEFAULT_SUMMARIZER_KWARGS: dict[str, Any] = {}
+DEFAULT_SUMMARIZER_KWARGS: dict[str, Any] = {
+    "fields": "*",
+    "tokenizer": OpenAITokenizer("gpt-4o"),
+    "max_tokens": 80_000,
+}
+# onestep
+DEFAULT_DOCSET_SUMMARIZER_CLS = OneStepDocumentSummarizer
+DEFAULT_SUMMARIZER_KWARGS = {"fields": [EtCetera], "tokenizer": OpenAITokenizer("gpt-4o"), "token_limit": 80_000}
 
 
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
@@ -139,35 +146,3 @@ def _docset_to_singledoc(ds: DocSet) -> Document:
     explode.
     """
     return Document(elements=[Element(**d.data) for d in ds.take_all()])
-
-
-@context_params
-def summarize_map_reduce(
-    llm: LLM,
-    question: str,
-    result_description: str,
-    result_data: List[Any],
-    use_elements: bool = False,
-    num_elements: int = 5,
-    max_tokens: int = 10 * 1000,
-    tokenizer: Tokenizer = CharacterTokenizer(),
-) -> str:
-    """ """
-    text = f"Data description: {result_description}\n"
-    for i, result in enumerate(result_data):
-        if isinstance(result, DocSet):
-            docs = (
-                result.filter(lambda d: isinstance(d, MetadataDocument) is False)
-                .summarize(
-                    summarizer=CollapseDocumentSummarizer(llm, question)
-                )  # document-level summarization can be parallelized (per DocSet)
-                .take_all()
-            )
-            for doc in docs:
-                text += doc.properties["summary"] + "\n"
-
-        else:
-            text += str(result) + "\n"
-
-    final_summary = collapse(text, max_tokens, tokenizer, QuestionAnsweringSummarizer(llm, question))
-    return final_summary

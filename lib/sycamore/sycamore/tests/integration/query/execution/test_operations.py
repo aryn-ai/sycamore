@@ -8,8 +8,8 @@ from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.query.execution.operations import (
     QuestionAnsweringSummarizer,
     collapse,
-    CollapseDocumentSummarizer,
-    summarize_map_reduce,
+    MultiStepDocumentSummarizer,
+    summarize_data,
 )
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
@@ -109,7 +109,7 @@ class TestOperations:
         docs = [Document(item) for item in dicts]
 
         question = "What is"
-        doc_summarizer = CollapseDocumentSummarizer(llm, question)
+        doc_summarizer = MultiStepDocumentSummarizer(llm, question)
 
         docs[0].text_representation = text[:10000]
         doc = doc_summarizer.summarize(docs[0])
@@ -117,7 +117,7 @@ class TestOperations:
 
     def test_document_summarizer_in_sycamore(self, llm):
         question = "What is"
-        doc_summarizer = CollapseDocumentSummarizer(llm, question)
+        doc_summarizer = MultiStepDocumentSummarizer(llm, question)
         path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
         context = sycamore.init(exec_mode=EXEC_RAY)
         result = (
@@ -138,7 +138,7 @@ class TestOperations:
         docset = (
             context.read.binary(path, binary_format="pdf").partition(partitioner=UnstructuredPdfPartitioner()).explode()
         )
+        final_summary = summarize_data(llm, question, result_description="Ray paper", result_data=[docset])
 
-        final_summary = summarize_map_reduce(llm, question, "summary", [docset])
         print(final_summary)
         assert final_summary

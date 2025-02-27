@@ -169,7 +169,8 @@ MaxTokensHeirarchyPrompt = JinjaElementPrompt(
         {%- macro get_text(element, itvarname) %}
             {%- if elt.properties[itvarname] == 0 -%}
                 {%- if fields is defined -%}
-                    {%- if fields == "*" %}{% for p in element.properties %}{% if p.startswith('_') %}{% continue %}{% endif %}
+                    {%- if fields == "*" %}{% for p in element.properties %}
+                        {%- if p.startswith('_') %}{% continue %}{% endif %}
             {{ p }}: {{ element.properties[p] }}
                     {%- endfor -%}
                     {%- else %}{% for f in fields %}
@@ -325,72 +326,6 @@ class MultiStepDocumentSummarizer(Summarizer):
         ct = CompositeTransform(child, [])  # type: ignore
         ct.nodes = nodes
         return ct
-
-
-class CollapseDocumentSummarizer(Summarizer):
-    """
-    Summarizes a document by converting it all to text, then iteratively summarizing chunks
-    of the text + the existing summary to build up a full summary.
-
-    Args:
-        llm: LLM to use for summarization
-        question: Question to use as context for the summarization. The llm will attempt to
-            answer the question using the data in the document.
-        chunk_size: Size of the chunks to add in each round of summarization
-        tokenizer: Tokenizer to use to compute chunk sizes
-        use_elements: If True, will include data from the elements of the document as well
-            as the document itself. Default is False
-        num_elements: Limit on the number of elements to include if use_elements is true (take
-            the first num_elements elements). Default is 5
-    """
-
-    def __init__(
-        self,
-        llm: LLM,
-        question: str,
-        chunk_size: int = 10 * 1000,
-        tokenizer: Tokenizer = CharacterTokenizer(),
-        chunk_overlap: int = 0,
-        use_elements: bool = False,
-        num_elements: int = 5,
-    ):
-        self.llm = llm
-        self.question = question
-        self.chunk_size = chunk_size
-        self.tokenizer = tokenizer
-        self.chunk_overlap = chunk_overlap
-        self.use_elements = use_elements
-        self.num_elements = num_elements
-
-    def as_llm_map(self, child: Optional[Node], **kwargs):
-        return Map(child, f=self.summarize)  # type: ignore
-
-    def summarize(self, document: Document) -> Document:
-        text = self.get_text(document)
-        summary = collapse(text, self.chunk_size, self.tokenizer, QuestionAnsweringSummarizer(self.llm, self.question))
-        document.properties["summary"] = summary
-        return document
-
-    def get_text(self, doc: Document) -> str:
-        doc_text = ""
-        props_dict = doc.properties.get("entity", {})
-        props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
-        for k, v in props_dict.items():
-            doc_text += f"{k}: {v}\n"
-
-        doc_text_representation = ""
-        if not self.use_elements:
-            if doc.text_representation is not None:
-                doc_text_representation += doc.text_representation[:NUM_TEXT_CHARS_GENERATE]
-        else:
-            for element in doc.elements[: self.num_elements]:
-                # Greedy fill doc level text length
-                if len(doc_text_representation) >= NUM_TEXT_CHARS_GENERATE:
-                    break
-                doc_text_representation += (element.text_representation or "") + "\n"
-        doc_text += f"Text contents:\n{doc_text_representation}\n"
-
-        return doc_text
 
 
 OneStepSummarizerPrompt = JinjaPrompt(

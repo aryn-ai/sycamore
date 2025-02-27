@@ -235,7 +235,7 @@ class Anthropic(LLM):
             kwargs = get_generate_kwargs(p, llm_kwargs)
             kwargs["model"] = self.model.value
             kwargs["max_tokens"] = kwargs.get("max_tokens", 1024)
-            mparams = MessageCreateParamsNonStreaming(**kwargs)
+            mparams = MessageCreateParamsNonStreaming(**kwargs)  # type: ignore
             rq = Request(custom_id=str(i), params=mparams)
             calls.append(rq)
 

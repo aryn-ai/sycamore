@@ -4,6 +4,8 @@ import logging
 from typing import Any, Optional, Union
 import asyncio
 import random
+from tqdm import tqdm
+import time
 
 from PIL import Image
 
@@ -203,6 +205,7 @@ class Anthropic(LLM):
         start = datetime.now()
         done = False
         retries = 0
+        response = None
         while not done:
             try:
                 response = await self._async_client.messages.create(model=self.model.value, **kwargs)
@@ -218,3 +221,48 @@ class Anthropic(LLM):
 
         self._llm_cache_set(prompt, llm_kwargs, ret)
         return ret["output"]
+
+    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+        from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
+        from anthropic.types.messages.batch_create_params import Request
+
+        cache_hits = [self._llm_cache_get(p, llm_kwargs) for p in prompts]
+
+        calls = []
+        for p, ch, i in zip(prompts, cache_hits, range(len(prompts))):
+            if ch is not None:
+                continue
+            kwargs = get_generate_kwargs(p, llm_kwargs)
+            kwargs["model"] = self.model.value
+            kwargs["max_tokens"] = kwargs.get("max_tokens", 1024)
+            mparams = MessageCreateParamsNonStreaming(**kwargs)
+            rq = Request(custom_id=str(i), params=mparams)
+            calls.append(rq)
+
+        starttime = datetime.now()
+        batch = self._client.messages.batches.create(requests=calls)
+
+        prog = tqdm(total=len(calls))
+        ctr = 0
+        while batch.processing_status == "in_progress":
+            batch = self._client.messages.batches.retrieve(batch.id)
+            counts = batch.request_counts
+            diff = counts.succeeded + counts.errored + counts.canceled + counts.expired - ctr
+            prog.update(n=diff)
+            ctr += diff
+            if batch.processing_status == "ended":
+                break
+            time.sleep(10)
+        prog.close()
+
+        results = self._client.messages.batches.results(batch.id)
+        for rs, call in zip(results, calls):
+            if rs.result.type != "succeeded":
+                raise ValueError(f"Call failed: {rs}")
+            id = int(rs.custom_id)
+            in_kwargs = get_generate_kwargs(prompts[id], llm_kwargs)
+            ret = self._metadata_from_response(in_kwargs, rs.result.message, starttime)
+            cache_hits[id] = ret
+            self._llm_cache_set(prompts[id], llm_kwargs, ret)
+
+        return [ch["output"] for ch in cache_hits]

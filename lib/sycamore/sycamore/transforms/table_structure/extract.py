@@ -300,6 +300,8 @@ class HybridTableStructureExtractor(TableStructureExtractor):
                Used for bounding box calculations.
           union_tokens: Make sure that ocr/pdfminer tokens are _all_ included in the table.
           apply_thresholds: Apply class thresholds to the objects output by the model.
+          model: Control which model gets selected. If 'tatr', use TATR; if 'deformable', use deformable.
+                If an integer, use that as the size threshold. If None, the threshold is 500.
         """
         m = self._pick_model(element, doc_image, model)
         return m.extract(element, doc_image, union_tokens)

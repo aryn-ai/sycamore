@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Union, Literal, Optional
+from typing import Any, Union, Literal, Optional, Callable
 
 from PIL import Image
 import pdf2image

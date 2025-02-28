@@ -264,8 +264,10 @@ class HybridTableStructureExtractor(TableStructureExtractor):
             threshold = -1
         elif model is None:
             threshold = 500
-        else:
+        elif isinstance(model, int):
             threshold = model
+        else:
+            raise ValueError(f"'model' argument must be either None, 'tatr', 'deformable', or an int. Found: {model}")
 
         width, height = doc_image.size
         bb = element.bbox.to_absolute(width, height)

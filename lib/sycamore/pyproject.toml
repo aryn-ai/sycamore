@@ -40,12 +40,13 @@ rich = "^13.7.1"
 jinja2 = "^3.1.5"
 fsspec = "2024.2.0" # See poetry-lock/pyproject.toml
 
-aryn-sdk = "^0.1"
 aiohttp = "^3.10.11"
 fasteners = "^0.19"
 pydantic = "^2.8.2"
 
 typing-extensions = "^4.12.2"
+
+aryn-sdk = "*"
 
 #Evaluation dependencies
 apted = { version = "^1.0.3", optional = true }

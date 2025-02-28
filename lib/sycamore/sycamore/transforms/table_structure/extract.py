@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Union, Literal
+from typing import Any, Union, Literal, Optional
 
 from PIL import Image
 import pdf2image
@@ -251,31 +251,29 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         self,
         element: TableElement,
         doc_image: Image.Image,
-        model: ModelSelectionType,
+        model_selection: str,
     ) -> Union[TableTransformerStructureExtractor, DeformableTableStructureExtractor]:
         """If the absolute size of the table is > 500 pixels in any dimension, use deformable.
         Otherwise, use TATR"""
         if element.bbox is None:
             return self._tatr
 
-        if model == "tatr":
-            threshold = 1_000_000
-        elif model == "deformable":
-            threshold = -1
-        elif model is None:
-            threshold = 500
-        elif isinstance(model, int):
-            threshold = model
-        else:
-            raise ValueError(f"'model' argument must be either None, 'tatr', 'deformable', or an int. Found: {model}")
+        select_fn = parse_model_selection(model_selection)
 
         width, height = doc_image.size
         bb = element.bbox.to_absolute(width, height)
         padding = 10
         max_dim = max(bb.width, bb.height) + 2 * padding
-        if max_dim > threshold:
+
+        nchars = len("".join(tok["text"] for tok in element.tokens))
+
+        selection = select_fn(max_dim, nchars)
+        print("=" * 80)
+        print(selection)
+        if selection == "table_transformer":
+            return self._tatr
+        else:
             return self._deformable
-        return self._tatr
 
     def _init_structure_model(self):
         self._deformable._init_structure_model()
@@ -305,6 +303,89 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         """
         m = self._pick_model(element, doc_image, model)
         return m.extract(element, doc_image, union_tokens)
+
+
+_ModelName = Union[Literal["table_transformer"], Literal["deformable_detr"]]
+_model_names = (
+    "table_transformer",
+    "deformable_detr",
+)
+_metrics = ("pixels", "chars")
+
+
+def parse_model_selection(selection: str) -> Callable[[int, int], Optional[_ModelName]]:
+    statements = selection.split(sep=";")
+    checks = []
+    for statement in statements:
+        if "->" not in statement:
+            if statement not in _model_names:
+                raise ValueError(
+                    f"Invalid statement: '{statement}'. Did not find =, so this is assumed"
+                    f" to be a static statement, but the model_name was not in {_model_names}"
+                )
+            checks.append(lambda pixels, chars: statement)
+            break
+        pieces = statement.split(sep="->")
+        if len(pieces) > 2:
+            raise ValueError(f"Invalid statement: '{statement}'. Found more than 2 instances of '->'")
+        result = pieces[1]
+        if result not in _model_names:
+            raise ValueError(f"Invalid statement: '{statement}'. Result model ({result}) was not in {_model_names}")
+        if all(c not in pieces[0] for c in ("<", ">", "==", "<=", ">=", "!=")):
+            raise ValueError(
+                f"Invalid statement: '{statement}'. Did not find a comparison operator (<, >, ==, <=, >=, !=)"
+            )
+        cmp = lambda a, b: False
+        cmp_pieces = []
+        if "!=" in pieces[0]:
+            cmp_pieces = pieces[0].split(sep="!=")
+            cmp = lambda a, b: a != b
+        elif ">=" in pieces[0]:
+            cmp_pieces = pieces[0].split(sep=">=")
+            cmp = lambda a, b: a >= b
+        elif "<=" in pieces[0]:
+            cmp_pieces = pieces[0].split(sep="<=")
+            cmp = lambda a, b: a <= b
+        elif "==" in pieces[0]:
+            cmp_pieces = pieces[0].split(sep="==")
+            cmp = lambda a, b: a == b
+        elif "<" in pieces[0]:
+            cmp_pieces = pieces[0].split("<")
+            cmp = lambda a, b: a < b
+        elif ">" in pieces[0]:
+            cmp_pieces = pieces[0].split(">")
+            cmp = lambda a, b: a > b
+        if len(cmp_pieces) != 2:
+            raise ValueError(
+                f"Invalid statement: '{statement}'. Comparison statements must take the form 'METRIC CMP THRESHOLD'."
+            )
+        metric, threshold = cmp_pieces[0], cmp_pieces[1]
+        if metric not in _metrics:
+            raise ValueError(f"Invalid statement: '{statement}'. Allowed metrics are: '{_metrics}'")
+        try:
+            threshold_num = int(threshold)
+        except ValueError:
+            try:
+                threshold_num = float(threshold)
+            except ValueError:
+                raise ValueError(f"Invalid statement: '{statement}'. Threshold ({threshold}) must be numeric")
+
+        def check(pixels: int, chars: int) -> Optional[_ModelName]:
+            if metric == "pixels":
+                cmpval = pixels
+            else:
+                cmpval = chars
+            if cmp(cmpval, threshold_num):
+                return result  # type: ignore
+
+        checks.append(check)
+
+    def select_fn(pixels: int, chars: int) -> Optional[_ModelName]:
+        for c in checks:
+            if (rv := c(pixels, chars)) is not None:
+                return rv
+
+    return select_fn
 
 
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor

@@ -9,6 +9,9 @@ from typing import Any, Dict, Optional, Tuple, Union
 from datetime import datetime
 import asyncio
 import random
+import json
+import io
+import time
 
 from openai import AzureOpenAI as AzureOpenAIClient
 from openai import AsyncAzureOpenAI as AsyncAzureOpenAIClient
@@ -18,7 +21,7 @@ from openai import max_retries as DEFAULT_MAX_RETRIES
 from openai.lib.azure import AzureADTokenProvider
 from openai.lib._parsing import type_to_response_format_param
 from openai import APIConnectionError
-
+from openai.types.chat.chat_completion import ChatCompletion
 
 import pydantic
 
@@ -33,6 +36,7 @@ logger = logging.getLogger(__name__)
 # Base URL for Helicone API, if configured using the SYCAMORE_HELICONE_API_KEY environment variable.
 HELICONE_BASE_URL = "https://oai.helicone.ai/v1"
 INITIAL_BACKOFF = 0.2
+BATCH_POLL_INTERVAL = 10
 
 
 class OpenAIClientType(Enum):
@@ -488,3 +492,49 @@ class OpenAI(LLM):
             # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
             # 2.) The LLM refused to respond to the request because it did not meet guidelines
             raise e
+
+    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+        cache_hits = [self._llm_cache_get(p, llm_kwargs) for p in prompts]
+
+        calls = []
+        for p, ch, i in zip(prompts, cache_hits, range(len(prompts))):
+            if ch is not None:
+                continue
+            kwargs = self._get_generate_kwargs(p, llm_kwargs)
+            kwargs["model"] = self.model.name
+            call = {"custom_id": str(i), "method": "POST", "url": "/v1/chat/completions", "body": kwargs}
+            calls.append(call)
+        f = io.BytesIO()
+        for i, c in enumerate(calls):
+            f.write(json.dumps(c).encode("utf-8"))
+            if i != len(calls) - 1:
+                f.write(b"\n")
+        client = self.client_wrapper.get_client()
+        starttime = datetime.now()
+        batch_in_file = client.files.create(file=f, purpose="batch")
+        batch = client.batches.create(
+            input_file_id=batch_in_file.id, endpoint="/v1/chat/completions", completion_window="24h"
+        )
+        while batch.status in ("validating", "in_progress", "finalizing"):
+            time.sleep(BATCH_POLL_INTERVAL)
+            batch = client.batches.retrieve(batch.id)
+
+        wall_latency = datetime.now() - starttime
+        if batch.error_file_id:
+            errors = client.files.content(batch.error_file_id)
+            logging.error(errors.text)
+            raise ValueError(f"LLM batch call failed: {batch}")
+        if batch.output_file_id:
+            responses = client.files.content(batch.output_file_id)
+            for rs, call in zip(responses.iter_lines(), calls):
+                rdata = json.loads(rs)
+                id = int(rdata["custom_id"])
+                cc = ChatCompletion.model_construct(**rdata["response"]["body"])
+                response_text = cc.choices[0].message.content
+                ct, pt = self.validate_tokens(cc)
+                kws = call["body"]
+                self.add_llm_metadata(kws, response_text, wall_latency, ct, pt)
+                cache_hits[id] = response_text
+                self._llm_cache_set(prompts[id], llm_kwargs, response_text)
+            return cache_hits
+        raise ValueError(f"LLM batch call terminated with no output file or error file: {batch}")

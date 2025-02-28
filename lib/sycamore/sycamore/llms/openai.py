@@ -22,7 +22,6 @@ from openai.lib.azure import AzureADTokenProvider
 from openai.lib._parsing import type_to_response_format_param
 from openai import APIConnectionError
 from openai.types.chat.chat_completion import ChatCompletion
-from tqdm import tqdm
 
 import pydantic
 
@@ -37,7 +36,7 @@ logger = logging.getLogger(__name__)
 # Base URL for Helicone API, if configured using the SYCAMORE_HELICONE_API_KEY environment variable.
 HELICONE_BASE_URL = "https://oai.helicone.ai/v1"
 INITIAL_BACKOFF = 0.2
-BATCH_POLL_DELAY = 10
+BATCH_POLL_INTERVAL = 10
 
 
 class OpenAIClientType(Enum):
@@ -516,16 +515,9 @@ class OpenAI(LLM):
         batch = client.batches.create(
             input_file_id=batch_in_file.id, endpoint="/v1/chat/completions", completion_window="24h"
         )
-        ctr = 0
-        prog = tqdm(total=len(calls))
         while batch.status in ("validating", "in_progress", "finalizing"):
-            prog.set_description(batch.status)
-            if batch.request_counts is not None:
-                prog.update(n=(batch.request_counts.completed + batch.request_counts.failed - ctr))
-                ctr = batch.request_counts.completed + batch.request_counts.failed
-            time.sleep(10)
+            time.sleep(BATCH_POLL_INTERVAL)
             batch = client.batches.retrieve(batch.id)
-        prog.close()
 
         wall_latency = datetime.now() - starttime
         if batch.error_file_id:

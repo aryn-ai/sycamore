@@ -4,7 +4,6 @@ import logging
 from typing import Any, Optional, Union
 import asyncio
 import random
-from tqdm import tqdm
 import time
 
 from PIL import Image
@@ -17,6 +16,7 @@ from sycamore.utils.import_utils import requires_modules
 
 DEFAULT_MAX_TOKENS = 1000
 INITIAL_BACKOFF = 1
+BATCH_POLL_INTERVAL = 10
 
 
 class AnthropicModels(Enum):
@@ -242,18 +242,9 @@ class Anthropic(LLM):
         starttime = datetime.now()
         batch = self._client.messages.batches.create(requests=calls)
 
-        prog = tqdm(total=len(calls))
-        ctr = 0
         while batch.processing_status == "in_progress":
+            time.sleep(BATCH_POLL_INTERVAL)
             batch = self._client.messages.batches.retrieve(batch.id)
-            counts = batch.request_counts
-            diff = counts.succeeded + counts.errored + counts.canceled + counts.expired - ctr
-            prog.update(n=diff)
-            ctr += diff
-            if batch.processing_status == "ended":
-                break
-            time.sleep(10)
-        prog.close()
 
         results = self._client.messages.batches.results(batch.id)
         for rs, call in zip(results, calls):

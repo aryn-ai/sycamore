@@ -317,10 +317,11 @@ def parse_model_selection(selection: str) -> Callable[[int, int], Optional[_Mode
     statements = selection.split(sep=";")
     checks = []
     for statement in statements:
+        statement = statement.strip()
         if "->" not in statement:
             if statement not in _model_names:
                 raise ValueError(
-                    f"Invalid statement: '{statement}'. Did not find =, so this is assumed"
+                    f"Invalid statement: '{statement}'. Did not find '->', so this is assumed"
                     f" to be a static statement, but the model_name was not in {_model_names}"
                 )
             checks.append(lambda pixels, chars: statement)
@@ -328,7 +329,7 @@ def parse_model_selection(selection: str) -> Callable[[int, int], Optional[_Mode
         pieces = statement.split(sep="->")
         if len(pieces) > 2:
             raise ValueError(f"Invalid statement: '{statement}'. Found more than 2 instances of '->'")
-        result = pieces[1]
+        result = pieces[1].strip()
         if result not in _model_names:
             raise ValueError(f"Invalid statement: '{statement}'. Result model ({result}) was not in {_model_names}")
         if all(c not in pieces[0] for c in ("<", ">", "==", "<=", ">=", "!=")):
@@ -359,7 +360,7 @@ def parse_model_selection(selection: str) -> Callable[[int, int], Optional[_Mode
             raise ValueError(
                 f"Invalid statement: '{statement}'. Comparison statements must take the form 'METRIC CMP THRESHOLD'."
             )
-        metric, threshold = cmp_pieces[0], cmp_pieces[1]
+        metric, threshold = cmp_pieces[0].strip(), cmp_pieces[1].strip()
         if metric not in _metrics:
             raise ValueError(f"Invalid statement: '{statement}'. Allowed metrics are: '{_metrics}'")
         try:

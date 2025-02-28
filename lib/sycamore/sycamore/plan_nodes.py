@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Callable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ray import Dataset
+    from ray.data import Dataset
     from sycamore.context import Context
 
 

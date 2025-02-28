@@ -10,7 +10,7 @@ from sycamore.plan_nodes import Node, UnaryNode, NodeTraverse
 from sycamore.transforms.base import rename
 
 if TYPE_CHECKING:
-    from ray import Dataset
+    from ray.data import Dataset
     import pyarrow
 
 

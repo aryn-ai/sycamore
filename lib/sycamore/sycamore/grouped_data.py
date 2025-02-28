@@ -36,6 +36,6 @@ class GroupedData:
         return DocSet(self._docset.context, DatasetScan(serialized))
 
     def count(self) -> DocSet:
-        from ray.data._internal.aggregate import Count
+        from ray.data.aggregate import Count
 
         return self.aggregate(Count())

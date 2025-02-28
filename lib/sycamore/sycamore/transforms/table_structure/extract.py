@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Union
+from typing import Any, Union, Literal
 
 from PIL import Image
 import pdf2image
@@ -231,6 +231,9 @@ class DeformableTableStructureExtractor(TableTransformerStructureExtractor):
         return super().extract(element, doc_image, union_tokens, apply_thresholds)
 
 
+ModelSelectionType = Union[None, Literal["tatr"], Literal["deformable"], int]
+
+
 class HybridTableStructureExtractor(TableStructureExtractor):
     """A TableStructureExtractor implementation that conditionally uses either Deformable or TATR
     depending on the size of the table"""
@@ -245,17 +248,30 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         self._tatr = TableTransformerStructureExtractor(tatr_model, device)
 
     def _pick_model(
-        self, element: TableElement, doc_image: Image.Image
+        self,
+        element: TableElement,
+        doc_image: Image.Image,
+        model: ModelSelectionType,
     ) -> Union[TableTransformerStructureExtractor, DeformableTableStructureExtractor]:
         """If the absolute size of the table is > 500 pixels in any dimension, use deformable.
         Otherwise, use TATR"""
         if element.bbox is None:
             return self._tatr
+
+        if model == "tatr":
+            threshold = 1_000_000
+        elif model == "deformable":
+            threshold = -1
+        elif model is None:
+            threshold = 500
+        else:
+            threshold = model
+
         width, height = doc_image.size
         bb = element.bbox.to_absolute(width, height)
         padding = 10
         max_dim = max(bb.width, bb.height) + 2 * padding
-        if max_dim > 500:
+        if max_dim > threshold:
             return self._deformable
         return self._tatr
 
@@ -263,7 +279,13 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         self._deformable._init_structure_model()
         self._tatr._init_structure_model()
 
-    def extract(self, element: TableElement, doc_image: Image.Image, union_tokens=False) -> TableElement:
+    def extract(
+        self,
+        element: TableElement,
+        doc_image: Image.Image,
+        union_tokens=False,
+        model: ModelSelectionType = None,
+    ) -> TableElement:
         """Extracts the table structure from the specified element using a either a DeformableDETR or
         TATR model, depending on the size of the table.
 
@@ -277,8 +299,8 @@ class HybridTableStructureExtractor(TableStructureExtractor):
           union_tokens: Make sure that ocr/pdfminer tokens are _all_ included in the table.
           apply_thresholds: Apply class thresholds to the objects output by the model.
         """
-        model = self._pick_model(element, doc_image)
-        return model.extract(element, doc_image, union_tokens)
+        m = self._pick_model(element, doc_image, model)
+        return m.extract(element, doc_image, union_tokens)
 
 
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor

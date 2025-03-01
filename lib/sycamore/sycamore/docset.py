@@ -952,7 +952,7 @@ class DocSet:
                 else {"vector": doc[field_name], "cluster": -1}
             )
 
-        embeddings = self.plan.execute().filter(filter_meta).map(init_embedding)
+        embeddings = self.plan.execute().filter(filter_meta).map(init_embedding).materialize()
 
         initial_centroids = KMeans.init(embeddings, K, init_mode)
         centroids = KMeans.update(embeddings, initial_centroids, iterations, epsilon)
@@ -1338,10 +1338,10 @@ class DocSet:
         queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
         return DocSet(self.context, queries)
 
-    def groupby(self, key: Union[str, list[str]]) -> "GroupedData":
+    def groupby(self, grouped_key: Union[str, list[str]], entity: str = None) -> "GroupedData":
         from sycamore.grouped_data import GroupedData
 
-        return GroupedData(self, key)
+        return GroupedData(self, grouped_key, entity)
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def top_k(

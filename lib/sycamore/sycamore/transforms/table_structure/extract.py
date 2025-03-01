@@ -289,7 +289,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         element: TableElement,
         doc_image: Image.Image,
         union_tokens=False,
-        model: str = "pixels > 500 -> deformable_detr; table_transformer",
+        model_selection: str = "pixels > 500 -> deformable_detr; table_transformer",
     ) -> TableElement:
         """Extracts the table structure from the specified element using a either a DeformableDETR or
         TATR model, depending on the size of the table.
@@ -306,7 +306,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
           model: Control which model gets selected. If 'tatr', use TATR; if 'deformable', use deformable.
                 If an integer, use that as the size threshold. If None, the threshold is 500.
         """
-        m = self._pick_model(element, doc_image, model)
+        m = self._pick_model(element, doc_image, model_selection)
         return m.extract(element, doc_image, union_tokens)
 
     @classmethod

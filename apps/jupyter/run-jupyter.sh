@@ -7,12 +7,7 @@ die() {
 
 mkdir -p $HOME/.jupyter
 if [[ -f /.dockerenv ]]; then
-    if [[ $(whoami) == "aryn" ]]; then
-        APP_DIR=/aryn/aryn/lib/sycamore/apps/jupyter
-        ARYN_DIR=/aryn
-    else
         APP_DIR=/app
-        ARYN_DIR=/app
     fi
 else
     APP_DIR=$(cd "$(dirname "$0")"; pwd)
@@ -44,12 +39,10 @@ fi
 if [[ ! -f "${JUPYTER_CONFIG_DOCKER}" ]]; then
     s3_token="s3://${JUPYTER_S3_BUCKET}/${JUPYTER_S3_PREFIX}/jupyter_token"
     [[ ${s3_token} == "s3:///jupyter_token" ]] && s3_token=""
-    if [[ ${s3_token} != "" ]]; then
-	if [[ ! -f ${VOLUME}/token ]]; then
+    if [[ ${s3_token} != "" && ! -f "${VOLUME}/token" ]]; then
 	    echo "Trying to fetch token from ${s3_token}"
 	    aws s3 cp ${s3_token} "${VOLUME}/token"
 	fi
-    fi
     if [[ -f "${VOLUME}/token" ]]; then
 	echo "Re-using token"
 	TOKEN=$(cat ${VOLUME}/token)
@@ -155,6 +148,6 @@ fi
 
 trap "kill $!" EXIT
 
-cd "${ARYN_DIR}"
+cd "${APP_DIR}"
 poetry run jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
 poetry run jupyter lab "${SSLARG[@]}" --no-browser --ip 0.0.0.0 "$@" 

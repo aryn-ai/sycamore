@@ -364,6 +364,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
                         cmpval = chars
                     if compare(cmpval, threshold):
                         return result
+                    return None
 
                 return check
 
@@ -373,6 +374,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
             for c in checks:
                 if (rv := c(pixels, chars)) is not None:
                     return rv
+            return None
 
         return select_fn
 
@@ -427,7 +429,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         if metric not in cls._metrics:
             raise ValueError(f"Invalid comparison: '{comparison}'. Allowed metrics are: '{cls._metrics}'")
         try:
-            threshold_num = int(threshold)
+            threshold_num: Num = int(threshold)
         except ValueError:
             try:
                 threshold_num = float(threshold)

@@ -116,7 +116,8 @@ class TestHybridSelectionStatements:
 
     def test_complicated(self):
         f = HTSE.parse_model_selection(
-            "pixels>5->table_transformer; chars<30->deformable_detr;chars>35->table_transformer;pixels>2->deformable_detr;table_transformer;comment"
+            "pixels>5->table_transformer; chars<30->deformable_detr;chars>35->table_transformer;"
+            "pixels>2->deformable_detr;table_transformer;comment"
         )
         assert f(10, 14) == "table_transformer"
         assert f(5, 15) == "deformable_detr"

@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Union, Literal, Optional, Callable
+from typing import Any, Union, Optional, Callable
 
 from PIL import Image
 import pdf2image
@@ -378,26 +378,47 @@ class HybridTableStructureExtractor(TableStructureExtractor):
 
     @classmethod
     def parse_comparison(cls, comparison: str) -> tuple[str, Callable[[Num, Num], bool], Union[int, float]]:
-        cmp = lambda a, b: False
         cmp_pieces = []
         if "!=" in comparison:
             cmp_pieces = comparison.split(sep="!=")
-            cmp = lambda a, b: a != b
+
+            def cmp(a, b):
+                return a != b
+
         elif ">=" in comparison:
             cmp_pieces = comparison.split(sep=">=")
-            cmp = lambda a, b: a >= b
+
+            def cmp(a, b):
+                return a >= b
+
         elif "<=" in comparison:
             cmp_pieces = comparison.split(sep="<=")
-            cmp = lambda a, b: a <= b
+
+            def cmp(a, b):
+                return a <= b
+
         elif "==" in comparison:
             cmp_pieces = comparison.split(sep="==")
-            cmp = lambda a, b: a == b
+
+            def cmp(a, b):
+                return a == b
+
         elif "<" in comparison:
             cmp_pieces = comparison.split("<")
-            cmp = lambda a, b: a < b
+
+            def cmp(a, b):
+                return a < b
+
         elif ">" in comparison:
             cmp_pieces = comparison.split(">")
-            cmp = lambda a, b: a > b
+
+            def cmp(a, b):
+                return a > b
+
+        else:
+            raise ValueError(
+                f"Invalid comparison: '{comparison}'. Did not find comparison operator (<, >, ==, <=, >=, !=)."
+            )
         if len(cmp_pieces) != 2:
             raise ValueError(
                 f"Invalid comparison: '{comparison}'. Comparison statements must take the form 'METRIC CMP THRESHOLD'."

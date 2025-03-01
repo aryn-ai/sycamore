@@ -355,15 +355,19 @@ class HybridTableStructureExtractor(TableStructureExtractor):
                 )
             metric, cmp, threshold = cls.parse_comparison(pieces[0])
 
-            def check(pixels: float, chars: int) -> Optional[str]:
-                if metric == "pixels":
-                    cmpval = pixels
-                else:
-                    cmpval = chars
-                if cmp(cmpval, threshold):
-                    return result
+            def make_check(metric, compare, threshold, result):
+                # otherwise captrued variables change their values
+                def check(pixels: float, chars: int) -> Optional[str]:
+                    if metric == "pixels":
+                        cmpval = pixels
+                    else:
+                        cmpval = chars
+                    if compare(cmpval, threshold):
+                        return result
 
-            checks.append(check)
+                return check
+
+            checks.append(make_check(metric, cmp, threshold, result))
 
         def select_fn(pixels: float, chars: int) -> Optional[str]:
             for c in checks:

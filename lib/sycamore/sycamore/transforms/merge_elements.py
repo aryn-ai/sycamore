@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Pattern, Optional
+from typing import Any, Dict, Pattern, Optional, Union
 from collections import defaultdict
 from functools import reduce
 import re
@@ -810,7 +810,7 @@ class HeaderAugmenterMerger(ElementMerger):
 
         return new_elt
 
-    def _combine_strs_min_newline(self, *strs: list[str]) -> str:
+    def _combine_strs_min_newline(self, *strs: Union[str, None]) -> str:
         def combine_str_min_newline(str1: str, str2: str) -> str:
             if str1.endswith("\n") or str2.startswith("\n"):
                 return str1 + str2

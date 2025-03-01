@@ -7,8 +7,8 @@ die() {
 
 mkdir -p $HOME/.jupyter
 if [[ -f /.dockerenv ]]; then
-        APP_DIR=/app
-    fi
+    APP_DIR=/app
+
 else
     APP_DIR=$(cd "$(dirname "$0")"; pwd)
 fi

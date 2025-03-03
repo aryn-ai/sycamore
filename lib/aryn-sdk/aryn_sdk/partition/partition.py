@@ -86,7 +86,10 @@ def partition_file(
             default: English
         extract_table_structure: extract tables and their structural content.
             default: False
-        text_extraction_options: Specify options for text extraction, currently only supports boolean
+        text_extraction_options: Specify options for text extraction, currently only supports
+            'ocr_text_mode', with valid options 'vision' and 'standard'. If OCR is enabled and 'vision' specified, attempt to extract all non-table text
+            using vision models, else will use the standard OCR pipeline. This can be useful for documents with complex layouts or non-standard fonts.
+            default: {'ocr_text_mode': 'standard'}
         table_extraction_options: Specify options for table extraction, currently only supports boolean
             'include_additional_text': if table extraction is enabled, attempt to enhance the table
             structure by merging in tokens from text extraction. This can be useful for tables with missing

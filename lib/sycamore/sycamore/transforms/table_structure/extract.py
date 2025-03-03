@@ -341,15 +341,13 @@ class HybridTableStructureExtractor(TableStructureExtractor):
             a function that can be used to select a model given the pixels and chars metrics.
 
         Examples:
-            - "table_transformer" => always use table transformer
-            - "pixels > 500 -> deformable_detr; table_transformer" => if the biggest dimension of
+            - `"table_transformer"` => always use table transformer
+            - `"pixels > 500 -> deformable_detr; table_transformer"` => if the biggest dimension of
                 the table is greater than 500 pixels use deformable detr. Otherwise use table_transformer.
-            - "pixels>50->table_transformer; chars<30->deformable_detr;chars>35->table_transformer;"
-              "pixels>2->deformable_detr;table_transformer;comment" => if the biggest dimension is more than
-                50 pixels use table transformer. Else if the total number of chars in the table is less than
-                30 use deformable_detr. Else if there are mode than 35 chars use table transformer. Else if
-                there are more than 2 pixels in the biggest dimension use deformable detr. Otherwise use
-                table transformer. comment is not processed.
+            - `"pixels>50->table_transformer; chars<30->deformable_detr;chars>35->table_transformer;pixels>2->deformable_detr;table_transformer;comment"`
+                => if the biggest dimension is more than 50 pixels use table transformer. Else if the total number of chars in the table is less than
+                30 use deformable_detr. Else if there are mode than 35 chars use table transformer. Else if there are more than 2 pixels in the biggest
+                dimension use deformable detr. Otherwise use table transformer. comment is not processed.
         """
         statements = selection.split(sep=";")
         checks = []

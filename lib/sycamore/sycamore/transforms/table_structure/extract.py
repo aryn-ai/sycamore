@@ -333,6 +333,8 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         checks = []
         for statement in statements:
             statement = statement.strip()
+            if statement == "":
+                continue
             if "->" not in statement:
                 if statement not in cls._model_names:
                     raise ValueError(

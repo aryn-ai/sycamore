@@ -124,3 +124,10 @@ class TestHybridSelectionStatements:
         assert f(5, 42) == "table_transformer"
         assert f(5, 32) == "deformable_detr"
         assert f(0, 32) == "table_transformer"
+
+    def test_excess_semicolons_ok(self):
+        f = HTSE.parse_model_selection("chars>0->table_transformer;")
+        assert f(10, 10) == "table_transformer"
+
+        f = HTSE.parse_model_selection(";;;chars>0->table_transformer;")
+        assert f(10, 10) == "table_transformer"

@@ -348,7 +348,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
                 => if the biggest dimension is more than 50 pixels use table transformer. Else if the total number of chars in the table is less than
                 30 use deformable_detr. Else if there are mode than 35 chars use table transformer. Else if there are more than 2 pixels in the biggest
                 dimension use deformable detr. Otherwise use table transformer. comment is not processed.
-        """
+        """  # noqa: E501 # line too long. long line is a long example. I want it that way.
         statements = selection.split(sep=";")
         checks = []
         for statement in statements:

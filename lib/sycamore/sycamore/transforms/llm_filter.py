@@ -27,7 +27,7 @@ def document_threshold_llm_filter(
     doc = entity_extractor.extract_entity(doc)
     # todo: move data extraction and validation to entity extractor
     try:
-        return int(re.findall(r"\d+", doc.properties[entity_extractor.property()])[0]) >= threshold
+        return int(re.findall(r'"score"\s*:\s*([1-5])', doc.properties[entity_extractor.property()])[0]) >= threshold
     except IndexError:
         return False
 
@@ -54,7 +54,7 @@ def tokenized_threshold_llm_filter(
         e_doc = Document(dummy_element.data)
         e_doc = entity_extractor.extract_entity(e_doc)
         try:
-            score = int(re.findall(r"\d+", e_doc.properties[new_field])[0])
+            score = int(re.findall(r'"score"\s*:\s*([1-5])', e_doc.properties[new_field])[0])
         except IndexError:
             score = 0
         for i in range(0, len(window_indices)):
@@ -93,7 +93,7 @@ def untokenized_threshold_llm_filter(
         element.properties[new_field] = e_doc.properties[new_field]
         # todo: move data extraction and validation to entity extractor
         try:
-            score = int(re.findall(r"\d+", element.properties[new_field])[0])
+            score = int(re.findall(r'"score"\s*:\s*([1-5])', element.properties[new_field])[0])
         except IndexError:
             continue
         # storing the element_index of the element that provides the highest match score for a document.
@@ -158,7 +158,7 @@ def plan_llm_filter_as_llm_map(
         if keep_none and len(doc.elements) == 0:
             return True
         try:
-            score = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[0])
+            score = int(re.findall(r'"score"\s*:\s*([1-5])', doc.properties.get(new_field, ""))[0])
         except IndexError:
             return False
         return score >= threshold
@@ -167,7 +167,7 @@ def plan_llm_filter_as_llm_map(
 
     def filter_fn(doc: Document) -> bool:
         try:
-            score = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[0])
+            score = int(re.findall(r'"score"\s*:\s*([1-5])', doc.properties.get(new_field, ""))[0])
             doc.properties[new_field] = score
         except IndexError:
             return keep_none

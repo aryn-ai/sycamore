@@ -239,6 +239,14 @@ class HybridTableStructureExtractor(TableStructureExtractor):
 
     _model_names = ("table_transformer", "deformable_detr")
     _metrics = ("pixels", "chars")
+    _comparisons = (
+        "==",
+        "<=",
+        ">=",
+        "!=",
+        "<",
+        ">",
+    )
 
     def __init__(
         self,
@@ -255,8 +263,8 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         doc_image: Image.Image,
         model_selection: str,
     ) -> Union[TableTransformerStructureExtractor, DeformableTableStructureExtractor]:
-        """If the absolute size of the table is > 500 pixels in any dimension, use deformable.
-        Otherwise, use TATR"""
+        """Use the model_selection expression to choose the model to use for table extraction.
+        If the expression returns None, use table transformer."""
         if element.bbox is None:
             return self._tatr
 
@@ -267,7 +275,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         padding = 10
         max_dim = max(bb.width, bb.height) + 2 * padding
 
-        nchars = len("".join(tok["text"] for tok in element.tokens or [{"text": ""}]))
+        nchars = sum(len(tok["text"]) for tok in element.tokens or [{"text": ""}])
 
         selection = select_fn(max_dim, nchars)
         print("=" * 80)
@@ -303,8 +311,9 @@ class HybridTableStructureExtractor(TableStructureExtractor):
                Used for bounding box calculations.
           union_tokens: Make sure that ocr/pdfminer tokens are _all_ included in the table.
           apply_thresholds: Apply class thresholds to the objects output by the model.
-          model: Control which model gets selected. If 'tatr', use TATR; if 'deformable', use deformable.
-                If an integer, use that as the size threshold. If None, the threshold is 500.
+          model_selection: Control which model gets selected. See ``parse_model_selection`` for
+                expression syntax. Default is "pixels > 500 -> deformable_detr; table_transformer".
+                If no statements are matched, defaults to table transformer.
         """
         m = self._pick_model(element, doc_image, model_selection)
         return m.extract(element, doc_image, union_tokens)
@@ -316,9 +325,11 @@ class HybridTableStructureExtractor(TableStructureExtractor):
             "metric cmp threshold -> model; metric cmp threshold -> model; model;"
         That is, any number of conditional expression selections followed by up to one unconditional
         selection expression, separated by semicolons. Expressions are processed from left to right.
+        Anything after the unconditional expression is not processed.
 
-        - Supported metrics are "pixels" - the number of pixels in the larger dimension of the table, and
-        "chars" - the number of characters in the table, as detected by the partitioner's text_extractor.
+        - Supported metrics are "pixels" - the number of pixels in the larger dimension of the table (we
+        find this to be easier to reason about than the total number of pixels which depends on two numbers),
+        and "chars" - the number of characters in the table, as detected by the partitioner's text_extractor.
         - Supported comparisons are the usual set - <, >, <=, >=, ==, !=.
         - The threshold must be numeric (and int or a float)
         - The model must be either "deformable_detr" or "table_transformer"
@@ -328,6 +339,17 @@ class HybridTableStructureExtractor(TableStructureExtractor):
 
         Returns:
             a function that can be used to select a model given the pixels and chars metrics.
+
+        Examples:
+            - "table_transformer" => always use table transformer
+            - "pixels > 500 -> deformable_detr; table_transformer" => if the biggest dimension of
+                the table is greater than 500 pixels use deformable detr. Otherwise use table_transformer.
+            - "pixels>50->table_transformer; chars<30->deformable_detr;chars>35->table_transformer;"
+              "pixels>2->deformable_detr;table_transformer;comment" => if the biggest dimension is more than
+                50 pixels use table transformer. Else if the total number of chars in the table is less than
+                30 use deformable_detr. Else if there are mode than 35 chars use table transformer. Else if
+                there are more than 2 pixels in the biggest dimension use deformable detr. Otherwise use
+                table transformer. comment is not processed.
         """
         statements = selection.split(sep=";")
         checks = []
@@ -351,9 +373,9 @@ class HybridTableStructureExtractor(TableStructureExtractor):
                 raise ValueError(
                     f"Invalid statement: '{statement}'. Result model ({result}) was not in {cls._model_names}"
                 )
-            if all(c not in pieces[0] for c in ("<", ">", "==", "<=", ">=", "!=")):
+            if all(c not in pieces[0] for c in cls._comparisons):
                 raise ValueError(
-                    f"Invalid statement: '{statement}'. Did not find a comparison operator (<, >, ==, <=, >=, !=)"
+                    f"Invalid statement: '{statement}'. Did not find a comparison operator {cls._comparisons}"
                 )
             metric, cmp, threshold = cls.parse_comparison(pieces[0])
 
@@ -380,48 +402,33 @@ class HybridTableStructureExtractor(TableStructureExtractor):
 
         return select_fn
 
+    @staticmethod
+    def get_cmp_fn(opstring: str) -> Callable[[Num, Num], bool]:
+        ops = {
+            "!=": lambda a, b: a != b,
+            ">=": lambda a, b: a >= b,
+            "<=": lambda a, b: a <= b,
+            "==": lambda a, b: a == b,
+            "<": lambda a, b: a < b,
+            ">": lambda a, b: a > b,
+        }
+        if opstring in ops:
+            return ops[opstring]
+        raise ValueError(f"Invalid comparison: Unsupported operator '{opstring}'")
+
     @classmethod
     def parse_comparison(cls, comparison: str) -> tuple[str, Callable[[Num, Num], bool], Union[int, float]]:
         cmp_pieces = []
-        if "!=" in comparison:
-            cmp_pieces = comparison.split(sep="!=")
+        cmp = None
+        for opstring in sorted(cls._comparisons, key=lambda c: len(c), reverse=True):
+            if opstring in comparison:
+                cmp_pieces = comparison.split(sep=opstring)
+                cmp = cls.get_cmp_fn(opstring)
+                break
 
-            def cmp(a, b):
-                return a != b
-
-        elif ">=" in comparison:
-            cmp_pieces = comparison.split(sep=">=")
-
-            def cmp(a, b):
-                return a >= b
-
-        elif "<=" in comparison:
-            cmp_pieces = comparison.split(sep="<=")
-
-            def cmp(a, b):
-                return a <= b
-
-        elif "==" in comparison:
-            cmp_pieces = comparison.split(sep="==")
-
-            def cmp(a, b):
-                return a == b
-
-        elif "<" in comparison:
-            cmp_pieces = comparison.split("<")
-
-            def cmp(a, b):
-                return a < b
-
-        elif ">" in comparison:
-            cmp_pieces = comparison.split(">")
-
-            def cmp(a, b):
-                return a > b
-
-        else:
+        if len(cmp_pieces) == 0 or cmp is None:
             raise ValueError(
-                f"Invalid comparison: '{comparison}'. Did not find comparison operator (<, >, ==, <=, >=, !=)."
+                f"Invalid comparison: '{comparison}'. Did not find comparison operator {cls._comparisons}."
             )
         if len(cmp_pieces) != 2:
             raise ValueError(

@@ -90,7 +90,8 @@ def partition_file(
             - 'include_additional_text': Attempt to enhance the table structure by merging in tokens from
                 text extraction. This can be useful for tables with missing or misaligned text. Default: False
             - 'model_selection': expression to instruct DocParse how to choose which model to use for table
-                extraction. See https://docs.aryn.ai/docparse/processing_options for more details.
+                extraction. See https://docs.aryn.ai/docparse/processing_options for more details. Default:
+                "pixels > 500 -> deformable_detr; table_transformer"
         extract_images: extract image contents in ppm format, base64 encoded.
             default: False
         selected_pages: list of individual pages (1-indexed) from the pdf to partition

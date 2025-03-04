@@ -53,7 +53,8 @@ def partition_file(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
-    table_extraction_options: dict[str, Any] = {},
+    text_extraction_options: Optional[dict[str, Any]] = None,
+    table_extraction_options: Optional[dict[str, Any]] = None,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     chunking_options: Optional[dict[str, Any]] = None,
@@ -61,7 +62,7 @@ def partition_file(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
-    output_label_options: dict[str, Any] = {},
+    output_label_options: Optional[dict[str, Any]] = None,
     trace_id: Optional[str] = None,
 ) -> dict:
     """
@@ -85,6 +86,11 @@ def partition_file(
             default: English
         extract_table_structure: extract tables and their structural content.
             default: False
+        text_extraction_options: Specify options for text extraction, currently only supports
+            'ocr_text_mode', with valid options 'vision' and 'standard'. If OCR is enabled and 'vision' specified,
+            attempt to extract all non-table text using vision models, else will use the standard OCR pipeline.
+            This can be useful for documents with complex layouts or non-standard fonts.
+            default: {'ocr_text_mode': 'standard'}
         table_extraction_options: Specify options for table extraction. Only enabled if table extraction
             is enabled. Default is {}. Options:
             - 'include_additional_text': Attempt to enhance the table structure by merging in tokens from
@@ -160,6 +166,7 @@ def partition_file(
         summarize_images=summarize_images,
         ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
+        text_extraction_options=text_extraction_options,
         table_extraction_options=table_extraction_options,
         extract_images=extract_images,
         selected_pages=selected_pages,
@@ -183,7 +190,8 @@ def _partition_file_wrapper(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
-    table_extraction_options: dict[str, Any] = {},
+    text_extraction_options: Optional[dict[str, Any]] = None,
+    table_extraction_options: Optional[dict[str, Any]] = None,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     chunking_options: Optional[dict[str, Any]] = None,
@@ -191,7 +199,7 @@ def _partition_file_wrapper(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
-    output_label_options: dict[str, Any] = {},
+    output_label_options: Optional[dict[str, Any]] = None,
     webhook_url: Optional[str] = None,
     trace_id: Optional[str] = None,
 ):
@@ -212,6 +220,7 @@ def _partition_file_wrapper(
             summarize_images=summarize_images,
             ocr_language=ocr_language,
             extract_table_structure=extract_table_structure,
+            text_extraction_options=text_extraction_options,
             table_extraction_options=table_extraction_options,
             extract_images=extract_images,
             selected_pages=selected_pages,
@@ -239,7 +248,8 @@ def _partition_file_inner(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
-    table_extraction_options: dict[str, Any] = {},
+    text_extraction_options: Optional[dict[str, Any]] = None,
+    table_extraction_options: Optional[dict[str, Any]] = None,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     chunking_options: Optional[dict[str, Any]] = None,
@@ -247,7 +257,7 @@ def _partition_file_inner(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
-    output_label_options: dict[str, Any] = {},
+    output_label_options: Optional[dict[str, Any]] = None,
     trace_id: Optional[str] = None,
     webhook_url: Optional[str] = None,
 ):
@@ -272,6 +282,7 @@ def _partition_file_inner(
         summarize_images=summarize_images,
         ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
+        text_extraction_options=text_extraction_options,
         table_extraction_options=table_extraction_options,
         extract_images=extract_images,
         selected_pages=selected_pages,
@@ -379,7 +390,8 @@ def _json_options(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
-    table_extraction_options: dict[str, Any] = {},
+    text_extraction_options: Optional[dict[str, Any]] = None,
+    table_extraction_options: Optional[dict[str, Any]] = None,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     output_format: Optional[str] = None,
@@ -400,6 +412,8 @@ def _json_options(
         options["extract_images"] = extract_images
     if extract_table_structure:
         options["extract_table_structure"] = extract_table_structure
+    if text_extraction_options:
+        options["text_extraction_options"] = text_extraction_options
     if table_extraction_options:
         options["table_extraction_options"] = table_extraction_options
     if selected_pages:
@@ -426,7 +440,8 @@ def partition_file_async_submit(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
-    table_extraction_options: dict[str, Any] = {},
+    text_extraction_options: Optional[dict[str, Any]] = None,
+    table_extraction_options: Optional[dict[str, Any]] = None,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     chunking_options: Optional[dict[str, Any]] = None,
@@ -434,7 +449,7 @@ def partition_file_async_submit(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
-    output_label_options: dict[str, Any] = {},
+    output_label_options: Optional[dict[str, Any]] = None,
     trace_id: Optional[str] = None,
     webhook_url: Optional[str] = None,
     async_submit_url: Optional[str] = None,
@@ -482,6 +497,7 @@ def partition_file_async_submit(
         summarize_images=summarize_images,
         ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
+        text_extraction_options=text_extraction_options,
         table_extraction_options=table_extraction_options,
         extract_images=extract_images,
         selected_pages=selected_pages,

@@ -7,7 +7,7 @@ readme = "README.md"
 repository = "https://github.com/aryn-ai/sycamore.git"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.9.2,<3.13"
 # required older version
 protobuf = "4.25.3"   # rps
 fsspec = "2024.2.0"   # sycamore (via datasets)
@@ -35,6 +35,9 @@ nltk = ">3.9.0"
 #requests = ">=2.32.0"
 scrapy = ">=2.11.2"
 jinja2 = ">=3.1.5"
+cryptography = ">=44.0.1"
+tornado = "^6.4.2"
+pillow = "^11.1.0"
 # black = ">=24.3.0"
 
 [build-system]

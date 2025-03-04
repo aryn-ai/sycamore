@@ -5,6 +5,14 @@ from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import MapBatch
 from sycamore.data import Document, Element
+import asyncio
+
+
+async def _infer_prompts_async(prompts: list[RenderedPrompt], llm: LLM) -> list[str]:
+    el = asyncio.get_running_loop()
+    awaitables = [llm.generate_async(prompt=p, llm_kwargs={}) for p in prompts]
+    tasks = [el.create_task(aw) for aw in awaitables]
+    return await asyncio.gather(*tasks)
 
 
 def _infer_prompts(
@@ -22,9 +30,14 @@ def _infer_prompts(
             res.append(s)
         return res
     elif llm_mode == LLMMode.ASYNC:
-        raise NotImplementedError("Haven't done async yet")
+        nonempty = [(i, p) for i, p in enumerate(prompts) if len(p.messages) > 0]
+        res = [""] * len(prompts)
+        rsps = asyncio.run(_infer_prompts_async([p for _, p in nonempty], llm))
+        for (i, _), rs in zip(nonempty, rsps):
+            res[i] = rs
+        return res
     elif llm_mode == LLMMode.BATCH:
-        raise NotImplementedError("Haven't done batch yet")
+        return llm.generate_batch(prompts=prompts)
     else:
         raise NotImplementedError("Unknown LLM Mode")
 

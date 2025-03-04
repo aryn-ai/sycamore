@@ -90,7 +90,7 @@ class TestSycamoreQuery:
         docs = result.result.take_all()
         assert len(docs) > 0
 
-    def test_vector_search_2(self, query_integration_test_index: str):
+    def test_vector_search_2(self):
 
         client = SycamoreQueryClient(query_plan_strategy=QueryPlanStrategy())
         schema = client.get_opensearch_schema("ntsb-accident-cause")

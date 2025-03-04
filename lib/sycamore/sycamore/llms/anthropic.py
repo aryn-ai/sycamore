@@ -2,6 +2,9 @@ from datetime import datetime
 from enum import Enum
 import logging
 from typing import Any, Optional, Union
+import asyncio
+import random
+import time
 
 from PIL import Image
 
@@ -12,6 +15,8 @@ from sycamore.utils.image_utils import base64_data
 from sycamore.utils.import_utils import requires_modules
 
 DEFAULT_MAX_TOKENS = 1000
+INITIAL_BACKOFF = 1
+BATCH_POLL_INTERVAL = 10
 
 
 class AnthropicModels(Enum):
@@ -125,6 +130,7 @@ class Anthropic(LLM):
         # We import this here so we can share utility code with the Bedrock
         # LLM implementation without requiring an Anthropic dependency.
         from anthropic import Anthropic as AnthropicClient
+        from anthropic import AsyncAnthropic as AsyncAnthropicClient
 
         self.model_name = model_name
 
@@ -137,6 +143,7 @@ class Anthropic(LLM):
             self.model = model
 
         self._client = AnthropicClient()
+        self._async_client = AsyncAnthropicClient()
         super().__init__(self.model.value, cache)
 
     def __reduce__(self):
@@ -153,18 +160,8 @@ class Anthropic(LLM):
     def format_image(self, image: Image.Image) -> dict[str, Any]:
         return format_image(image)
 
-    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
-        ret = self._llm_cache_get(prompt, llm_kwargs)
-        if isinstance(ret, dict):
-            return ret
-
-        kwargs = get_generate_kwargs(prompt, llm_kwargs)
-
-        start = datetime.now()
-
-        response = self._client.messages.create(model=self.model.value, **kwargs)
-
-        wall_latency = datetime.now() - start
+    def _metadata_from_response(self, kwargs, response, starttime) -> dict:
+        wall_latency = datetime.now() - starttime
         in_tokens = response.usage.input_tokens
         out_tokens = response.usage.output_tokens
         output = response.content[0].text
@@ -176,6 +173,18 @@ class Anthropic(LLM):
             "out_tokens": out_tokens,
         }
         self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
+        return ret
+
+    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+        ret = self._llm_cache_get(prompt, llm_kwargs)
+        if isinstance(ret, dict):
+            return ret
+
+        kwargs = get_generate_kwargs(prompt, llm_kwargs)
+        start = datetime.now()
+
+        response = self._client.messages.create(model=self.model.value, **kwargs)
+        ret = self._metadata_from_response(kwargs, response, start)
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
         self._llm_cache_set(prompt, llm_kwargs, ret)
@@ -184,3 +193,67 @@ class Anthropic(LLM):
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
         return d["output"]
+
+    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        from anthropic import RateLimitError, APIConnectionError
+
+        ret = self._llm_cache_get(prompt, llm_kwargs)
+        if isinstance(ret, dict):
+            return ret["output"]
+
+        kwargs = get_generate_kwargs(prompt, llm_kwargs)
+        start = datetime.now()
+        done = False
+        retries = 0
+        response = None
+        while not done:
+            try:
+                response = await self._async_client.messages.create(model=self.model.value, **kwargs)
+                done = True
+            except (RateLimitError, APIConnectionError):
+                backoff = INITIAL_BACKOFF * (2**retries)
+                jitter = random.uniform(0, 0.1 * backoff)
+                await asyncio.sleep(backoff + jitter)
+                retries += 1
+
+        ret = self._metadata_from_response(kwargs, response, start)
+        logging.debug(f"Generated response from Anthropic model: {ret}")
+
+        self._llm_cache_set(prompt, llm_kwargs, ret)
+        return ret["output"]
+
+    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+        from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
+        from anthropic.types.messages.batch_create_params import Request
+
+        cache_hits = [self._llm_cache_get(p, llm_kwargs) for p in prompts]
+
+        calls = []
+        for p, ch, i in zip(prompts, cache_hits, range(len(prompts))):
+            if ch is not None:
+                continue
+            kwargs = get_generate_kwargs(p, llm_kwargs)
+            kwargs["model"] = self.model.value
+            kwargs["max_tokens"] = kwargs.get("max_tokens", 1024)
+            mparams = MessageCreateParamsNonStreaming(**kwargs)  # type: ignore
+            rq = Request(custom_id=str(i), params=mparams)
+            calls.append(rq)
+
+        starttime = datetime.now()
+        batch = self._client.messages.batches.create(requests=calls)
+
+        while batch.processing_status == "in_progress":
+            time.sleep(BATCH_POLL_INTERVAL)
+            batch = self._client.messages.batches.retrieve(batch.id)
+
+        results = self._client.messages.batches.results(batch.id)
+        for rs, call in zip(results, calls):
+            if rs.result.type != "succeeded":
+                raise ValueError(f"Call failed: {rs}")
+            id = int(rs.custom_id)
+            in_kwargs = get_generate_kwargs(prompts[id], llm_kwargs)
+            ret = self._metadata_from_response(in_kwargs, rs.result.message, starttime)
+            cache_hits[id] = ret
+            self._llm_cache_set(prompts[id], llm_kwargs, ret)
+
+        return [ch["output"] for ch in cache_hits]

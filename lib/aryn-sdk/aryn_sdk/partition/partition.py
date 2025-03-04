@@ -91,11 +91,13 @@ def partition_file(
             attempt to extract all non-table text using vision models, else will use the standard OCR pipeline.
             This can be useful for documents with complex layouts or non-standard fonts.
             default: {'ocr_text_mode': 'standard'}
-        table_extraction_options: Specify options for table extraction, currently only supports boolean
-            'include_additional_text': if table extraction is enabled, attempt to enhance the table
-            structure by merging in tokens from text extraction. This can be useful for tables with missing
-            or misaligned text, and is False by default.
-            default: {}
+        table_extraction_options: Specify options for table extraction. Only enabled if table extraction
+            is enabled. Default is {}. Options:
+            - 'include_additional_text': Attempt to enhance the table structure by merging in tokens from
+                text extraction. This can be useful for tables with missing or misaligned text. Default: False
+            - 'model_selection': expression to instruct DocParse how to choose which model to use for table
+                extraction. See https://docs.aryn.ai/docparse/processing_options for more details. Default:
+                "pixels > 500 -> deformable_detr; table_transformer"
         extract_images: extract image contents in ppm format, base64 encoded.
             default: False
         selected_pages: list of individual pages (1-indexed) from the pdf to partition

@@ -10,6 +10,7 @@ from sycamore.plan_nodes import SingleThreadUser, NonGPUUser, Node
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
+from sycamore.utils.merge_utils import combine_strs_min_newline
 from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.llms import LLM
 from sycamore.utils.bbox_sort import bbox_sort_document
@@ -695,7 +696,9 @@ class HeaderAugmenterMerger(ElementMerger):
             element2["_header"] = element1.get("_header")
             if element1.get("_header"):
                 if element2.text_representation:
-                    element2.text_representation = element1["_header"] + "\n" + element2.text_representation
+                    element2.text_representation = combine_strs_min_newline(
+                        element1["_header"], element2.text_representation
+                    )
                 else:
                     element2.text_representation = element1["_header"]
             return False
@@ -719,7 +722,9 @@ class HeaderAugmenterMerger(ElementMerger):
             element2.data["_header"] = element1.get("_header")
             if element2.text_representation:
                 if element2.data["_header"]:
-                    element2.text_representation = element2.data["_header"] + "\n" + element2.text_representation
+                    element2.text_representation = combine_strs_min_newline(
+                        element2.data["_header"], element2.text_representation
+                    )
             else:
                 element2.text_representation = element2.data["_header"]
         return False
@@ -759,7 +764,7 @@ class HeaderAugmenterMerger(ElementMerger):
             new_elt.binary_representation = elt1.binary_representation + elt2.binary_representation
 
         # Merge text representations by concatenation with a newline
-        new_elt_text_representation = "\n".join(filter(None, [elt1.text_representation, elt2.text_representation]))
+        new_elt_text_representation = combine_strs_min_newline(elt1.text_representation, elt2.text_representation)
         new_elt.text_representation = new_elt_text_representation if new_elt_text_representation else None
         if elt1.text_representation is None or elt2.text_representation is None:
             new_elt.data["token_count"] = tok1 + tok2
@@ -798,7 +803,7 @@ class HeaderAugmenterMerger(ElementMerger):
             if elt1.get("_header") is None or elt2.get("_header") is None:
                 new_elt.data["_header"] = elt1.get("_header") or elt2.get("_header")
             else:
-                new_elt.data["_header"] = elt1.data["_header"] + "\n" + elt2.data["_header"]
+                new_elt.data["_header"] = combine_strs_min_newline(elt1.data["_header"], elt2.data["_header"])
         else:
             new_elt.data["_header"] = elt1.get("_header")
         new_elt.properties = properties

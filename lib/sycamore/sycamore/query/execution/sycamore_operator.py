@@ -26,7 +26,7 @@ from sycamore.query.execution.operations import summarize_data
 from sycamore.transforms import Embedder
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 
-from sycamore import DocSet, Context
+from sycamore import DocSet, Context, MATERIALIZE_USE_STORED
 from sycamore.query.execution.physical_operator import PhysicalOperator, get_var_name, get_str_for_dict
 
 
@@ -649,10 +649,17 @@ class SycamoreGroupByCount(SycamoreOperator):
         descending = logical_node.descending
         K = logical_node.K
 
-        docset = self.inputs[0].embed(embedder)
+        import tempfile
+
+        temp_dir = tempfile.mkdtemp()
+
+        docset = self.inputs[0].embed(embedder).materialize(path=f"{temp_dir}", source_mode=MATERIALIZE_USE_STORED)
+        docset.execute()
         centroids = docset.kmeans(K=K * 2, field_name=embed_name)
         clustered = docset.clustering(centroids=centroids, cluster_field_name=cluster_field_name, field_name=embed_name)
-        result = clustered.groupby(cluster_field_name).count().sort(descending, "properties.count", 0).limit(K)
+        result = (
+            clustered.groupby(cluster_field_name, entity_name).count().sort(descending, "properties.count", 0).limit(K)
+        )
 
         return result
 

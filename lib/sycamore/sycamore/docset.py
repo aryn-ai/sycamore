@@ -497,6 +497,7 @@ class DocSet:
         llm_map = entity_extractor.as_llm_map(self.plan, context=self.context, **kwargs)
         return DocSet(self.context, llm_map)
 
+    @deprecated(version="0.1.31", reason="Use llm_map with SchemaZeroShotJinjaPrompt instead")
     def extract_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
         """
         Extracts a JSON schema of extractable properties from each document in this DocSet.
@@ -534,11 +535,8 @@ class DocSet:
                     .partition(partitioner=ArynPartitioner())
                     .extract_schema(schema_extractor=schema_extractor)
         """
-
-        from sycamore.transforms import ExtractSchema
-
-        schema = ExtractSchema(self.plan, schema_extractor=schema_extractor)
-        return DocSet(self.context, schema)
+        comptransform = schema_extractor.as_llm_map(self.plan, **kwargs)
+        return DocSet(self.context, comptransform)
 
     def extract_batch_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
         """
@@ -920,7 +918,14 @@ class DocSet:
         mapping = Map(self.plan, f=f, **resource_args)
         return DocSet(self.context, mapping)
 
-    def kmeans(self, K: int, iterations: int = 20, init_mode: str = "random", epsilon: float = 1e-4):
+    def kmeans(
+        self,
+        K: int,
+        iterations: int = 20,
+        init_mode: str = "random",
+        epsilon: float = 1e-4,
+        field_name: Optional[str] = None,
+    ):
         """
         Apply kmeans over embedding field
 
@@ -929,28 +934,38 @@ class DocSet:
             iterations: the max iteration runs before converge
             init_mode: how the initial centroids are select
             epsilon: the condition for determining if it's converged
+            field_name: the field used to run kmeans, use default embedding if it's None
         Return a list of max K centroids
         """
 
+        def filter_meta(row):
+            doc = Document.from_row(row)
+            return not isinstance(doc, MetadataDocument)
+
         def init_embedding(row):
             doc = Document.from_row(row)
-            return {"vector": doc.embedding, "cluster": -1}
+            return (
+                {"vector": doc.embedding, "cluster": -1}
+                if field_name is None
+                else {"vector": doc[field_name], "cluster": -1}
+            )
 
-        embeddings = self.plan.execute().map(init_embedding).materialize()
+        embeddings = self.plan.execute().filter(filter_meta).map(init_embedding).materialize()
 
         initial_centroids = KMeans.init(embeddings, K, init_mode)
         centroids = KMeans.update(embeddings, initial_centroids, iterations, epsilon)
         return centroids
 
-    def clustering(self, centroids, cluster_field_name, **resource_args) -> "DocSet":
+    def clustering(self, centroids, cluster_field_name, field_name=None, **resource_args) -> "DocSet":
         def cluster(doc: Document) -> Document:
-            idx = KMeans.closest(doc.embedding, centroids)
-            doc[cluster_field_name] = idx
+            if not isinstance(doc, MetadataDocument):
+                embedding = doc[field_name] if field_name else doc.embedding
+                idx = KMeans.closest(embedding, centroids)
+                doc[cluster_field_name] = idx
             return doc
 
         from sycamore.transforms import Map
 
-        resource_args["enable_auto_metadata"] = False
         mapping = Map(self.plan, f=cluster, **resource_args)
         return DocSet(self.context, mapping)
 
@@ -1319,10 +1334,10 @@ class DocSet:
         queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
         return DocSet(self.context, queries)
 
-    def groupby(self, key: Union[str, list[str]]) -> "GroupedData":
+    def groupby(self, grouped_key: Union[str, list[str]], entity: Optional[str] = None) -> "GroupedData":
         from sycamore.grouped_data import GroupedData
 
-        return GroupedData(self, key)
+        return GroupedData(self, grouped_key, entity)
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def top_k(

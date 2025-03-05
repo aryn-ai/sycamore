@@ -376,7 +376,6 @@ class TestOpenSearchRead:
         retrieved_docs_reconstructed = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
             index_name=setup_index,
-            reconstruct_document=True,
             doc_reconstructor=DocumentReconstructor(setup_index, doc_reconstructor),
         ).take_all()
 
@@ -652,6 +651,8 @@ class TestOpenSearchRead:
         assert "1" == retrieved_docs[0].doc_id
         assert hidden == retrieved_docs[0].properties[key]
 
+        os_client.indices.delete(setup_index, ignore_unavailable=True)
+
     def test_parallel_query_on_extracted_property_with_pit(self, setup_index, os_client):
 
         path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
@@ -694,6 +695,8 @@ class TestOpenSearchRead:
         print(f"Retrieved {len(retrieved_docs)} documents in {t1 - t0} seconds")
         expected_docs = self.get_ids(os_client, setup_index, True, query)
         assert len(retrieved_docs) == len(expected_docs)
+
+        os_client.indices.delete(setup_index, ignore_unavailable=True)
 
     @staticmethod
     def get_ids(

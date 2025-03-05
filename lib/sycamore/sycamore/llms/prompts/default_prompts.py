@@ -17,6 +17,7 @@ from sycamore.llms.prompts.jinja_fragments import (
     J_SET_ENTITY,
     J_SET_SCHEMA,
     J_ELEMENT_BATCHED_LIST,
+    J_ELEMENT_LIST_CAPPED,
 )
 
 logger = logging.getLogger(__name__)
@@ -185,24 +186,18 @@ TextSummarizerJinjaPrompt = JinjaElementPrompt(
 )
 
 
-class _SchemaZeroShotGuidancePrompt(SimplePrompt):
-    system = "You are a helpful entity extractor. You only return JSON Schema."
-    user = """You are given a few text elements of a document. Extract JSON Schema representing one entity of
-    class {entity} from the document. Using this context, FIND, FORMAT, and RETURN the JSON-LD Schema.
-    Return a flat schema, without nested properties. Return at most {max_num_properties} properties.
-    Only return JSON Schema as part of your answer.
-    {query}
-    """
-
-
-SchemaZeroShotGuidancePrompt = ElementListPrompt(
+SchemaZeroShotJinjaPrompt = JinjaPrompt(
     system="You are a helpful entity extractor. You only return JSON Schema.",
-    user="""You are given a few text elements of a document. Extract JSON Schema representing one entity of
-    class {entity} from the document. Using this context, FIND, FORMAT, and RETURN the JSON-LD Schema.
-    Return a flat schema, without nestes properties. Return at most {max_num_properties} properties.
-    Only return JSON Schema as part of your answer.
-    {elements}""",
-    max_num_properties=7,
+    user=textwrap.dedent(
+        """\
+        You are given a few text elements of a document. Extract JSON Schema representing
+        one entity of class {{ entity }} from the document. Using this context, FIND, FORMAT, and
+        RETURN the JSON-LD Schema. Return a flat schema, without nested properties. Return at most
+        {{ max_num_properties }} properties. Only return JSON Schema as part of your answer.
+        {% if prompt_formatter is defined %}{{ prompt_formatter(doc.elements[:num_elements]) }}{% else %}"""
+    )
+    + J_ELEMENT_LIST_CAPPED
+    + "{% endif %}",
 )
 
 
@@ -510,8 +505,6 @@ _deprecated_prompts: dict[str, Type[SimplePrompt]] = {
     "ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT": _EntityExtractorFewShotGuidancePrompt,
     "TEXT_SUMMARIZER_GUIDANCE_PROMPT": _TextSummarizerGuidancePrompt,
     "TEXT_SUMMARIZER_GUIDANCE_PROMPT_CHAT": _TextSummarizerGuidancePrompt,
-    "SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT": _SchemaZeroShotGuidancePrompt,
-    "SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT": _SchemaZeroShotGuidancePrompt,
 }
 
 

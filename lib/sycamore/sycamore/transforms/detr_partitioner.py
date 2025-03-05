@@ -140,7 +140,6 @@ class ArynPDFPartitioner:
         file: BinaryIO,
         threshold: Union[float, Literal["auto"]] = DEFAULT_LOCAL_THRESHOLD,
         use_ocr=False,
-        ocr_images=False,
         ocr_model: Union[str, OcrModel] = "easyocr",
         per_element_ocr=True,
         extract_table_structure=False,
@@ -167,7 +166,6 @@ class ArynPDFPartitioner:
                 aryn_partitioner_address=aryn_partitioner_address,
                 threshold=threshold,
                 use_ocr=use_ocr,
-                ocr_images=ocr_images,
                 extract_table_structure=extract_table_structure,
                 extract_images=extract_images,
                 pages_per_call=pages_per_call,
@@ -183,7 +181,6 @@ class ArynPDFPartitioner:
                 file=file,
                 threshold=threshold,
                 use_ocr=use_ocr,
-                ocr_images=ocr_images,
                 ocr_model=ocr_model,
                 per_element_ocr=per_element_ocr,
                 extract_table_structure=extract_table_structure,
@@ -226,7 +223,6 @@ class ArynPDFPartitioner:
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
         threshold: Union[float, Literal["auto"]] = "auto",
         use_ocr: bool = False,
-        ocr_images: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
         selected_pages: list = [],
@@ -238,7 +234,6 @@ class ArynPDFPartitioner:
         options = {
             "threshold": threshold,
             "use_ocr": use_ocr,
-            "ocr_images": ocr_images,
             "extract_table_structure": extract_table_structure,
             "extract_images": extract_images,
             "selected_pages": selected_pages,
@@ -341,7 +336,6 @@ class ArynPDFPartitioner:
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
         threshold: Union[float, Literal["auto"]] = "auto",
         use_ocr: bool = False,
-        ocr_images: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
         pages_per_call: int = -1,
@@ -364,7 +358,6 @@ class ArynPDFPartitioner:
                     aryn_partitioner_address=aryn_partitioner_address,
                     threshold=threshold,
                     use_ocr=use_ocr,
-                    ocr_images=ocr_images,
                     extract_table_structure=extract_table_structure,
                     extract_images=extract_images,
                     selected_pages=[[low, min(high, page_count)]],
@@ -383,7 +376,6 @@ class ArynPDFPartitioner:
         file: BinaryIO,
         threshold: float = DEFAULT_LOCAL_THRESHOLD,
         use_ocr: bool = False,
-        ocr_images: bool = False,
         ocr_model: Union[str, OcrModel] = "easyocr",
         per_element_ocr: bool = True,
         extract_table_structure: bool = False,
@@ -410,7 +402,6 @@ class ArynPDFPartitioner:
                 file_hash.hexdigest(),
                 threshold,
                 use_ocr,
-                ocr_images,
                 ocr_model,
                 per_element_ocr,
                 extract_table_structure,
@@ -430,7 +421,6 @@ class ArynPDFPartitioner:
         hash_key: str,
         threshold: float = DEFAULT_LOCAL_THRESHOLD,
         use_ocr: bool = False,
-        ocr_images: bool = False,
         ocr_model: Union[str, OcrModel] = "easyocr",
         per_element_ocr: bool = True,
         extract_table_structure=False,
@@ -472,7 +462,6 @@ class ArynPDFPartitioner:
                 use_ocr=use_ocr,
                 text_extractor=text_extractor,
                 extractor_inputs=extractor_inputs,
-                ocr_images=ocr_images,
                 ocr_model=ocr_model,
                 per_element_ocr=per_element_ocr,
                 extract_table_structure=extract_table_structure,
@@ -504,7 +493,6 @@ class ArynPDFPartitioner:
         text_extractor: TextExtractor,
         extractor_inputs: Any,
         use_ocr: bool,
-        ocr_images: bool,
         ocr_model: Union[str, OcrModel],
         per_element_ocr: bool,
         extract_table_structure: bool,
@@ -526,7 +514,6 @@ class ArynPDFPartitioner:
                 extract_ocr(
                     batch,
                     deformable_layout,
-                    ocr_images=ocr_images,
                     ocr_model=ocr_model,
                 )
         else:
@@ -571,12 +558,11 @@ class ArynPDFPartitioner:
         hash_key: str,
         use_cache: bool,
         use_ocr: bool,
-        ocr_images: bool,
         text_extractor_model: Union[str, OcrModel],
         text_extraction_options: dict[str, Any],
         images: Optional[list[Image.Image]] = None,
     ):
-        kwargs = {"ocr_images": ocr_images, "images": images}
+        kwargs = {"images": images}
         if isinstance(text_extractor_model, OcrModel):
             model: TextExtractor = text_extractor_model
         else:
@@ -592,7 +578,6 @@ class ArynPDFPartitioner:
         use_cache: bool,
         use_ocr: bool,
         ocr_model: Union[str, OcrModel],
-        ocr_images: bool,
         per_element_ocr: bool,
     ) -> Any:
         self._init_model()
@@ -606,7 +591,6 @@ class ArynPDFPartitioner:
             extract_ocr(
                 batch,
                 deformable_layout,
-                ocr_images=ocr_images,
                 ocr_model=ocr_model,
             )
         return deformable_layout
@@ -777,7 +761,6 @@ class DeformableDetr(SycamoreObjectDetection):
 def extract_ocr(
     images: list[Image.Image],
     elements: list[list[Element]],
-    ocr_images: bool = False,
     ocr_model: Union[str, OcrModel] = "easyocr",
     text_extraction_options: dict[str, Any] = {},
 ) -> list[list[Element]]:
@@ -795,8 +778,6 @@ def extract_ocr(
         width, height = image.size
         for elem in page_elements:
             if elem.bbox is None:
-                continue
-            if elem.type == "Picture" and not ocr_images:
                 continue
             cropped_image = crop_to_bbox(image, elem.bbox, padding=0)
             if 0 in cropped_image.size:

@@ -88,6 +88,10 @@ class LLM(ABC):
             raise ValueError("Either 'prompt' or 'messages' must be specified in prompt_kwargs")
         return await self.generate_async(prompt=rendered, llm_kwargs=llm_kwargs)
 
+    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+        """Generates a series of responses from the LLM for the given series of prompts. Order is preserved."""
+        raise NotImplementedError("This LLM does not support batched generation")
+
     def __str__(self):
         return f"{self.__class__.__name__}({self._model_name})"
 

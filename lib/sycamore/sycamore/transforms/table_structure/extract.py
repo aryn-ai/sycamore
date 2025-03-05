@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Union
+from typing import Any, Union, Optional, Callable
 
 from PIL import Image
 import pdf2image
@@ -13,6 +13,8 @@ from sycamore.transforms.table_structure.table_transformers import MaxResize
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.import_utils import requires_modules
+
+Num = Union[float, int]
 
 
 class TableStructureExtractor:
@@ -235,6 +237,17 @@ class HybridTableStructureExtractor(TableStructureExtractor):
     """A TableStructureExtractor implementation that conditionally uses either Deformable or TATR
     depending on the size of the table"""
 
+    _model_names = ("table_transformer", "deformable_detr")
+    _metrics = ("pixels", "chars")
+    _comparisons = (
+        "==",
+        "<=",
+        ">=",
+        "!=",
+        "<",
+        ">",
+    )
+
     def __init__(
         self,
         deformable_model: str,
@@ -245,25 +258,47 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         self._tatr = TableTransformerStructureExtractor(tatr_model, device)
 
     def _pick_model(
-        self, element: TableElement, doc_image: Image.Image
+        self,
+        element: TableElement,
+        doc_image: Image.Image,
+        model_selection: str,
     ) -> Union[TableTransformerStructureExtractor, DeformableTableStructureExtractor]:
-        """If the absolute size of the table is > 500 pixels in any dimension, use deformable.
-        Otherwise, use TATR"""
+        """Use the model_selection expression to choose the model to use for table extraction.
+        If the expression returns None, use table transformer."""
         if element.bbox is None:
             return self._tatr
+
+        select_fn = self.parse_model_selection(model_selection)
+
         width, height = doc_image.size
         bb = element.bbox.to_absolute(width, height)
         padding = 10
         max_dim = max(bb.width, bb.height) + 2 * padding
-        if max_dim > 500:
+
+        nchars = sum(len(tok["text"]) for tok in element.tokens or [{"text": ""}])
+
+        selection = select_fn(max_dim, nchars)
+        print("=" * 80)
+        print(selection)
+        if selection == "table_transformer":
+            return self._tatr
+        elif selection == "deformable_detr":
             return self._deformable
-        return self._tatr
+        elif selection is None:
+            return self._tatr
+        raise ValueError(f"Somehow we got an invalid selection: {selection}. This should be unreachable.")
 
     def _init_structure_model(self):
         self._deformable._init_structure_model()
         self._tatr._init_structure_model()
 
-    def extract(self, element: TableElement, doc_image: Image.Image, union_tokens=False) -> TableElement:
+    def extract(
+        self,
+        element: TableElement,
+        doc_image: Image.Image,
+        union_tokens=False,
+        model_selection: str = "pixels > 500 -> deformable_detr; table_transformer",
+    ) -> TableElement:
         """Extracts the table structure from the specified element using a either a DeformableDETR or
         TATR model, depending on the size of the table.
 
@@ -276,9 +311,138 @@ class HybridTableStructureExtractor(TableStructureExtractor):
                Used for bounding box calculations.
           union_tokens: Make sure that ocr/pdfminer tokens are _all_ included in the table.
           apply_thresholds: Apply class thresholds to the objects output by the model.
+          model_selection: Control which model gets selected. See ``parse_model_selection`` for
+                expression syntax. Default is "pixels > 500 -> deformable_detr; table_transformer".
+                If no statements are matched, defaults to table transformer.
         """
-        model = self._pick_model(element, doc_image)
-        return model.extract(element, doc_image, union_tokens)
+        m = self._pick_model(element, doc_image, model_selection)
+        return m.extract(element, doc_image, union_tokens)
+
+    @classmethod
+    def parse_model_selection(cls, selection: str) -> Callable[[float, int], Optional[str]]:
+        """
+        Parse a model selection expression. Model selection expressions are of the form:
+            "metric cmp threshold -> model; metric cmp threshold -> model; model;"
+        That is, any number of conditional expression selections followed by up to one unconditional
+        selection expression, separated by semicolons. Expressions are processed from left to right.
+        Anything after the unconditional expression is not processed.
+
+        - Supported metrics are "pixels" - the number of pixels in the larger dimension of the table (we
+        find this to be easier to reason about than the total number of pixels which depends on two numbers),
+        and "chars" - the number of characters in the table, as detected by the partitioner's text_extractor.
+        - Supported comparisons are the usual set - <, >, <=, >=, ==, !=.
+        - The threshold must be numeric (and int or a float)
+        - The model must be either "deformable_detr" or "table_transformer"
+
+        Args:
+            selection: the selection string.
+
+        Returns:
+            a function that can be used to select a model given the pixels and chars metrics.
+
+        Examples:
+            - `"table_transformer"` => always use table transformer
+            - `"pixels > 500 -> deformable_detr; table_transformer"` => if the biggest dimension of
+                the table is greater than 500 pixels use deformable detr. Otherwise use table_transformer.
+            - `"pixels>50->table_transformer; chars<30->deformable_detr;chars>35->table_transformer;pixels>2->deformable_detr;table_transformer;comment"`
+                => if the biggest dimension is more than 50 pixels use table transformer. Else if the total number of chars in the table is less than
+                30 use deformable_detr. Else if there are mode than 35 chars use table transformer. Else if there are more than 2 pixels in the biggest
+                dimension use deformable detr. Otherwise use table transformer. comment is not processed.
+        """  # noqa: E501 # line too long. long line is a long example. I want it that way.
+        statements = selection.split(sep=";")
+        checks = []
+        for statement in statements:
+            statement = statement.strip()
+            if statement == "":
+                continue
+            if "->" not in statement:
+                if statement not in cls._model_names:
+                    raise ValueError(
+                        f"Invalid statement: '{statement}'. Did not find '->', so this is assumed"
+                        f" to be a static statement, but the model_name was not in {cls._model_names}"
+                    )
+                checks.append(lambda pixels, chars: statement)
+                break
+            pieces = statement.split(sep="->")
+            if len(pieces) > 2:
+                raise ValueError(f"Invalid statement: '{statement}'. Found more than 2 instances of '->'")
+            result = pieces[1].strip()
+            if result not in cls._model_names:
+                raise ValueError(
+                    f"Invalid statement: '{statement}'. Result model ({result}) was not in {cls._model_names}"
+                )
+            if all(c not in pieces[0] for c in cls._comparisons):
+                raise ValueError(
+                    f"Invalid statement: '{statement}'. Did not find a comparison operator {cls._comparisons}"
+                )
+            metric, cmp, threshold = cls.parse_comparison(pieces[0])
+
+            def make_check(metric, compare, threshold, result):
+                # otherwise captrued variables change their values
+                def check(pixels: float, chars: int) -> Optional[str]:
+                    if metric == "pixels":
+                        cmpval = pixels
+                    else:
+                        cmpval = chars
+                    if compare(cmpval, threshold):
+                        return result
+                    return None
+
+                return check
+
+            checks.append(make_check(metric, cmp, threshold, result))
+
+        def select_fn(pixels: float, chars: int) -> Optional[str]:
+            for c in checks:
+                if (rv := c(pixels, chars)) is not None:
+                    return rv
+            return None
+
+        return select_fn
+
+    @staticmethod
+    def get_cmp_fn(opstring: str) -> Callable[[Num, Num], bool]:
+        ops = {
+            "!=": lambda a, b: a != b,
+            ">=": lambda a, b: a >= b,
+            "<=": lambda a, b: a <= b,
+            "==": lambda a, b: a == b,
+            "<": lambda a, b: a < b,
+            ">": lambda a, b: a > b,
+        }
+        if opstring in ops:
+            return ops[opstring]
+        raise ValueError(f"Invalid comparison: Unsupported operator '{opstring}'")
+
+    @classmethod
+    def parse_comparison(cls, comparison: str) -> tuple[str, Callable[[Num, Num], bool], Union[int, float]]:
+        cmp_pieces = []
+        cmp = None
+        for opstring in sorted(cls._comparisons, key=lambda c: len(c), reverse=True):
+            if opstring in comparison:
+                cmp_pieces = comparison.split(sep=opstring)
+                cmp = cls.get_cmp_fn(opstring)
+                break
+
+        if len(cmp_pieces) == 0 or cmp is None:
+            raise ValueError(
+                f"Invalid comparison: '{comparison}'. Did not find comparison operator {cls._comparisons}."
+            )
+        if len(cmp_pieces) != 2:
+            raise ValueError(
+                f"Invalid comparison: '{comparison}'. Comparison statements must take the form 'METRIC CMP THRESHOLD'."
+            )
+        metric, threshold = cmp_pieces[0].strip(), cmp_pieces[1].strip()
+        if metric not in cls._metrics:
+            raise ValueError(f"Invalid comparison: '{comparison}'. Allowed metrics are: '{cls._metrics}'")
+        try:
+            threshold_num: Num = int(threshold)
+        except ValueError:
+            try:
+                threshold_num = float(threshold)
+            except ValueError:
+                raise ValueError(f"Invalid comparison: '{comparison}'. Threshold ({threshold}) must be numeric")
+        return metric, cmp, threshold_num
 
 
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor

@@ -1,3 +1,4 @@
+import copy
 from abc import abstractmethod
 from typing import Any, Optional, List, Dict, Tuple
 
@@ -17,7 +18,7 @@ from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
 from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
-from sycamore.query.operators.top_k import TopK
+from sycamore.query.operators.top_k import TopK, GroupByCount
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.sort import Sort
 
@@ -25,7 +26,7 @@ from sycamore.query.execution.operations import summarize_data
 from sycamore.transforms import Embedder
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 
-from sycamore import DocSet, Context
+from sycamore import DocSet, Context, MATERIALIZE_USE_STORED
 from sycamore.query.execution.physical_operator import PhysicalOperator, get_var_name, get_str_for_dict
 
 
@@ -610,6 +611,59 @@ class SycamoreTopK(SycamoreOperator):
 )
 """
         return result, []
+
+
+class SycamoreGroupByCount(SycamoreOperator):
+    """
+    Note: top_k clustering only operators on properties, it will not cluster on text_representation currently.
+    Return the Top-K values from a DocSet
+    """
+
+    def __init__(
+        self,
+        context: Context,
+        logical_node: GroupByCount,
+        query_id: str,
+        inputs: Optional[List[Any]] = None,
+        trace_dir: Optional[str] = None,
+    ) -> None:
+        super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
+
+    def execute(self) -> Any:
+        assert self.inputs and len(self.inputs) == 1, "GroupByCount requires 1 input node"
+        assert isinstance(self.inputs[0], DocSet), "GroupByCount requires a DocSet input"
+        # load into local vars for Ray serialization magic
+        logical_node = self.logical_node
+        assert isinstance(logical_node, GroupByCount)
+
+        entity_name = logical_node.entity_name
+        embed_name = logical_node.embed_name
+
+        embedder = get_val_from_context(context=self.context, val_key="text_embedder", param_names=["opensearch"])
+        embedder = copy.copy(embedder)
+        assert embedder and isinstance(embedder, Embedder), "GroupByCount requires an Embedder in the context"
+        embedder.embed_name = (entity_name, embed_name)
+
+        cluster_field_name = logical_node.cluster_field_name
+        descending = logical_node.descending
+        K = logical_node.K
+
+        import tempfile
+
+        temp_dir = tempfile.mkdtemp()
+
+        docset = self.inputs[0].embed(embedder).materialize(path=f"{temp_dir}", source_mode=MATERIALIZE_USE_STORED)
+        docset.execute()
+        centroids = docset.kmeans(K=K * 2, field_name=embed_name)
+        clustered = docset.clustering(centroids=centroids, cluster_field_name=cluster_field_name, field_name=embed_name)
+        result = (
+            clustered.groupby(cluster_field_name, entity_name).count().sort(descending, "properties.count", 0).limit(K)
+        )
+
+        return result
+
+    def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
+        raise Exception("GroupByCount not implemented for codegen")
 
 
 class SycamoreFieldIn(SycamoreOperator):

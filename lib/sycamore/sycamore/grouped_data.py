@@ -49,8 +49,3 @@ class GroupedData:
         from sycamore.transforms import DatasetScan
 
         return DocSet(self._docset.context, DatasetScan(serialized))
-
-    def count(self) -> DocSet:
-        from ray.data.aggregate import Count
-
-        return self.aggregate(Count())

@@ -15,6 +15,7 @@ from aryn_sdk.partition import (
     partition_file_async_list,
     PartitionError,
     PartitionTaskNotFoundError,
+    BoolFlag,
     convert_image_element,
     tables_to_pandas,
 )
@@ -155,6 +156,12 @@ def test_partition_file_auto_rotation():
         RESOURCE_DIR / "pdfs" / "rotated.pdf", output_label_options={"orientation_correction": True}
     )
     assert actual["elements"] == expected["elements"]
+
+
+def test_partition_file_cancel():
+    flag = BoolFlag(True)
+    with pytest.raises(Exception):
+        partition_file(RESOURCE_DIR / "pdfs" / "SPsort.pdf", cancel_flag=flag)
 
 
 def test_data_to_pandas():

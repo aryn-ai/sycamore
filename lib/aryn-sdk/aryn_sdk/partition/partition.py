@@ -43,6 +43,23 @@ class PartitionTaskNotFoundError(Exception):
         self.status_code = status_code
 
 
+class BoolFlag:
+    """
+    A boxed boolean that can be mutated and passed around by reference.
+    """
+
+    __slots__ = "val"
+
+    def __init__(self, val: bool) -> None:
+        self.val = val
+
+    def set(self, val: bool) -> None:
+        self.val = val
+
+    def get(self) -> bool:
+        return self.val
+
+
 def partition_file(
     file: Union[BinaryIO, str, PathLike],
     *,
@@ -64,6 +81,7 @@ def partition_file(
     output_format: Optional[str] = None,
     output_label_options: Optional[dict[str, Any]] = None,
     trace_id: Optional[str] = None,
+    cancel_flag: Optional[BoolFlag] = None,
 ) -> dict:
     """
     Sends file to Aryn DocParse and returns a dict of its document structure and text
@@ -136,6 +154,7 @@ def partition_file(
                 }
             default: None (no element is promoted to "Title")
         trace_id: for internal use
+        cancel_flag: way to interrupt partitioning from the outside
 
 
     Returns:
@@ -177,6 +196,7 @@ def partition_file(
         output_format=output_format,
         output_label_options=output_label_options,
         trace_id=trace_id,
+        cancel_flag=cancel_flag,
     )
 
 
@@ -202,6 +222,7 @@ def _partition_file_wrapper(
     output_label_options: Optional[dict[str, Any]] = None,
     webhook_url: Optional[str] = None,
     trace_id: Optional[str] = None,
+    cancel_flag: Optional[BoolFlag] = None,
 ):
     """Do not call this function directly. Use partition_file or partition_file_async_submit instead."""
 
@@ -231,6 +252,7 @@ def _partition_file_wrapper(
             output_format=output_format,
             output_label_options=output_label_options,
             trace_id=trace_id,
+            cancel_flag=cancel_flag,
             webhook_url=webhook_url,
         )
     finally:
@@ -259,6 +281,7 @@ def _partition_file_inner(
     output_format: Optional[str] = None,
     output_label_options: Optional[dict[str, Any]] = None,
     trace_id: Optional[str] = None,
+    cancel_flag: Optional[BoolFlag] = None,
     webhook_url: Optional[str] = None,
 ):
     """Do not call this function directly. Use partition_file or partition_file_async_submit instead."""
@@ -303,6 +326,11 @@ def _partition_file_inner(
     partial_line = []
     in_bulk = False
     for part in resp.iter_content(None):
+        # A big doc could take a while; we may be asked to bail out early
+        if cancel_flag and cancel_flag.get():
+            resp.close()
+            break
+
         if not part:
             continue
 

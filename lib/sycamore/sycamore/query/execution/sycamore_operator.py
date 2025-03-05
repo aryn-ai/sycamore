@@ -199,8 +199,8 @@ class SycamoreSummarizeData(SycamoreOperator):
         assert description is not None and isinstance(description, str)
         result = summarize_data(
             question=question,
-            result_description=description,
-            result_data=self.inputs,
+            data_description=description,
+            input_data=self.inputs,
             context=self.context,
             **self.get_execute_args(),
         )
@@ -221,8 +221,8 @@ class SycamoreSummarizeData(SycamoreOperator):
         result = f"""
 {output_var or get_var_name(self.logical_node)} = summarize_data(
     question='{question}',
-    result_description='{description}',
-    result_data=[{logical_deps_str}],
+    data_description='{description}',
+    input_data=[{logical_deps_str}],
     context=context,
     use_elements=True,
     **{get_str_for_dict(self.get_execute_args())},

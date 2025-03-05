@@ -6,6 +6,8 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.map import MapBatch
 from sycamore.data import Document, Element
 
+from tqdm import tqdm
+
 
 def _infer_prompts(
     prompts: list[RenderedPrompt],
@@ -14,7 +16,7 @@ def _infer_prompts(
 ) -> list[str]:
     if llm_mode == LLMMode.SYNC:
         res = []
-        for p in prompts:
+        for p in tqdm(prompts):
             if len(p.messages) == 0:
                 res.append("")
                 continue

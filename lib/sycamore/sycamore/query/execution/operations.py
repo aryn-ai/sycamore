@@ -13,9 +13,7 @@ from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
 )
 from sycamore.transforms.summarize import (
-    EtCetera,
     MultiStepDocumentSummarizer,
-    OneStepDocumentSummarizer,
     Summarizer,
 )
 
@@ -29,8 +27,9 @@ DEFAULT_DOCSET_SUMMARIZE_KWARGS: dict[str, Any] = {
     "max_tokens": 80_000,
 }
 # onestep
-DEFAULT_DOCSET_SUMMARIZE_CLASS = OneStepDocumentSummarizer  # type: ignore
-DEFAULT_DOCSET_SUMMARIZE_KWARGS = {"fields": [EtCetera], "tokenizer": OpenAITokenizer("gpt-4o"), "token_limit": 80_000}
+# DEFAULT_DOCSET_SUMMARIZE_CLASS = OneStepDocumentSummarizer  # type: ignore
+# DEFAULT_DOCSET_SUMMARIZE_KWARGS = {"fields": [EtCetera],
+# "tokenizer": OpenAITokenizer("gpt-4o"), "token_limit": 80_000}
 
 
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
@@ -64,9 +63,8 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
 def summarize_data(
     llm: LLM,
     question: Optional[str],
-    # TODO: results are not inputs; we should rename the arguments.
-    result_description: str,
-    result_data: List[Any],
+    data_description: str,
+    input_data: List[Any],
     summaries_as_text: bool = False,
     context: Optional[Context] = None,
     docset_summarizer: Optional[Summarizer] = None,
@@ -79,8 +77,8 @@ def summarize_data(
     Args:
         llm: LLM to use for summarization.
         question: Question to answer.
-        result_description: Description of each of the inputs in result_data.
-        result_data: List of inputs.
+        data_description: Description of each of the inputs in input_data.
+        input_data: List of inputs.
         summaries_as_text: If true, summarize all documents in the result_data docsets and treat
             those summaries as the text representation for the final summarize step.
         context: Optional Context object to get default parameters from.
@@ -98,23 +96,23 @@ def summarize_data(
             llm=llm, question=question, **DEFAULT_DOCSET_SUMMARIZE_KWARGS  # type: ignore
         )
 
-    if all(isinstance(d, DocSet) for d in result_data):
+    if all(isinstance(d, DocSet) for d in input_data):
         return summarize_data_docsets(
             llm,
             question,
-            result_data,
+            input_data,
             docset_summarizer=docset_summarizer,
-            data_description=result_description,
+            data_description=data_description,
             summaries_as_text=summaries_as_text,
         )
 
     # If data is not DocSets, text is this list here
     # TODO: Jinjify.
     assert not any(
-        isinstance(r, DocSet) for r in result_data
-    ), f"Received heterogeneous input data (docsets and scalars) to summarize data: {result_data}"
-    text = f"Data description: {result_description}\n"
-    for i, d in enumerate(result_data):
+        isinstance(r, DocSet) for r in input_data
+    ), f"Received heterogeneous input data (docsets and scalars) to summarize data: {input_data}"
+    text = f"Data description: {data_description}\n"
+    for i, d in enumerate(input_data):
         text += f"Input {i + 1}: {str(d)}\n"
 
     messages = SummarizeDataMessagesPrompt(question=question or "", text=text).as_messages()
@@ -132,15 +130,15 @@ def sum_to_text(d: Document) -> Document:
 def summarize_data_docsets(
     llm: LLM,
     question: Optional[str],
-    result_data: List[DocSet],
+    input_data: List[DocSet],
     docset_summarizer: Summarizer,
     data_description: Optional[str] = None,
     summaries_as_text: bool = False,
 ) -> str:
     if summaries_as_text:
-        result_data = [ds.summarize(docset_summarizer).map(sum_to_text) for ds in result_data]
+        input_data = [ds.summarize(docset_summarizer).map(sum_to_text) for ds in input_data]
 
-    single_docs = [Document(elements=[Element(**d.data) for d in ds.take_all()]) for ds in result_data]
-    agged_ds = result_data[0].context.read.document(single_docs).summarize(docset_summarizer)
+    single_docs = [Document(elements=[Element(**d.data) for d in ds.take_all()]) for ds in input_data]
+    agged_ds = input_data[0].context.read.document(single_docs).summarize(docset_summarizer)
     texts = [d.properties["summary"] for d in agged_ds.take_all()]
     return "\n".join(texts)

@@ -13,12 +13,14 @@ from sycamore.llms.prompts.prompts import (
     JinjaElementPrompt,
     SycamorePrompt,
     JinjaPrompt,
+    RenderedPrompt,
 )
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
-from sycamore.transforms.map import Map
+from sycamore.llms.llms import LLMMode
+from sycamore.transforms.map import Map, MapBatch
 from sycamore.transforms.base import CompositeTransform, BaseMapTransform
-from sycamore.transforms.base_llm import LLMMapElements, LLMMap
+from sycamore.transforms.base_llm import LLMMapElements, LLMMap, _infer_prompts
 
 
 class Summarizer(ABC):
@@ -77,30 +79,37 @@ MaxTokensHierarchyPrompt = JinjaElementPrompt(
     ),
     user=textwrap.dedent(
         """
-        {#-
-            get_text macro: returns text for an element. If this is the first
-            round of summarization:
-                If `fields` is provided to the template, add a list of key-value
-                pairs to the text (if fields is the string "*", use all properties).
-                Always include the text representation
-            If this is after the first round of summarization:
-                use only the element's summary field
-        -#}
-        {%- macro get_text(element) %}
-            {%- if round == 0 -%}
-                {%- if fields is defined -%}
-                    {%- if fields == "*" %}{% for p in element.properties %}
-                        {%- if p.startswith('_') %}{% continue %}{% endif %}
+        {%-macro get_text_properties(element) %}
+            {% for p in element.properties %}
+                {%- if p.startswith('_') %}{% continue %}{% endif %}
             {{ p }}: {{ element.properties[p] }}
-                    {%- endfor -%}
-                    {%- else %}{% for f in fields %}
+            {%- endfor -%}
+        {% endmacro -%}
+
+        {%-macro get_text_fields(element, fields) %}
+            {% for f in fields %}
             {{ f }}: {{ element.field_to_value(f) }}
-                    {%- endfor %}{% endif -%}
-                {%- endif -%}
-            Text: {{ element.text_representation }}
-            {%- else -%}
+            {%- endfor %}
+        {% endmacro -%}
+
+        {%-macro get_text_base(element) %}
+            {%- if fields is defined -%}
+                {%- if fields == "*" %}
+            {{ get_text_properties(element) }}
+                {%- else %}
+            {{ get_text_fields(element, fields) }}
+                {% endif -%}
+            {%- endif -%}
+            Text: {{ element.text_representation }} (hi)
+                {{ element }}
+        {% endmacro -%}
+
+        {%- macro get_text(element) %}
+                {%- if round == 0 -%}
+            {{ get_text_base(element) }}
+                {%- else -%}
             Summary: {{ element.properties[intermediate_summary_key] }}
-            {% endif -%}
+                {% endif -%}
         {% endmacro -%}
 
         {%- macro get_data_description() -%}
@@ -110,11 +119,6 @@ MaxTokensHierarchyPrompt = JinjaElementPrompt(
         a set of documents with properties for each document
             {%- endif -%}
         {%- endmacro -%}
-
-        {%- if elt.properties[skip_me_key] -%}{{ norender() }}{%- endif -%}
-        {%- if (batch_key in elt.properties and elt.properties[batch_key]|count == 1
-                and intermediate_summary_key in elt.properties) -%}{{ norender() }}{%- endif -%}
-        {%- if batch_key not in elt.properties -%}{{ norender() }}{%- endif -%}
 
         {% if round == 0 -%}
         You are given {{ get_data_description() }}. Please use only the information found in these elements
@@ -149,8 +153,10 @@ class MultiStepDocumentSummarizer(Summarizer):
 
     Args:
         llm: LLM to use for summarization
+        llm_mode: How to call the LLM - SYNC, ASYNC, BATCH. Async is faster but not all llms support it.
         question: Optional question to use as context for the summarization. If set, the llm will
             attempt to answer the question with the data provided
+        data_description: Optional string describing the input documents.
         prompt: Prompt to use for each summarization. Caution: The default (MaxTokensHeirarchicalSummarizerPrompt)
             has some fairly complicated logic encoded in it to make the tree construction work correctly.
         fields: List of fields to include in each element's representation in the prompt. Specify
@@ -159,94 +165,101 @@ class MultiStepDocumentSummarizer(Summarizer):
         max_tokens: token limit for each summarization. Default is 10k (default tokenizer is by character).
         tokenizer: tokenizer to use when computing how many tokens a prompt will take. Default is
             CharacterTokenizer
-        rounds: number of rounds of heirarchical summarization to perform. The number of elements that can be
-            included in the summary is O(e^rounds), so rounds can be small. Default is 4.
+        max_rounds: max number of rounds of heirarchical summarization to perform. The number of elements that
+            can be included in the summary is O(e^max_rounds), so can be small. Default is 4.
     """
 
     def __init__(
         self,
         llm: LLM,
+        llm_mode: LLMMode = LLMMode.SYNC,
         question: Optional[str] = None,
         data_description: Optional[str] = None,
         prompt: SycamorePrompt = MaxTokensHierarchyPrompt,
         fields: Union[None, Literal["*"], list[str]] = None,
         max_tokens: int = 10 * 1000,
         tokenizer: Tokenizer = CharacterTokenizer(),
-        rounds: int = 4,
+        max_rounds: int = 4,
     ):
         self.llm = llm
+        self.llm_mode = llm_mode
         self.prompt = prompt.fork(**self.get_const_vars())
         self.fields = fields
         self.question = question
         self.data_description = data_description
         self.max_tokens = max_tokens
         self.tokenizer = tokenizer
-        self.rounds = 4
+        self.max_rounds = max_rounds
 
     @staticmethod
     def get_const_vars() -> dict[str, str]:
         return {
-            "skip_me_key": "_skip_me",
             "batch_key": "_batch",
             "intermediate_summary_key": "_summary",
         }
 
-    def prep_batches(self, doc: Document) -> Document:
-        vars = self.get_const_vars()
-        for i, elt in enumerate(doc.elements):
-            if vars["skip_me_key"] not in elt.properties:
-                elt.properties[vars["skip_me_key"]] = False
-            if elt.properties[vars["skip_me_key"]]:
-                continue
-            this_batch = [i]
-            elt.properties[vars["batch_key"]] = this_batch
-            for j in range(i + 1, len(doc.elements)):
-                e2 = doc.elements[j]
-                if e2.properties.get(vars["skip_me_key"], False):
-                    continue
-                this_batch.append(j)
-                tks = self.prompt.render_element(elt, doc).token_count(self.tokenizer)
-                if tks > self.max_tokens:
-                    this_batch.pop()
-                    break
-                e2.properties[vars["skip_me_key"]] = True
-        return doc
-
-    def cleanup(self, doc: Document) -> Document:
-        if len(doc.elements) == 0:
-            return doc
-        vars = self.get_const_vars()
-        doc.properties["summary"] = doc.elements[0].properties[vars["intermediate_summary_key"]]
-        for e in doc.elements:
-            for v in vars:
-                if v in e.properties:
-                    del e.properties[v]
-        return doc
-
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        return MapBatch(child, f=self.summarize_many)
+
+    def summarize(self, document: Document) -> Document:
+        return self.summarize_many([document])[0]
+
+    def summarize_many(self, docs: list[Document]) -> list[Document]:
         vars = self.get_const_vars()
-        if self.fields is not None:
-            self.prompt = self.prompt.fork(fields=self.fields)
-        if self.question is not None:
-            self.prompt = self.prompt.fork(question=self.question)
-        if self.data_description is not None:
-            self.prompt = self.prompt.fork(data_description=self.data_description)
-        nodes = []
-        last = child
-        for round in range(self.rounds):
-            prep_round = Map(child=last, f=self.prep_batches)
-            llm_round = LLMMapElements(
-                child=prep_round,
-                prompt=self.prompt.fork(round=round),
-                output_field=vars["intermediate_summary_key"],
-                llm=self.llm,
-            )
-            nodes.extend([prep_round, llm_round])
-            last = llm_round
-        cleanup = Map(child=last, f=self.cleanup)
-        nodes.append(cleanup)
-        ct = CompositeTransform(child, nodes=nodes)  # type: ignore
-        return ct
+        prompts_per_doc = [-1] * len(docs)
+        original_elements_per_doc = [doc.elements for doc in docs]
+        for round in range(self.max_rounds):
+            if all(ppd == 1 for ppd in prompts_per_doc):
+                break
+            to_infer = []
+            for i, doc in enumerate(docs):
+                if prompts_per_doc[i] == 1:
+                    continue
+                prompts = self._doc_to_prompts(doc, round)
+                doc.elements = [e for e, _ in prompts]
+                prompts_per_doc[i] = len(prompts)
+                to_infer.extend(prompts)
+            results = _infer_prompts(prompts=[p for _, p in to_infer], llm=self.llm, llm_mode=self.llm_mode)
+            for (e, _), r in zip(to_infer, results):
+                e.properties[vars["intermediate_summary_key"]] = r
+        for doc, oelts in zip(docs, original_elements_per_doc):
+            doc.properties["summary"] = doc.elements[0].properties[vars["intermediate_summary_key"]]
+            doc.elements = oelts
+            for e in doc.elements:
+                for v in vars:
+                    e.properties.pop(v, None)
+        return docs
+
+    def _doc_to_prompts(self, doc: Document, round: int) -> list[tuple[Element, RenderedPrompt]]:
+        vars = self.get_const_vars()
+        prompt = self.prompt.fork(round=round)
+        result = []
+        curr_tks = 0
+        curr_batch = []
+        for i, elt in enumerate(doc.elements):
+            elt.properties[vars["batch_key"]] = [i]
+            etks = prompt.render_element(elt, doc).token_count(self.tokenizer)
+            if curr_tks + etks > self.max_tokens:
+                if etks > self.max_tokens:
+                    raise ValueError(
+                        "Element was too big to fit within the specified max tokens. "
+                        "Please run `docset.split_elements` to break it up or limit the"
+                        f" properties used in the prompt.\n\nElement: {elt}"
+                    )
+                first_elt = doc.elements[curr_batch[0]]
+                first_elt.properties[vars["batch_key"]] = curr_batch
+                result.append((first_elt, prompt.render_element(first_elt, doc)))
+                curr_batch = [i]
+                curr_tks = etks
+            else:
+                curr_tks += etks
+                curr_batch.append(i)
+                del elt.properties[vars["batch_key"]]
+
+        first_elt = doc.elements[curr_batch[0]]
+        first_elt.properties[vars["batch_key"]] = curr_batch
+        result.append((first_elt, prompt.render_element(first_elt, doc)))
+        return result
 
 
 OneStepSummarizerPrompt = JinjaPrompt(

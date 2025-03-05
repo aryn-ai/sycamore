@@ -328,6 +328,7 @@ def _partition_file_inner(
     for part in resp.iter_content(None):
         # A big doc could take a while; we may be asked to bail out early
         if cancel_flag and cancel_flag.get():
+            resp.close()
             break
 
         if not part:

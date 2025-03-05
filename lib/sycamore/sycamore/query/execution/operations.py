@@ -5,21 +5,32 @@ import structlog
 
 from sycamore import DocSet
 from sycamore.context import context_params, Context
-from sycamore.data import MetadataDocument
-from sycamore.functions import CharacterTokenizer, Tokenizer
+from sycamore.data import Document, Element
+from sycamore.functions.tokenizer import OpenAITokenizer
 from sycamore.llms.llms import LLM
+from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
 )
 from sycamore.transforms.summarize import (
-    NUM_TEXT_CHARS_GENERATE,
-    DocumentSummarizer,
-    collapse,
-    QuestionAnsweringSummarizer,
-    BASE_PROPS,
+    EtCetera,
+    MultiStepDocumentSummarizer,
+    OneStepDocumentSummarizer,
+    Summarizer,
 )
 
 log = structlog.get_logger(__name__)
+# multistep
+DEFAULT_DOCSET_SUMMARIZER_CLS = MultiStepDocumentSummarizer  # type: ignore
+
+DEFAULT_SUMMARIZER_KWARGS: dict[str, Any] = {
+    "fields": "*",
+    "tokenizer": OpenAITokenizer("gpt-4o"),
+    "max_tokens": 80_000,
+}
+# onestep
+DEFAULT_DOCSET_SUMMARIZER_CLS = OneStepDocumentSummarizer  # type: ignore
+DEFAULT_SUMMARIZER_KWARGS = {"fields": [EtCetera], "tokenizer": OpenAITokenizer("gpt-4o"), "token_limit": 80_000}
 
 
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
@@ -52,14 +63,12 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
 @context_params
 def summarize_data(
     llm: LLM,
-    question: str,
+    question: Optional[str],
     result_description: str,
     result_data: List[Any],
-    use_elements: bool = False,
-    num_elements: int = 5,
-    max_tokens: int = 120 * 1000,
-    tokenizer: Tokenizer = CharacterTokenizer(),
+    summaries_as_text: bool = False,
     context: Optional[Context] = None,
+    docset_summarizer: Optional[Summarizer] = None,
     **kwargs,
 ) -> str:
     """
@@ -71,123 +80,72 @@ def summarize_data(
         question: Question to answer.
         result_description: Description of each of the inputs in result_data.
         result_data: List of inputs.
-        use_elements: Use text contents from document.elements instead of document.text_representation.
-        num_elements: Number of elements whose text to use from each document.
-        max_tokens: Maximum number of tokens allowed in the summary to send to the LLM.
-        tokenizer: Tokenizer to use for counting against max_tokens.
+        summaries_as_text: If true, summarize all documents in the result_data docsets and treat
+            those summaries as the text representation for the final summarize step.
         context: Optional Context object to get default parameters from.
+        docset_summarizer: Summarizer class to use to summarize the docset.
+            Default is `DEFAULT_DOCSET_SUMMARIZER`
+        summarizer_kwargs: keyword arguments to pass to the docset summarizer constructor. e.g.
+            `tokenizer`, `token_limit`, and `element_batch_size`
         **kwargs: Additional keyword arguments.
 
     Returns:
         Conversational response to question.
     """
-    text = _get_text_for_summarize_data(
-        result_description=result_description,
-        result_data=result_data,
-        use_elements=use_elements,
-        num_elements=num_elements,
-        max_tokens=max_tokens,
-        tokenizer=tokenizer,
-        **kwargs,
-    )
-    messages = SummarizeDataMessagesPrompt(question=question, text=text).as_messages()
-    prompt_kwargs = {"messages": messages}
+    if docset_summarizer is None:
+        docset_summarizer = DEFAULT_DOCSET_SUMMARIZER_CLS(
+            llm=llm, question=question, **DEFAULT_SUMMARIZER_KWARGS  # type: ignore
+        )
 
-    # call to LLM
-    completion = llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
+    if all(isinstance(d, DocSet) for d in result_data):
+        return summarize_data_docsets(
+            llm,
+            question,
+            result_data,
+            docset_summarizer=docset_summarizer,
+            data_description=result_description,
+            summaries_as_text=summaries_as_text,
+        )
 
-    # LLM response
+    # If data is not DocSets, text is this list here
+    # TODO: Jinjify.
+    text = f"Data description: {result_description}\n"
+    for i, d in enumerate(result_data):
+        text += f"Input {i + 1}: {str(d)}\n"
+
+    messages = SummarizeDataMessagesPrompt(question=question or "", text=text).as_messages()
+    prompt = RenderedPrompt(messages=[RenderedMessage(role=m["role"], content=m["content"]) for m in messages])
+    completion = llm.generate(prompt=prompt)
     return completion
 
 
-def _get_text_for_summarize_data(
-    result_description: str,
-    result_data: List[Any],
-    use_elements: bool,
-    num_elements: int,
-    max_tokens: Optional[int] = None,
-    tokenizer: Optional[Tokenizer] = None,
-    **kwargs,
-) -> str:
-    text = f"Data description: {result_description}\n"
-    if (max_tokens is not None and tokenizer is None) or (max_tokens is None and tokenizer is not None):
-        raise ValueError("Both max_tokens and tokenizer must be provided together.")
-
-    for i, result in enumerate(result_data):
-        text += f"Input {i + 1}:\n"
-
-        # consolidates relevant properties to give to LLM
-        if isinstance(result, DocSet):
-            done = False
-            # For query result caching in the executor, we need to consume the documents
-            # so that the materialized data is complete, even if they are not all included
-            # in the input prompt to the LLM.
-            for di, doc in enumerate(result.take_all()):
-                if isinstance(doc, MetadataDocument):
-                    continue
-                if done:
-                    continue
-                props_dict = doc.properties.get("entity", {})
-                props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
-                doc_text = f"Document {di}:\n"
-                for k, v in props_dict.items():
-                    doc_text += f"{k}: {v}\n"
-
-                doc_text_representation = ""
-                if not use_elements:
-                    if doc.text_representation is not None:
-                        doc_text_representation += doc.text_representation[:NUM_TEXT_CHARS_GENERATE]
-                else:
-                    for element in doc.elements[:num_elements]:
-                        # Greedy fill doc level text length
-                        if len(doc_text_representation) >= NUM_TEXT_CHARS_GENERATE:
-                            break
-                        doc_text_representation += (element.text_representation or "") + "\n"
-                doc_text += f"Text contents:\n{doc_text_representation}\n"
-
-                if tokenizer is not None and max_tokens is not None:  # for mypy
-                    total_token_count = len(tokenizer.tokenize(text + doc_text))
-                    if total_token_count > max_tokens:
-                        log.warn(
-                            "Unable to add all text from to the LLM summary request due to token limit."
-                            f" Sending text from {di + 1} docs."
-                        )
-                        done = True
-                        continue
-                text += doc_text + "\n"
-        else:
-            text += str(result) + "\n"
-
-    return text
+def sum_to_text(d: Document) -> Document:
+    if "summary" in d.properties:
+        d.text_representation = d.properties.pop("summary")
+    return d
 
 
-@context_params
-def summarize_map_reduce(
+def summarize_data_docsets(
     llm: LLM,
-    question: str,
-    result_description: str,
-    result_data: List[Any],
-    use_elements: bool = False,
-    num_elements: int = 5,
-    max_tokens: int = 10 * 1000,
-    tokenizer: Tokenizer = CharacterTokenizer(),
+    question: Optional[str],
+    result_data: List[DocSet],
+    docset_summarizer: Summarizer,
+    data_description: Optional[str] = None,
+    summaries_as_text: bool = False,
 ) -> str:
-    """ """
-    text = f"Data description: {result_description}\n"
-    for i, result in enumerate(result_data):
-        if isinstance(result, DocSet):
-            docs = (
-                result.filter(lambda d: isinstance(d, MetadataDocument) is False)
-                .summarize(
-                    summarizer=DocumentSummarizer(llm, question)
-                )  # document-level summarization can be parallelized (per DocSet)
-                .take_all()
-            )
-            for doc in docs:
-                text += doc.properties["summary"] + "\n"
+    if summaries_as_text:
+        result_data = [ds.summarize(docset_summarizer).map(sum_to_text) for ds in result_data]
 
-        else:
-            text += str(result) + "\n"
+    single_docs = [_docset_to_singledoc(ds) for ds in result_data]
+    agged_ds = result_data[0].context.read.document(single_docs).summarize(docset_summarizer)
+    texts = [d.properties["summary"] for d in agged_ds.take_all()]
+    return "\n".join(texts)
 
-    final_summary = collapse(text, max_tokens, tokenizer, QuestionAnsweringSummarizer(llm, question))
-    return final_summary
+
+def _docset_to_singledoc(ds: DocSet) -> Document:
+    """
+    Converts a docset into a single document by turning every Document
+    into an Element of a global parent document. Essentially a reverse
+    explode.
+    """
+    return Document(elements=[Element(**d.data) for d in ds.take_all()])

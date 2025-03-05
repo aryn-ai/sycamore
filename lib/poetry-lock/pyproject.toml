@@ -25,6 +25,7 @@ weaviate-client = "4.6.4" # Failes typechecking with 4.7.0
 scipy = "1.13.1" 
 networkx = "3.2.1"
 ipython = "8.18.1"
+onnxruntime = "1.19.0" # Required by unstructured
 
 # Package versions from being yanked
 matplotlib = "3.9.0"

@@ -45,8 +45,9 @@ class RenderedPrompt:
     response_format: ResponseFormat = None
 
     def token_count(self, tokenizer: Tokenizer) -> int:
-        total_text = " ".join(m.content for m in self.messages)
-        return len(tokenizer.tokenize(total_text))
+        if len(self.messages) == 0:
+            return 0
+        return sum(len(tokenizer.tokenize(m.content)) for m in self.messages)
 
 
 class SycamorePrompt:
@@ -89,7 +90,7 @@ class SycamorePrompt:
             A fully rendered prompt that can be sent to an LLM for inference"""
         raise NotImplementedError(f"render_multiple_documents is not implemented for {self.__class__.__name__}")
 
-    def set(self, **kwargs) -> "SycamorePrompt":
+    def fork(self, **kwargs) -> "SycamorePrompt":
         """Create a new prompt with some fields changed.
 
         Args:

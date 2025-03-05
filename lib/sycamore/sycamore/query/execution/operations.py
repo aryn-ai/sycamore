@@ -21,16 +21,16 @@ from sycamore.transforms.summarize import (
 
 log = structlog.get_logger(__name__)
 # multistep
-DEFAULT_DOCSET_SUMMARIZER_CLS = MultiStepDocumentSummarizer  # type: ignore
+DEFAULT_DOCSET_SUMMARIZE_CLASS = MultiStepDocumentSummarizer  # type: ignore
 
-DEFAULT_SUMMARIZER_KWARGS: dict[str, Any] = {
+DEFAULT_DOCSET_SUMMARIZE_KWARGS: dict[str, Any] = {
     "fields": "*",
     "tokenizer": OpenAITokenizer("gpt-4o"),
     "max_tokens": 80_000,
 }
 # onestep
-DEFAULT_DOCSET_SUMMARIZER_CLS = OneStepDocumentSummarizer  # type: ignore
-DEFAULT_SUMMARIZER_KWARGS = {"fields": [EtCetera], "tokenizer": OpenAITokenizer("gpt-4o"), "token_limit": 80_000}
+DEFAULT_DOCSET_SUMMARIZE_CLASS = OneStepDocumentSummarizer  # type: ignore
+DEFAULT_DOCSET_SUMMARIZE_KWARGS = {"fields": [EtCetera], "tokenizer": OpenAITokenizer("gpt-4o"), "token_limit": 80_000}
 
 
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
@@ -64,6 +64,7 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
 def summarize_data(
     llm: LLM,
     question: Optional[str],
+    # TODO: results are not inputs; we should rename the arguments.
     result_description: str,
     result_data: List[Any],
     summaries_as_text: bool = False,
@@ -93,8 +94,8 @@ def summarize_data(
         Conversational response to question.
     """
     if docset_summarizer is None:
-        docset_summarizer = DEFAULT_DOCSET_SUMMARIZER_CLS(
-            llm=llm, question=question, **DEFAULT_SUMMARIZER_KWARGS  # type: ignore
+        docset_summarizer = DEFAULT_DOCSET_SUMMARIZE_CLASS(
+            llm=llm, question=question, **DEFAULT_DOCSET_SUMMARIZE_KWARGS  # type: ignore
         )
 
     if all(isinstance(d, DocSet) for d in result_data):
@@ -109,6 +110,9 @@ def summarize_data(
 
     # If data is not DocSets, text is this list here
     # TODO: Jinjify.
+    assert not any(
+        isinstance(r, DocSet) for r in result_data
+    ), f"Received heterogeneous input data (docsets and scalars) to summarize data: {result_data}"
     text = f"Data description: {result_description}\n"
     for i, d in enumerate(result_data):
         text += f"Input {i + 1}: {str(d)}\n"
@@ -136,16 +140,7 @@ def summarize_data_docsets(
     if summaries_as_text:
         result_data = [ds.summarize(docset_summarizer).map(sum_to_text) for ds in result_data]
 
-    single_docs = [_docset_to_singledoc(ds) for ds in result_data]
+    single_docs = [Document(elements=[Element(**d.data) for d in ds.take_all()]) for ds in result_data]
     agged_ds = result_data[0].context.read.document(single_docs).summarize(docset_summarizer)
     texts = [d.properties["summary"] for d in agged_ds.take_all()]
     return "\n".join(texts)
-
-
-def _docset_to_singledoc(ds: DocSet) -> Document:
-    """
-    Converts a docset into a single document by turning every Document
-    into an Element of a global parent document. Essentially a reverse
-    explode.
-    """
-    return Document(elements=[Element(**d.data) for d in ds.take_all()])

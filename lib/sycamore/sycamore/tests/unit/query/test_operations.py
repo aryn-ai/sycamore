@@ -16,7 +16,7 @@ from sycamore.query.execution.operations import (
     summarize_data,
     math_operation,
 )
-from sycamore.transforms.summarize import NUM_DOCS_GENERATE, MultiStepDocumentSummarizer
+from sycamore.transforms.summarize import MultiStepDocumentSummarizer
 
 
 class MockLLM(LLM):
@@ -155,7 +155,7 @@ class TestOperations:
         mcontent = captured.messages[-1].content
 
         assert "List of unique cities" in mcontent
-        for i, doc in enumerate(words_and_ids_docset.take(NUM_DOCS_GENERATE)):
+        for i, doc in enumerate(words_and_ids_docset.take_all()):
             assert f"Text: {doc.text_representation}" in mcontent
 
     def test_get_text_for_summarize_data_docset_with_elements(self, big_words_and_ids_docset):
@@ -167,7 +167,7 @@ class TestOperations:
             result_data=[big_words_and_ids_docset],
             summaries_as_text=True,
             docset_summarizer=MultiStepDocumentSummarizer(
-                llm=llm, question=None, data_description="List of unique cities", max_tokens=1000
+                llm=llm, question=None, data_description="List of unique cities", max_tokens=750
             ),
         )
         captured = llm.capture

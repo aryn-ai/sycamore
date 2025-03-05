@@ -265,7 +265,7 @@ class SycamoreLlmFilter(SycamoreOperator):
 
         # load into local vars for Ray serialization magic
 
-        prompt = LlmFilterMessagesJinjaPrompt.set(filter_question=question)
+        prompt = LlmFilterMessagesJinjaPrompt.fork(filter_question=question)
 
         result = self.inputs[0].llm_filter(
             new_field="_autogen_LLMFilterOutput",
@@ -282,7 +282,7 @@ class SycamoreLlmFilter(SycamoreOperator):
         input_str = input_var or get_var_name(self.logical_node.input_nodes()[0])
         output_str = output_var or get_var_name(self.logical_node)
         result = f"""
-prompt = LlmFilterMessagesJinjaPrompt.set(filter_question='{self.logical_node.question}')
+prompt = LlmFilterMessagesJinjaPrompt.fork(filter_question='{self.logical_node.question}')
 {output_str} = {input_str}.llm_filter(
     new_field='_autogen_LLMFilterOutput',
     prompt=prompt,

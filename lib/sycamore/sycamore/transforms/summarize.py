@@ -17,30 +17,17 @@ from sycamore.llms.prompts.prompts import (
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
 from sycamore.transforms.map import Map
-from sycamore.transforms.base import CompositeTransform
+from sycamore.transforms.base import CompositeTransform, BaseMapTransform
 from sycamore.transforms.base_llm import LLMMapElements, LLMMap
-
-NUM_DOCS_GENERATE = 60
-NUM_TEXT_CHARS_GENERATE = 2500
-BASE_PROPS = [
-    "filename",
-    "filetype",
-    "page_number",
-    "page_numbers",
-    "links",
-    "element_id",
-    "parent_id",
-    "_schema",
-    "_schema_class",
-    "entity",
-]
 
 
 class Summarizer(ABC):
     def summarize(self, document: Document) -> Document:
         map = self.as_llm_map(None)
-        assert hasattr(map, "_local_process")
-        return map._local_process([document])[0]
+        assert isinstance(map, (BaseMapTransform, CompositeTransform))
+        ds = map.local_execute([document], drop_metadata=True)
+        assert len(ds) == 1, f"Found more than one Document after summmarizing just one: {ds}"
+        return ds[0]
 
     @abstractmethod
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
@@ -69,20 +56,16 @@ class LLMElementTextSummarizer(Summarizer):
                 .summarize(summarizer=summarizer)
     """
 
-    def __init__(self, llm: LLM, element_operator: Optional[Callable[[Element], bool]] = None):
+    def __init__(self, llm: LLM, element_filter: Optional[Callable[[Element], bool]] = None):
         self._llm = llm
-        self._element_operator = element_operator
+        self._element_filter = element_filter
 
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
-        if self._element_operator is not None:
-            return LLMMapElements(
-                child, TextSummarizerJinjaPrompt, output_field="summary", llm=self._llm, filter=self._element_operator
-            )
-        else:
-            return LLMMapElements(child, TextSummarizerJinjaPrompt, output_field="summary", llm=self._llm)
+        filter = self._element_filter or (lambda e: True)
+        return LLMMapElements(child, TextSummarizerJinjaPrompt, output_field="summary", llm=self._llm, filter=filter)
 
 
-MaxTokensHeirarchyPrompt = JinjaElementPrompt(
+MaxTokensHierarchyPrompt = JinjaElementPrompt(
     system=textwrap.dedent(
         """
         {% if question is defined %}You are a helpful research assistant. You answer questions based on
@@ -103,8 +86,8 @@ MaxTokensHeirarchyPrompt = JinjaElementPrompt(
             If this is after the first round of summarization:
                 use only the element's summary field
         -#}
-        {%- macro get_text(element, itvarname) %}
-            {%- if elt.properties[itvarname] == 0 -%}
+        {%- macro get_text(element) %}
+            {%- if round == 0 -%}
                 {%- if fields is defined -%}
                     {%- if fields == "*" %}{% for p in element.properties %}
                         {%- if p.startswith('_') %}{% continue %}{% endif %}
@@ -124,7 +107,7 @@ MaxTokensHeirarchyPrompt = JinjaElementPrompt(
             {%- if data_description is defined -%}
         {{ data_description }}
             {%- else -%}
-        some documents
+        a set of documents with properties for each document
             {%- endif -%}
         {%- endmacro -%}
 
@@ -133,7 +116,7 @@ MaxTokensHeirarchyPrompt = JinjaElementPrompt(
                 and intermediate_summary_key in elt.properties) -%}{{ norender() }}{%- endif -%}
         {%- if batch_key not in elt.properties -%}{{ norender() }}{%- endif -%}
 
-        {% if elt.properties[round_key] == 0 -%}
+        {% if round == 0 -%}
         You are given {{ get_data_description() }}. Please use only the information found in these elements
         to determine an answer to the question "{{ question }}". If you cannot answer the question based on
         the data provided, instead respond with any data that might be relevant to the question.
@@ -145,7 +128,7 @@ MaxTokensHeirarchyPrompt = JinjaElementPrompt(
         Answers:
         {%- endif -%}
         {%- for idx in elt.properties[batch_key] %}
-        {{ loop.index }}: {{ get_text(doc.elements[idx], round_key) }}
+        {{ loop.index }}: {{ get_text(doc.elements[idx]) }}
         {% endfor %}
         """
     ),
@@ -185,14 +168,14 @@ class MultiStepDocumentSummarizer(Summarizer):
         llm: LLM,
         question: Optional[str] = None,
         data_description: Optional[str] = None,
-        prompt: SycamorePrompt = MaxTokensHeirarchyPrompt,
+        prompt: SycamorePrompt = MaxTokensHierarchyPrompt,
         fields: Union[None, Literal["*"], list[str]] = None,
         max_tokens: int = 10 * 1000,
         tokenizer: Tokenizer = CharacterTokenizer(),
         rounds: int = 4,
     ):
         self.llm = llm
-        self.prompt = prompt.set(**self.get_const_vars())
+        self.prompt = prompt.fork(**self.get_const_vars())
         self.fields = fields
         self.question = question
         self.data_description = data_description
@@ -205,14 +188,12 @@ class MultiStepDocumentSummarizer(Summarizer):
         return {
             "skip_me_key": "_skip_me",
             "batch_key": "_batch",
-            "round_key": "_round",
             "intermediate_summary_key": "_summary",
         }
 
-    def prep_batches(self, doc: Document, round: int = 0) -> Document:
+    def prep_batches(self, doc: Document) -> Document:
         vars = self.get_const_vars()
         for i, elt in enumerate(doc.elements):
-            elt.properties[vars["round_key"]] = round
             if vars["skip_me_key"] not in elt.properties:
                 elt.properties[vars["skip_me_key"]] = False
             if elt.properties[vars["skip_me_key"]]:
@@ -245,18 +226,18 @@ class MultiStepDocumentSummarizer(Summarizer):
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
         vars = self.get_const_vars()
         if self.fields is not None:
-            self.prompt = self.prompt.set(fields=self.fields)
+            self.prompt = self.prompt.fork(fields=self.fields)
         if self.question is not None:
-            self.prompt = self.prompt.set(question=self.question)
+            self.prompt = self.prompt.fork(question=self.question)
         if self.data_description is not None:
-            self.prompt = self.prompt.set(data_description=self.data_description)
+            self.prompt = self.prompt.fork(data_description=self.data_description)
         nodes = []
         last = child
         for round in range(self.rounds):
-            prep_round = Map(child=last, f=self.prep_batches, kwargs={"round": round})
+            prep_round = Map(child=last, f=self.prep_batches)
             llm_round = LLMMapElements(
                 child=prep_round,
-                prompt=self.prompt,
+                prompt=self.prompt.fork(round=round),
                 output_field=vars["intermediate_summary_key"],
                 llm=self.llm,
             )
@@ -264,8 +245,7 @@ class MultiStepDocumentSummarizer(Summarizer):
             last = llm_round
         cleanup = Map(child=last, f=self.cleanup)
         nodes.append(cleanup)
-        ct = CompositeTransform(child, [])  # type: ignore
-        ct.nodes = nodes
+        ct = CompositeTransform(child, nodes=nodes)  # type: ignore
         return ct
 
 
@@ -331,7 +311,7 @@ class OneStepDocumentSummarizer(Summarizer):
         self.tokenizer = tokenizer
         assert EtCetera not in fields[:-1], "EtCetera must be at the end of the list of fields if provided"
         self.fields = fields
-        self.prompt = OneStepSummarizerPrompt.set(**self.get_const_vars())
+        self.prompt = OneStepSummarizerPrompt.fork(**self.get_const_vars())
 
     @staticmethod
     def get_const_vars() -> dict[str, str]:
@@ -384,12 +364,11 @@ class OneStepDocumentSummarizer(Summarizer):
     def as_llm_map(self, child: Optional[Node], **kwargs):
         prompt = self.prompt
         if self.question is not None:
-            prompt = prompt.set(question=self.question)
+            prompt = prompt.fork(question=self.question)
         preprocess = Map(child, f=self.preprocess)
         llm_map = LLMMap(preprocess, prompt=prompt, output_field="summary", llm=self.llm, **kwargs)
         postprocess = Map(llm_map, f=self.cleanup)
-        comptransform = CompositeTransform(child, [])  # type: ignore
-        comptransform.nodes = [preprocess, llm_map, postprocess]
+        comptransform = CompositeTransform(child, nodes=[preprocess, llm_map, postprocess])  # type: ignore
         return comptransform
 
 

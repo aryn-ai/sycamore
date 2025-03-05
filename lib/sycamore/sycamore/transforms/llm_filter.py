@@ -130,9 +130,9 @@ def plan_llm_filter_as_llm_map(
         tokenizer = CharacterTokenizer()
         max_tokens = 1
     if keep_none:
-        prompt = prompt.set(no_field_behavior="empty")
+        prompt = prompt.fork(no_field_behavior="empty")
     else:
-        prompt = prompt.set(no_field_behavior="crash")
+        prompt = prompt.fork(no_field_behavior="crash")
     entity_extractor = OpenAIEntityExtractor(
         entity_name=new_field,
         llm=llm,

@@ -119,7 +119,7 @@ class TestMultiStepSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = MultiStepDocumentSummarizer(llm=llm, max_tokens=470)  # 310 chars = first 3 elements
+        summarizer = MultiStepDocumentSummarizer(llm=llm, max_tokens=530)  # 530 chars = first 3 elements
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"

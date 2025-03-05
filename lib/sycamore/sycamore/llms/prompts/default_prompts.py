@@ -429,9 +429,21 @@ LlmFilterMessagesJinjaPrompt = JinjaPrompt(
         J_FIELD_VALUE_MACRO
         + textwrap.dedent(
             """\
-        Given an entry and a question, you will answer the question relating to the
-        entry. You only response with 0, 1, 2, 3, 4, or 5 based on your confidence
-        level. 0 is the most negative answer and 5 is the most positive answer.
+        You are an expert in evaluating critically thinking about text. You are provided with a text entry
+        and a filter question. Your job is to assess whether the entry satisfies the filter question. 
+        Provide a structured assessment with:
+        - A **score** (1-5) based on your confidence that the text entry satisfies the filter question.
+        0 is the least confidence that the entry satisfies the filter question, while 5 is the highest 
+        confidence that the entry satisfies the filter question. 
+        - A **justification text** explaining why.
+
+        Return your answer strictly in the following JSON format:
+
+        {{ '{' }}
+        "rating": {{ '{{ rating | int }}' }}, 
+        "justification_text": "{{ '{{ justification_text | escape }}' }}"
+        {{ '}' }}
+
         Question: {{ filter_question }}
         Entry: {% if field != "text_representation" or not use_elements -%}
         Field Name: {{ field }}; Field Value: {{ field_value(doc, field, no_field_behavior) }}
@@ -441,7 +453,6 @@ LlmFilterMessagesJinjaPrompt = JinjaPrompt(
         + "{% endif %}"
     ),
 )
-
 
 class SummarizeDataMessagesPrompt(SimplePrompt):
     def __init__(self, question: str, text: str):

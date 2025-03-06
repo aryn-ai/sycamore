@@ -1,6 +1,7 @@
 from collections import UserDict
 import json
 from typing import Any, Optional
+import itertools
 
 from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
@@ -326,6 +327,51 @@ def split_data_metadata(all: list[Document]) -> tuple[list[Document], list[Metad
         [d for d in all if not isinstance(d, MetadataDocument)],
         [d for d in all if isinstance(d, MetadataDocument)],
     )
+
+
+class SummarizeDocument(Document):
+    def __init__(self, document=None, **kwargs):
+        if "elements" in kwargs:
+            raise ValueError("Cannot set elements directly in a SummarizeDocument")
+        super().__init__(document, **kwargs)
+        if self.data.get("sub_docs") is None:
+            self.data["sub_docs"] = []
+        elif not isinstance(sd := self.data["sub_docs"], list):
+            raise ValueError(f"sub_docs must be a list of Document, found {sd}")
+        else:
+            subdocs = self.data["sub_docs"]
+            for sd in subdocs:
+                if not isinstance(sd, (dict, UserDict, Document)):
+                    raise ValueError(f"sub_docs must be a list of dicts or Documents. Found nonmatching {sd}")
+            self.data["sub_docs"] = [Document(sd) for sd in subdocs]
+
+    @property
+    def sub_docs(self) -> list[Document]:
+        return self.data["sub_docs"]
+
+    @sub_docs.setter
+    def sub_docs(self, sub_docs: list[Document]):
+        self.data["sub_docs"] = sub_docs
+
+    @sub_docs.deleter
+    def sub_docs(self) -> None:
+        self.data["sub_docs"] = []
+
+    @property
+    def elements(self) -> list[Element]:
+        """A list of elements belonging to this document. A document does not necessarily always have
+        elements, for instance, before a document is chunked."""
+        return self.data.get("_elements") or list(itertools.chain(*(d.elements for d in self.data["sub_docs"])))
+
+    @elements.setter
+    def elements(self, elements: list[Element]):
+        """Set the elements for this document."""
+        self.data["_elements"] = elements
+
+    @elements.deleter
+    def elements(self) -> None:
+        """Delete the elements of this document."""
+        self.data.pop("_elements", None)
 
 
 ############### EXPERIMENTAL

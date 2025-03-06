@@ -79,20 +79,20 @@ MaxTokensHierarchyPrompt = JinjaElementPrompt(
     ),
     user=textwrap.dedent(
         """
-        {%-macro get_text_properties(element) %}
+        {%- macro get_text_properties(element) %}
             {% for p in element.properties %}
                 {%- if p.startswith('_') %}{% continue %}{% endif %}
             {{ p }}: {{ element.properties[p] }}
             {%- endfor -%}
         {% endmacro -%}
 
-        {%-macro get_text_fields(element, fields) %}
+        {%- macro get_text_fields(element, fields) %}
             {% for f in fields %}
             {{ f }}: {{ element.field_to_value(f) }}
             {%- endfor %}
         {% endmacro -%}
 
-        {%-macro get_text_base(element) %}
+        {%- macro get_text_base(element) %}
             {%- if fields is defined -%}
                 {%- if fields == "*" %}
             {{ get_text_properties(element) }}
@@ -100,8 +100,7 @@ MaxTokensHierarchyPrompt = JinjaElementPrompt(
             {{ get_text_fields(element, fields) }}
                 {% endif -%}
             {%- endif -%}
-            Text: {{ element.text_representation }} (hi)
-                {{ element }}
+            Text: {{ element.text_representation }}
         {% endmacro -%}
 
         {%- macro get_text(element) %}
@@ -268,9 +267,9 @@ OneStepSummarizerPrompt = JinjaPrompt(
         """
         You are given a series of database entries that answer the question "{{ question }}".
         Generate a concise, conversational summary of the data to answer the question.
-        {%- for elt in doc.elements %}
+        {%- for elt in doc.data.get("sub_docs", doc.elements) %}
         Entry {{ loop.index }}:
-            {% for f in doc.properties[fields_key] %}{#{% if f.startswith("_") %}{% continue %}{% endif %}#}
+            {% for f in doc.properties[fields_key] %}{% if f.startswith("_") %}{% continue %}{% endif %}
             {{ f }}: {{ elt.field_to_value(f) }}
             {% endfor -%}
             {%- if doc.properties[numel_key] is not none and doc.properties[numel_key] > 0 %}    Text:
@@ -344,7 +343,7 @@ class OneStepDocumentSummarizer(Summarizer):
         doc.properties[vars["fields_key"]] = fields
         doc.properties[vars["numel_key"]] = 0
         last = self.prompt.render_document(doc)
-        if len(fields) == 0 or etc:
+        if etc:
             for p in all_element_property_names:
                 if p in fields:
                     continue

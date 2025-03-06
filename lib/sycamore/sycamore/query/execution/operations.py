@@ -6,14 +6,18 @@ import structlog
 from sycamore import DocSet
 from sycamore.context import context_params, Context
 from sycamore.data import Document, Element
+from sycamore.data.document import SummarizeDocument
 from sycamore.functions.tokenizer import OpenAITokenizer
-from sycamore.llms.llms import LLM
+from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
 )
 from sycamore.transforms.summarize import (
     MultiStepDocumentSummarizer,
+    OneStepDocumentSummarizer,
+    OneStepSummarizerPrompt,
+    EtCetera,
     Summarizer,
 )
 
@@ -25,11 +29,15 @@ DEFAULT_DOCSET_SUMMARIZE_KWARGS: dict[str, Any] = {
     "fields": "*",
     "tokenizer": OpenAITokenizer("gpt-4o"),
     "max_tokens": 80_000,
+    "llm_mode": LLMMode.ASYNC,
 }
 # onestep
-# DEFAULT_DOCSET_SUMMARIZE_CLASS = OneStepDocumentSummarizer  # type: ignore
-# DEFAULT_DOCSET_SUMMARIZE_KWARGS = {"fields": [EtCetera],
-# "tokenizer": OpenAITokenizer("gpt-4o"), "token_limit": 80_000}
+DEFAULT_DOCSET_SUMMARIZE_CLASS = OneStepDocumentSummarizer  # type: ignore
+DEFAULT_DOCSET_SUMMARIZE_KWARGS = {
+    "fields": [],
+    "tokenizer": OpenAITokenizer("gpt-4o"),
+    "token_limit": 80_000,
+}
 
 
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
@@ -65,7 +73,6 @@ def summarize_data(
     question: Optional[str],
     data_description: str,
     input_data: List[Any],
-    summaries_as_text: bool = False,
     context: Optional[Context] = None,
     docset_summarizer: Optional[Summarizer] = None,
     **kwargs,
@@ -79,8 +86,6 @@ def summarize_data(
         question: Question to answer.
         data_description: Description of each of the inputs in input_data.
         input_data: List of inputs.
-        summaries_as_text: If true, summarize all documents in the result_data docsets and treat
-            those summaries as the text representation for the final summarize step.
         context: Optional Context object to get default parameters from.
         docset_summarizer: Summarizer class to use to summarize the docset.
             Default is `DEFAULT_DOCSET_SUMMARIZER`
@@ -103,7 +108,6 @@ def summarize_data(
             input_data,
             docset_summarizer=docset_summarizer,
             data_description=data_description,
-            summaries_as_text=summaries_as_text,
         )
 
     # If data is not DocSets, text is this list here
@@ -133,12 +137,8 @@ def summarize_data_docsets(
     input_data: List[DocSet],
     docset_summarizer: Summarizer,
     data_description: Optional[str] = None,
-    summaries_as_text: bool = False,
 ) -> str:
-    if summaries_as_text:
-        input_data = [ds.summarize(docset_summarizer).map(sum_to_text) for ds in input_data]
-
-    single_docs = [Document(elements=[Element(**d.data) for d in ds.take_all()]) for ds in input_data]
+    single_docs = [SummarizeDocument(sub_docs=ds.take_all()) for ds in input_data]
     agged_ds = input_data[0].context.read.document(single_docs).summarize(docset_summarizer)
     texts = [d.properties["summary"] for d in agged_ds.take_all()]
     return "\n".join(texts)

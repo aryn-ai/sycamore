@@ -14,6 +14,7 @@ async def _infer_prompts_async(prompts: list[RenderedPrompt], llm: LLM) -> list[
     tasks = [el.create_task(aw) for aw in awaitables]
     return await asyncio.gather(*tasks)
 
+
 from tqdm import tqdm
 
 
@@ -28,6 +29,7 @@ def _infer_prompts(
             if len(p.messages) == 0:
                 res.append("")
                 continue
+            print(p.messages[-1].content)
             s = llm.generate(prompt=p)
             res.append(s)
         return res

@@ -234,7 +234,7 @@ class MultiStepDocumentSummarizer(Summarizer):
         prompt = self.prompt.fork(round=round)
         result = []
         curr_tks = 0
-        curr_batch = []
+        curr_batch: list[int] = []
         for i, elt in enumerate(doc.elements):
             elt.properties[vars["batch_key"]] = [i]
             etks = prompt.render_element(elt, doc).token_count(self.tokenizer)

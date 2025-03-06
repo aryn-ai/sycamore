@@ -71,7 +71,6 @@ def summarize_data(
     question: Optional[str],
     data_description: str,
     input_data: List[Any],
-    use_elements: bool = False,
     context: Optional[Context] = None,
     docset_summarizer: Optional[Summarizer] = None,
     **kwargs,

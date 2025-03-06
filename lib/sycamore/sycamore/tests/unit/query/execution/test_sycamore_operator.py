@@ -217,8 +217,8 @@ def test_summarize_data():
         mock_impl.assert_called_once_with(
             context=context,
             question=logical_node.question,
-            result_description=logical_node.description,
-            result_data=[load_node],
+            data_description=logical_node.description,
+            input_data=[load_node],
             **sycamore_operator.get_execute_args(),
         )
 

@@ -1,5 +1,4 @@
 import gc
-import sys
 import logging
 import os
 import tempfile
@@ -140,10 +139,7 @@ class ArynPDFPartitioner:
                         if (
                             is_list_item
                             and j + 1 < num_matched
-                            and m.bbox.y1 == matched[j + 1].bbox.y1
                             and text_to_add[-1] == "\n"
-                            # TODO also check that text on left is one line by checking that the font is so large that
-                            # it takes up the whole text height
                         ):  # special case for list items
                             text_to_add = text_to_add[:-1]
                         full_text.append(text_to_add)

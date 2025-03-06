@@ -130,8 +130,7 @@ class ArynPDFPartitioner:
                 matches = []
                 full_text = []
                 font_sizes = []
-                if is_list_item := i.type == "List-item":  # special case for list items
-                    matched.sort(key=lambda x: x.bbox.y1)
+                is_list_item = i.type == "List-item"
                 num_matched = len(matched)
                 for j, m in enumerate(matched):
                     matches.append(m)

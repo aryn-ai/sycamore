@@ -662,3 +662,58 @@ class JinjaElementPrompt(SycamorePrompt):
         if self.response_format is not None:
             result.response_format = self.response_format
         return result
+
+
+class JinjaTableMergerPrompt(JinjaElementPrompt):
+    def __init__(
+        self,
+        *,
+        system: Optional[str] = None,
+        user: Union[None, str, list[str]] = None,
+        include_image: bool = False,
+        response_format: ResponseFormat = None,
+        **kwargs,
+    ):
+        from jinja2.sandbox import SandboxedEnvironment
+        from jinja2 import Template
+
+        super().__init__()
+        self.system = system
+        self.user = user
+        self.include_image = include_image
+        self.response_format = response_format
+        self.kwargs = kwargs
+        self._env = SandboxedEnvironment(extensions=["jinja2.ext.loopcontrols"])
+        self._sys_template: Optional[Template] = None
+        self._user_templates: Union[None, list[Template]] = None
+
+    def render_element(self, elt: Element, doc: Document) -> RenderedPrompt:
+        filtered = [e for e in doc.elements if e.type == "table"]
+        idx = filtered.index(elt)
+        prev = None
+        if idx > 0:
+            prev = filtered[idx - 1]
+
+        if self._user_templates is None:
+            userlist = self.user if isinstance(self.user, list) else [self.user]  # type: ignore
+            templates = compile_templates([self.system] + userlist, self._env)  # type: ignore
+            self._sys_template = templates[0]
+            self._user_templates = [t for t in templates[1:] if t is not None]
+
+        render_args = copy.deepcopy(self.kwargs)
+        render_args["elt"] = elt
+        render_args["doc"] = doc
+        render_args["prev"] = prev
+
+        result = render_templates(self._sys_template, self._user_templates, render_args)
+        if self.include_image and len(result.messages) > 0:
+            from sycamore.utils.pdf_utils import get_element_image
+
+            images = []
+            if prev:
+                images.append(get_element_image(prev, doc))
+            images.append(get_element_image(elt, doc))
+            result.messages[-1].images = images
+        if self.response_format is not None:
+            result.response_format = self.response_format
+        return result

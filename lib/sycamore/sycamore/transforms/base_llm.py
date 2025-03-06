@@ -26,7 +26,6 @@ def _infer_prompts(
             if len(p.messages) == 0:
                 res.append("")
                 continue
-            print(p.messages[-1].content)
             s = llm.generate(prompt=p)
             res.append(s)
         return res

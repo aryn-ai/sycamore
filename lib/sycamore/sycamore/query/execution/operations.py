@@ -5,7 +5,7 @@ import structlog
 
 from sycamore import DocSet
 from sycamore.context import context_params, Context
-from sycamore.data import Document, Element
+from sycamore.data import Document
 from sycamore.data.document import SummarizeDocument
 from sycamore.functions.tokenizer import OpenAITokenizer
 from sycamore.llms.llms import LLM, LLMMode
@@ -16,8 +16,6 @@ from sycamore.llms.prompts.default_prompts import (
 from sycamore.transforms.summarize import (
     MultiStepDocumentSummarizer,
     OneStepDocumentSummarizer,
-    OneStepSummarizerPrompt,
-    EtCetera,
     Summarizer,
 )
 

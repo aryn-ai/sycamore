@@ -137,9 +137,7 @@ class ArynPDFPartitioner:
                     matches.append(m)
                     if text_to_add := m.text_representation:
                         if (
-                            is_list_item
-                            and j + 1 < num_matched
-                            and text_to_add[-1] == "\n"
+                            is_list_item and j + 1 < num_matched and text_to_add[-1] == "\n"
                         ):  # special case for list items
                             text_to_add = text_to_add[:-1]
                         full_text.append(text_to_add)

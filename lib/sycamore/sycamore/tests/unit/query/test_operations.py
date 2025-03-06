@@ -134,10 +134,10 @@ class TestOperations:
 
     # LLM Generate
     def test_summarize_data(self, words_and_ids_docset):
-        response = summarize_data(llm=MockLLM(), question="", result_description="", result_data=[""])
+        response = summarize_data(llm=MockLLM(), question="", data_description="", input_data=[""])
         assert response == ""
 
-        response = summarize_data(llm=MockLLM(), question="", result_description="", result_data=[words_and_ids_docset])
+        response = summarize_data(llm=MockLLM(), question="", data_description="", input_data=[words_and_ids_docset])
         assert response == ""
 
     def test_get_text_for_summarize_data_docset(self, words_and_ids_docset):
@@ -145,8 +145,8 @@ class TestOperations:
         summarize_data(
             llm=llm,
             question=None,
-            result_description="List of unique cities",
-            result_data=[words_and_ids_docset],
+            data_description="List of unique cities",
+            input_data=[words_and_ids_docset],
             docset_summarizer=MultiStepDocumentSummarizer(
                 llm=llm, question=None, data_description="List of unique cities"
             ),
@@ -156,27 +156,29 @@ class TestOperations:
 
         assert "List of unique cities" in mcontent
         for i, doc in enumerate(words_and_ids_docset.take_all()):
-            assert f"Text: {doc.text_representation}" in mcontent
+            for e in doc.elements:
+                # All element text should be in the call
+                assert f"Text: {e.text_representation}" in mcontent
 
     def test_get_text_for_summarize_data_docset_with_elements(self, big_words_and_ids_docset):
         llm = MockLLM()
         response = summarize_data(
             llm=llm,
             question=None,
-            result_description="List of unique cities",
-            result_data=[big_words_and_ids_docset],
+            data_description="List of unique cities",
+            input_data=[big_words_and_ids_docset],
             summaries_as_text=True,
             docset_summarizer=MultiStepDocumentSummarizer(
-                llm=llm, question=None, data_description="List of unique cities", max_tokens=750
+                llm=llm, question=None, data_description="List of unique cities", max_tokens=2300
             ),
         )
         captured = llm.capture
-        assert len(captured) == 44  # 44 llm calls
+        assert len(captured) == 46
         assert response == "merged summary"
 
     def test_get_text_for_summarize_data_non_docset(self, words_and_ids_docset):
         llm = MockLLM()
-        _ = summarize_data(llm=llm, question=None, result_description="Count of unique cities", result_data=[20])
+        _ = summarize_data(llm=llm, question=None, data_description="Count of unique cities", input_data=[20])
         print(llm.capture)
         captured = llm.capture[-1].messages[-1].content
         assert "Count of unique cities" in captured

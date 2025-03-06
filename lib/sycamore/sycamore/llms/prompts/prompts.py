@@ -90,11 +90,11 @@ class SycamorePrompt:
             A fully rendered prompt that can be sent to an LLM for inference"""
         raise NotImplementedError(f"render_multiple_documents is not implemented for {self.__class__.__name__}")
 
-    def fork(self, **kwargs) -> "SycamorePrompt":
+    def fork(self, ignore_none: bool = False, **kwargs) -> "SycamorePrompt":
         """Create a new prompt with some fields changed.
 
         Args:
-
+            ignore_none: do not set any kwargs with value `None`
             **kwargs: any keyword arguments will get set as fields in the
                 resulting prompt
 
@@ -120,6 +120,8 @@ class SycamorePrompt:
         """
         new = copy.deepcopy(self)
         for k, v in kwargs.items():
+            if ignore_none and v is None:
+                continue
             if hasattr(new, "kwargs") and k not in new.__dict__:
                 getattr(new, "kwargs")[k] = v
             else:

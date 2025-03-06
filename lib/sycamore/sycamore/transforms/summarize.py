@@ -232,6 +232,9 @@ class MultiStepDocumentSummarizer(Summarizer):
     def _doc_to_prompts(self, doc: Document, round: int) -> list[tuple[Element, RenderedPrompt]]:
         vars = self.get_const_vars()
         prompt = self.prompt.fork(round=round)
+        prompt = prompt.fork(
+            ignore_none=True, question=self.question, data_description=self.data_description, fields=self.fields
+        )
         result = []
         curr_tks = 0
         curr_batch: list[int] = []

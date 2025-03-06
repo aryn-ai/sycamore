@@ -198,6 +198,7 @@ class MultiStepDocumentSummarizer(Summarizer):
         }
 
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        # MultiStepDocumentSummarizer doesn't use LLMMap - it doesn't work very cleanly
         return MapBatch(child, f=self.summarize_many)
 
     def summarize(self, document: Document) -> Document:
@@ -206,8 +207,11 @@ class MultiStepDocumentSummarizer(Summarizer):
     def summarize_many(self, docs: list[Document]) -> list[Document]:
         vars = self.get_const_vars()
         prompts_per_doc = [-1] * len(docs)
+        # Cache this bc we'll be updating the element list for each doc by dropping the ones that
+        # don't get sub-summaries
         original_elements_per_doc = [doc.elements for doc in docs]
         for round in range(self.max_rounds):
+            # Each round, render all the prompts for the round and then send them to the LLM
             if all(ppd == 1 for ppd in prompts_per_doc):
                 break
             to_infer = []
@@ -221,6 +225,7 @@ class MultiStepDocumentSummarizer(Summarizer):
             results = _infer_prompts(prompts=[p for _, p in to_infer], llm=self.llm, llm_mode=self.llm_mode)
             for (e, _), r in zip(to_infer, results):
                 e.properties[vars["intermediate_summary_key"]] = r
+        # Re-attach elements, summaries, cleanup temp properties
         for doc, oelts in zip(docs, original_elements_per_doc):
             doc.properties["summary"] = doc.elements[0].properties[vars["intermediate_summary_key"]]
             doc.elements = oelts
@@ -231,14 +236,19 @@ class MultiStepDocumentSummarizer(Summarizer):
 
     def _doc_to_prompts(self, doc: Document, round: int) -> list[tuple[Element, RenderedPrompt]]:
         vars = self.get_const_vars()
-        prompt = self.prompt.fork(round=round)
-        prompt = prompt.fork(
-            ignore_none=True, question=self.question, data_description=self.data_description, fields=self.fields
+        prompt = self.prompt.fork(
+            ignore_none=True,
+            question=self.question,
+            data_description=self.data_description,
+            fields=self.fields,
+            round=round,
         )
         result = []
         curr_tks = 0
         curr_batch: list[int] = []
         for i, elt in enumerate(doc.elements):
+            # For a SummarizeDocument, doc.elements is itertools.chain(subdoc.elements for each subdoc)
+            # until we override it.
             elt.properties[vars["batch_key"]] = [i]
             etks = prompt.render_element(elt, doc).token_count(self.tokenizer)
             if curr_tks + etks > self.max_tokens:
@@ -277,7 +287,8 @@ OneStepSummarizerPrompt = JinjaPrompt(
             {% endfor -%}
             {%- if doc.properties[numel_key] is not none and doc.properties[numel_key] > 0 %}    Text:
             {% endif -%}
-            {%- for subel in elt.data.get("elements", [])[:doc.properties[numel_key]] -%}
+            {%- set start, end = doc.properties[startel_key], doc.properties[startel_key] + doc.properties[numel_key] -%}
+            {%- for subel in elt.data.get("elements", [])[start:end] -%}
                 {{ subel.text_representation }}
             {% endfor %}
         {% endfor %}
@@ -333,39 +344,62 @@ class OneStepDocumentSummarizer(Summarizer):
         return {
             "fields_key": "_fields",
             "numel_key": "_num_elements",
+            "startel_key": "_start_element",
         }
 
     def preprocess(self, doc: Document) -> Document:
         vars = self.get_const_vars()
+        prompt = self.prompt.fork(ignore_none=True, question=self.question)
         fields = copy.deepcopy(self.fields)
         etc = False
         if len(fields) > 0 and fields[-1] is EtCetera:
             etc = True
             fields = fields[:-1]
         all_element_property_names = {f"properties.{k}" for e in doc.elements for k in e.properties}
-        doc.properties[vars["fields_key"]] = fields
+        # Compute baseline 'fluff' tokens by setting fields and elements to 'no fields'
+        # and 'no elements'. Use this later to figure out how many tokens adding a field adds
+        doc.properties[vars["fields_key"]] = []
         doc.properties[vars["numel_key"]] = 0
-        last = self.prompt.render_document(doc)
+        doc.properties[vars["startel_key"]] = 0
+        data_independent_ntk = prompt.render_document(doc).token_count(self.tokenizer)
+        # If fields is specified these are always included, so this will be our starting token total
+        doc.properties[vars["fields_key"]] = fields
+        curr_ntks = prompt.render_document(doc).token_count(self.tokenizer)
         if etc:
             for p in all_element_property_names:
                 if p in fields:
                     continue
-                fields.append(p)
-                last = self.prompt.render_document(doc)
-                ntk = last.token_count(self.tokenizer)
-                if ntk > self.token_limit:
-                    fields.pop()
+                doc.properties[vars["fields_key"]] = [p]
+                ntk = prompt.render_document(doc).token_count(self.tokenizer) - data_independent_ntk
+                if curr_ntks + ntk < self.token_limit:
+                    fields.append(p)
+                    curr_ntks += ntk
+                else:
+                    doc.properties[vars["fields_key"]] = fields
                     return doc
-        doc.properties[vars["numel_key"]] += 1
-        this = self.prompt.render_document(doc)
-        while last != this:
-            ntk = this.token_count(self.tokenizer)
-            if ntk > self.token_limit:
-                doc.properties[vars["numel_key"]] -= 1
-                return doc
-            last = this
-            doc.properties[vars["numel_key"]] += 1
-            this = self.prompt.render_document(doc)
+        # We added all the fields, now add as many elements as possible
+        final_numel = 0
+        doc.properties[vars["numel_key"]] = 1
+        doc.properties[vars["fields_key"]] = []
+        # This is complicated bc we might get a SummarizeDocument or a Document
+        max_numel = max(len(d.data.get("elements", [])) for d in doc.data.get("sub_docs", doc.elements))
+        # If elements can fit there's a little additional fluff added, so recompute baseline tokens
+        # with no elements (but the element introduction fluff)
+        doc.properties[vars["startel_key"]] = max_numel + 10
+        data_independent_ntk_with_fluff = prompt.render_document(doc).token_count(self.tokenizer)
+        curr_ntks += data_independent_ntk_with_fluff - data_independent_ntk
+        for i in range(max_numel):
+            doc.properties[vars["startel_key"]] = i
+            ntk = prompt.render_document(doc).token_count(self.tokenizer) - data_independent_ntk_with_fluff
+            if curr_ntks + ntk < self.token_limit:
+                final_numel += 1
+                curr_ntks += ntk
+            else:
+                break
+
+        doc.properties[vars["numel_key"]] = final_numel
+        doc.properties[vars["startel_key"]] = 0
+        doc.properties[vars["fields_key"]] = fields
         return doc
 
     def cleanup(self, doc: Document) -> Document:

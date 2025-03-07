@@ -26,6 +26,8 @@ myst-parser = { version = "^2.0.0", optional = true }
 sphinx = { version = "^7.2.5", optional = true }
 rouge = "^1.0.1"
 structlog = "^24.4.0"
+enum-tools = {extras = ["docs"], version = "^0.12.0"}
+sphinx-toolbox = {version = "^3.9.0", extras = ["docs"]}
 
 
 [tool.poetry.group.test.dependencies]

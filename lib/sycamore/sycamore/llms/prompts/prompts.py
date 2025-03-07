@@ -527,6 +527,7 @@ class JinjaPrompt(SycamorePrompt):
     Args:
         system: The system prompt template, using Jinja syntax.
         user: The user prompt template or prompt templates, using Jinja syntax.
+        response_format: Optional constraint on the format of the model output
         kwargs: Additional key-value pairs that will be made available to the
             rendering engine.
 
@@ -623,18 +624,17 @@ class JinjaElementPrompt(SycamorePrompt):
     Example:
          .. code-block:: python
 
-            prompt = JinjaPrompt(
+            prompt = JinjaElementPrompt(
                 system="You are a helpful entity extractor that extracts a json object or list to"
                         " populate a data processing system",
-                user='''Below, you will be given a series of segments of an NTSB report and a question.
+                user='''Below, you will be given a segment of an NTSB report and a question.
             Your job is to provide the answer to the question based on the value provided.
             Your response should ONLY contain the answer to the question. If you are not able
             to extract the new field given the information, respond with "None". The type
             of your response should be a JSON list of strings.
             Field value:
-            {% for elt in doc.elements[:10] %}
             ELEMENT {{ elt.element_index }}: {{ elt.field_to_value(field) }}
-            {% endfor %}
+
             Answer the question "{{ question }}":''',
                 question="What aircraft parts were damaged in this report?",
                 field="text_representation",
@@ -678,6 +678,21 @@ class JinjaElementPrompt(SycamorePrompt):
         )
 
     def render_element(self, elt: Element, doc: Document) -> RenderedPrompt:
+        """Render this document using Jinja's template rendering system.
+        The template gets references to:
+
+            - elt: the element
+            - doc: the document containing the element
+            - **self.kwargs: other keyword arguments held by this prompt are
+                available by name.
+
+        Args:
+            elt: The element to render
+            doc: The document containing the element
+
+        Returns:
+            A rendered prompt containing information from the element.
+        """
         if self._user_templates is None:
             userlist = self.user if isinstance(self.user, list) else [self.user]  # type: ignore
             templates = compile_templates([self.system] + userlist, self._env)  # type: ignore

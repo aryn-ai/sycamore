@@ -3,10 +3,11 @@
 LLM
 ================
 
-.. automodule:: sycamore.llms.llms
+.. autoclass:: sycamore.llms.llms.LLM
    :members:
-   :exclude-members: FakeLLM
-   :show-inheritance:
+   :exclude-members: generate_old
+.. autoenum:: sycamore.llms.llms.LLMMode
+   :members:
 .. automodule:: sycamore.llms.openai
    :members:
    :show-inheritance:

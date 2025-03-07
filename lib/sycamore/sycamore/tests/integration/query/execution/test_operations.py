@@ -4,6 +4,7 @@ import sycamore
 from sycamore import EXEC_RAY
 from sycamore.data import Document
 from sycamore.llms import OpenAI, OpenAIModels
+from sycamore.llms.llms import LLMMode
 from sycamore.query.execution.operations import (
     MultiStepDocumentSummarizer,
     summarize_data,
@@ -73,7 +74,7 @@ class TestOperations:
         docs = [Document(item) for item in dicts]
 
         question = "What is"
-        doc_summarizer = MultiStepDocumentSummarizer(llm, question)
+        doc_summarizer = MultiStepDocumentSummarizer(llm, question=question)
 
         docs[0].text_representation = text[:10000]
         doc = doc_summarizer.summarize(docs[0])
@@ -81,13 +82,12 @@ class TestOperations:
 
     def test_document_summarizer_in_sycamore(self, llm):
         question = "What is"
-        doc_summarizer = MultiStepDocumentSummarizer(llm, question)
+        doc_summarizer = MultiStepDocumentSummarizer(llm, question=question, llm_mode=LLMMode.ASYNC)
         path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
         context = sycamore.init(exec_mode=EXEC_RAY)
         result = (
             context.read.binary(path, binary_format="pdf")
             .partition(partitioner=UnstructuredPdfPartitioner())
-            .explode()
             .summarize(summarizer=doc_summarizer)
             .take_all()
         )
@@ -102,7 +102,7 @@ class TestOperations:
         docset = (
             context.read.binary(path, binary_format="pdf").partition(partitioner=UnstructuredPdfPartitioner()).explode()
         )
-        final_summary = summarize_data(llm, question, result_description="Ray paper", result_data=[docset])
+        final_summary = summarize_data(llm, question, data_description="Ray paper", input_data=[docset])
 
         print(final_summary)
         assert final_summary

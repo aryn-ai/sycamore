@@ -227,7 +227,10 @@ class MultiStepDocumentSummarizer(Summarizer):
                 e.properties[vars["intermediate_summary_key"]] = r
         # Re-attach elements, summaries, cleanup temp properties
         for doc, oelts in zip(docs, original_elements_per_doc):
-            doc.properties["summary"] = doc.elements[0].properties[vars["intermediate_summary_key"]]
+            if len(doc.elements) != 0:
+                doc.properties["summary"] = doc.elements[0].properties[vars["intermediate_summary_key"]]
+            else:
+                doc.properties["summary"] = ""
             doc.elements = oelts
             for e in doc.elements:
                 for v in vars:
@@ -268,6 +271,8 @@ class MultiStepDocumentSummarizer(Summarizer):
                 curr_batch.append(i)
                 del elt.properties[vars["batch_key"]]
 
+        if len(curr_batch) == 0:
+            return result
         first_elt = doc.elements[curr_batch[0]]
         first_elt.properties[vars["batch_key"]] = curr_batch
         result.append((first_elt, prompt.render_element(first_elt, doc)))

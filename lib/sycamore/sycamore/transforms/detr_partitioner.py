@@ -135,10 +135,10 @@ class ArynPDFPartitioner:
                 for m_index, m in enumerate(matched):
                     matches.append(m)
                     if text_to_add := m.text_representation:
-                        if (
-                            is_list_item and m_index + 1 < num_matched and text_to_add[-1] == "\n"
-                        ):  # special case for list items
-                            text_to_add = text_to_add[:-1]
+                        if is_list_item:  # special case for list items
+                            text_to_add = text_to_add.rstrip().lstrip().replace("\n", " ")
+                            if m_index == num_matched - 1:
+                                text_to_add += "\n"
                         full_text.append(text_to_add)
                         if font_size := m.properties.get("font_size"):
                             font_sizes.append(font_size)

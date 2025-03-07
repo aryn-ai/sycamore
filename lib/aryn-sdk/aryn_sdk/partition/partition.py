@@ -21,7 +21,7 @@ _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.INFO)
 _logger.addHandler(logging.StreamHandler(sys.stderr))
 
-g_version = "0.1.15"
+g_version = "0.1.16"
 g_parameters = {"path_filter": "^/v1/document/partition$"}
 
 
@@ -43,6 +43,23 @@ class PartitionTaskNotFoundError(Exception):
         self.status_code = status_code
 
 
+class BoolFlag:
+    """
+    A boxed boolean that can be mutated and passed around by reference.
+    """
+
+    __slots__ = "val"
+
+    def __init__(self, val: bool) -> None:
+        self.val = val
+
+    def set(self, val: bool) -> None:
+        self.val = val
+
+    def get(self) -> bool:
+        return self.val
+
+
 def partition_file(
     file: Union[BinaryIO, str, PathLike],
     *,
@@ -53,7 +70,8 @@ def partition_file(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
-    table_extraction_options: dict[str, Any] = {},
+    text_extraction_options: Optional[dict[str, Any]] = None,
+    table_extraction_options: Optional[dict[str, Any]] = None,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     chunking_options: Optional[dict[str, Any]] = None,
@@ -61,8 +79,10 @@ def partition_file(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
-    output_label_options: dict[str, Any] = {},
-    trace_id: Optional[str] = None,
+    output_label_options: Optional[dict[str, Any]] = None,
+    trace_id: Optional[str] = None,  # deprecated
+    extra_headers: Optional[dict[str, str]] = None,
+    cancel_flag: Optional[BoolFlag] = None,
 ) -> dict:
     """
     Sends file to Aryn DocParse and returns a dict of its document structure and text
@@ -85,6 +105,11 @@ def partition_file(
             default: English
         extract_table_structure: extract tables and their structural content.
             default: False
+        text_extraction_options: Specify options for text extraction, currently only supports
+            'ocr_text_mode', with valid options 'vision' and 'standard'. If OCR is enabled and 'vision' specified,
+            attempt to extract all non-table text using vision models, else will use the standard OCR pipeline.
+            This can be useful for documents with complex layouts or non-standard fonts.
+            default: {'ocr_text_mode': 'standard'}
         table_extraction_options: Specify options for table extraction. Only enabled if table extraction
             is enabled. Default is {}. Options:
             - 'include_additional_text': Attempt to enhance the table structure by merging in tokens from
@@ -129,7 +154,9 @@ def partition_file(
                     "orientation_correction": True
                 }
             default: None (no element is promoted to "Title")
-        trace_id: for internal use
+        trace_id: deprecated
+        extra_headers: dict of HTTP headers to send to DocParse
+        cancel_flag: way to interrupt partitioning from the outside
 
 
     Returns:
@@ -160,6 +187,7 @@ def partition_file(
         summarize_images=summarize_images,
         ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
+        text_extraction_options=text_extraction_options,
         table_extraction_options=table_extraction_options,
         extract_images=extract_images,
         selected_pages=selected_pages,
@@ -170,6 +198,8 @@ def partition_file(
         output_format=output_format,
         output_label_options=output_label_options,
         trace_id=trace_id,
+        extra_headers=extra_headers,
+        cancel_flag=cancel_flag,
     )
 
 
@@ -183,7 +213,8 @@ def _partition_file_wrapper(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
-    table_extraction_options: dict[str, Any] = {},
+    text_extraction_options: Optional[dict[str, Any]] = None,
+    table_extraction_options: Optional[dict[str, Any]] = None,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     chunking_options: Optional[dict[str, Any]] = None,
@@ -191,9 +222,11 @@ def _partition_file_wrapper(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
-    output_label_options: dict[str, Any] = {},
+    output_label_options: Optional[dict[str, Any]] = None,
     webhook_url: Optional[str] = None,
-    trace_id: Optional[str] = None,
+    trace_id: Optional[str] = None,  # deprecated
+    extra_headers: Optional[dict[str, str]] = None,
+    cancel_flag: Optional[BoolFlag] = None,
 ):
     """Do not call this function directly. Use partition_file or partition_file_async_submit instead."""
 
@@ -212,6 +245,7 @@ def _partition_file_wrapper(
             summarize_images=summarize_images,
             ocr_language=ocr_language,
             extract_table_structure=extract_table_structure,
+            text_extraction_options=text_extraction_options,
             table_extraction_options=table_extraction_options,
             extract_images=extract_images,
             selected_pages=selected_pages,
@@ -222,6 +256,8 @@ def _partition_file_wrapper(
             output_format=output_format,
             output_label_options=output_label_options,
             trace_id=trace_id,
+            extra_headers=extra_headers,
+            cancel_flag=cancel_flag,
             webhook_url=webhook_url,
         )
     finally:
@@ -239,7 +275,8 @@ def _partition_file_inner(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
-    table_extraction_options: dict[str, Any] = {},
+    text_extraction_options: Optional[dict[str, Any]] = None,
+    table_extraction_options: Optional[dict[str, Any]] = None,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     chunking_options: Optional[dict[str, Any]] = None,
@@ -247,8 +284,10 @@ def _partition_file_inner(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
-    output_label_options: dict[str, Any] = {},
-    trace_id: Optional[str] = None,
+    output_label_options: Optional[dict[str, Any]] = None,
+    trace_id: Optional[str] = None,  # deprecated
+    extra_headers: Optional[dict[str, str]] = None,
+    cancel_flag: Optional[BoolFlag] = None,
     webhook_url: Optional[str] = None,
 ):
     """Do not call this function directly. Use partition_file or partition_file_async_submit instead."""
@@ -272,6 +311,7 @@ def _partition_file_inner(
         summarize_images=summarize_images,
         ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
+        text_extraction_options=text_extraction_options,
         table_extraction_options=table_extraction_options,
         extract_images=extract_images,
         selected_pages=selected_pages,
@@ -283,7 +323,7 @@ def _partition_file_inner(
     _logger.debug(f"{options_str}")
 
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
-    headers = _generate_headers(aryn_config.api_key(), webhook_url, trace_id)
+    headers = _generate_headers(aryn_config.api_key(), webhook_url, trace_id, extra_headers)
     resp = requests.post(docparse_url, files=files, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
     raise_error_on_non_2xx(resp)
@@ -292,6 +332,11 @@ def _partition_file_inner(
     partial_line = []
     in_bulk = False
     for part in resp.iter_content(None):
+        # A big doc could take a while; we may be asked to bail out early
+        if cancel_flag and cancel_flag.get():
+            resp.close()
+            break
+
         if not part:
             continue
 
@@ -350,13 +395,19 @@ def _process_config(aryn_api_key: Optional[str] = None, aryn_config: Optional[Ar
 
 
 def _generate_headers(
-    aryn_api_key: str, webhook_url: Optional[str] = None, trace_id: Optional[str] = None
+    aryn_api_key: str,
+    webhook_url: Optional[str] = None,
+    trace_id: Optional[str] = None,  # deprecated
+    extra_headers: Optional[dict[str, str]] = None,
 ) -> dict[str, str]:
-    headers = {"Authorization": f"Bearer {aryn_api_key}", "User-Agent": f"aryn-sdk/{g_version}"}
+    # Start with user-supplied headers so they can't stomp official ones.
+    headers = extra_headers.copy() if extra_headers else {}
     if webhook_url:
         headers["X-Aryn-Webhook"] = webhook_url
     if trace_id:
-        headers["X-Aryn-Trace-ID"] = trace_id
+        headers["X-Aryn-Trace-ID"] = trace_id  # deprecated
+    headers["Authorization"] = f"Bearer {aryn_api_key}"
+    headers["User-Agent"] = f"aryn-sdk/{g_version}"
     return headers
 
 
@@ -379,7 +430,8 @@ def _json_options(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
-    table_extraction_options: dict[str, Any] = {},
+    text_extraction_options: Optional[dict[str, Any]] = None,
+    table_extraction_options: Optional[dict[str, Any]] = None,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     output_format: Optional[str] = None,
@@ -400,6 +452,8 @@ def _json_options(
         options["extract_images"] = extract_images
     if extract_table_structure:
         options["extract_table_structure"] = extract_table_structure
+    if text_extraction_options:
+        options["text_extraction_options"] = text_extraction_options
     if table_extraction_options:
         options["table_extraction_options"] = table_extraction_options
     if selected_pages:
@@ -426,7 +480,8 @@ def partition_file_async_submit(
     summarize_images: bool = False,
     ocr_language: Optional[str] = None,
     extract_table_structure: bool = False,
-    table_extraction_options: dict[str, Any] = {},
+    text_extraction_options: Optional[dict[str, Any]] = None,
+    table_extraction_options: Optional[dict[str, Any]] = None,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     chunking_options: Optional[dict[str, Any]] = None,
@@ -434,8 +489,9 @@ def partition_file_async_submit(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
-    output_label_options: dict[str, Any] = {},
-    trace_id: Optional[str] = None,
+    output_label_options: Optional[dict[str, Any]] = None,
+    trace_id: Optional[str] = None,  # deprecated
+    extra_headers: Optional[dict[str, str]] = None,
     webhook_url: Optional[str] = None,
     async_submit_url: Optional[str] = None,
 ) -> dict[str, Any]:
@@ -482,6 +538,7 @@ def partition_file_async_submit(
         summarize_images=summarize_images,
         ocr_language=ocr_language,
         extract_table_structure=extract_table_structure,
+        text_extraction_options=text_extraction_options,
         table_extraction_options=table_extraction_options,
         extract_images=extract_images,
         selected_pages=selected_pages,
@@ -492,6 +549,7 @@ def partition_file_async_submit(
         output_format=output_format,
         output_label_options=output_label_options,
         trace_id=trace_id,
+        extra_headers=extra_headers,
         webhook_url=webhook_url,
     )
 

@@ -90,11 +90,12 @@ class SycamorePrompt:
             A fully rendered prompt that can be sent to an LLM for inference"""
         raise NotImplementedError(f"render_multiple_documents is not implemented for {self.__class__.__name__}")
 
-    def fork(self, ignore_none: bool = False, **kwargs) -> "SycamorePrompt":
+    def fork(self, **kwargs: Any) -> "SycamorePrompt":
         """Create a new prompt with some fields changed.
 
         Args:
-            ignore_none: do not set any kwargs with value `None`
+            ignore_none: bool. do not set any kwargs with value `None`. This is not in the
+                method signature because mypy sucks. https://github.com/python/mypy/issues/17642
             **kwargs: any keyword arguments will get set as fields in the
                 resulting prompt
 
@@ -118,6 +119,7 @@ class SycamorePrompt:
                 #     {"role": "user", "content": "bob"}
                 # ]
         """
+        ignore_none = kwargs.pop("ignore_none", False)
         new = copy.deepcopy(self)
         for k, v in kwargs.items():
             if ignore_none and v is None:

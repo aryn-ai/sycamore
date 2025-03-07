@@ -287,7 +287,8 @@ OneStepSummarizerPrompt = JinjaPrompt(
             {% endfor -%}
             {%- if doc.properties[numel_key] is not none and doc.properties[numel_key] > 0 %}    Text:
             {% endif -%}
-            {%- set start, end = doc.properties[startel_key], doc.properties[startel_key] + doc.properties[numel_key] -%}
+            {%- set start = doc.properties[startel_key] -%}
+            {%- set end = doc.properties[startel_key] + doc.properties[numel_key] -%}
             {%- for subel in elt.data.get("elements", [])[start:end] -%}
                 {{ subel.text_representation }}
             {% endfor %}

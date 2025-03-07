@@ -27,7 +27,7 @@ DEFAULT_DOCSET_SUMMARIZE_KWARGS: dict[str, Any] = {
     "fields": "*",
     "tokenizer": OpenAITokenizer("gpt-4o"),
     "max_tokens": 80_000,
-    "llm_mode": LLMMode.ASYNC,
+    "llm_mode": LLMMode.SYNC,
 }
 # onestep
 DEFAULT_DOCSET_SUMMARIZE_CLASS = OneStepDocumentSummarizer  # type: ignore

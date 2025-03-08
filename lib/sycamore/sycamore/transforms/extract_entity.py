@@ -165,7 +165,7 @@ class OpenAIEntityExtractor(EntityExtractor):
 
         if self._prompt is not None:
             if isinstance(self._prompt, SycamorePrompt):
-                return self._prompt.set(**common_params)
+                return self._prompt.fork(**common_params)
             if isinstance(self._prompt, str):
                 return JinjaPrompt(
                     system=None, user=self._prompt + "\n" + j_elements, response_format=None, **common_params
@@ -179,9 +179,9 @@ class OpenAIEntityExtractor(EntityExtractor):
                     user = [p["content"] for p in self._prompt] + [j_elements]
                 return JinjaPrompt(system=system, user=user, response_format=None, **common_params)
         elif self._prompt_template is not None:
-            return EntityExtractorFewShotJinjaPrompt.set(examples=self._prompt_template, **common_params)
+            return EntityExtractorFewShotJinjaPrompt.fork(examples=self._prompt_template, **common_params)
         else:
-            return EntityExtractorZeroShotJinjaPrompt.set(**common_params)
+            return EntityExtractorZeroShotJinjaPrompt.fork(**common_params)
 
     def _make_preprocess_fn(self, prompt: SycamorePrompt) -> Callable[[Document], Document]:
         vars = self._get_const_variables()

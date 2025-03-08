@@ -90,14 +90,14 @@ class LLMSchemaExtractor(SchemaExtractor):
         self._max_num_properties = max_num_properties
 
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
-        prompt = SchemaZeroShotJinjaPrompt.set(
+        prompt = SchemaZeroShotJinjaPrompt.fork(
             entity=self._entity_name,
             max_num_properties=self._max_num_properties,
             num_elements=self._num_of_elements,
             field="text_representation",
         )
         if self._prompt_formatter is not element_list_formatter:
-            prompt = prompt.set(prompt_formatter=self._prompt_formatter)
+            prompt = prompt.fork(prompt_formatter=self._prompt_formatter)
 
         def parse_json(doc: Document) -> Document:
             schemastr = doc.properties.get("_schema", "{}")
@@ -220,18 +220,18 @@ class LLMPropertyExtractor(PropertyExtractor):
         prompt: SycamorePrompt  # mypy grr
         if isinstance(self._schema, Schema):
             prompt = PropertiesFromSchemaJinjaPrompt
-            prompt = prompt.set(schema=self._schema, response_format=self._schema.model_dump())
+            prompt = prompt.fork(schema=self._schema, response_format=self._schema.model_dump())
         else:
             prompt = PropertiesZeroShotJinjaPrompt
             if self._schema is not None:
-                prompt = prompt.set(schema=self._schema)
+                prompt = prompt.fork(schema=self._schema)
 
             if self._schema_name is not None:
-                prompt = prompt.set(entity=self._schema_name)
+                prompt = prompt.fork(entity=self._schema_name)
         if self._num_of_elements is not None:
-            prompt = prompt.set(num_elements=self._num_of_elements)
+            prompt = prompt.fork(num_elements=self._num_of_elements)
         if self._prompt_formatter is not element_list_formatter:
-            prompt = prompt.set(prompt_formatter=self._prompt_formatter)
+            prompt = prompt.fork(prompt_formatter=self._prompt_formatter)
 
         def parse_json_and_cast(d: Document) -> Document:
             entity_name = self._schema_name or "_entity"

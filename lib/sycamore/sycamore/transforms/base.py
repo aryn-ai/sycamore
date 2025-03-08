@@ -157,13 +157,15 @@ class BaseMapTransform(UnaryNode):
             result.write_datasink(intermediate_datasink)
         return result
 
-    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+    def local_execute(self, all_docs: list[Document], drop_metadata: bool = False) -> list[Document]:
         docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
         metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
         extra_metadata: list[MetadataDocument] = []
         with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
             outputs = self._local_process(docs)
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
+        if drop_metadata:
+            return to_docs
         if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
             outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)
@@ -275,9 +277,21 @@ class BaseMapTransform(UnaryNode):
 
 
 class CompositeTransform(UnaryNode):
-    def __init__(self, child: Node, base_args: list[dict], enable_auto_metadata=True, **resource_args):
+    def __init__(
+        self,
+        child: Node,
+        base_args: Optional[list[dict]] = None,
+        nodes: Optional[list[BaseMapTransform]] = None,
+        enable_auto_metadata=True,
+        **resource_args,
+    ):
+        assert (base_args is None) ^ (nodes is None), "exactly one of base_args and nodes must be specified"
         super().__init__(child, **resource_args)
-        self.nodes = CompositeTransform.combine(child, base_args, **resource_args)
+        if base_args is not None:
+            self.nodes = CompositeTransform.combine(child, base_args, **resource_args)
+        else:
+            assert nodes is not None, "type narrowing, unreachable"
+            self.nodes = nodes
         self._enable_auto_metadata = enable_auto_metadata
 
     @staticmethod
@@ -297,11 +311,13 @@ class CompositeTransform(UnaryNode):
 
         return docs
 
-    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+    def local_execute(self, all_docs: list[Document], drop_metadata: bool = False) -> list[Document]:
         docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
         metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
         outputs = self._local_process(docs)
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
+        if drop_metadata:
+            return to_docs
         if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
             outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)

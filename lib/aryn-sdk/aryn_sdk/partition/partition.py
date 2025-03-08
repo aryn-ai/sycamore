@@ -80,7 +80,8 @@ def partition_file(
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
     output_label_options: Optional[dict[str, Any]] = None,
-    trace_id: Optional[str] = None,
+    trace_id: Optional[str] = None,  # deprecated
+    extra_headers: Optional[dict[str, str]] = None,
     cancel_flag: Optional[BoolFlag] = None,
 ) -> dict:
     """
@@ -153,7 +154,8 @@ def partition_file(
                     "orientation_correction": True
                 }
             default: None (no element is promoted to "Title")
-        trace_id: for internal use
+        trace_id: deprecated
+        extra_headers: dict of HTTP headers to send to DocParse
         cancel_flag: way to interrupt partitioning from the outside
 
 
@@ -196,6 +198,7 @@ def partition_file(
         output_format=output_format,
         output_label_options=output_label_options,
         trace_id=trace_id,
+        extra_headers=extra_headers,
         cancel_flag=cancel_flag,
     )
 
@@ -221,7 +224,8 @@ def _partition_file_wrapper(
     output_format: Optional[str] = None,
     output_label_options: Optional[dict[str, Any]] = None,
     webhook_url: Optional[str] = None,
-    trace_id: Optional[str] = None,
+    trace_id: Optional[str] = None,  # deprecated
+    extra_headers: Optional[dict[str, str]] = None,
     cancel_flag: Optional[BoolFlag] = None,
 ):
     """Do not call this function directly. Use partition_file or partition_file_async_submit instead."""
@@ -252,6 +256,7 @@ def _partition_file_wrapper(
             output_format=output_format,
             output_label_options=output_label_options,
             trace_id=trace_id,
+            extra_headers=extra_headers,
             cancel_flag=cancel_flag,
             webhook_url=webhook_url,
         )
@@ -280,7 +285,8 @@ def _partition_file_inner(
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
     output_label_options: Optional[dict[str, Any]] = None,
-    trace_id: Optional[str] = None,
+    trace_id: Optional[str] = None,  # deprecated
+    extra_headers: Optional[dict[str, str]] = None,
     cancel_flag: Optional[BoolFlag] = None,
     webhook_url: Optional[str] = None,
 ):
@@ -317,7 +323,7 @@ def _partition_file_inner(
     _logger.debug(f"{options_str}")
 
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
-    headers = _generate_headers(aryn_config.api_key(), webhook_url, trace_id)
+    headers = _generate_headers(aryn_config.api_key(), webhook_url, trace_id, extra_headers)
     resp = requests.post(docparse_url, files=files, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
     raise_error_on_non_2xx(resp)
@@ -389,13 +395,19 @@ def _process_config(aryn_api_key: Optional[str] = None, aryn_config: Optional[Ar
 
 
 def _generate_headers(
-    aryn_api_key: str, webhook_url: Optional[str] = None, trace_id: Optional[str] = None
+    aryn_api_key: str,
+    webhook_url: Optional[str] = None,
+    trace_id: Optional[str] = None,  # deprecated
+    extra_headers: Optional[dict[str, str]] = None,
 ) -> dict[str, str]:
-    headers = {"Authorization": f"Bearer {aryn_api_key}", "User-Agent": f"aryn-sdk/{g_version}"}
+    # Start with user-supplied headers so they can't stomp official ones.
+    headers = extra_headers.copy() if extra_headers else {}
     if webhook_url:
         headers["X-Aryn-Webhook"] = webhook_url
     if trace_id:
-        headers["X-Aryn-Trace-ID"] = trace_id
+        headers["X-Aryn-Trace-ID"] = trace_id  # deprecated
+    headers["Authorization"] = f"Bearer {aryn_api_key}"
+    headers["User-Agent"] = f"aryn-sdk/{g_version}"
     return headers
 
 
@@ -478,7 +490,8 @@ def partition_file_async_submit(
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
     output_label_options: Optional[dict[str, Any]] = None,
-    trace_id: Optional[str] = None,
+    trace_id: Optional[str] = None,  # deprecated
+    extra_headers: Optional[dict[str, str]] = None,
     webhook_url: Optional[str] = None,
     async_submit_url: Optional[str] = None,
 ) -> dict[str, Any]:
@@ -536,6 +549,7 @@ def partition_file_async_submit(
         output_format=output_format,
         output_label_options=output_label_options,
         trace_id=trace_id,
+        extra_headers=extra_headers,
         webhook_url=webhook_url,
     )
 

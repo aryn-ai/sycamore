@@ -1020,7 +1020,7 @@ class DocSet:
         Renders and runs a prompt on every Element of every Document in the DocSet.
 
         Args:
-            prompt: The prompt to use. Must implement the ``render_document`` method
+            prompt: The prompt to use. Must implement the ``render_element`` method
             output_field: Field in properties to store the output.
             llm: LLM to use for the inferences.
             llm_mode: how to make the api calls to the llm - sync/async/batch

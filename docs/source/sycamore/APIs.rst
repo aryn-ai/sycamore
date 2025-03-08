@@ -14,6 +14,7 @@ to the Sycamore project, please visit the Low-Level Transforms section in the AP
     ./APIs/docsetreader.rst
     ./APIs/docsetwriter.rst
     ./APIs/llm.rst
+    ./APIs/prompts.rst
     ./APIs/document.rst
     ./APIs/functions.rst
     ./APIs/node.rst

@@ -144,11 +144,14 @@ class MultiStepDocumentSummarizer(Summarizer):
     Summarizes a document by constructing a tree of summaries. Each leaf contains as many consecutive
     elements as possible within the token limit, and each vertex of the tree contains as many sub-
     summaries as possible within the token limit. e.g with max_tokens=10
-    Elements: (3 tokens) - (3 tokens) - (5 tokens) - (8 tokens)
-                   |            |            |            |
-                 (4 token summary) - (3 token summary) - (2 token summary)
-                               \\             |            /
-                                      (5 token summary)
+
+    .. code-block::
+
+        Elements: (3 tokens) - (3 tokens) - (5 tokens) - (8 tokens)
+                    |            |            |            |
+                    (4 token summary) - (3 token summary) - (2 token summary)
+                                \\             |            /
+                                        (5 token summary)
 
     Args:
         llm: LLM to use for summarization
@@ -324,8 +327,7 @@ class OneStepDocumentSummarizer(Summarizer):
             Default is CharacterTokenizer
         fields: List of fields to include from every element. To include any additional
             fields (after the ones specified), end the list with `EtCetera`. Default is
-            empty list, which stands for 'as many fields as fit within the token limit'
-            and is equivalent to `[EtCetera]`
+            empty list, which stands for 'no properties'
 
     """
 

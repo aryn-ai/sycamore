@@ -25,6 +25,8 @@ sycamore-ai = "^0.1.13"
 furo = { version = "^2023.9.10", optional = true }
 myst-parser = { version = "^2.0.0", optional = true }
 sphinx = { version = "^7.2.5", optional = true }
+enum-tools = { extras = ["sphinx"], version = "^0.12.0", optional = true }
+sphinx-toolbox = { version = "^3.9.0", optional = true }
 rouge = "^1.0.1"
 structlog = "^24.4.0"
 
@@ -35,7 +37,19 @@ pytest = "^7.4"
 pytest-mock = "^3.11"
 
 [tool.poetry.group.dev.dependencies]
-sycamore-ai = { path = "lib/sycamore", develop = true, extras=["eval", "duckdb", "elasticsearch", "neo4j", "opensearch", "pinecone", "weaviate", "local-inference", "legacy-partitioners", "anthropic", "google-genai"] }
+sycamore-ai = { path = "lib/sycamore", develop = true, extras = [
+    "eval",
+    "duckdb",
+    "elasticsearch",
+    "neo4j",
+    "opensearch",
+    "pinecone",
+    "weaviate",
+    "local-inference",
+    "legacy-partitioners",
+    "anthropic",
+    "google-genai",
+] }
 remote-processors = { path = "lib/remote-processors", develop = true }
 integration = { path = "apps/integration", develop = true }
 sycamore-poetry-lock = { path = "lib/poetry-lock", develop = true }
@@ -56,7 +70,7 @@ notebook = "^7.1.2"
 s3contents = "^0.11"
 
 [tool.poetry.extras]
-docs = ["furo", "myst-parser", "sphinx"]
+docs = ["furo", "myst-parser", "sphinx", "enum-tools", "sphinx-toolbox"]
 
 [tool.ruff]
 line-length = 120
@@ -91,16 +105,22 @@ sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["docs"] }
 sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["duckdb"] }
 
 [tool.poetry.group.elasticsearch.dependencies]
-sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["elasticsearch"] }
+sycamore-ai = { path = "lib/sycamore", develop = true, extras = [
+    "elasticsearch",
+] }
 
 [tool.poetry.group.eval.dependencies]
 sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["eval"] }
 
 [tool.poetry.group.legacy-partitioners.dependencies]
-sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["legacy-partitioners"] }
+sycamore-ai = { path = "lib/sycamore", develop = true, extras = [
+    "legacy-partitioners",
+] }
 
 [tool.poetry.group.local-inference.dependencies]
-sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["local-inference"] }
+sycamore-ai = { path = "lib/sycamore", develop = true, extras = [
+    "local-inference",
+] }
 
 [tool.poetry.group.neo4j.dependencies]
 sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["neo4j"] }

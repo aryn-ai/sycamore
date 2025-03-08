@@ -26,6 +26,8 @@ extensions = [
     "sphinx.ext.autodoc.typehints",
     "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
+    "enum_tools.autoenum",
+    "sphinx_toolbox.more_autodoc.variables",
 ]
 
 templates_path = ["_templates"]

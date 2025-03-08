@@ -19,6 +19,7 @@ Low-Level Transforms (for Sycamore development)
    ./low_level_transforms/extract_schema.rst
    ./low_level_transforms/extract_table.rst
    ./low_level_transforms/extract_table_properties.rst
+   ./low_level_transforms/llm_map.rst
    ./low_level_transforms/llm_query.rst
    ./low_level_transforms/map.rst
    ./low_level_transforms/mark_misc.rst

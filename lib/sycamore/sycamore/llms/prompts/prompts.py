@@ -51,7 +51,7 @@ class RenderedPrompt:
 
 class SycamorePrompt:
     """Base class/API for all Sycamore LLM Prompt objects. Sycamore Prompts
-    convert sycamore objects (``Document``s, ``Element``s) into ``RenderedPrompts``
+    convert sycamore objects (``Document``, ``Element``) into ``RenderedPrompts``
     """
 
     def render_document(self, doc: Document) -> RenderedPrompt:
@@ -527,6 +527,7 @@ class JinjaPrompt(SycamorePrompt):
     Args:
         system: The system prompt template, using Jinja syntax.
         user: The user prompt template or prompt templates, using Jinja syntax.
+        response_format: Optional constraint on the format of the model output
         kwargs: Additional key-value pairs that will be made available to the
             rendering engine.
 
@@ -609,6 +610,39 @@ class JinjaPrompt(SycamorePrompt):
 
 
 class JinjaElementPrompt(SycamorePrompt):
+    """A prompt that uses the Jinja templating system to render elements, with
+    a system and user prompt.
+
+    Args:
+        system: The system prompt template, using Jinja syntax.
+        user: The user prompt template or prompt templates, using Jinja syntax.
+        include_image: Whether to include the image of the element in the rendered prompt. Default is False
+        response_format: Optional response format constraint for the LLM.
+        kwargs: Additional key-value pairs that will be made available to the
+            rendering engine.
+
+    Example:
+         .. code-block:: python
+
+            prompt = JinjaElementPrompt(
+                system="You are a helpful entity extractor that extracts a json object or list to"
+                        " populate a data processing system",
+                user='''Below, you will be given a segment of an NTSB report and a question.
+            Your job is to provide the answer to the question based on the value provided.
+            Your response should ONLY contain the answer to the question. If you are not able
+            to extract the new field given the information, respond with "None". The type
+            of your response should be a JSON list of strings.
+            Field value:
+            ELEMENT {{ elt.element_index }}: {{ elt.field_to_value(field) }}
+
+            Answer the question "{{ question }}":''',
+                question="What aircraft parts were damaged in this report?",
+                field="text_representation",
+            )
+            ds.llm_map(prompt, output_field="damaged_parts", llm=OpenAI(OpenAIModels.GPT_4O))
+
+    """
+
     def __init__(
         self,
         *,
@@ -644,6 +678,21 @@ class JinjaElementPrompt(SycamorePrompt):
         )
 
     def render_element(self, elt: Element, doc: Document) -> RenderedPrompt:
+        """Render this document using Jinja's template rendering system.
+        The template gets references to:
+
+            - elt: the element
+            - doc: the document containing the element
+            - **self.kwargs: other keyword arguments held by this prompt are
+                available by name.
+
+        Args:
+            elt: The element to render
+            doc: The document containing the element
+
+        Returns:
+            A rendered prompt containing information from the element.
+        """
         if self._user_templates is None:
             userlist = self.user if isinstance(self.user, list) else [self.user]  # type: ignore
             templates = compile_templates([self.system] + userlist, self._env)  # type: ignore

@@ -10,6 +10,9 @@ Extract Schema
 .. autoclass:: sycamore.transforms.extract_schema.ExtractSchema
    :members:
    :show-inheritance:
+.. autoclass:: sycamore.transforms.extract_schema.LLMPropertyExtractor
+   :members:
+   :show-inheritance:
 .. autoclass:: sycamore.transforms.extract_schema.OpenAIPropertyExtractor
    :members:
    :show-inheritance:

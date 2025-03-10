@@ -232,6 +232,9 @@ class ArynPDFPartitioner:
         stop=stop_after_delay(_TEN_MINUTES),
     )
     def _call_remote_partitioner(file: BinaryIO, **kwargs) -> list[Element]:
+        source = f"sycamore-{source_kwarg}" if (source_kwarg := kwargs.pop("source", "")) else "sycamore"
+        extra_headers = kwargs.pop("extra_headers", {})
+        extra_headers["X-Aryn-Origin"] = source
         try:
             file.seek(0)
             response_json = partition_file(file, **kwargs)
@@ -277,7 +280,7 @@ class ArynPDFPartitioner:
                 ArynPDFPartitioner._call_remote_partitioner(
                     file=file,
                     aryn_api_key=aryn_api_key,
-                    aryn_partitioner_address=aryn_partitioner_address,
+                    docparse_url=aryn_partitioner_address,
                     threshold=threshold,
                     use_ocr=use_ocr,
                     extract_table_structure=extract_table_structure,

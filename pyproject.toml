@@ -88,6 +88,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+log_cli = true
+log_cli_level = "INFO"
 
 [tool.poetry-autolock.dependents]
 integration = "apps/integration"

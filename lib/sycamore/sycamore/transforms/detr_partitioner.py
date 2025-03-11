@@ -3,6 +3,7 @@ import logging
 import os
 import tempfile
 import tracemalloc
+import inspect
 from abc import ABC, abstractmethod
 from typing import Any, BinaryIO, Literal, Union, Optional
 from itertools import repeat
@@ -232,12 +233,19 @@ class ArynPDFPartitioner:
         stop=stop_after_delay(_TEN_MINUTES),
     )
     def _call_remote_partitioner(file: BinaryIO, **kwargs) -> list[Element]:
+        # Get accepted parameters from partition_file function
+        partition_params = set(inspect.signature(partition_file).parameters.keys())
+
         source = f"sycamore-{source_kwarg}" if (source_kwarg := kwargs.pop("source", "")) else "sycamore"
         extra_headers = kwargs.pop("extra_headers", {})
         extra_headers["X-Aryn-Origin"] = source
+
+        # Filter kwargs to only include parameters accepted by partition_file
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in partition_params}
+
         try:
             file.seek(0)
-            response_json = partition_file(file, **kwargs)
+            response_json = partition_file(file, extra_headers=extra_headers, **filtered_kwargs)
         except Exception as e:
             raise ArynPDFPartitionerException(f"Error calling Aryn DocParse: {e}", can_retry=True)
         if (kwargs.get("output_format") == "markdown") and ((md := response_json.get("markdown")) is not None):

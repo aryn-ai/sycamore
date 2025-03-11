@@ -32,12 +32,11 @@ class TestArynPDFPartitioner:
                 expected_json = json.loads(expected_text.read())
                 partitioner = ArynPDFPartitioner(None)
                 expected_elements = []
-                for i, element_json in enumerate(expected_json):
+                for i, element_json in enumerate(expected_json["elements"]):
                     element = create_element(i, **element_json)
                     if element.binary_representation:
                         element.binary_representation = base64.b64decode(element.binary_representation)
                     expected_elements.append(element)
-
                 assert_deep_eq(partitioner.partition_pdf(pdf, aryn_api_key="mocked"), expected_elements, [])
 
     def test_partition_extract_table_structure(self, mocker) -> None:

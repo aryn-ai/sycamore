@@ -8,11 +8,10 @@ TODO:
 """
 
 from io import StringIO
+from typing import Any, Optional
 
 from sycamore.data import Element, TableElement
 
-
-SKIP_TYPES = {"page-header", "page-footer", "image"}
 
 ESCAPE_CHARS = {"\\", "!", "#", ">", "[", "|"}
 
@@ -33,17 +32,30 @@ def escape_str(s: str) -> str:
     return sio.getvalue()
 
 
-def elements_to_markdown(elems: list[Element]) -> str:
+def elements_to_markdown(elems: list[Element], opts: Optional[dict[str, Any]] = None) -> str:
     """
     This is the main function of interest.
     Assumes elements are sorted as per bbox_sort.bbox_sort_document().
     """
+    skip_types = {"image"}
+    if not (opts and opts.get("emit_headers")):
+        skip_types.add("page-header")
+    if not (opts and opts.get("emit_footers")):
+        skip_types.add("page-footer")
+    pagenum = 1 if (opts and opts.get("emit_pagenum")) else None
+    blank = True
     label_lists(elems)
     sio = StringIO()
     last = [-1, -1, -1, -1]
     for elem in elems:
+        if pagenum is not None:
+            if pn := elem_prop(elem, "page_number"):
+                if pn != pagenum:
+                    sio.write(f"\nPage {pagenum}\n---\n")
+                    pagenum = pn
+                    blank = True
         type = elem_type(elem).lower()
-        if type in SKIP_TYPES:
+        if type in skip_types:
             continue
         bbox = elem.data.get("bbox")
         if bbox:
@@ -73,10 +85,13 @@ def elements_to_markdown(elems: list[Element]) -> str:
                 sio.write(f"{indent}-{t}\n")
             else:
                 sio.write(f"- {text}\n")
-        elif type in ("caption", "footnote"):
+        elif type in {"caption", "footnote", "page-header", "page-footer"}:
             sio.write(f"\n{text}\n\n")
         else:
             sio.write(f"\n{text}\n")
+        blank = False
+    if (pagenum is not None) and (not blank):
+        sio.write(f"\nPage {pagenum}\n")
     return sio.getvalue()
 
 
@@ -192,3 +207,9 @@ def elem_text(elem: Element) -> str:
 
 def elem_type(elem: Element) -> str:
     return elem.data.get("type", "")
+
+
+def elem_prop(elem: Element, name: str) -> Any:
+    if p := elem.data.get("properties"):
+        return p.get(name)
+    return None

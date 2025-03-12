@@ -38,11 +38,11 @@ def elements_to_markdown(elems: list[Element], opts: Optional[dict[str, Any]] = 
     Assumes elements are sorted as per bbox_sort.bbox_sort_document().
     """
     skip_types = {"image"}
-    if not (opts and opts.get("emit_headers")):
+    if not (opts and opts.get("include_headers")):
         skip_types.add("page-header")
-    if not (opts and opts.get("emit_footers")):
+    if not (opts and opts.get("include_footers")):
         skip_types.add("page-footer")
-    pagenum = 1 if (opts and opts.get("emit_pagenum")) else None
+    pagenum = 1 if (opts and opts.get("include_pagenum")) else None
     blank = True
     label_lists(elems)
     sio = StringIO()

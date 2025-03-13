@@ -304,6 +304,7 @@ def _partition_file_inner(
             docparse_url = aps_url
     if docparse_url is None:
         docparse_url = ARYN_DOCPARSE_URL
+    source = extra_headers.pop("X-Aryn-Origin", "aryn-sdk") if extra_headers else "aryn-sdk"
 
     options_str = _json_options(
         threshold=threshold,
@@ -318,6 +319,7 @@ def _partition_file_inner(
         output_format=output_format,
         chunking_options=chunking_options,
         output_label_options=output_label_options,
+        source=source,
     )
 
     _logger.debug(f"{options_str}")
@@ -437,6 +439,7 @@ def _json_options(
     output_format: Optional[str] = None,
     chunking_options: Optional[dict[str, Any]] = None,
     output_label_options: Optional[dict[str, Any]] = None,
+    source: str = "aryn-sdk",
 ) -> str:
     # isn't type-checking fun
     options: dict[str, Union[float, bool, str, list[Union[list[int], int]], dict[str, Any]]] = dict()
@@ -465,7 +468,7 @@ def _json_options(
     if output_label_options:
         options["output_label_options"] = output_label_options
 
-    options["source"] = "aryn-sdk"
+    options["source"] = source
 
     return json.dumps(options)
 

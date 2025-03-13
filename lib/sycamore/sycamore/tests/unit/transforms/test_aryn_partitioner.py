@@ -24,38 +24,38 @@ class MockResponseTables:
         yield open(str(path), "rb").read()
 
 
-# class TestArynPDFPartitioner:
-#     def test_partition(self, mocker) -> None:
-#         mocker.patch("requests.post", return_value=MockResponseNoTables())
-#         with open(TEST_DIR / "resources/data/json/model_server_output_transformer.json") as expected_text:
-#             with open(TEST_DIR / "resources/data/pdfs/Transformer.pdf", "rb") as pdf:
-#                 expected_json = json.loads(expected_text.read())
-#                 partitioner = ArynPDFPartitioner(None)
-#                 expected_elements = []
-#                 for i, element_json in enumerate(expected_json["elements"]):
-#                     element = create_element(i, **element_json)
-#                     if element.binary_representation:
-#                         element.binary_representation = base64.b64decode(element.binary_representation)
-#                     expected_elements.append(element)
-#                 assert_deep_eq(partitioner.partition_pdf(pdf, aryn_api_key="mocked"), expected_elements, [])
+class TestArynPDFPartitioner:
+    def test_partition(self, mocker) -> None:
+        mocker.patch("requests.post", return_value=MockResponseNoTables())
+        with open(TEST_DIR / "resources/data/json/model_server_output_transformer.json") as expected_text:
+            with open(TEST_DIR / "resources/data/pdfs/Transformer.pdf", "rb") as pdf:
+                expected_json = json.loads(expected_text.read())
+                partitioner = ArynPDFPartitioner(None)
+                expected_elements = []
+                for i, element_json in enumerate(expected_json["elements"]):
+                    element = create_element(i, **element_json)
+                    if element.binary_representation:
+                        element.binary_representation = base64.b64decode(element.binary_representation)
+                    expected_elements.append(element)
+                assert_deep_eq(partitioner.partition_pdf(pdf, aryn_api_key="mocked"), expected_elements, [])
 
-#     def test_partition_extract_table_structure(self, mocker) -> None:
-#         mocker.patch("requests.post", return_value=MockResponseTables())
-#         with open(
-#             TEST_DIR / "resources/data/json/model_server_output_transformer_extract_tables.json"
-#         ) as expected_text:
-#             with open(TEST_DIR / "resources/data/pdfs/Transformer.pdf", "rb") as pdf:
-#                 expected_json = json.loads(expected_text.read())
-#                 partitioner = ArynPDFPartitioner(None)
-#                 expected_elements = []
-#                 for i, element_json in enumerate(expected_json["elements"]):
-#                     element = create_element(i, **element_json)
-#                     if element.binary_representation:
-#                         element.binary_representation = base64.b64decode(element.binary_representation)
-#                     expected_elements.append(element)
+    def test_partition_extract_table_structure(self, mocker) -> None:
+        mocker.patch("requests.post", return_value=MockResponseTables())
+        with open(
+            TEST_DIR / "resources/data/json/model_server_output_transformer_extract_tables.json"
+        ) as expected_text:
+            with open(TEST_DIR / "resources/data/pdfs/Transformer.pdf", "rb") as pdf:
+                expected_json = json.loads(expected_text.read())
+                partitioner = ArynPDFPartitioner(None)
+                expected_elements = []
+                for i, element_json in enumerate(expected_json["elements"]):
+                    element = create_element(i, **element_json)
+                    if element.binary_representation:
+                        element.binary_representation = base64.b64decode(element.binary_representation)
+                    expected_elements.append(element)
 
-#                 assert_deep_eq(
-#                     partitioner.partition_pdf(pdf, extract_table_structure=True, aryn_api_key="mocked"),
-#                     expected_elements,
-#                     [],
-#                 )
+                assert_deep_eq(
+                    partitioner.partition_pdf(pdf, extract_table_structure=True, aryn_api_key="mocked"),
+                    expected_elements,
+                    [],
+                )

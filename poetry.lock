@@ -565,7 +565,7 @@ test = ["dateparser (==1.*)", "pre-commit", "pytest", "pytest-cov", "pytest-mock
 
 [[package]]
 name = "aryn-sdk"
-version = "0.1.16"
+version = "0.1.17"
 description = "The client library for Aryn services"
 optional = false
 python-versions = ">=3.9"
@@ -1674,7 +1674,7 @@ files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {main = "(sys_platform == \"win32\" or platform_system == \"Windows\") and (extra == \"docs\" or platform_system == \"Windows\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", dev = "(sys_platform == \"win32\" or platform_system == \"Windows\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", docs = "(sys_platform == \"win32\" or platform_system == \"Windows\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", duckdb = "platform_system == \"Windows\"", elasticsearch = "platform_system == \"Windows\"", eval = "platform_system == \"Windows\"", legacy-partitioners = "platform_system == \"Windows\"", local-inference = "platform_system == \"Windows\"", neo4j = "platform_system == \"Windows\"", notebook = "sys_platform == \"win32\"", opensearch = "platform_system == \"Windows\"", pinecone = "platform_system == \"Windows\"", qdrant = "platform_system == \"Windows\"", test = "sys_platform == \"win32\"", weaviate = "platform_system == \"Windows\""}
+markers = {main = "(extra == \"docs\" or platform_system == \"Windows\") and platform_system == \"Linux\" and (sys_platform == \"win32\" or platform_system == \"Windows\") and platform_machine == \"aarch64\"", dev = "(sys_platform == \"win32\" or platform_system == \"Windows\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", docs = "(sys_platform == \"win32\" or platform_system == \"Windows\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", duckdb = "platform_system == \"Windows\"", elasticsearch = "platform_system == \"Windows\"", eval = "platform_system == \"Windows\"", legacy-partitioners = "platform_system == \"Windows\"", local-inference = "platform_system == \"Windows\"", neo4j = "platform_system == \"Windows\"", notebook = "sys_platform == \"win32\"", opensearch = "platform_system == \"Windows\"", pinecone = "platform_system == \"Windows\"", qdrant = "platform_system == \"Windows\"", test = "sys_platform == \"win32\"", weaviate = "platform_system == \"Windows\""}
 
 [[package]]
 name = "coloredlogs"
@@ -9489,7 +9489,7 @@ description = "C version of reader, parser and emitter for ruamel.yaml derived f
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"docs\" and platform_python_implementation == \"CPython\" and platform_system == \"Linux\" and platform_machine == \"aarch64\""
+markers = "(python_version == \"3.9\" or platform_system == \"Linux\") and (python_version == \"3.9\" or platform_machine == \"aarch64\") and platform_python_implementation == \"CPython\" and extra == \"docs\" and python_version < \"3.10\" or platform_python_implementation == \"CPython\" and (python_version == \"3.10\" or python_version == \"3.11\" or python_version == \"3.12\") and extra == \"docs\""
 files = [
     {file = "ruamel.yaml.clib-0.2.12-cp310-cp310-macosx_13_0_arm64.whl", hash = "sha256:11f891336688faf5156a36293a9c362bdc7c88f03a8a027c2c1d8e0bcde998e5"},
     {file = "ruamel.yaml.clib-0.2.12-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:a606ef75a60ecf3d924613892cc603b154178ee25abb3055db5062da811fd969"},
@@ -11494,7 +11494,7 @@ description = "A language and compiler for custom Deep Learning operations"
 optional = false
 python-versions = "*"
 groups = ["dev", "legacy-partitioners", "local-inference"]
-markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\" and (python_version == \"3.9\" or python_version == \"3.10\" or python_version == \"3.11\")"
+markers = "(python_version == \"3.9\" or python_version == \"3.10\" or python_version == \"3.11\") and platform_system == \"Linux\" and platform_machine == \"x86_64\""
 files = [
     {file = "triton-2.3.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3c84595cbe5e546b1b290d2a58b1494df5a2ef066dd890655e5b8a8a92205c33"},
     {file = "triton-2.3.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c9d64ae33bcb3a7a18081e3a746e8cf87ca8623ca13d2c362413ce7a486f893e"},

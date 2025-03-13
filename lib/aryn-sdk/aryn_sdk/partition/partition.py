@@ -79,6 +79,7 @@ def partition_file(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
+    markdown_options: Optional[dict[str, Any]] = None,
     output_label_options: Optional[dict[str, Any]] = None,
     trace_id: Optional[str] = None,  # deprecated
     extra_headers: Optional[dict[str, str]] = None,
@@ -138,6 +139,16 @@ def partition_file(
         ssl_verify: verify ssl certificates. In databricks, set this to False to fix ssl imcompatibilities.
         output_format: controls output representation; can be set to "markdown" or "json"
             default: None (JSON elements)
+        markdown_options: A dictionary for configuring markdown output behavior. It supports three options:
+            include_headers, a boolean specifying whether to include headers in the markdown output, include_footers,
+            a boolean specifying whether to include footers in the markdown output, and include_pagenum, a boolean
+            specifying whether to include page numbers in the markdown output. Here is an example set of markdown
+            options:
+                {
+                    "include_headers": True,
+                    "include_footers": True,
+                    "include_pagenum": True
+                }
         output_label_options: A dictionary for configuring output label behavior. It supports three options:
             promote_title, a boolean specifying whether to pick the largest element by font size on the first page
                 from among the elements on that page that have one of the types specified in title_candidate_elements
@@ -196,6 +207,7 @@ def partition_file(
         docparse_url=docparse_url,
         ssl_verify=ssl_verify,
         output_format=output_format,
+        markdown_options=markdown_options,
         output_label_options=output_label_options,
         trace_id=trace_id,
         extra_headers=extra_headers,
@@ -222,6 +234,7 @@ def _partition_file_wrapper(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
+    markdown_options: Optional[dict[str, Any]] = None,
     output_label_options: Optional[dict[str, Any]] = None,
     webhook_url: Optional[str] = None,
     trace_id: Optional[str] = None,  # deprecated
@@ -254,6 +267,7 @@ def _partition_file_wrapper(
             docparse_url=docparse_url,
             ssl_verify=ssl_verify,
             output_format=output_format,
+            markdown_options=markdown_options,
             output_label_options=output_label_options,
             trace_id=trace_id,
             extra_headers=extra_headers,
@@ -284,6 +298,7 @@ def _partition_file_inner(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
+    markdown_options: Optional[dict[str, Any]] = None,
     output_label_options: Optional[dict[str, Any]] = None,
     trace_id: Optional[str] = None,  # deprecated
     extra_headers: Optional[dict[str, str]] = None,
@@ -317,6 +332,7 @@ def _partition_file_inner(
         selected_pages=selected_pages,
         output_format=output_format,
         chunking_options=chunking_options,
+        markdown_options=markdown_options,
         output_label_options=output_label_options,
     )
 
@@ -436,6 +452,7 @@ def _json_options(
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     output_format: Optional[str] = None,
     chunking_options: Optional[dict[str, Any]] = None,
+    markdown_options: Optional[dict[str, Any]] = None,
     output_label_options: Optional[dict[str, Any]] = None,
 ) -> str:
     # isn't type-checking fun
@@ -462,6 +479,8 @@ def _json_options(
         options["output_format"] = output_format
     if chunking_options is not None:
         options["chunking_options"] = chunking_options
+    if markdown_options:
+        options["markdown_options"] = markdown_options
     if output_label_options:
         options["output_label_options"] = output_label_options
 
@@ -489,6 +508,7 @@ def partition_file_async_submit(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
+    markdown_options: Optional[dict[str, Any]] = None,
     output_label_options: Optional[dict[str, Any]] = None,
     trace_id: Optional[str] = None,  # deprecated
     extra_headers: Optional[dict[str, str]] = None,
@@ -547,6 +567,7 @@ def partition_file_async_submit(
         docparse_url=docparse_url,
         ssl_verify=ssl_verify,
         output_format=output_format,
+        markdown_options=markdown_options,
         output_label_options=output_label_options,
         trace_id=trace_id,
         extra_headers=extra_headers,

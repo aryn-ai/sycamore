@@ -3,18 +3,17 @@ import logging
 import os
 import tempfile
 import tracemalloc
+import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
 from typing import Any, BinaryIO, Literal, Union, Optional
 from itertools import repeat
 
-import requests
-import json
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 import base64
 from PIL import Image
 from pypdf import PdfReader
 
+from aryn_sdk.partition import partition_file
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.document import DocumentPropertyTypes
 from sycamore.data.element import create_element
@@ -170,6 +169,7 @@ class ArynPDFPartitioner:
         text_extraction_options: dict[str, Any] = {},
         source: str = "",
         output_label_options: dict[str, Any] = {},
+        **kwargs,
     ) -> list[Element]:
         if use_partitioning_service:
             assert aryn_api_key != ""
@@ -186,6 +186,7 @@ class ArynPDFPartitioner:
                 output_format=output_format,
                 source=source,
                 output_label_options=output_label_options,
+                **kwargs,
             )
         else:
             if isinstance(threshold, str):
@@ -231,108 +232,25 @@ class ArynPDFPartitioner:
         wait=wait_exponential(multiplier=1, min=1),
         stop=stop_after_delay(_TEN_MINUTES),
     )
-    def _call_remote_partitioner(
-        file: BinaryIO,
-        aryn_api_key: str,
-        aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
-        threshold: Union[float, Literal["auto"]] = "auto",
-        use_ocr: bool = False,
-        extract_table_structure: bool = False,
-        extract_images: bool = False,
-        selected_pages: list = [],
-        output_format: Optional[str] = None,
-        source: str = "",
-        output_label_options: dict[str, Any] = {},
-    ) -> list[Element]:
-        file.seek(0)
-        options = {
-            "threshold": threshold,
-            "use_ocr": use_ocr,
-            "extract_table_structure": extract_table_structure,
-            "extract_images": extract_images,
-            "selected_pages": selected_pages,
-            "source": f"sycamore-{source}" if source else "sycamore",
-            "output_label_options": output_label_options,
-        }
-        if output_format:
-            options["output_format"] = output_format
+    def _call_remote_partitioner(file: BinaryIO, **kwargs) -> list[Element]:
+        # Get accepted parameters from partition_file function
+        partition_params = set(inspect.signature(partition_file).parameters.keys())
 
-        files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
-        header = {"Authorization": f"Bearer {aryn_api_key}"}
+        source = f"sycamore-{source_kwarg}" if (source_kwarg := kwargs.pop("source", "")) else "sycamore"
+        extra_headers = kwargs.pop("extra_headers", {})
+        extra_headers["X-Aryn-Origin"] = source
 
-        logger.debug(f"ArynPartitioner POSTing to {aryn_partitioner_address} with files={files}")
-        response = requests.post(aryn_partitioner_address, files=files, headers=header, stream=True)
-        content = []
-        in_status = False
-        in_bulk = False
-        partial_line = b""
-        for part in response.iter_content(None):
-            if not part:
-                continue
+        # Filter kwargs to only include parameters accepted by partition_file
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in partition_params}
 
-            content.append(part)
-            if in_bulk:
-                continue
-            partial_line = partial_line + part
-            if b"\n" not in part:
-                # Make sure we don't go O(n^2) from constantly appending to our partial_line.
-                if len(partial_line) > 100000:
-                    logger.warning("Too many bytes without newline. Skipping incremental status")
-                    in_bulk = True
-
-                continue
-
-            lines = partial_line.split(b"\n")
-            if part.endswith(b"\n"):
-                partial_line = b""
-            else:
-                partial_line = lines.pop()
-
-            for line in lines:
-                if line.startswith(b'  "status"'):
-                    in_status = True
-                if not in_status:
-                    continue
-                if line.startswith(b"  ],"):
-                    in_status = False
-                    in_bulk = True
-                    continue
-                if line.startswith(b'    "T+'):
-                    t = json.loads(line.decode("utf-8").removesuffix(","))
-                    logger.info(f"ArynPartitioner: {t}")
-
-        body = b"".join(content).decode("utf-8")
-        logger.debug("ArynPartitioner Recieved data")
-
-        if response.status_code != 200:
-            if response.status_code == 500 or response.status_code == 502:
-                logger.debug(
-                    "ArynPartitioner recieved a retry-able error {} x-aryn-call-id: {}".format(
-                        response, response.headers.get("x-aryn-call-id")
-                    )
-                )
-                raise ArynPDFPartitionerException(
-                    "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
-                        response.status_code, body, response.headers.get("x-aryn-call-id")
-                    ),
-                    can_retry=True,
-                )
-            raise ArynPDFPartitionerException(
-                "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
-                    response.status_code, body, response.headers.get("x-aryn-call-id")
-                )
-            )
-
-        response_json = json.loads(body)
-        if isinstance(response_json, dict):
-            status = response_json.get("status", [])
-            if "error" in response_json:
-                raise ArynPDFPartitionerException(
-                    f"Error partway through processing: {response_json['error']}\nPartial Status:\n{status}"
-                )
-            if (output_format == "markdown") and ((md := response_json.get("markdown")) is not None):
-                return [text_elem(md)]
-            response_json = response_json.get("elements", [])
+        try:
+            file.seek(0)
+            response_json = partition_file(file, extra_headers=extra_headers, **filtered_kwargs)
+        except Exception as e:
+            raise ArynPDFPartitionerException(f"Error calling Aryn DocParse: {e}", can_retry=True)
+        if (kwargs.get("output_format") == "markdown") and ((md := response_json.get("markdown")) is not None):
+            return [text_elem(md)]
+        response_json = response_json.get("elements", [])
 
         elements = []
         for idx, element_json in enumerate(response_json):
@@ -356,6 +274,7 @@ class ArynPDFPartitioner:
         output_format: Optional[str] = None,
         source: str = "",
         output_label_options: dict[str, Any] = {},
+        **kwargs,
     ) -> list[Element]:
         page_count = get_page_count(file)
 
@@ -369,7 +288,7 @@ class ArynPDFPartitioner:
                 ArynPDFPartitioner._call_remote_partitioner(
                     file=file,
                     aryn_api_key=aryn_api_key,
-                    aryn_partitioner_address=aryn_partitioner_address,
+                    docparse_url=aryn_partitioner_address,
                     threshold=threshold,
                     use_ocr=use_ocr,
                     extract_table_structure=extract_table_structure,
@@ -378,6 +297,7 @@ class ArynPDFPartitioner:
                     output_format=output_format,
                     source=source,
                     output_label_options=output_label_options,
+                    **kwargs,
                 )
             )
             low = high + 1

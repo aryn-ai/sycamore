@@ -427,6 +427,7 @@ class ArynPartitioner(Partitioner):
             Here is an example set of output label options:
                 {"promote_title": True, "title_candidate_elements": ["Section-header", "Caption"]}
             default: None (no element is promoted to "Title")
+        kwargs: Additional keyword arguments to pass to the remote partitioner.
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
          both table structure and image
@@ -462,6 +463,7 @@ class ArynPartitioner(Partitioner):
         text_extraction_options: dict[str, Any] = {},
         source: str = "",
         output_label_options: dict[str, Any] = {},
+        **kwargs,
     ):
         if use_partitioning_service:
             device = "cpu"
@@ -502,6 +504,7 @@ class ArynPartitioner(Partitioner):
         self._text_extraction_options = text_extraction_options
         self._source = source
         self.output_label_options = output_label_options
+        self._kwargs = kwargs
 
     @timetrace("SycamorePdf")
     def partition(self, document: Document) -> Document:
@@ -531,6 +534,7 @@ class ArynPartitioner(Partitioner):
                 text_extraction_options=self._text_extraction_options,
                 source=self._source,
                 output_label_options=self.output_label_options,
+                **self._kwargs,
             )
         except Exception as e:
             path = document.properties["path"]

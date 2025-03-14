@@ -167,7 +167,7 @@ def plan_llm_filter_as_llm_map(
         if keep_none:
             return True
         try:
-            score = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[0])
+            _ = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[0])
             return True
         except IndexError:
             return False

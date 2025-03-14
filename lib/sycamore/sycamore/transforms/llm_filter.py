@@ -168,9 +168,9 @@ def plan_llm_filter_as_llm_map(
             return True
         try:
             score = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[0])
+            return True
         except IndexError:
-            pass
-        return True
+            return False
 
     if use_elements:
         llm_map._validate = llmmap_validate_elements

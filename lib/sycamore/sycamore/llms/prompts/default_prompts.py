@@ -422,6 +422,7 @@ class EntityExtractorMessagesPrompt(SimplePrompt):
                 f'"{field}" to answer the question: '
             )
 
+
 # TODO: Need to separate the condition when use_elements is True but the field is a property that does not require chunking.
 #       Could save up on time by not scheduling llm calls.
 LlmFilterMessagesJinjaPrompt = JinjaPrompt(

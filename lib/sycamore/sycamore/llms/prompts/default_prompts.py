@@ -433,7 +433,7 @@ LlmFilterMessagesJinjaPrompt = JinjaPrompt(
         entry. You only response with 0, 1, 2, 3, 4, or 5 based on your confidence
         level. 0 is the most negative answer and 5 is the most positive answer.
         Question: {{ filter_question }}
-        Entry: {% if field != "text_representation" or not use_elements -%}
+        Entry: {% if not use_elements -%}
         Field Name: {{ field }}; Field Value: {{ field_value(doc, field, no_field_behavior) }}
         {% else %}"""
         )

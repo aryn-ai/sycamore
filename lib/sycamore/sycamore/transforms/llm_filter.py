@@ -154,7 +154,7 @@ def plan_llm_filter_as_llm_map(
     llm_map = comptransform.nodes[-2]
     assert isinstance(llm_map, LLMMap)
 
-    def llmmap_validate(doc: Document) -> bool:
+    def llmmap_validate_elements(doc: Document) -> bool:
         if keep_none and len(doc.elements) == 0:
             return True
         try:
@@ -163,7 +163,19 @@ def plan_llm_filter_as_llm_map(
             return False
         return score >= threshold
 
-    llm_map._validate = llmmap_validate
+    def llmmap_validate_documents(doc: Document) -> bool:
+        if keep_none and len(doc.elements) == 0:
+            return True
+        try:
+            score = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[0])
+        except IndexError:
+            pass
+        return True
+
+    if use_elements:
+        llm_map._validate = llmmap_validate_elements
+    else:
+        llm_map._validate = llmmap_validate_documents
 
     def filter_fn(doc: Document) -> bool:
         try:

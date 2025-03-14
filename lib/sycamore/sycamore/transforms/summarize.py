@@ -119,7 +119,8 @@ MaxTokensHierarchyPrompt = JinjaElementPrompt(
             {%- endif -%}
         {%- endmacro -%}
 
-        {% if round == 0 -%}
+        {% if round == -1 -%}
+        {% elif round == 0 -%}
         You are given {{ get_data_description() }}. Please use only the information found in these elements
         to determine an answer to the question "{{ question }}". If you cannot answer the question based on
         the data provided, instead respond with any data that might be relevant to the question.
@@ -130,8 +131,8 @@ MaxTokensHierarchyPrompt = JinjaElementPrompt(
         Some answers may not be particularly relevent, so don't pay them too much mind.
         Answers:
         {%- endif -%}
-        {%- for idx in elt.properties[batch_key] %}
-        {{ loop.index }}: {{ get_text(doc.elements[idx]) }}
+        {%- for d in doc.elements %}
+        {{ loop.index }}: {{ get_text(d) }}
         {% endfor %}
         """
     ),
@@ -139,7 +140,140 @@ MaxTokensHierarchyPrompt = JinjaElementPrompt(
 )
 
 
-class MultiStepDocumentSummarizer(Summarizer):
+class MultiStepDocumentSummarizerOld(Summarizer):
+    """
+    Summarizes a document by constructing a tree of summaries. Each leaf contains as many consecutive
+    elements as possible within the token limit, and each vertex of the tree contains as many sub-
+    summaries as possible within the token limit. e.g with max_tokens=10
+
+    .. code-block::
+
+        Elements: (3 tokens) - (3 tokens) - (5 tokens) - (8 tokens)
+                    |            |            |            |
+                    (4 token summary) - (3 token summary) - (2 token summary)
+                                \\             |            /
+                                        (5 token summary)
+
+    Args:
+        llm: LLM to use for summarization
+        llm_mode: How to call the LLM - SYNC, ASYNC, BATCH. Async is faster but not all llms support it.
+        question: Optional question to use as context for the summarization. If set, the llm will
+            attempt to answer the question with the data provided
+        data_description: Optional string describing the input documents.
+        prompt: Prompt to use for each summarization. Caution: The default (MaxTokensHeirarchicalSummarizerPrompt)
+            has some fairly complicated logic encoded in it to make the tree construction work correctly.
+        fields: List of fields to include in each element's representation in the prompt. Specify
+            with dotted notation (e.g. properties.title), or use "*" to capture everything. If None,
+            will include no fields.
+        max_tokens: token limit for each summarization. Default is 10k (default tokenizer is by character).
+        tokenizer: tokenizer to use when computing how many tokens a prompt will take. Default is
+            CharacterTokenizer
+        max_rounds: max number of rounds of heirarchical summarization to perform. The number of elements that
+            can be included in the summary is O(e^max_rounds), so can be small. Default is 4.
+    """
+
+    def __init__(
+        self,
+        llm: LLM,
+        llm_mode: LLMMode = LLMMode.SYNC,
+        question: Optional[str] = None,
+        data_description: Optional[str] = None,
+        prompt: SycamorePrompt = MaxTokensHierarchyPrompt,
+        fields: Union[None, Literal["*"], list[str]] = None,
+        max_tokens: int = 10 * 1000,
+        tokenizer: Tokenizer = CharacterTokenizer(),
+        max_rounds: int = 4,
+    ):
+        self.llm = llm
+        self.llm_mode = llm_mode
+        self.prompt = prompt.fork(**self.get_const_vars())
+        self.fields = fields
+        self.question = question
+        self.data_description = data_description
+        self.max_tokens = max_tokens
+        self.tokenizer = tokenizer
+        self.max_rounds = max_rounds
+
+    @staticmethod
+    def get_const_vars() -> dict[str, str]:
+        return {
+            "batch_key": "_batch",
+            "intermediate_summary_key": "_summary",
+        }
+
+    def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        # MultiStepDocumentSummarizer doesn't use LLMMap - it doesn't work very cleanly
+        return Map(child, f=self.summarize)
+
+    def summarize(self, document: Document) -> Document:
+        elements = []
+
+        def add_one_doc(d):
+            docprops = d.properties()
+            elements.append(Element(properties = docprops)) # include the document properties first
+            for e in d.elements():
+                e = copy.deepcopy(e)
+                del e.properties # only include properties once in case we did spread_properties; TODO: filter the document properties out so element properties remain
+            
+        if isinstance(document, SummarizeDocument):
+            for d in document.sub_docs():
+                assert isinstance(d, Document)
+                add_one_doc(d)
+        else:
+            assert isinstance(document, Document)
+            add_one_doc(document)
+
+        summary = summarize_incremental(elemeents)
+
+        return Document(properties={"summary": summary})
+
+
+    def summarize_collapse(self, group) -> str:
+        base_prompt = self.prompt.fork(
+            ignore_none=True,
+            question=self.question,
+            data_description=self.data_description,
+            fields=self.fields,
+        )
+        base_tokens = base_prompt.render(Document()).token_count(self.tokenizer)
+        round = 0
+        while round == 0 || len(group) > 1:
+            group = self.summarize_round(group, round, base_prompt)
+            round = round + 1
+
+        return group[0].properties["_summary"]
+
+    def summarize_round(self, group, round, base_prompt):
+        prompt = base_prompt.fork(round=round)
+        base_tokens = base_prompt.render(Document()).token_count(self.tokenizer) # each batch in the group uses this many tokens to start
+        eprompt = base_prompt.fork(round=-1)
+        i = 0
+        batch = []
+        batch_toks = base_tokens
+
+        rendered_prompts = []
+        while i < len(group):
+            etks = eprompt.render(Document(elements=[batch[i]]))
+            if etks + base_tokens > self.max_tokens:
+                raise ValueError(
+                    "Element was too big to fit within the specified max tokens. "
+                    "Please run `docset.split_elements` to break it up or limit the"
+                    f" properties used in the prompt.\n\nElement: {elt}"
+                )
+            if batch_toks + etks > self.max_tokens:
+                rendered_prompts.append(prompt.render(Document(elements=batch)))
+                batch = []
+                batch_toks = base_tokens
+
+            batch.append(group[i])
+
+        if len(batch) > 0:
+            rendered_prompts.append(prompt.render(Document(elements=batch)))
+
+        results = _infer_prompts(prompts=rendered_prompts, llm=self.llm, llm_mode=self.llm_mode) # TODO make llm mode implicit in llm
+        return [Element(properties={"_summary": r}) for r in results]
+        
+class MultiStepDocumentSummarizerOld(Summarizer):
     """
     Summarizes a document by constructing a tree of summaries. Each leaf contains as many consecutive
     elements as possible within the token limit, and each vertex of the tree contains as many sub-

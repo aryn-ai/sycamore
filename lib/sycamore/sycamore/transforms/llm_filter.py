@@ -164,7 +164,7 @@ def plan_llm_filter_as_llm_map(
         return score >= threshold
 
     def llmmap_validate_documents(doc: Document) -> bool:
-        if keep_none and len(doc.elements) == 0:
+        if keep_none:
             return True
         try:
             score = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[0])

@@ -423,6 +423,8 @@ class EntityExtractorMessagesPrompt(SimplePrompt):
             )
 
 
+# TODO: Need to separate the condition when use_elements is True but the field is a property that does not require chunking.
+#       Could save up on time by not scheduling llm calls.
 LlmFilterMessagesJinjaPrompt = JinjaPrompt(
     system="You are a helpful classifier that generously filters database entries based on questions.",
     user=(
@@ -433,7 +435,7 @@ LlmFilterMessagesJinjaPrompt = JinjaPrompt(
         entry. You only response with 0, 1, 2, 3, 4, or 5 based on your confidence
         level. 0 is the most negative answer and 5 is the most positive answer.
         Question: {{ filter_question }}
-        Entry: {% if field != "text_representation" or not use_elements -%}
+        Entry: {% if not use_elements -%}
         Field Name: {{ field }}; Field Value: {{ field_value(doc, field, no_field_behavior) }}
         {% else %}"""
         )

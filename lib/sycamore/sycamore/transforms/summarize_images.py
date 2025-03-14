@@ -172,8 +172,8 @@ class SummarizeImages(CompositeTransform):
         super().__init__(child, [], **resource_args)
         prompt: SycamorePrompt = SummarizeImagesJinjaPrompt
         if summarizer.prompt != LLMImageSummarizer.DEFAULT_PROMPT:
-            prompt = prompt.set(user=summarizer.prompt)
-        prompt = prompt.set(include_context=summarizer.include_context)
+            prompt = prompt.fork(user=summarizer.prompt)
+        prompt = prompt.fork(include_context=summarizer.include_context)
         llm_map = LLMMapElements(
             child, prompt, output_field="summary", llm=summarizer.llm, filter=lambda e: e.type == "Image"
         )

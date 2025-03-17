@@ -158,15 +158,15 @@ class PaddleOcr(OcrModel):
     # NOTE: Also requires the installation of paddlepaddle or paddlepaddle-gpu
     # depending on your system
     @requires_modules(["paddleocr", "paddle"], extra="local-inference")
-    def __init__(self, language="en", slice_kwargs={}):
+    def __init__(self, language="en", slice_kwargs={}, **kwargs):
         from paddleocr import PaddleOCR
         from paddleocr.ppocr.utils.logging import get_logger
         import paddle
 
         get_logger().setLevel(logging.ERROR)
         self.use_gpu = paddle.device.is_compiled_with_cuda()
-        self.language = language
-        self.reader = PaddleOCR(lang=self.language, use_gpu=self.use_gpu)
+        self.language = kwargs.pop("lang", language)
+        self.reader = PaddleOCR(use_gpu=self.use_gpu, lang=self.language, **kwargs)
         self.slice_kwargs = slice_kwargs
 
     def get_text(self, image: Image.Image) -> tuple[str, Optional[float]]:

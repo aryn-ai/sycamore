@@ -1,7 +1,6 @@
 from collections import UserDict
 import json
 from typing import Any, Optional
-import itertools
 
 from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element

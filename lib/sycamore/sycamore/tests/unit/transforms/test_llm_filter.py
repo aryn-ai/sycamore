@@ -1,6 +1,7 @@
 import pytest
 from typing import Optional, Union
 from unittest.mock import MagicMock
+from functools import cache
 
 import sycamore
 from sycamore.context import Context, OperationTypes, ExecMode
@@ -296,6 +297,7 @@ class BadEntityExtractor(EntityExtractor):
 
 
 class FakeTokenizer(Tokenizer):
+    @cache
     def tokenize(self, text: str, as_ints: bool = False) -> Union[list[int], list[str]]:
         return ["a"]
 

@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Optional, Literal, Union, Type
+from typing import Callable, Optional, Union, Type
 import copy
 import textwrap
 import itertools
+import logging
 
 
 from sycamore.data import Element, Document
@@ -11,20 +12,18 @@ from sycamore.llms.prompts.default_prompts import (
     TextSummarizerJinjaPrompt,
 )
 from sycamore.llms.prompts.prompts import (
-    JinjaElementPrompt,
     SycamorePrompt,
     JinjaPrompt,
-    RenderedPrompt,
 )
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
 from sycamore.llms.llms import LLMMode
-from sycamore.transforms.map import Map, MapBatch
+from sycamore.transforms.map import Map
 from sycamore.transforms.base import CompositeTransform, BaseMapTransform
 from sycamore.transforms.base_llm import LLMMapElements, LLMMap, _infer_prompts
 
 
-class SummarizeDocument(Document):
+class SummaryDocument(Document):
     def __init__(self, document=None, **kwargs):
         if "elements" in kwargs:
             raise ValueError("Cannot set elements directly in a SummarizeDocument")
@@ -140,7 +139,7 @@ def _partition_fields(document: Document, fields: list[Union[str, Type[EtCetera]
         docfieldset = set(doc_fields) | fieldset
         eltfieldset = {k for e in document.elements for k in e.properties if k not in docfieldset}
         elt_fields.extend(list(eltfieldset))
-    return doc_fields, elt_fields
+    return doc_fields, elt_fields  # type: ignore # mypy thinks there could be EtCeteras but there can't
 
 
 MaxTokensHierarchyPrompt = JinjaPrompt(
@@ -280,10 +279,15 @@ class MultiStepDocumentSummarizer(Summarizer):
         remaining_elements = dummy_doc.elements
 
         round = 0
+        last_elt_len = len(remaining_elements)
         while len(remaining_elements) > 1 or round == 0:
             round_prompt = base_prompt.fork(round=round)
             round_etk_prompt = etk_prompt.fork(round=round)
             remaining_elements = self.summarize_one_round(dummy_doc, remaining_elements, round_prompt, round_etk_prompt)
+            if len(remaining_elements) == last_elt_len and round > 0:
+                logging.warning("Detected likely infinite summary loop. Exiting with incomplete summary")
+                break
+            last_elt_len = len(remaining_elements)
             round += 1
         document.properties["summary"] = remaining_elements[0].properties["summary"]
         for e in document.elements:

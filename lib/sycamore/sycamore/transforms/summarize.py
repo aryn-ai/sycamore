@@ -123,6 +123,8 @@ def _partition_fields(document: Document, fields: list[Union[str, Type[EtCetera]
     are in the document properties are document fields, and everything else is an element field.
     EtCetera turns the list into 'every field' (with a prefix if early field order matters)
     """
+    # TODO: If property values are varied between document and elements we might
+    # not want to drop them from the elements.
     doc_fields, elt_fields = [], []
     for f in fields:
         if f is EtCetera:
@@ -306,23 +308,15 @@ class MultiStepDocumentSummarizer(Summarizer):
         element of each batch and returning only those elements."""
         # Compute token costs for the base stuff and each element individually
         del document.elements
-        curr_tks = base_prompt.render_document(document).token_count(self.tokenizer)
+        baseline_tks = base_prompt.render_document(document).token_count(self.tokenizer)
 
-        etk_costs = []
-        for e in elements:
-            document.elements = [e]
-            etk_costs.append(etk_prompt.render_document(document).token_count(self.tokenizer))
-
-        # Get batches and turn each one into a prompt
-        elt_batch_lengths = self.batch_token_counts(curr_tks, etk_costs)
-        start_idx = 0
+        # Batch elements and make prompts out of them
+        elt_batches = self.batch_elements(baseline_tks, elements, etk_prompt, document)
         final_elements = []
         to_infer = []
-        for ebl in elt_batch_lengths:
-            elts = elements[start_idx : start_idx + ebl]
-            start_idx += ebl
-            document.elements = elts
-            final_elements.append(elts[0])
+        for eb in elt_batches:
+            document.elements = eb
+            final_elements.append(eb[0])
             to_infer.append(base_prompt.render_document(document))
 
         # Invoke the llm and attach summaries
@@ -331,29 +325,32 @@ class MultiStepDocumentSummarizer(Summarizer):
             e.properties["summary"] = s
         return final_elements
 
-    def batch_token_counts(self, baseline_tokens: int, token_costs: list[int]) -> list[int]:
+    def batch_elements(
+        self, baseline_tokens: int, elements: list[Element], etk_prompt: SycamorePrompt, document: Document
+    ) -> list[list[Element]]:
         """Return a list of lengths of consecutive batches of elements keeping total
         token counts below my token limit"""
         limit = self.max_tokens
         result = []
-        curr_batch_len = 0
         curr_tks = baseline_tokens
-        for tkc in token_costs:
-            if tkc + curr_tks > limit:
-                if tkc + baseline_tokens > limit:
+        curr_batch = []
+        for e in elements:
+            document.elements = [e]
+            etks = etk_prompt.render_document(document).token_count(self.tokenizer)
+            if etks + curr_tks > limit:
+                if etks + baseline_tokens > limit:
                     raise ValueError(
                         "An element was too big to fit within the specified max tokens. "
                         "Please run `docset.split_elements` to break it up or limit the"
-                        f" properties used in the prompt.\n\nElement tokens: {tkc}\nBaseline"
-                        f" tokens: {baseline_tokens}\nToken limit: {limit}"
+                        f" properties used in the prompt.\n\nElement: {e}"
                     )
-                result.append(curr_batch_len)
-                curr_batch_len = 1
-                curr_tks = baseline_tokens + tkc
+                result.append(curr_batch)
+                curr_batch = [e]
+                curr_tks = baseline_tokens + etks
             else:
-                curr_batch_len += 1
-                curr_tks += tkc
-        result.append(curr_batch_len)
+                curr_batch.append(e)
+                curr_tks += etks
+        result.append(curr_batch)
         return result
 
 

@@ -113,25 +113,49 @@ class LLMElementTextSummarizer(Summarizer):
         return LLMMapElements(child, TextSummarizerJinjaPrompt, output_field="summary", llm=self._llm, filter=filter)
 
 
-MaxTokensHierarchyPrompt = JinjaElementPrompt(
+class EtCetera:
+    """Sentinel value to sit at the end of a list of fields, signifying 'add as
+    many additional properties as you can within the token limit'"""
+
+
+def _partition_fields(document: Document, fields: list[Union[str, Type[EtCetera]]]) -> tuple[list[str], list[str]]:
+    """
+    Split a list of fields into document and element fields - any fields in the list that
+    are in the document properties are document fields, and everything else is an element field.
+    EtCetera turns the list into 'every field' (with a prefix if early field order matters)
+    """
+    doc_fields, elt_fields = [], []
+    for f in fields:
+        if f is EtCetera:
+            continue
+        if f in document.properties:
+            doc_fields.append(f)
+        else:
+            elt_fields.append(f)
+    fieldset = set(fields)
+    if fields[-1] is EtCetera:
+        for f in document.properties:
+            if f not in fieldset:
+                doc_fields.append(f)
+        docfieldset = set(doc_fields) | fieldset
+        eltfieldset = {k for e in document.elements for k in e.properties if k not in docfieldset}
+        elt_fields.extend(list(eltfieldset))
+    return doc_fields, elt_fields
+
+
+MaxTokensHierarchyPrompt = JinjaPrompt(
     system=textwrap.dedent(
         """
+        {%- if element_testing is not defined -%}{# element_testing means only render an element, to get token count #}
         {% if question is defined %}You are a helpful research assistant. You answer questions based on
         text you are presented with.
         {% else %}You are a helpful data summarizer. You concisely summarize text you are presented with,
         including as much detail as possible.
-        {% endif %}
+        {% endif %}{% endif %}
         """
     ),
     user=textwrap.dedent(
         """
-        {%- macro get_text_properties(element) %}
-            {% for p in element.properties %}
-                {%- if p.startswith('_') %}{% continue %}{% endif %}
-            {{ p }}: {{ element.properties[p] }}
-            {%- endfor -%}
-        {% endmacro -%}
-
         {%- macro get_text_fields(element, fields) %}
             {% for f in fields %}
             {{ f }}: {{ element.field_to_value(f) }}
@@ -139,13 +163,7 @@ MaxTokensHierarchyPrompt = JinjaElementPrompt(
         {% endmacro -%}
 
         {%- macro get_text_base(element) %}
-            {%- if fields is defined -%}
-                {%- if fields == "*" %}
-            {{ get_text_properties(element) }}
-                {%- else %}
-            {{ get_text_fields(element, fields) }}
-                {% endif -%}
-            {%- endif -%}
+            {{ get_text_fields(element, elt_fields) }}
             Text: {{ element.text_representation }}
         {% endmacro -%}
 
@@ -153,7 +171,7 @@ MaxTokensHierarchyPrompt = JinjaElementPrompt(
                 {%- if round == 0 -%}
             {{ get_text_base(element) }}
                 {%- else -%}
-            Summary: {{ element.properties[intermediate_summary_key] }}
+            {{ element.properties["summary"] }}
                 {% endif -%}
         {% endmacro -%}
 
@@ -165,19 +183,29 @@ MaxTokensHierarchyPrompt = JinjaElementPrompt(
             {%- endif -%}
         {%- endmacro -%}
 
+        {%- if element_testing is not defined -%}{# element_testing means only render an element, to get token count #}
         {% if round == 0 -%}
         You are given {{ get_data_description() }}. Please use only the information found in these elements
         to determine an answer to the question "{{ question }}". If you cannot answer the question based on
         the data provided, instead respond with any data that might be relevant to the question.
-        Elements:
         {% else %}
         You are given a list of partial answers to the question "{{ question }}" based on {{ get_data_description() }}.
         Please combine these partial answers into a coherent single answer to the question "{{ question }}".
-        Some answers may not be particularly relevent, so don't pay them too much mind.
-        Answers:
+        Include the parts of the partial answers that are relevant, ignore irrelevant parts.
         {%- endif -%}
-        {%- for idx in elt.properties[batch_key] %}
-        {{ loop.index }}: {{ get_text(doc.elements[idx]) }}
+
+        Shared Properties:
+        {{ get_text_fields(doc, doc_fields) }}
+
+        {% if round == 0 -%}
+        Elements:
+        {% elif round > 0 -%}
+        Answers:
+        {% endif %}
+        {%- endif -%}{# end of element_testing check. Stuff inside this block was constant across elements #}
+
+        {%- for e in doc.elements %}
+        {{ loop.index }}: {{ get_text(e) }}
         {% endfor %}
         """
     ),
@@ -224,106 +252,104 @@ class MultiStepDocumentSummarizer(Summarizer):
         question: Optional[str] = None,
         data_description: Optional[str] = None,
         prompt: SycamorePrompt = MaxTokensHierarchyPrompt,
-        fields: Union[None, Literal["*"], list[str]] = None,
+        fields: list[Union[str, Type[EtCetera]]] = [],
         tokenizer: Tokenizer = CharacterTokenizer(),
-        max_rounds: int = 4,
     ):
         self.llm = llm
         self.llm_mode = llm_mode
-        self.prompt = prompt.fork(**self.get_const_vars())
+        self.prompt = prompt
+        assert EtCetera not in fields[:-1], "EtCetera must be at the end of the list of fields if provided"
         self.fields = fields
         self.question = question
         self.data_description = data_description
         self.max_tokens = tokenizer.max_tokens or 10_000
         self.tokenizer = tokenizer
-        self.max_rounds = max_rounds
-
-    @staticmethod
-    def get_const_vars() -> dict[str, str]:
-        return {
-            "batch_key": "_batch",
-            "intermediate_summary_key": "_summary",
-        }
 
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
         # MultiStepDocumentSummarizer doesn't use LLMMap - it doesn't work very cleanly
-        return MapBatch(child, f=self.summarize_many)
+        return Map(child, f=self.summarize)
 
     def summarize(self, document: Document) -> Document:
-        return self.summarize_many([document])[0]
+        """Summarize a document by summarizing groups of elements iteratively
+        in rounds until only one element remains; that's our new summary"""
+        doc_fields, elt_fields = _partition_fields(document, self.fields)
+        base_prompt = self.prompt.fork(doc_fields=doc_fields, elt_fields=elt_fields)
+        etk_prompt = base_prompt.fork(element_testing=True)
 
-    def summarize_many(self, docs: list[Document]) -> list[Document]:
-        vars = self.get_const_vars()
-        prompts_per_doc = [-1] * len(docs)
-        # Cache this bc we'll be updating the element list for each doc by dropping the ones that
-        # don't get sub-summaries
-        original_elements_per_doc = [doc.elements for doc in docs]
-        for round in range(self.max_rounds):
-            # Each round, render all the prompts for the round and then send them to the LLM
-            if all(ppd == 1 for ppd in prompts_per_doc):
-                break
-            to_infer = []
-            for i, doc in enumerate(docs):
-                if prompts_per_doc[i] == 1:
-                    continue
-                prompts = self._doc_to_prompts(doc, round)
-                doc.elements = [e for e, _ in prompts]
-                prompts_per_doc[i] = len(prompts)
-                to_infer.extend(prompts)
-            results = _infer_prompts(prompts=[p for _, p in to_infer], llm=self.llm, llm_mode=self.llm_mode)
-            for (e, _), r in zip(to_infer, results):
-                e.properties[vars["intermediate_summary_key"]] = r
-        # Re-attach elements, summaries, cleanup temp properties
-        for doc, oelts in zip(docs, original_elements_per_doc):
-            if len(doc.elements) != 0:
-                doc.properties["summary"] = doc.elements[0].properties[vars["intermediate_summary_key"]]
-            else:
-                doc.properties["summary"] = ""
-            doc.elements = oelts
-            for e in doc.elements:
-                for v in vars:
-                    e.properties.pop(v, None)
-        return docs
+        dummy_doc = document.copy()
+        remaining_elements = dummy_doc.elements
 
-    def _doc_to_prompts(self, doc: Document, round: int) -> list[tuple[Element, RenderedPrompt]]:
-        vars = self.get_const_vars()
-        prompt = self.prompt.fork(
-            ignore_none=True,
-            question=self.question,
-            data_description=self.data_description,
-            fields=self.fields,
-            round=round,
-        )
+        round = 0
+        while len(remaining_elements) > 1 or round == 0:
+            round_prompt = base_prompt.fork(round=round)
+            round_etk_prompt = etk_prompt.fork(round=round)
+            remaining_elements = self.summarize_one_round(dummy_doc, remaining_elements, round_prompt, round_etk_prompt)
+            round += 1
+        document.properties["summary"] = remaining_elements[0].properties["summary"]
+        for e in document.elements:
+            e.properties.pop("summary", None)
+        return document
+
+    def summarize_one_round(
+        self,
+        document: Document,
+        elements: list[Element],
+        base_prompt: SycamorePrompt,
+        etk_prompt: SycamorePrompt,
+    ) -> list[Element]:
+        """Perform a 'round' of element summarization: Assemble batches of maximal amounts
+        of elements and summarize them, attaching the resulting summaries to the first
+        element of each batch and returning only those elements."""
+        # Compute token costs for the base stuff and each element individually
+        del document.elements
+        curr_tks = base_prompt.render_document(document).token_count(self.tokenizer)
+
+        etk_costs = []
+        for e in elements:
+            document.elements = [e]
+            etk_costs.append(etk_prompt.render_document(document).token_count(self.tokenizer))
+
+        # Get batches and turn each one into a prompt
+        elt_batch_lengths = self.batch_token_counts(curr_tks, etk_costs)
+        start_idx = 0
+        final_elements = []
+        to_infer = []
+        for ebl in elt_batch_lengths:
+            elts = elements[start_idx : start_idx + ebl]
+            start_idx += ebl
+            document.elements = elts
+            final_elements.append(elts[0])
+            to_infer.append(base_prompt.render_document(document))
+
+        # Invoke the llm and attach summaries
+        summaries = _infer_prompts(prompts=to_infer, llm=self.llm, llm_mode=self.llm_mode)
+        for e, s in zip(final_elements, summaries):
+            e.properties["summary"] = s
+        return final_elements
+
+    def batch_token_counts(self, baseline_tokens: int, token_costs: list[int]) -> list[int]:
+        """Return a list of lengths of consecutive batches of elements keeping total
+        token counts below my token limit"""
+        limit = self.max_tokens
         result = []
-        curr_tks = 0
-        curr_batch: list[int] = []
-        for i, elt in enumerate(doc.elements):
-            # For a SummarizeDocument, doc.elements is itertools.chain(subdoc.elements for each subdoc)
-            # until we override it.
-            elt.properties[vars["batch_key"]] = [i]
-            etks = prompt.render_element(elt, doc).token_count(self.tokenizer)
-            if curr_tks + etks > self.max_tokens:
-                if etks > self.max_tokens:
+        curr_batch_len = 0
+        curr_tks = baseline_tokens
+        for tkc in token_costs:
+            if tkc + curr_tks > limit:
+                if tkc + baseline_tokens > limit:
                     raise ValueError(
-                        "Element was too big to fit within the specified max tokens. "
+                        "An element was too big to fit within the specified max tokens. "
                         "Please run `docset.split_elements` to break it up or limit the"
-                        f" properties used in the prompt.\n\nElement: {elt}"
+                        f" properties used in the prompt.\n\nElement tokens: {tkc}\nBaseline"
+                        f" tokens: {baseline_tokens}\nToken limit: {limit}"
                     )
-                first_elt = doc.elements[curr_batch[0]]
-                first_elt.properties[vars["batch_key"]] = curr_batch
-                result.append((first_elt, prompt.render_element(first_elt, doc)))
-                curr_batch = [i]
-                curr_tks = etks
+                result.append(curr_batch_len)
+                curr_batch_len = 1
+                curr_tks = baseline_tokens + tkc
             else:
-                curr_tks += etks
-                curr_batch.append(i)
-                del elt.properties[vars["batch_key"]]
-
-        if len(curr_batch) == 0:
-            return result
-        first_elt = doc.elements[curr_batch[0]]
-        first_elt.properties[vars["batch_key"]] = curr_batch
-        result.append((first_elt, prompt.render_element(first_elt, doc)))
+                curr_batch_len += 1
+                curr_tks += tkc
+        result.append(curr_batch_len)
         return result
 
 
@@ -349,11 +375,6 @@ OneStepSummarizerPrompt = JinjaPrompt(
         """
     ),
 )
-
-
-class EtCetera:
-    """Sentinel value to sit at the end of a list of fields, signifying 'add as
-    many additional properties as you can within the token limit'"""
 
 
 class OneStepDocumentSummarizer(Summarizer):

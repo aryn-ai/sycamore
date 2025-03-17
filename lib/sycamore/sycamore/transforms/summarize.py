@@ -225,7 +225,6 @@ class MultiStepDocumentSummarizer(Summarizer):
         data_description: Optional[str] = None,
         prompt: SycamorePrompt = MaxTokensHierarchyPrompt,
         fields: Union[None, Literal["*"], list[str]] = None,
-        max_tokens: int = 10 * 1000,
         tokenizer: Tokenizer = CharacterTokenizer(),
         max_rounds: int = 4,
     ):
@@ -235,7 +234,7 @@ class MultiStepDocumentSummarizer(Summarizer):
         self.fields = fields
         self.question = question
         self.data_description = data_description
-        self.max_tokens = max_tokens
+        self.max_tokens = tokenizer.max_tokens or 10_000
         self.tokenizer = tokenizer
         self.max_rounds = max_rounds
 
@@ -381,13 +380,12 @@ class OneStepDocumentSummarizer(Summarizer):
         self,
         llm: LLM,
         question: str,
-        token_limit: int = 10 * 1000,
         tokenizer: Tokenizer = CharacterTokenizer(),
         fields: list[Union[str, Type[EtCetera]]] = [],
     ):
         self.llm = llm
         self.question = question
-        self.token_limit = token_limit
+        self.token_limit = tokenizer.max_tokens or 10_000
         self.tokenizer = tokenizer
         assert EtCetera not in fields[:-1], "EtCetera must be at the end of the list of fields if provided"
         self.fields = fields

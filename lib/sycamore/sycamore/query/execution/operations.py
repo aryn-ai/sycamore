@@ -25,16 +25,14 @@ DEFAULT_DOCSET_SUMMARIZE_CLASS = MultiStepDocumentSummarizer  # type: ignore
 
 DEFAULT_DOCSET_SUMMARIZE_KWARGS: dict[str, Any] = {
     "fields": "*",
-    "tokenizer": OpenAITokenizer("gpt-4o"),
-    "max_tokens": 80_000,
-    "llm_mode": LLMMode.SYNC,
+    "tokenizer": OpenAITokenizer("gpt-4o", max_tokens=80_000),
+    "llm_mode": LLMMode.ASYNC,
 }
 # onestep
 DEFAULT_DOCSET_SUMMARIZE_CLASS = OneStepDocumentSummarizer  # type: ignore
 DEFAULT_DOCSET_SUMMARIZE_KWARGS = {
     "fields": [],
-    "tokenizer": OpenAITokenizer("gpt-4o"),
-    "token_limit": 80_000,
+    "tokenizer": OpenAITokenizer("gpt-4o", max_tokens=80_000),
 }
 
 
@@ -100,15 +98,18 @@ def summarize_data(
         )
 
     if all(isinstance(d, DocSet) for d in input_data):
-        return summarize_data_docsets(
+        docset_summaries = summarize_data_docsets(
             llm,
             question,
             input_data,
             docset_summarizer=docset_summarizer,
             data_description=data_description,
         )
+        return "\n".join(docset_summaries)
 
-    # If data is not DocSets, text is this list here
+    # LuNA pipelines can return list of integers, strings, or floats, depending on the pipeline.
+    # While this should eventually be fixed, we handle it here by summarizing the information
+    # differently in that case.
     # TODO: Jinjify.
     assert not any(
         isinstance(r, DocSet) for r in input_data
@@ -135,8 +136,8 @@ def summarize_data_docsets(
     input_data: List[DocSet],
     docset_summarizer: Summarizer,
     data_description: Optional[str] = None,
-) -> str:
+) -> list[str]:
     single_docs = [SummarizeDocument(sub_docs=ds.take_all()) for ds in input_data]
     agged_ds = input_data[0].context.read.document(single_docs).summarize(docset_summarizer)
     texts = [d.properties["summary"] for d in agged_ds.take_all()]
-    return "\n".join(texts)
+    return texts

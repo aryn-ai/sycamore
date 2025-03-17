@@ -290,7 +290,9 @@ class CompositeTransform(UnaryNode):
         if base_args is not None:
             self.nodes = CompositeTransform.combine(child, base_args, **resource_args)
         else:
-            assert nodes is not None, "type narrowing, unreachable"
+            assert (
+                nodes is not None
+            ), "Satisfy mypy. It doesn't understand xor assert + if statement. This should be infallible."
             self.nodes = nodes
         self._enable_auto_metadata = enable_auto_metadata
 

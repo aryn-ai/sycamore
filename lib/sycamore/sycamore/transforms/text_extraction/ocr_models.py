@@ -166,7 +166,7 @@ class PaddleOcr(OcrModel):
         get_logger().setLevel(logging.ERROR)
         self.use_gpu = paddle.device.is_compiled_with_cuda()
         self.language = kwargs.pop("lang", language)
-        self.reader = PaddleOCR(use_gpu=self.use_gpu, **kwargs)
+        self.reader = PaddleOCR(use_gpu=self.use_gpu, lang=self.language, **kwargs)
         self.slice_kwargs = slice_kwargs
 
     def get_text(self, image: Image.Image) -> tuple[str, Optional[float]]:

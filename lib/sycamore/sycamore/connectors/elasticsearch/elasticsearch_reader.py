@@ -23,6 +23,19 @@ class ElasticsearchReaderQueryParams(BaseDBReader.QueryParams):
     keep_alive: str = "1m"
     kwargs: Dict = field(default_factory=lambda: {})
 
+    def compatible_with(self, other: "BaseDBReader.QueryParams") -> bool:
+        if not isinstance(other, ElasticsearchReaderQueryParams):
+            raise ValueError(f"Incompatible query parameters: Expected ElasticsearchReaderQueryParams, found {type(other)}")
+        if self.index_name != other.index_name:
+            raise ValueError(f"Incompatible index names: Expected {self.index_name}, found {other.index_name}")
+        if self.query != other.query:
+            raise ValueError(f"Incompatible queries: Expected {self.query}, found {other.query}")
+        if self.keep_alive != other.keep_alive:
+            raise ValueError(f"Incompatible keep_alive values: Expected {self.keep_alive}, found {other.keep_alive}")
+        if self.kwargs != other.kwargs:
+            raise ValueError(f"Incompatible kwargs: Expected {self.kwargs}, found {other.kwargs}")
+        return True
+
 
 class ElasticsearchReaderClient(BaseDBReader.Client):
     def __init__(self, client: "Elasticsearch"):

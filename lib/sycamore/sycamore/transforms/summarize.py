@@ -458,7 +458,7 @@ class OneStepDocumentSummarizer(Summarizer):
         max_numel = max(len(d.data.get("elements", [])) for d in doc.data.get("sub_docs", doc.elements))
         # If elements can fit there's a little additional fluff added, so recompute baseline tokens
         # with no elements (but the element introduction fluff)
-        doc.properties[vars["startel_key"]] = max_numel + 10
+        doc.properties[vars["startel_key"]] = max_numel + 1
         data_independent_ntk_with_fluff = prompt.render_document(doc).token_count(self.tokenizer)
         curr_ntks += data_independent_ntk_with_fluff - data_independent_ntk
         for i in range(max_numel):

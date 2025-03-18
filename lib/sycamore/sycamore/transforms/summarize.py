@@ -132,7 +132,9 @@ def _partition_fields(document: Document, fields: list[Union[str, Type[EtCetera]
     for f in fields:
         if f is EtCetera:
             continue
-        if f in document.properties:
+        assert not isinstance(f, type)
+        property_name = f[len("properties.") :]
+        if property_name in document.properties:
             assert isinstance(f, str), "mypy thinks f could be EtCetera"
             doc_fields.append(f)
         else:
@@ -373,18 +375,23 @@ OneStepSummarizerPrompt = JinjaPrompt(
         """
         You are given a series of database entries that answer the question "{{ question }}".
         Generate a concise, conversational summary of the data to answer the question.
-        {%- for elt in doc.data.get("sub_docs", doc.elements) %}
+        {%- for subdoc in doc.data.get("sub_docs", [doc]) %}
         Entry {{ loop.index }}:
-            {% for f in doc.properties[fields_key] %}{% if f.startswith("_") %}{% continue %}{% endif %}
-            {{ f }}: {{ elt.field_to_value(f) }}
+            {% for f in doc.properties[doc_fields_key] %}{% if f.startswith("_") %}{% continue %}{% endif %}
+            {{ f }}: {{ subdoc.field_to_value(f) }}
             {% endfor -%}
-            {%- if doc.properties[numel_key] is not none and doc.properties[numel_key] > 0 %}    Text:
+            {%- if doc.properties[numel_key] is not none and doc.properties[numel_key] > 0 %}
+            Elements:
+                {%- set start = doc.properties[startel_key] -%}
+                {%- set end = doc.properties[startel_key] + doc.properties[numel_key] -%}
+                {%- for subel in subdoc.elements[start:end] -%}
+                {{ loop.index }}:
+                    {%- for f in doc.properties[elt_fields_key] %}
+                    {{ f }}: {{ subel.field_to_value(f) }}
+                    {%- endfor %}
+                    Text: {{ subel.text_representation }}
+                {% endfor %}
             {% endif -%}
-            {%- set start = doc.properties[startel_key] -%}
-            {%- set end = doc.properties[startel_key] + doc.properties[numel_key] -%}
-            {%- for subel in elt.data.get("elements", [])[start:end] -%}
-                {{ subel.text_representation }}
-            {% endfor %}
         {% endfor %}
         """
     ),
@@ -429,72 +436,155 @@ class OneStepDocumentSummarizer(Summarizer):
     @staticmethod
     def get_const_vars() -> dict[str, str]:
         return {
-            "fields_key": "_fields",
+            "doc_fields_key": "_doc_fields",
+            "elt_fields_key": "_elt_fields",
             "numel_key": "_num_elements",
             "startel_key": "_start_element",
         }
 
-    def preprocess(self, doc: Document) -> Document:
+    def _maximize_fields(
+        self,
+        doc: Document,
+        data_independent_ntk: int,
+        curr_ntk: int,
+        partitioned_fields: list[str],
+        initial_fieldset: set[Union[str, Type[EtCetera]]],
+        field_key: str,
+        prompt: SycamorePrompt,
+    ) -> tuple[bool, int, list[str]]:
+        """Stuff as many fields into the plan as can fit in the token limit.
+
+        Args:
+            doc: The document to operate on
+            data_independent_ntk: How many tokens are in the prompt regardless of the data
+            curr_ntk: Current token count before adding stuff
+            partitioned_fields: list of fields from _partition_fields - either the element or document fields
+            initial_fieldset: the set of fields specified by the user
+            field_key: either "doc_fields_key" or "elt_fields_key", depending on whether we're adding doc or elt fields
+            prompt: the sycamore prompt to use to render and count tokens
+
+        Returns:
+            (bool, int, list[str]): Whether we filled up the token limit, the total tokens after adding fields,
+                the finalized list of fields to add
+        """
         vars = self.get_const_vars()
-        prompt = self.prompt.fork(ignore_none=True, question=self.question)
-        fields = copy.deepcopy(self.fields)
-        etc = False
-        if len(fields) > 0 and fields[-1] is EtCetera:
-            etc = True
-            fields = fields[:-1]
-        all_element_property_names = {f"properties.{k}" for e in doc.elements for k in e.properties}
-        # Compute baseline 'fluff' tokens by setting fields and elements to 'no fields'
-        # and 'no elements'. Use this later to figure out how many tokens adding a field adds
-        doc.properties[vars["fields_key"]] = []
-        doc.properties[vars["numel_key"]] = 0
-        doc.properties[vars["startel_key"]] = 0
-        data_independent_ntk = prompt.render_document(doc).token_count(self.tokenizer)
-        # If fields is specified these are always included, so this will be our starting token total
-        doc.properties[vars["fields_key"]] = fields
-        curr_ntks = prompt.render_document(doc).token_count(self.tokenizer)
-        if etc:
-            for p in all_element_property_names:
-                if p in fields:
-                    continue
-                doc.properties[vars["fields_key"]] = [p]
-                ntk = prompt.render_document(doc).token_count(self.tokenizer) - data_independent_ntk
-                if curr_ntks + ntk < self.token_limit:
-                    fields.append(p)
-                    curr_ntks += ntk
-                else:
-                    doc.properties[vars["fields_key"]] = fields
-                    return doc
-        # We added all the fields, now add as many elements as possible
-        final_numel = 0
-        doc.properties[vars["numel_key"]] = 1
-        doc.properties[vars["fields_key"]] = []
+        final_fields = [f for f in partitioned_fields if f in initial_fieldset]
+        for f in partitioned_fields:
+            if f in initial_fieldset:
+                continue
+            doc.properties[vars[field_key]] = [f]
+            ntk = prompt.render_document(doc).token_count(self.tokenizer) - data_independent_ntk
+            if curr_ntk + ntk < self.token_limit:
+                final_fields.append(f)
+                curr_ntk += ntk
+            else:
+                doc.properties[vars[field_key]] = final_fields
+                return True, curr_ntk, final_fields
+        return False, curr_ntk, final_fields
+
+    def maximize_elements(
+        self,
+        doc: Document,
+        data_independent_ntk: int,
+        curr_ntk: int,
+        prompt: SycamorePrompt,
+    ) -> tuple[bool, int, int]:
+        """Stuff as many elements as possible into the prompt.
+
+        Args:
+            doc: The document to operate on
+            data_independent_ntk: How many tokens are in the prompt regardless of data
+            curr_ntk: Current token count before adding elements
+            prompt: the sycamore prompt to use to render and count tokens
+
+        Returns:
+            (bool, int, int): Whether we filled up the token limit, the total tokens after adding fields,
+                the number of elements to use
+        """
+        vars = self.get_const_vars()
         # This is complicated bc we might get a SummarizeDocument or a Document
         max_numel = max(len(d.data.get("elements", [])) for d in doc.data.get("sub_docs", doc.elements))
         # If elements can fit there's a little additional fluff added, so recompute baseline tokens
         # with no elements (but the element introduction fluff)
+        doc.properties[vars["numel_key"]] = 1
         doc.properties[vars["startel_key"]] = max_numel + 1
         data_independent_ntk_with_fluff = prompt.render_document(doc).token_count(self.tokenizer)
-        curr_ntks += data_independent_ntk_with_fluff - data_independent_ntk
+        curr_ntk += data_independent_ntk_with_fluff - data_independent_ntk
+
+        final_numel = 0
         for i in range(max_numel):
             doc.properties[vars["startel_key"]] = i
             ntk = prompt.render_document(doc).token_count(self.tokenizer) - data_independent_ntk_with_fluff
-            if curr_ntks + ntk < self.token_limit:
+            if curr_ntk + ntk < self.token_limit:
                 final_numel += 1
-                curr_ntks += ntk
+                curr_ntk += ntk
             else:
-                break
+                return True, curr_ntk, final_numel
+        return False, curr_ntk, final_numel
 
-        doc.properties[vars["numel_key"]] = final_numel
+    def preprocess(self, doc: Document) -> Document:
+        """Compute which fields and how many elements to include in the prompt.
+
+        First: If specified fields has an EtCetera, add as many fields as possible.
+        Second: Add as many elements as possible, taking evenly from each document.
+        Third: If we can add all the elements and specified fields has an EtCetera,
+            add as many element fielse as possible
+        """
+        vars = self.get_const_vars()
+        prompt = self.prompt.fork(ignore_none=True, question=self.question)
+        fields = copy.deepcopy(self.fields)
+        if isinstance(doc, SummaryDocument):
+            doc.properties = {k: True for d in doc.sub_docs for k in d.properties.keys()}
+        doc_fields, elt_fields = _partition_fields(doc, fields)
+        fieldset = {f for f in fields if f is not EtCetera}
+        etc = len(fields) > 0 and fields[-1] is EtCetera
+
+        # Compute baseline 'fluff' tokens by setting fields and elements to 'no fields'
+        # and 'no elements'. Use this later to figure out how many tokens adding a field adds
+        doc.properties[vars["doc_fields_key"]] = []
+        doc.properties[vars["elt_fields_key"]] = []
+        doc.properties[vars["numel_key"]] = 0
         doc.properties[vars["startel_key"]] = 0
-        doc.properties[vars["fields_key"]] = fields
+        data_independent_ntk = prompt.render_document(doc).token_count(self.tokenizer)
+        # If fields is specified these are always included, so this will be our starting token total
+        final_docfields = [f for f in doc_fields if f in fieldset]
+        doc.properties[vars["doc_fields_key"]] = final_docfields
+        curr_ntks = prompt.render_document(doc).token_count(self.tokenizer)
+        finished = False
+        if etc:
+            finished, curr_ntks, final_docfields = self._maximize_fields(
+                doc, data_independent_ntk, curr_ntks, doc_fields, fieldset, "doc_fields_key", prompt
+            )
+
+        # We added all the fields, now add as many elements as possible
+        final_eltfields = [f for f in elt_fields if f in fieldset]
+        if not finished:
+            doc.properties[vars["doc_fields_key"]] = []
+            doc.properties[vars["elt_fields_key"]] = final_eltfields
+
+            finished, curr_ntks, final_numel = self.maximize_elements(doc, data_independent_ntk, curr_ntks, prompt)
+            doc.properties[vars["numel_key"]] = final_numel
+            doc.properties[vars["startel_key"]] = 0
+
+        # If we're supposed to add as many fields as possible and we still have room,
+        # try adding element fields until we run out of space. This feels computationally
+        # expensive but I think it's just a 'for each element and for each field' which
+        # seems like the optimum for the intended behavior.
+        if etc and not finished:
+            doc.properties[vars["elt_fields_key"]] = []
+            total_ntk_with_no_fields = prompt.render_document(doc).token_count(self.tokenizer)
+            finished, curr_ntks, final_eltfields = self._maximize_fields(
+                doc, total_ntk_with_no_fields, curr_ntks, elt_fields, fieldset, "elt_fields_key", prompt
+            )
+
+        doc.properties[vars["doc_fields_key"]] = final_docfields
+        doc.properties[vars["elt_fields_key"]] = final_eltfields
         return doc
 
     def cleanup(self, doc: Document) -> Document:
         vars = self.get_const_vars()
-        if vars["fields_key"] in doc.properties:
-            del doc.properties[vars["fields_key"]]
-        if vars["numel_key"] in doc.properties:
-            del doc.properties[vars["numel_key"]]
+        for v in vars:
+            doc.properties.pop(vars[v], None)
         return doc
 
     def as_llm_map(self, child: Optional[Node], **kwargs):

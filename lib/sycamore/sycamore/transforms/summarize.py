@@ -125,25 +125,28 @@ def _partition_fields(document: Document, fields: list[Union[str, Type[EtCetera]
     """
     # TODO: If property values are varied between document and elements we might
     # not want to drop them from the elements.
-    doc_fields, elt_fields = [], []
+    doc_fields: list[str] = []
+    elt_fields: list[str] = []
     if len(fields) == 0:
         return doc_fields, elt_fields
     for f in fields:
         if f is EtCetera:
             continue
         if f in document.properties:
+            assert isinstance(f, str), "mypy thinks f could be EtCetera"
             doc_fields.append(f)
         else:
+            assert isinstance(f, str), "mypy thinks f could be EtCetera"
             elt_fields.append(f)
     fieldset = set(fields)
     if fields[-1] is EtCetera:
         for f in document.properties:
-            if f not in fieldset:
-                doc_fields.append(f)
+            if f"properties.{f}" not in fieldset:
+                doc_fields.append(f"properties.{f}")
         docfieldset = set(doc_fields) | fieldset
-        eltfieldset = {k for e in document.elements for k in e.properties if k not in docfieldset}
+        eltfieldset = {f"properties.{k}" for e in document.elements for k in e.properties if k not in docfieldset}
         elt_fields.extend(list(eltfieldset))
-    return doc_fields, elt_fields  # type: ignore # mypy thinks there could be EtCeteras but there can't
+    return doc_fields, elt_fields
 
 
 MaxTokensHierarchyPrompt = JinjaPrompt(

@@ -3,6 +3,7 @@ import string
 
 from sycamore.data import Document, Element
 from sycamore.llms import LLM
+from sycamore.functions.tokenizer import CharacterTokenizer
 from sycamore.transforms.summarize import (
     LLMElementTextSummarizer,
     OneStepDocumentSummarizer,
@@ -88,7 +89,7 @@ class TestMultiStepSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = MultiStepDocumentSummarizer(llm=llm, fields="*")
+        summarizer = MultiStepDocumentSummarizer(llm=llm, fields=[EtCetera])
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"
@@ -119,7 +120,9 @@ class TestMultiStepSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = MultiStepDocumentSummarizer(llm=llm, max_tokens=1500)  # 1 element -> ~500 chars
+        summarizer = MultiStepDocumentSummarizer(
+            llm=llm, tokenizer=CharacterTokenizer(max_tokens=570)
+        )  # 1 element -> ~500 chars
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"
@@ -144,7 +147,7 @@ class TestMultiStepSummarize:
 
         prompt = third_call.kwargs["prompt"]
         usermessage = prompt.messages[-1].content
-        assert occurrences(usermessage, "Summary: sum") == 2
+        assert occurrences(usermessage, ": sum") == 2
 
 
 class TestOneStepSummarize:
@@ -264,7 +267,9 @@ class TestOneStepSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = OneStepDocumentSummarizer(llm, question="say what?", fields=["properties.title"], token_limit=1000)
+        summarizer = OneStepDocumentSummarizer(
+            llm, question="say what?", fields=["properties.title"], tokenizer=CharacterTokenizer(max_tokens=1000)
+        )
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"
@@ -280,7 +285,9 @@ class TestOneStepSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
-        summarizer = OneStepDocumentSummarizer(llm, question="say what?", fields=["properties.title"], token_limit=500)
+        summarizer = OneStepDocumentSummarizer(
+            llm, question="say what?", fields=["properties.title"], tokenizer=CharacterTokenizer(max_tokens=500)
+        )
         d = summarizer.summarize(self.doc)
 
         assert d.properties["summary"] == "sum"

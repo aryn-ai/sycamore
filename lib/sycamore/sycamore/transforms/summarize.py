@@ -333,7 +333,7 @@ class MultiStepDocumentSummarizer(Summarizer):
         limit = self.max_tokens
         result = []
         curr_tks = baseline_tokens
-        curr_batch = []
+        curr_batch: list[Element] = []
         for e in elements:
             document.elements = [e]
             etks = etk_prompt.render_document(document).token_count(self.tokenizer)

@@ -186,6 +186,7 @@ class ArynPDFPartitioner:
                 output_format=output_format,
                 source=source,
                 output_label_options=output_label_options,
+                text_extraction_options=text_extraction_options,
             )
         else:
             if isinstance(threshold, str):
@@ -243,6 +244,7 @@ class ArynPDFPartitioner:
         output_format: Optional[str] = None,
         source: str = "",
         output_label_options: dict[str, Any] = {},
+        text_extraction_options: dict[str, Any]={},
     ) -> list[Element]:
         file.seek(0)
         options = {
@@ -253,6 +255,7 @@ class ArynPDFPartitioner:
             "selected_pages": selected_pages,
             "source": f"sycamore-{source}" if source else "sycamore",
             "output_label_options": output_label_options,
+            "text_extraction_options":text_extraction_options
         }
         if output_format:
             options["output_format"] = output_format
@@ -345,6 +348,7 @@ class ArynPDFPartitioner:
 
     @staticmethod
     def _partition_remote(
+        text_extraction_options: dict[str, Any],
         file: BinaryIO,
         aryn_api_key: str,
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
@@ -358,7 +362,6 @@ class ArynPDFPartitioner:
         output_label_options: dict[str, Any] = {},
     ) -> list[Element]:
         page_count = get_page_count(file)
-
         result: list[Element] = []
         low = 1
         high = pages_per_call
@@ -378,6 +381,7 @@ class ArynPDFPartitioner:
                     output_format=output_format,
                     source=source,
                     output_label_options=output_label_options,
+                    text_extraction_options=text_extraction_options,
                 )
             )
             low = high + 1

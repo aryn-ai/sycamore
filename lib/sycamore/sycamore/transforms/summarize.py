@@ -55,7 +55,7 @@ class SummaryDocument(Document):
     def elements(self) -> list[Element]:
         """A list of elements belonging to this document. A document does not necessarily always have
         elements, for instance, before a document is chunked."""
-        return self.data.get("_elements") or list(itertools.chain(*(d.elements for d in self.data["sub_docs"])))
+        return self.data.get("_elements", list(itertools.chain(*(d.elements for d in self.data["sub_docs"]))))
 
     @elements.setter
     def elements(self, elements: list[Element]):
@@ -126,6 +126,8 @@ def _partition_fields(document: Document, fields: list[Union[str, Type[EtCetera]
     # TODO: If property values are varied between document and elements we might
     # not want to drop them from the elements.
     doc_fields, elt_fields = [], []
+    if len(fields) == 0:
+        return doc_fields, elt_fields
     for f in fields:
         if f is EtCetera:
             continue
@@ -193,10 +195,12 @@ MaxTokensHierarchyPrompt = JinjaPrompt(
         You are given a list of partial answers to the question "{{ question }}" based on {{ get_data_description() }}.
         Please combine these partial answers into a coherent single answer to the question "{{ question }}".
         Include the parts of the partial answers that are relevant, ignore irrelevant parts.
-        {%- endif -%}
+        {%- endif %}
 
+        {% if doc_fields|count > 0 -%}
         Shared Properties:
         {{ get_text_fields(doc, doc_fields) }}
+        {%- endif %}
 
         {% if round == 0 -%}
         Elements:
@@ -274,7 +278,13 @@ class MultiStepDocumentSummarizer(Summarizer):
         """Summarize a document by summarizing groups of elements iteratively
         in rounds until only one element remains; that's our new summary"""
         doc_fields, elt_fields = _partition_fields(document, self.fields)
-        base_prompt = self.prompt.fork(doc_fields=doc_fields, elt_fields=elt_fields)
+        base_prompt = self.prompt.fork(
+            ignore_none=True,
+            doc_fields=doc_fields,
+            elt_fields=elt_fields,
+            question=self.question,
+            data_description=self.data_description,
+        )
         etk_prompt = base_prompt.fork(element_testing=True)
 
         dummy_doc = document.copy()
@@ -307,7 +317,7 @@ class MultiStepDocumentSummarizer(Summarizer):
         of elements and summarize them, attaching the resulting summaries to the first
         element of each batch and returning only those elements."""
         # Compute token costs for the base stuff and each element individually
-        del document.elements
+        document.elements = []
         baseline_tks = base_prompt.render_document(document).token_count(self.tokenizer)
 
         # Batch elements and make prompts out of them

@@ -6,6 +6,7 @@ import sycamore
 from sycamore.data import Document, Element
 from sycamore.docset import DocSet
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
+from sycamore.functions.tokenizer import CharacterTokenizer
 from sycamore.llms import LLM
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.llms.prompts.default_prompts import (
@@ -50,7 +51,7 @@ class MockLLM(LLM):
             elif value == "3" or value == "three":
                 return "group3"
         elif "unique cities" in prompt.messages[-1].content:
-            if "Summary: " in prompt.messages[-1].content:
+            if "accumulated summary" in prompt.messages[-1].content or "merged summary" in prompt.messages[-1].content:
                 return "merged summary"
             else:
                 return "accumulated summary"
@@ -172,11 +173,14 @@ class TestOperations:
             input_data=[big_words_and_ids_docset],
             summaries_as_text=True,
             docset_summarizer=MultiStepDocumentSummarizer(
-                llm=llm, question=None, data_description="List of unique cities", max_tokens=2300
+                llm=llm,
+                question=None,
+                data_description="List of unique cities",
+                tokenizer=CharacterTokenizer(max_tokens=700),
             ),
         )
         captured = llm.capture
-        assert len(captured) == 46
+        assert len(captured) == 48
         assert response == "merged summary"
 
     def test_get_text_for_summarize_data_non_docset(self, words_and_ids_docset):

@@ -248,11 +248,8 @@ class MultiStepDocumentSummarizer(Summarizer):
         fields: List of fields to include in each element's representation in the prompt. Specify
             with dotted notation (e.g. properties.title). End the list with `EtCetera` to add all fields
             (previously specified fields go first). Default is [] which includes no fields.
-        max_tokens: token limit for each summarization. Default is 10k (default tokenizer is by character).
         tokenizer: tokenizer to use when computing how many tokens a prompt will take. Default is
             CharacterTokenizer
-        max_rounds: max number of rounds of heirarchical summarization to perform. The number of elements that
-            can be included in the summary is O(e^max_rounds), so can be small. Default is 4.
     """
 
     def __init__(
@@ -408,8 +405,6 @@ class OneStepDocumentSummarizer(Summarizer):
         llm: LLM to use for summarization
         question: Question to use as context for the summary. The llm will attempt to
             use the data provided to answer the question.
-        token_limit: Token limit for the prompt. Default is 10k (default tokenizer is
-            by character)
         tokenizer: Tokenizer to use to count tokens (to not exceed the token limit).
             Default is CharacterTokenizer
         fields: List of fields to include from every element. To include any additional

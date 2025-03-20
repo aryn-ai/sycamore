@@ -246,8 +246,8 @@ class MultiStepDocumentSummarizer(Summarizer):
         prompt: Prompt to use for each summarization. Caution: The default (MaxTokensHeirarchicalSummarizerPrompt)
             has some fairly complicated logic encoded in it to make the tree construction work correctly.
         fields: List of fields to include in each element's representation in the prompt. Specify
-            with dotted notation (e.g. properties.title), or use "*" to capture everything. If None,
-            will include no fields.
+            with dotted notation (e.g. properties.title). End the list with `EtCetera` to add all fields
+            (previously specified fields go first). Default is [] which includes no fields.
         max_tokens: token limit for each summarization. Default is 10k (default tokenizer is by character).
         tokenizer: tokenizer to use when computing how many tokens a prompt will take. Default is
             CharacterTokenizer

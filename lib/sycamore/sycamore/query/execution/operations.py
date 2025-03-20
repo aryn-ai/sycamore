@@ -17,23 +17,29 @@ from sycamore.transforms.summarize import (
     OneStepDocumentSummarizer,
     Summarizer,
     SummaryDocument,
+    EtCetera,
 )
 
 log = structlog.get_logger(__name__)
 # multistep
-DEFAULT_DOCSET_SUMMARIZE_CLASS = MultiStepDocumentSummarizer  # type: ignore
-
-DEFAULT_DOCSET_SUMMARIZE_KWARGS: dict[str, Any] = {
-    "fields": "*",
-    "tokenizer": OpenAITokenizer("gpt-4o", max_tokens=80_000),
-    "llm_mode": LLMMode.ASYNC,
-}
+_MULTISTEP_SUMMARIZE: tuple[type[Summarizer], dict[str, Any]] = (
+    MultiStepDocumentSummarizer,
+    {
+        "fields": [EtCetera],
+        "tokenizer": OpenAITokenizer("gpt-4o", max_tokens=128_000),
+        "llm_mode": LLMMode.ASYNC,
+    },
+)
 # onestep
-DEFAULT_DOCSET_SUMMARIZE_CLASS = OneStepDocumentSummarizer  # type: ignore
-DEFAULT_DOCSET_SUMMARIZE_KWARGS = {
-    "fields": [],
-    "tokenizer": OpenAITokenizer("gpt-4o", max_tokens=80_000),
-}
+_ONESTEP_SUMMARIZE: tuple[type[Summarizer], dict[str, Any]] = (
+    OneStepDocumentSummarizer,
+    {
+        "fields": [EtCetera],
+        "tokenizer": OpenAITokenizer("gpt-4o", max_tokens=128_000),
+    },
+)
+
+DEFAULT_SUMMARIZE = _ONESTEP_SUMMARIZE
 
 
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
@@ -93,9 +99,8 @@ def summarize_data(
         Conversational response to question.
     """
     if docset_summarizer is None:
-        docset_summarizer = DEFAULT_DOCSET_SUMMARIZE_CLASS(
-            llm=llm, question=question, **DEFAULT_DOCSET_SUMMARIZE_KWARGS  # type: ignore
-        )
+        sum_class, ctor_kwargs = DEFAULT_SUMMARIZE
+        docset_summarizer = sum_class(llm=llm, question=question, **ctor_kwargs)  # type: ignore
 
     if all(isinstance(d, DocSet) for d in input_data):
         docset_summaries = summarize_data_docsets(

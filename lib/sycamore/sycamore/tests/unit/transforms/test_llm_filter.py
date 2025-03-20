@@ -1,6 +1,7 @@
 import pytest
 from typing import Optional, Union
 from unittest.mock import MagicMock
+from functools import cache
 
 import sycamore
 from sycamore.context import Context, OperationTypes, ExecMode
@@ -75,7 +76,7 @@ class TestLLMFilter:
 
         filtered_docset = docset.llm_filter(
             new_field=new_field,
-            prompt=LlmFilterMessagesJinjaPrompt.set(filter_question="wha?"),
+            prompt=LlmFilterMessagesJinjaPrompt.fork(filter_question="wha?"),
             field="text_representation",
             threshold=4,
             use_elements=True,
@@ -95,7 +96,7 @@ class TestLLMFilter:
 
         filtered_docset = docset.llm_filter(
             new_field=new_field,
-            prompt=LlmFilterMessagesJinjaPrompt.set(filter_question="wha?"),
+            prompt=LlmFilterMessagesJinjaPrompt.fork(filter_question="wha?"),
             field="text_representation",
             threshold=2,
             use_elements=True,
@@ -144,7 +145,7 @@ class TestLLMFilter:
         )
         docset = context.read.document(doc_list)
         new_field = "_autogen_LLMFilterOutput"
-        prompt = LlmFilterMessagesJinjaPrompt.set(filter_question="wha?")
+        prompt = LlmFilterMessagesJinjaPrompt.fork(filter_question="wha?")
 
         filtered_docset = docset.llm_filter(
             new_field=new_field,
@@ -191,7 +192,7 @@ class TestLLMFilter:
         context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": MockLLM()}}, exec_mode=ExecMode.LOCAL)
         docset = context.read.document(doc_list)
         new_field = "_autogen_LLMFilterOutput"
-        prompt = LlmFilterMessagesJinjaPrompt.set(filter_question="wha?")
+        prompt = LlmFilterMessagesJinjaPrompt.fork(filter_question="wha?")
 
         filtered_docset = docset.llm_filter(
             new_field=new_field, prompt=prompt, field="text_representation", threshold=3
@@ -221,7 +222,7 @@ class TestLLMFilter:
         context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": mock_llm}}, exec_mode=ExecMode.LOCAL)
         docset = context.read.document(doc_list)
         new_field = "_autogen_LLMFilterOutput"
-        prompt = LlmFilterMessagesJinjaPrompt.set(filter_question="wha?")
+        prompt = LlmFilterMessagesJinjaPrompt.fork(filter_question="wha?")
 
         filtered_docset = docset.llm_filter(
             new_field=new_field,
@@ -248,7 +249,7 @@ class TestLLMFilter:
 
         filtered_docset = docset.llm_filter(
             new_field=new_field,
-            prompt=LlmFilterMessagesJinjaPrompt.set(filter_question="wha?"),
+            prompt=LlmFilterMessagesJinjaPrompt.fork(filter_question="wha?"),
             field="text_representation",
             threshold=3,
             use_elements=True,
@@ -296,6 +297,7 @@ class BadEntityExtractor(EntityExtractor):
 
 
 class FakeTokenizer(Tokenizer):
+    @cache
     def tokenize(self, text: str, as_ints: bool = False) -> Union[list[int], list[str]]:
         return ["a"]
 

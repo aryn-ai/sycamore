@@ -159,6 +159,7 @@ class ArynPDFPartitioner:
         table_structure_extractor=None,
         table_extractor_options: dict = {},
         extract_images=False,
+        extract_image_format: Literal["PPM", "PNG"] = "PPM",
         batch_size: int = 1,
         use_partitioning_service=True,
         aryn_api_key: str = "",
@@ -202,6 +203,7 @@ class ArynPDFPartitioner:
                 table_structure_extractor=table_structure_extractor,
                 table_extractor_options=table_extractor_options,
                 extract_images=extract_images,
+                extract_image_format=extract_image_format,
                 batch_size=batch_size,
                 use_cache=use_cache,
                 text_extraction_options=text_extraction_options,
@@ -316,6 +318,7 @@ class ArynPDFPartitioner:
         table_structure_extractor=None,
         table_extractor_options: dict = {},
         extract_images: bool = False,
+        extract_image_format: Literal["PPM", "PNG"] = "PPM",
         batch_size: int = 1,
         use_cache=False,
         text_extraction_options: dict[str, Any] = {},
@@ -342,6 +345,7 @@ class ArynPDFPartitioner:
                 table_structure_extractor,
                 table_extractor_options,
                 extract_images,
+                extract_image_format,
                 batch_size,
                 use_cache,
                 text_extraction_options,
@@ -361,6 +365,7 @@ class ArynPDFPartitioner:
         table_structure_extractor=None,
         table_extractor_options: dict = {},
         extract_images=False,
+        extract_image_format="PPM",
         batch_size: int = 1,
         use_cache=False,
         text_extraction_options: dict[str, Any] = {},
@@ -402,6 +407,7 @@ class ArynPDFPartitioner:
                 table_structure_extractor=table_structure_extractor,
                 table_extractor_options=table_extractor_options,
                 extract_images=extract_images,
+                extract_image_format=extract_image_format,
                 use_cache=use_cache,
             )
             assert len(parts) == len(i)
@@ -433,6 +439,7 @@ class ArynPDFPartitioner:
         table_structure_extractor,
         table_extractor_options: dict,
         extract_images: bool,
+        extract_image_format: Literal["PPM", "PNG"],
         use_cache,
     ) -> Any:
         with LogTime("infer"):
@@ -481,9 +488,12 @@ class ArynPDFPartitioner:
                     for element in page_elements:
                         if isinstance(element, ImageElement) and element.bbox is not None:
                             cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
-                            element.binary_representation = image_to_bytes(cropped_image)
+                            resolved_format = None if extract_image_format == "PPM" else extract_image_format
+                            element.binary_representation = image_to_bytes(cropped_image, format=resolved_format)
                             element.image_mode = cropped_image.mode
                             element.image_size = cropped_image.size
+                            element.image_format = resolved_format
+
         return deformable_layout
 
     @staticmethod
@@ -537,6 +547,7 @@ class ArynPDFPartitioner:
         table_structure_extractor,
         table_extractor_options: dict,
         extract_images: bool,
+        extract_image_format: Literal["PPM", "PNG"] = "PPM",
     ) -> Any:
         if extract_table_structure:
             with LogTime("extract_table_structure_batch"):
@@ -555,9 +566,11 @@ class ArynPDFPartitioner:
                     for element in page_elements:
                         if isinstance(element, ImageElement) and element.bbox is not None:
                             cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
-                            element.binary_representation = image_to_bytes(cropped_image)
+                            resolved_format = None if extract_image_format == "PPM" else extract_image_format
+                            element.binary_representation = image_to_bytes(cropped_image, format=resolved_format)
                             element.image_mode = cropped_image.mode
                             element.image_size = cropped_image.size
+                            element.image_format = resolved_format
 
         return deformable_layout
 

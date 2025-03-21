@@ -1,7 +1,9 @@
+from io import BytesIO
 import re
 import string
 
 import nltk
+from PIL import Image
 
 from sycamore.data import TableElement
 from sycamore.data.table import Table, TableCell
@@ -156,3 +158,26 @@ def test_sycamore_batched():
         print(f"Testing {pdf}")
         p = check_partition(s, pdf, use_cache=False)
         print(f"Compared {len(p)} pages")
+
+
+def test_extract_image_format():
+    path = TEST_DIR / "resources/data/pdfs/Ray_page11.pdf"
+
+    context = sycamore.init()
+    docs = (
+        context.read.binary(paths=[str(path)], binary_format="pdf")
+        .partition(ArynPartitioner(use_partitioning_service=False, extract_images=True, extract_image_format="PNG"))
+        .explode()
+        .filter(lambda doc: doc.type == "Image")
+        .take_all()
+    )
+
+    assert len(docs) == 1
+
+    doc = docs[0]
+    assert doc.properties["image_format"] == "PNG"
+    assert doc.binary_representation is not None
+    buf = BytesIO(doc.binary_representation)
+
+    image = Image.open(buf, formats=["PNG"])
+    assert image.size == doc.properties["image_size"]

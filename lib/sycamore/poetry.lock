@@ -7,7 +7,7 @@ description = "File support for asyncio."
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "aiofiles-24.1.0-py3-none-any.whl", hash = "sha256:b4ec55f4195e3eb5d7abd1bf7e061763e864dd4954231fb8539a0ef8bb8260e5"},
     {file = "aiofiles-24.1.0.tar.gz", hash = "sha256:22a075c9e5a3810f0c2e48f3008c94d68c65d763b9b03857924c99e57355166c"},
@@ -170,7 +170,7 @@ description = "A light, configurable Sphinx theme"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "alabaster-0.7.16-py3-none-any.whl", hash = "sha256:b46733c07dce03ae4e150330b975c75737fa60f0a7c591b6c8bf4928a28e2c92"},
     {file = "alabaster-0.7.16.tar.gz", hash = "sha256:75a8b99c28a5dad50dd7f8ccdd447a121ddb3892da9e53d1ca5cca3106d58d65"},
@@ -183,7 +183,7 @@ description = "High-performance image processing functions for deep learning and
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "albucore-0.0.23-py3-none-any.whl", hash = "sha256:99274ac0c15a1a7d9a726df9d54d5ab70d9d0c189e2a935399dba3d4bafad415"},
     {file = "albucore-0.0.23.tar.gz", hash = "sha256:57823982b954913b84a9e2cf71058c4577b02397a62c41885be2d9b295efa8ab"},
@@ -203,7 +203,7 @@ description = "Fast, flexible, and advanced augmentation library for deep learni
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "albumentations-2.0.5-py3-none-any.whl", hash = "sha256:1fc253942d34dd7c07652bf6511049c8bb7d522baec7f1fe355df16293c3c7b6"},
     {file = "albumentations-2.0.5.tar.gz", hash = "sha256:e19e1c0f14c903c3c230f3d83f14814b84f1180393189bf96779f653031f3278"},
@@ -313,7 +313,7 @@ description = "The official Python library for the anthropic API"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"anthropic\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"anthropic\" or python_version == \"3.9\" and extra == \"anthropic\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"anthropic\" or python_version == \"3.12\" and extra == \"anthropic\""
 files = [
     {file = "anthropic-0.42.0-py3-none-any.whl", hash = "sha256:46775f65b723c078a2ac9e9de44a46db5c6a4fabeacfd165e5ea78e6817f4eff"},
     {file = "anthropic-0.42.0.tar.gz", hash = "sha256:bf8b0ed8c8cb2c2118038f29c58099d2f99f7847296cafdaa853910bfff4edf4"},
@@ -339,7 +339,7 @@ description = "ANTLR 4.9.3 runtime for Python 3.7"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "antlr4-python3-runtime-4.9.3.tar.gz", hash = "sha256:f224469b4168294902bb1efa80a8bf7855f24c99aef99cbefc1bcd3cce77881b"},
 ]
@@ -388,7 +388,7 @@ description = "APTED algorithm for the Tree Edit Distance"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"eval\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"eval\" or python_version == \"3.9\" and extra == \"eval\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"eval\" or python_version == \"3.12\" and extra == \"eval\""
 files = [
     {file = "apted-1.0.3-py3-none-any.whl", hash = "sha256:74193369d023649d335269e67c4df07f922959e5ac2597de1b79af4e694150e8"},
     {file = "apted-1.0.3.tar.gz", hash = "sha256:befa5181e2d4457fa88e54995a82604ee048bb2fbc781ea97d8e1856b4715ce9"},
@@ -542,7 +542,7 @@ files = [
     {file = "async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c"},
     {file = "async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3"},
 ]
-markers = {main = "platform_system == \"Linux\" and platform_machine == \"aarch64\"", dev = "python_version == \"3.9\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version <= \"3.10\" or python_version == \"3.10\"", docker = "python_version == \"3.9\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.12\" or python_version == \"3.10\" or python_version == \"3.11\""}
+markers = {main = "platform_system == \"Linux\" and platform_machine == \"aarch64\"", dev = "python_version == \"3.9\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version <= \"3.10\" or python_version == \"3.10\"", docker = "python_version == \"3.10\" or python_version == \"3.11\" or python_version == \"3.9\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.12\""}
 
 [[package]]
 name = "attrs"
@@ -576,7 +576,7 @@ files = [
     {file = "authlib-1.5.1-py2.py3-none-any.whl", hash = "sha256:8408861cbd9b4ea2ff759b00b6f02fd7d81ac5a56d0b2b22c08606c6049aae11"},
     {file = "authlib-1.5.1.tar.gz", hash = "sha256:5cbc85ecb0667312c1cdc2f9095680bb735883b123fb509fde1e65b1c5df972e"},
 ]
-markers = {main = "extra == \"weaviate\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"weaviate\" or python_version == \"3.9\" and extra == \"weaviate\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"weaviate\" or python_version == \"3.12\" and extra == \"weaviate\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [package.dependencies]
 cryptography = "*"
@@ -611,7 +611,7 @@ files = [
     {file = "babel-2.17.0-py3-none-any.whl", hash = "sha256:4d0b53093fdfb4b21c92b5213dba5a1b23885afa8383709427046b21c366e5f2"},
     {file = "babel-2.17.0.tar.gz", hash = "sha256:0c54cffb19f690cdcc52a3b50bcbf71e07a808d1c80d549f2459b9d2cf0afb9d"},
 ]
-markers = {main = "extra == \"docs\"", notebook = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\"", notebook = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [package.extras]
 dev = ["backports.zoneinfo ; python_version < \"3.9\"", "freezegun (>=1.0,<2.0)", "jinja2 (>=3.0)", "pytest (>=6.0)", "pytest-cov", "pytz", "setuptools", "tzdata ; sys_platform == \"win32\""]
@@ -623,7 +623,7 @@ description = "Function decoration for backoff and retry"
 optional = true
 python-versions = ">=3.7,<4.0"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "backoff-2.2.1-py3-none-any.whl", hash = "sha256:63579f9a0628e06278f7e47b7d7d5b6ce20dc65c5e96a6f3ca99a6adca0396e8"},
     {file = "backoff-2.2.1.tar.gz", hash = "sha256:03f829f5bb1923180821643f8753b0502c3b682293992485b0eef2807afa5cba"},
@@ -1194,8 +1194,8 @@ files = [
 jmespath = ">=0.7.1,<2.0.0"
 python-dateutil = ">=2.1,<3.0.0"
 urllib3 = [
-    {version = ">=1.25.4,<1.27", markers = "python_version < \"3.10\""},
     {version = ">=1.25.4,<2.2.0 || >2.2.0,<3", markers = "python_version >= \"3.10\""},
+    {version = ">=1.25.4,<1.27", markers = "python_version < \"3.10\""},
 ]
 
 [package.extras]
@@ -1322,7 +1322,7 @@ files = [
     {file = "cffi-1.17.1-cp39-cp39-win_amd64.whl", hash = "sha256:d016c76bdd850f3c626af19b0542c9677ba156e4ee4fccfdd7848803533ef662"},
     {file = "cffi-1.17.1.tar.gz", hash = "sha256:1c39c6016c32bc48dd54561950ebd6836e1670f2ae46128f67cf49e789c52824"},
 ]
-markers = {main = "platform_python_implementation != \"PyPy\" and (extra == \"weaviate\" or extra == \"local-inference\" or extra == \"legacy-partitioners\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", dev = "(platform_python_implementation != \"PyPy\" or implementation_name == \"pypy\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", docker = "platform_python_implementation != \"PyPy\"", notebook = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "platform_python_implementation != \"PyPy\" and (extra == \"weaviate\" or extra == \"local-inference\" or extra == \"legacy-partitioners\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", dev = "(platform_python_implementation != \"PyPy\" or implementation_name == \"pypy\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", docker = "(python_version == \"3.10\" or python_version == \"3.11\") and platform_python_implementation != \"PyPy\" or python_version == \"3.9\" and platform_python_implementation != \"PyPy\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and platform_python_implementation != \"PyPy\" or python_version == \"3.12\" and platform_python_implementation != \"PyPy\"", notebook = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [package.dependencies]
 pycparser = "*"
@@ -1347,7 +1347,7 @@ description = "Universal encoding detector for Python 3"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "chardet-5.2.0-py3-none-any.whl", hash = "sha256:e1cf59446890a00105fe7b7912492ea04b6e6f06d4b742b2c788469e34c82970"},
     {file = "chardet-5.2.0.tar.gz", hash = "sha256:1b3b6ff479a8c414bc3fa2c0852995695c4a026dcd6d0633b2dd092ca39c1cf7"},
@@ -1483,7 +1483,7 @@ files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {main = "(sys_platform == \"win32\" or platform_system == \"Windows\") and (extra == \"docs\" or platform_system == \"Windows\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", dev = "(sys_platform == \"win32\" or platform_system == \"Windows\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", docker = "platform_system == \"Windows\"", notebook = "sys_platform == \"win32\"", test = "sys_platform == \"win32\""}
+markers = {main = "(sys_platform == \"win32\" or platform_system == \"Windows\") and (extra == \"docs\" or platform_system == \"Windows\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", dev = "(sys_platform == \"win32\" or platform_system == \"Windows\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", docker = "platform_system == \"Windows\"", notebook = "(python_version == \"3.10\" or python_version == \"3.11\") and sys_platform == \"win32\" or python_version == \"3.9\" and sys_platform == \"win32\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and sys_platform == \"win32\" or python_version == \"3.12\" and sys_platform == \"win32\"", test = "(python_version == \"3.10\" or python_version == \"3.11\") and sys_platform == \"win32\" or python_version == \"3.9\" and sys_platform == \"win32\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and sys_platform == \"win32\" or python_version == \"3.12\" and sys_platform == \"win32\""}
 
 [[package]]
 name = "coloredlogs"
@@ -1496,7 +1496,7 @@ files = [
     {file = "coloredlogs-15.0.1-py2.py3-none-any.whl", hash = "sha256:612ee75c546f53e92e70049c9dbfcc18c935a2b9a53b66085ce9ef6a6e5c0934"},
     {file = "coloredlogs-15.0.1.tar.gz", hash = "sha256:7c991aa71a4577af2f82600d8f8f3a89f936baeaf9b50a9c197da014e5bf16b0"},
 ]
-markers = {main = "extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [package.dependencies]
 humanfriendly = ">=9.1"
@@ -1645,7 +1645,7 @@ description = "Python library for calculating contours of 2D quadrilateral grids
 optional = false
 python-versions = ">=3.10"
 groups = ["main", "dev", "notebook"]
-markers = "python_version >= \"3.10\""
+markers = "python_version == \"3.10\" or python_version == \"3.11\" or python_version == \"3.12\""
 files = [
     {file = "contourpy-1.3.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:a045f341a77b77e1c5de31e74e966537bba9f3c4099b35bf4c2e3939dd54cdab"},
     {file = "contourpy-1.3.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:500360b77259914f7805af7462e41f9cb7ca92ad38e9f94d6c8641b089338124"},
@@ -1809,7 +1809,7 @@ description = "The Cython compiler for writing C extensions in the Python langua
 optional = true
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "Cython-3.0.12-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:ba67eee9413b66dd9fbacd33f0bc2e028a2a120991d77b5fd4b19d0b1e4039b9"},
     {file = "Cython-3.0.12-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bee2717e5b5f7d966d0c6e27d2efe3698c357aa4d61bb3201997c7a4f9fe485a"},
@@ -1884,7 +1884,7 @@ description = "Easily serialize dataclasses to and from JSON."
 optional = true
 python-versions = "<4.0,>=3.7"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "dataclasses_json-0.6.7-py3-none-any.whl", hash = "sha256:0dbf33f26c8d5305befd61b39d2b3414e8a407bedc2834dea9b8d642666fb40a"},
     {file = "dataclasses_json-0.6.7.tar.gz", hash = "sha256:b6b3e528266ea45b9535223bc53ca645f5208833c29229e847b3f26a1cc55fc0"},
@@ -1901,7 +1901,7 @@ description = "HuggingFace community-driven open-source library of datasets"
 optional = true
 python-versions = ">=3.8.0"
 groups = ["main"]
-markers = "extra == \"eval\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"eval\" or python_version == \"3.9\" and extra == \"eval\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"eval\" or python_version == \"3.12\" and extra == \"eval\""
 files = [
     {file = "datasets-2.19.2-py3-none-any.whl", hash = "sha256:e07ff15d75b1af75c87dd96323ba2a361128d495136652f37fd62f918d17bb4e"},
     {file = "datasets-2.19.2.tar.gz", hash = "sha256:eccb82fb3bb5ee26ccc6d7a15b7f1f834e2cc4e59b7cff7733a003552bad51ef"},
@@ -2034,7 +2034,7 @@ description = "Python @deprecated decorator to deprecate old python classes, fun
 optional = true
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "Deprecated-1.2.18-py2.py3-none-any.whl", hash = "sha256:bd5011788200372a32418f888e326a09ff80d0214bd961147cfed01b5c018eec"},
     {file = "deprecated-1.2.18.tar.gz", hash = "sha256:422b6f6d859da6f2ef57857761bfb392480502a64c3028ca9bbe86085d72115d"},
@@ -2053,7 +2053,7 @@ description = "serialize all of Python"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"eval\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"eval\" or python_version == \"3.9\" and extra == \"eval\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"eval\" or python_version == \"3.12\" and extra == \"eval\""
 files = [
     {file = "dill-0.3.8-py3-none-any.whl", hash = "sha256:c36ca9ffb54365bdd2f8eb3eff7d2a21237f8452b57ace88b1ac615b7e815bd7"},
     {file = "dill-0.3.8.tar.gz", hash = "sha256:3ebe3c479ad625c4553aca177444d89b486b1d84982eeacded644afc0cf797ca"},
@@ -2109,7 +2109,7 @@ description = "Docutils -- Python Documentation Utilities"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "docutils-0.20.1-py3-none-any.whl", hash = "sha256:96f387a2c5562db4476f09f13bbab2192e764cac08ebbf3a34a95d9b1e4a59d6"},
     {file = "docutils-0.20.1.tar.gz", hash = "sha256:f08a4e276c3a1583a86dce3e34aba3fe04d02bba2dd51ed16106244e8a923e3b"},
@@ -2122,7 +2122,7 @@ description = "DuckDB in-process database"
 optional = true
 python-versions = ">=3.7.0"
 groups = ["main"]
-markers = "extra == \"duckdb\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"duckdb\" or python_version == \"3.9\" and extra == \"duckdb\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"duckdb\" or python_version == \"3.12\" and extra == \"duckdb\""
 files = [
     {file = "duckdb-1.2.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:b1b26271c22d1265379949b71b1d13a413f8048ea49ed04b3a33f257c384fa7c"},
     {file = "duckdb-1.2.1-cp310-cp310-macosx_12_0_universal2.whl", hash = "sha256:47946714d3aa423782678d37bfface082a9c43d232c44c4b79d70a1137e4c356"},
@@ -2184,7 +2184,7 @@ description = "End-to-End Multi-Lingual Optical Character Recognition (OCR) Solu
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "easyocr-1.7.2-py3-none-any.whl", hash = "sha256:5be12f9b0e595d443c9c3d10b0542074b50f0ec2d98b141a109cd961fd1c177c"},
 ]
@@ -2292,7 +2292,7 @@ description = "EfficientDet for PyTorch"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "effdet-0.4.1-py3-none-any.whl", hash = "sha256:10889a226228d515c948e3fcf811e64c0d78d7aa94823a300045653b9c284cb7"},
     {file = "effdet-0.4.1.tar.gz", hash = "sha256:ac5589fd304a5650c201986b2ef5f8e10c111093a71b1c49fa6b8817710812b5"},
@@ -2312,7 +2312,7 @@ description = "Transport classes and utilities shared among Python Elastic clien
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"elasticsearch\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"elasticsearch\" or python_version == \"3.9\" and extra == \"elasticsearch\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"elasticsearch\" or python_version == \"3.12\" and extra == \"elasticsearch\""
 files = [
     {file = "elastic_transport-8.17.1-py3-none-any.whl", hash = "sha256:192718f498f1d10c5e9aa8b9cf32aed405e469a7f0e9d6a8923431dbb2c59fb8"},
     {file = "elastic_transport-8.17.1.tar.gz", hash = "sha256:5edef32ac864dca8e2f0a613ef63491ee8d6b8cfb52881fa7313ba9290cac6d2"},
@@ -2332,7 +2332,7 @@ description = "Python client for Elasticsearch"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"elasticsearch\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"elasticsearch\" or python_version == \"3.9\" and extra == \"elasticsearch\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"elasticsearch\" or python_version == \"3.12\" and extra == \"elasticsearch\""
 files = [
     {file = "elasticsearch-8.14.0-py3-none-any.whl", hash = "sha256:cef8ef70a81af027f3da74a4f7d9296b390c636903088439087b8262a468c130"},
     {file = "elasticsearch-8.14.0.tar.gz", hash = "sha256:aa2490029dd96f4015b333c1827aa21fd6c0a4d223b00dfb0fe933b8d09a511b"},
@@ -2354,7 +2354,7 @@ description = "Emoji for Python"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "emoji-2.14.1-py3-none-any.whl", hash = "sha256:35a8a486c1460addb1499e3bf7929d3889b2e2841a57401903699fef595e942b"},
     {file = "emoji-2.14.1.tar.gz", hash = "sha256:f8c50043d79a2c1410ebfae833ae1868d5941a67a6cd4d18377e2eb0bd79346b"},
@@ -2370,7 +2370,7 @@ description = "Like `typing._eval_type`, but lets older Python versions use newe
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "python_version == \"3.9\" and (extra == \"legacy-partitioners\" or extra == \"local-inference\") or extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and (extra == \"local-inference\" or extra == \"legacy-partitioners\") and python_version < \"3.10\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or (python_version == \"3.9\" or platform_system == \"Linux\") and (python_version == \"3.9\" or platform_machine == \"aarch64\") and (extra == \"local-inference\" or extra == \"legacy-partitioners\") and python_version < \"3.10\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "eval_type_backport-0.2.2-py3-none-any.whl", hash = "sha256:cb6ad7c393517f476f96d456d0412ea80f0a8cf96f6892834cd9340149111b0a"},
     {file = "eval_type_backport-0.2.2.tar.gz", hash = "sha256:f0576b4cf01ebb5bd358d02314d31846af5e07678387486e2c798af0e7d849c1"},
@@ -2386,7 +2386,7 @@ description = "Bringing the elegance of C# EventHandler to Python"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"opensearch\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"opensearch\" or python_version == \"3.9\" and extra == \"opensearch\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"opensearch\" or python_version == \"3.12\" and extra == \"opensearch\""
 files = [
     {file = "Events-0.5-py3-none-any.whl", hash = "sha256:a7286af378ba3e46640ac9825156c93bdba7502174dd696090fdfcd4d80a1abd"},
 ]
@@ -2493,7 +2493,7 @@ description = "Infer file type and MIME type of any file/buffer. No external dep
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "filetype-1.2.0-py2.py3-none-any.whl", hash = "sha256:7ce71b6880181241cf7ac8697a2f1eb6a8bd9b429f7ad6d27b8db9ba5f1c2d25"},
     {file = "filetype-1.2.0.tar.gz", hash = "sha256:66b56cd6474bf41d8c54660347d37afcc3f7d1970648de365c102ef77548aadb"},
@@ -2506,7 +2506,7 @@ description = "A library for automatically generating command line interfaces."
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "fire-0.7.0.tar.gz", hash = "sha256:961550f07936eaf65ad1dc8360f2b2bf8408fad46abbfa4d2a3794f8d2a95cdf"},
 ]
@@ -2543,7 +2543,7 @@ files = [
     {file = "flatbuffers-25.2.10-py2.py3-none-any.whl", hash = "sha256:ebba5f4d5ea615af3f7fd70fc310636fbb2bbd1f566ac0a23d98dd412de50051"},
     {file = "flatbuffers-25.2.10.tar.gz", hash = "sha256:97e451377a41262f8d9bd4295cc836133415cc03d8cb966410a4af92eb00d26e"},
 ]
-markers = {main = "extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [[package]]
 name = "fonttools"
@@ -2783,7 +2783,7 @@ description = "A clean customisable Sphinx documentation theme."
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "furo-2023.9.10-py3-none-any.whl", hash = "sha256:513092538537dc5c596691da06e3c370714ec99bc438680edc1debffb73e5bfc"},
     {file = "furo-2023.9.10.tar.gz", hash = "sha256:5707530a476d2a63b8cad83b4f961f3739a69f4b058bcf38a03a39fa537195b2"},
@@ -2862,7 +2862,7 @@ description = "Google Cloud Vision API client library"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "google_cloud_vision-3.10.0-py2.py3-none-any.whl", hash = "sha256:cac9705a21374dcd4a62281e93dae5a2cb7eaf161fdd0aa5585e66c6c1d42f44"},
     {file = "google_cloud_vision-3.10.0.tar.gz", hash = "sha256:1f0b1e17ada68f7b257eef3cb7c91a02c8f21e254f8bdb8ff38b0e67d25ce3a5"},
@@ -2881,7 +2881,7 @@ description = "GenAI Python SDK"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"google-genai\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"google-genai\" or python_version == \"3.9\" and extra == \"google-genai\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"google-genai\" or python_version == \"3.12\" and extra == \"google-genai\""
 files = [
     {file = "google_genai-1.2.0-py3-none-any.whl", hash = "sha256:609d61bee73f1a6ae5b47e9c7dd4b469d50318f050c5ceacf835b0f80f79d2d9"},
 ]
@@ -2988,7 +2988,7 @@ files = [
     {file = "grpcio-health-checking-1.62.3.tar.gz", hash = "sha256:5074ba0ce8f0dcfe328408ec5c7551b2a835720ffd9b69dade7fa3e0dc1c7a93"},
     {file = "grpcio_health_checking-1.62.3-py3-none-any.whl", hash = "sha256:f29da7dd144d73b4465fe48f011a91453e9ff6c8af0d449254cf80021cab3e0d"},
 ]
-markers = {main = "extra == \"weaviate\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"weaviate\" or python_version == \"3.9\" and extra == \"weaviate\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"weaviate\" or python_version == \"3.12\" and extra == \"weaviate\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [package.dependencies]
 grpcio = ">=1.62.3"
@@ -3001,7 +3001,7 @@ description = "Status proto mapping for gRPC"
 optional = true
 python-versions = ">=3.6"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or extra == \"legacy-partitioners\" and python_version == \"3.12\""
 files = [
     {file = "grpcio-status-1.62.3.tar.gz", hash = "sha256:289bdd7b2459794a12cf95dc0cb727bd4a1742c37bd823f760236c937e53a485"},
     {file = "grpcio_status-1.62.3-py3-none-any.whl", hash = "sha256:f9049b762ba8de6b1086789d8315846e094edac2c50beaf462338b301a8fd4b8"},
@@ -3162,7 +3162,7 @@ description = "Pure-Python HTTP/2 protocol implementation"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"qdrant\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"qdrant\" or python_version == \"3.9\" and extra == \"qdrant\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"qdrant\" or python_version == \"3.12\" and extra == \"qdrant\""
 files = [
     {file = "h2-4.2.0-py3-none-any.whl", hash = "sha256:479a53ad425bb29af087f3458a61d30780bc818e4ebcf01f0b536ba916462ed0"},
     {file = "h2-4.2.0.tar.gz", hash = "sha256:c8a52129695e88b1a0578d8d2cc6842bbd79128ac685463b887ee278126ad01f"},
@@ -3299,7 +3299,7 @@ description = "Pure-Python HPACK header encoding"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"qdrant\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"qdrant\" or python_version == \"3.9\" and extra == \"qdrant\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"qdrant\" or python_version == \"3.12\" and extra == \"qdrant\""
 files = [
     {file = "hpack-4.1.0-py3-none-any.whl", hash = "sha256:157ac792668d995c657d93111f46b4535ed114f0c9c8d672271bbec7eae1b496"},
     {file = "hpack-4.1.0.tar.gz", hash = "sha256:ec5eca154f7056aa06f196a557655c5b009b382873ac8d1e66e79e87535f1dca"},
@@ -3312,7 +3312,7 @@ description = "HTML parser based on the WHATWG HTML specification"
 optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "html5lib-1.1-py2.py3-none-any.whl", hash = "sha256:0d78f8fde1c230e99fe37986a60526d7049ed4bf8a9fadbad5f00e22e58e041d"},
     {file = "html5lib-1.1.tar.gz", hash = "sha256:b2e5b40261e20f354d198eae92afc10d750afb487ed5e50f9c4eaf07c184146f"},
@@ -3425,7 +3425,7 @@ files = [
     {file = "humanfriendly-10.0-py2.py3-none-any.whl", hash = "sha256:1697e1a8a8f550fd43c2865cd84542fc175a61dcb779b6fee18cf6b6ccba1477"},
     {file = "humanfriendly-10.0.tar.gz", hash = "sha256:6b0b831ce8f15f7300721aa49829fc4e83921a9a301cc7f606be6686a2288ddc"},
 ]
-markers = {main = "extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [package.dependencies]
 pyreadline3 = {version = "*", markers = "sys_platform == \"win32\" and python_version >= \"3.8\""}
@@ -3437,7 +3437,7 @@ description = "Pure-Python HTTP/2 framing"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"qdrant\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"qdrant\" or python_version == \"3.9\" and extra == \"qdrant\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"qdrant\" or python_version == \"3.12\" and extra == \"qdrant\""
 files = [
     {file = "hyperframe-6.1.0-py3-none-any.whl", hash = "sha256:b03380493a519fce58ea5af42e4a42317bf9bd425596f7a0835ffce80f1a42e5"},
     {file = "hyperframe-6.1.0.tar.gz", hash = "sha256:f630908a00854a7adeabd6382b43923a4c4cd4b821fcb527e6ab9e15382a3b08"},
@@ -3498,7 +3498,7 @@ description = "Library for reading and writing a wide range of image, video, sci
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "imageio-2.37.0-py3-none-any.whl", hash = "sha256:11efa15b87bc7871b61590326b2d635439acc321cf7f8ce996f812543ce10eed"},
     {file = "imageio-2.37.0.tar.gz", hash = "sha256:71b57b3669666272c818497aebba2b4c5f20d5b37c81720e5e1a56d59c492996"},
@@ -3533,7 +3533,7 @@ description = "Getting image size from png/jpeg/jpeg2000/gif file"
 optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "imagesize-1.4.1-py2.py3-none-any.whl", hash = "sha256:0d8d18d08f840c19d0ee7ca1fd82490fdc3729b7ac93f49870406ddde8ef8d8b"},
     {file = "imagesize-1.4.1.tar.gz", hash = "sha256:69150444affb9cb0d5cc5a92b3676f0b2fb7cd9ae39e947a5e11a36b4497cd4a"},
@@ -3619,22 +3619,6 @@ markers = "platform_system == \"Linux\" and platform_machine == \"aarch64\""
 files = [
     {file = "iniconfig-2.0.0-py3-none-any.whl", hash = "sha256:b6a85871a79d2e3b22d2d1b94ac2824226a63c6b741c88f7ae975f18b6778374"},
     {file = "iniconfig-2.0.0.tar.gz", hash = "sha256:2d91e135bf72d31a410b17c16da610a82cb55f6b0477d1a902134b24a455b8b3"},
-]
-
-[[package]]
-name = "intel-openmp"
-version = "2021.4.0"
-description = "Intel OpenMP* Runtime Library"
-optional = true
-python-versions = "*"
-groups = ["main"]
-markers = "(extra == \"local-inference\" or extra == \"legacy-partitioners\") and platform_system == \"Windows\""
-files = [
-    {file = "intel_openmp-2021.4.0-py2.py3-none-macosx_10_15_x86_64.macosx_11_0_x86_64.whl", hash = "sha256:41c01e266a7fdb631a7609191709322da2bbf24b252ba763f125dd651bcc7675"},
-    {file = "intel_openmp-2021.4.0-py2.py3-none-manylinux1_i686.whl", hash = "sha256:3b921236a38384e2016f0f3d65af6732cf2c12918087128a9163225451e776f2"},
-    {file = "intel_openmp-2021.4.0-py2.py3-none-manylinux1_x86_64.whl", hash = "sha256:e2240ab8d01472fed04f3544a878cda5da16c26232b7ea1b59132dbfb48b186e"},
-    {file = "intel_openmp-2021.4.0-py2.py3-none-win32.whl", hash = "sha256:6e863d8fd3d7e8ef389d52cf97a50fe2afe1a19247e8c0d168ce021546f96fc9"},
-    {file = "intel_openmp-2021.4.0-py2.py3-none-win_amd64.whl", hash = "sha256:eef4c8bcc8acefd7f5cd3b9384dbf73d59e2c99fc56545712ded913f43c4a94f"},
 ]
 
 [[package]]
@@ -4389,7 +4373,7 @@ description = "A fast implementation of the Cassowary constraint solver"
 optional = false
 python-versions = ">=3.10"
 groups = ["main", "dev", "notebook"]
-markers = "python_version >= \"3.10\""
+markers = "python_version == \"3.10\" or python_version == \"3.11\" or python_version == \"3.12\""
 files = [
     {file = "kiwisolver-1.4.8-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:88c6f252f6816a73b1f8c904f7bbe02fd67c09a69f7cb8a0eecdbf5ce78e63db"},
     {file = "kiwisolver-1.4.8-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:c72941acb7b67138f35b879bbe85be0f6c6a70cab78fe3ef6db9c024d9223e5b"},
@@ -4480,7 +4464,7 @@ description = "Language detection library ported from Google's language-detectio
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "langdetect-1.0.9-py2-none-any.whl", hash = "sha256:7cbc0746252f19e76f77c0b1690aadf01963be835ef0cd4b56dddf2a8f1dfc2a"},
     {file = "langdetect-1.0.9.tar.gz", hash = "sha256:cbc1fef89f8d062739774bd51eda3da3274006b3661d199c2655f6b3f6d605a0"},
@@ -4496,7 +4480,7 @@ description = "Makes it easy to load subpackages and functions on demand."
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "lazy_loader-0.4-py3-none-any.whl", hash = "sha256:342aa8e14d543a154047afb4ba8ef17f5563baad3fc610d7b15b213b0f119efc"},
     {file = "lazy_loader-0.4.tar.gz", hash = "sha256:47c75182589b91a4e1a85a136c074285a5ad4d9f39c63e0d7fb76391c4574cd1"},
@@ -4517,7 +4501,7 @@ description = "Universal Python binding for the LMDB 'Lightning' Database"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "lmdb-1.6.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:18422de2b4e70fc91b6d845a83f5b7355f85ea1c02f8180be0ab42c15191bead"},
     {file = "lmdb-1.6.2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:167328892282950cbb5a358fa6c05b60ffa00b2f40fb240e2e676359720256ac"},
@@ -4716,7 +4700,7 @@ description = "LZ4 Bindings for Python"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"pinecone\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"pinecone\" or python_version == \"3.9\" and extra == \"pinecone\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"pinecone\" or python_version == \"3.12\" and extra == \"pinecone\""
 files = [
     {file = "lz4-4.4.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:1ebf23ffd36b32b980f720a81990fcfdeadacafe7498fbeff7a8e058259d4e58"},
     {file = "lz4-4.4.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8fe3caea61427057a9e3697c69b2403510fdccfca4483520d02b98ffae74531e"},
@@ -4966,7 +4950,7 @@ description = "Collection of plugins for markdown-it-py"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "mdit_py_plugins-0.4.2-py3-none-any.whl", hash = "sha256:0c673c3f889399a33b95e88d2f0d111b4447bdfea7f237dab2d488f459835636"},
     {file = "mdit_py_plugins-0.4.2.tar.gz", hash = "sha256:5f2cd1fdb606ddf152d37ec30e46101a60512bc0e5fa1a7002c36647b09e26b5"},
@@ -5010,33 +4994,13 @@ files = [
 typing-extensions = {version = "*", markers = "python_version < \"3.11\""}
 
 [[package]]
-name = "mkl"
-version = "2021.4.0"
-description = "Intel® oneAPI Math Kernel Library"
-optional = true
-python-versions = "*"
-groups = ["main"]
-markers = "(extra == \"local-inference\" or extra == \"legacy-partitioners\") and platform_system == \"Windows\""
-files = [
-    {file = "mkl-2021.4.0-py2.py3-none-macosx_10_15_x86_64.macosx_11_0_x86_64.whl", hash = "sha256:67460f5cd7e30e405b54d70d1ed3ca78118370b65f7327d495e9c8847705e2fb"},
-    {file = "mkl-2021.4.0-py2.py3-none-manylinux1_i686.whl", hash = "sha256:636d07d90e68ccc9630c654d47ce9fdeb036bb46e2b193b3a9ac8cfea683cce5"},
-    {file = "mkl-2021.4.0-py2.py3-none-manylinux1_x86_64.whl", hash = "sha256:398dbf2b0d12acaf54117a5210e8f191827f373d362d796091d161f610c1ebfb"},
-    {file = "mkl-2021.4.0-py2.py3-none-win32.whl", hash = "sha256:439c640b269a5668134e3dcbcea4350459c4a8bc46469669b2d67e07e3d330e8"},
-    {file = "mkl-2021.4.0-py2.py3-none-win_amd64.whl", hash = "sha256:ceef3cafce4c009dd25f65d7ad0d833a0fbadc3d8903991ec92351fe5de1e718"},
-]
-
-[package.dependencies]
-intel-openmp = "==2021.*"
-tbb = "==2021.*"
-
-[[package]]
 name = "mmh3"
 version = "4.1.0"
 description = "Python extension for MurmurHash (MurmurHash3), a set of fast and robust hash functions."
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"pinecone\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"pinecone\" or python_version == \"3.9\" and extra == \"pinecone\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"pinecone\" or python_version == \"3.12\" and extra == \"pinecone\""
 files = [
     {file = "mmh3-4.1.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:be5ac76a8b0cd8095784e51e4c1c9c318c19edcd1709a06eb14979c8d850c31a"},
     {file = "mmh3-4.1.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:98a49121afdfab67cd80e912b36404139d7deceb6773a83620137aaa0da5714c"},
@@ -5343,7 +5307,7 @@ description = "better multiprocessing and multithreading in Python"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"eval\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"eval\" or python_version == \"3.9\" and extra == \"eval\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"eval\" or python_version == \"3.12\" and extra == \"eval\""
 files = [
     {file = "multiprocess-0.70.16-pp310-pypy310_pp73-macosx_10_13_x86_64.whl", hash = "sha256:476887be10e2f59ff183c006af746cb6f1fd0eadcfd4ef49e605cbe2659920ee"},
     {file = "multiprocess-0.70.16-pp310-pypy310_pp73-manylinux_2_28_x86_64.whl", hash = "sha256:d951bed82c8f73929ac82c61f01a7b5ce8f3e5ef40f5b52553b4f547ce2b08ec"},
@@ -5540,7 +5504,7 @@ files = [
     {file = "mypy_extensions-1.0.0-py3-none-any.whl", hash = "sha256:4392f6c0eb8a5668a69e23d168ffa70f0be9ccfd32b5cc2d26a34ae5b844552d"},
     {file = "mypy_extensions-1.0.0.tar.gz", hash = "sha256:75dbf8955dc00442a438fc4d0666508a9a97b6bd41aa2f0ffe9d2f2725af0782"},
 ]
-markers = {main = "extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [[package]]
 name = "myst-parser"
@@ -5549,7 +5513,7 @@ description = "An extended [CommonMark](https://spec.commonmark.org/) compliant 
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "myst_parser-2.0.0-py3-none-any.whl", hash = "sha256:7c36344ae39c8e740dad7fdabf5aa6fc4897a813083c6cc9990044eb93656b14"},
     {file = "myst_parser-2.0.0.tar.gz", hash = "sha256:ea929a67a6a0b1683cdbe19b8d2e724cd7643f8aa3e7bb18dd65beac3483bead"},
@@ -5696,7 +5660,7 @@ description = "Neo4j Bolt driver for Python"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"neo4j\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"neo4j\" or python_version == \"3.9\" and extra == \"neo4j\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"neo4j\" or python_version == \"3.12\" and extra == \"neo4j\""
 files = [
     {file = "neo4j-5.28.1-py3-none-any.whl", hash = "sha256:6755ef9e5f4e14b403aef1138fb6315b120631a0075c138b5ddb2a06b87b09fd"},
     {file = "neo4j-5.28.1.tar.gz", hash = "sha256:ae8e37a1d895099062c75bc359b2cce62099baac7be768d0eba7180c1298e214"},
@@ -5721,7 +5685,7 @@ files = [
     {file = "nest_asyncio-1.6.0-py3-none-any.whl", hash = "sha256:87af6efd6b5e897c81050477ef65c62e2b2f35d51703cae01aff2905b1852e1c"},
     {file = "nest_asyncio-1.6.0.tar.gz", hash = "sha256:6f172d5449aca15afd6c646851f4e31e02c598d553a667e38cafa997cfec55fe"},
 ]
-markers = {main = "extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\"", notebook = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\"", notebook = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [[package]]
 name = "networkx"
@@ -5750,7 +5714,7 @@ description = "Ninja is a small build system with a focus on speed"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "ninja-1.11.1.3-py3-none-macosx_10_9_universal2.whl", hash = "sha256:2b4879ea3f1169f3d855182c57dcc84d1b5048628c8b7be0d702b81882a37237"},
     {file = "ninja-1.11.1.3-py3-none-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:bc3ebc8b2e47716149f3541742b5cd8e0b08f51013b825c05baca3e34854370d"},
@@ -5934,14 +5898,15 @@ files = [
 
 [[package]]
 name = "nvidia-cudnn-cu12"
-version = "8.9.2.26"
+version = "9.1.0.70"
 description = "cuDNN runtime libraries"
 optional = true
 python-versions = ">=3"
 groups = ["main"]
 markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\" and (extra == \"local-inference\" or extra == \"legacy-partitioners\")"
 files = [
-    {file = "nvidia_cudnn_cu12-8.9.2.26-py3-none-manylinux1_x86_64.whl", hash = "sha256:5ccb288774fdfb07a7e7025ffec286971c06d8d7b4fb162525334616d7629ff9"},
+    {file = "nvidia_cudnn_cu12-9.1.0.70-py3-none-manylinux2014_x86_64.whl", hash = "sha256:165764f44ef8c61fcdfdfdbe769d687e06374059fbb388b6c89ecb0e28793a6f"},
+    {file = "nvidia_cudnn_cu12-9.1.0.70-py3-none-win_amd64.whl", hash = "sha256:6278562929433d68365a07a4a1546c237ba2849852c0d4b2262a486e805b977a"},
 ]
 
 [package.dependencies]
@@ -6054,7 +6019,7 @@ description = "Python package to parse, read and write Microsoft OLE2 files (Str
 optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "olefile-0.47-py2.py3-none-any.whl", hash = "sha256:543c7da2a7adadf21214938bb79c83ea12b473a4b6ee4ad4bf854e7715e13d1f"},
     {file = "olefile-0.47.zip", hash = "sha256:599383381a0bf3dfbd932ca0ca6515acd174ed48870cbf7fee123d698c192c1c"},
@@ -6070,7 +6035,7 @@ description = "A flexible configuration library"
 optional = true
 python-versions = ">=3.6"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "omegaconf-2.3.0-py3-none-any.whl", hash = "sha256:7b4df175cdb08ba400f45cae3bdcae7ba8365db4d165fc65fd04b050ab63b46b"},
     {file = "omegaconf-2.3.0.tar.gz", hash = "sha256:d5d4b6d29955cc50ad50c46dc269bcd92c6e00f5f90d23ab5fee7bfca4ba4cc7"},
@@ -6087,7 +6052,7 @@ description = "Open Neural Network Exchange"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "onnx-1.17.0-cp310-cp310-macosx_12_0_universal2.whl", hash = "sha256:38b5df0eb22012198cdcee527cc5f917f09cce1f88a69248aaca22bd78a7f023"},
     {file = "onnx-1.17.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d545335cb49d4d8c47cc803d3a805deb7ad5d9094dc67657d66e568610a36d7d"},
@@ -6158,7 +6123,7 @@ files = [
     {file = "onnxruntime-1.19.0-cp39-cp39-win32.whl", hash = "sha256:947febd48405afcf526e45ccff97ff23b15e530434705f734870d22ae7fcf236"},
     {file = "onnxruntime-1.19.0-cp39-cp39-win_amd64.whl", hash = "sha256:f60be47eff5ee77fd28a466b0fd41d7debc42a32179d1ddb21e05d6067d7b48b"},
 ]
-markers = {main = "extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [package.dependencies]
 coloredlogs = "*"
@@ -6233,7 +6198,7 @@ description = "Wrapper package for OpenCV python bindings."
 optional = true
 python-versions = ">=3.6"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "opencv-contrib-python-4.11.0.86.tar.gz", hash = "sha256:4ff773dab44911da366b906621c9592d4eb96f6ad3777098933a23f064aab38e"},
     {file = "opencv_contrib_python-4.11.0.86-cp37-abi3-macosx_13_0_arm64.whl", hash = "sha256:d911cedc511d98f79994580b245d59fc97f57f0f9923a99945d8b92c7ac671f6"},
@@ -6246,11 +6211,11 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.21.0", markers = "python_version == \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
-    {version = ">=1.19.3", markers = "(python_version >= \"3.8\" and platform_system == \"Linux\" and platform_machine == \"aarch64\" or python_version >= \"3.9\") and (python_version > \"3.9\" or platform_system != \"Darwin\" or platform_machine != \"arm64\")"},
     {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
     {version = ">=1.21.2", markers = "platform_system != \"Darwin\" and python_version >= \"3.10\""},
     {version = ">=1.23.5", markers = "python_version >= \"3.11\""},
+    {version = ">=1.21.0", markers = "python_version == \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
+    {version = ">=1.19.3", markers = "(python_version >= \"3.8\" and platform_system == \"Linux\" and platform_machine == \"aarch64\" or python_version >= \"3.9\") and (python_version > \"3.9\" or platform_system != \"Darwin\" or platform_machine != \"arm64\")"},
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
 ]
 
@@ -6274,11 +6239,11 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.21.0", markers = "python_version == \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
-    {version = ">=1.19.3", markers = "(python_version >= \"3.8\" and platform_system == \"Linux\" and platform_machine == \"aarch64\" or python_version >= \"3.9\") and (python_version > \"3.9\" or platform_system != \"Darwin\" or platform_machine != \"arm64\")"},
     {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
     {version = ">=1.21.2", markers = "platform_system != \"Darwin\" and python_version >= \"3.10\""},
     {version = ">=1.23.5", markers = "python_version >= \"3.11\""},
+    {version = ">=1.21.0", markers = "python_version == \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
+    {version = ">=1.19.3", markers = "(python_version >= \"3.8\" and platform_system == \"Linux\" and platform_machine == \"aarch64\" or python_version >= \"3.9\") and (python_version > \"3.9\" or platform_system != \"Darwin\" or platform_machine != \"arm64\")"},
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
 ]
 
@@ -6289,7 +6254,7 @@ description = "Wrapper package for OpenCV python bindings."
 optional = true
 python-versions = ">=3.6"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "opencv-python-headless-4.11.0.86.tar.gz", hash = "sha256:996eb282ca4b43ec6a3972414de0e2331f5d9cda2b41091a49739c19fb843798"},
     {file = "opencv_python_headless-4.11.0.86-cp37-abi3-macosx_13_0_arm64.whl", hash = "sha256:48128188ade4a7e517237c8e1e11a9cdf5c282761473383e77beb875bb1e61ca"},
@@ -6302,11 +6267,11 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.21.0", markers = "python_version == \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
-    {version = ">=1.19.3", markers = "(python_version >= \"3.8\" and platform_system == \"Linux\" and platform_machine == \"aarch64\" or python_version >= \"3.9\") and (python_version > \"3.9\" or platform_system != \"Darwin\" or platform_machine != \"arm64\")"},
     {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
     {version = ">=1.21.2", markers = "platform_system != \"Darwin\" and python_version >= \"3.10\""},
     {version = ">=1.23.5", markers = "python_version >= \"3.11\""},
+    {version = ">=1.21.0", markers = "python_version == \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
+    {version = ">=1.19.3", markers = "(python_version >= \"3.8\" and platform_system == \"Linux\" and platform_machine == \"aarch64\" or python_version >= \"3.9\") and (python_version > \"3.9\" or platform_system != \"Darwin\" or platform_machine != \"arm64\")"},
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
 ]
 
@@ -6317,7 +6282,7 @@ description = "Python client for OpenSearch"
 optional = true
 python-versions = "<4,>=3.8"
 groups = ["main"]
-markers = "extra == \"opensearch\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"opensearch\" or python_version == \"3.9\" and extra == \"opensearch\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"opensearch\" or python_version == \"3.12\" and extra == \"opensearch\""
 files = [
     {file = "opensearch_py-2.8.0-py3-none-any.whl", hash = "sha256:52c60fdb5d4dcf6cce3ee746c13b194529b0161e0f41268b98ab8f1624abe2fa"},
     {file = "opensearch_py-2.8.0.tar.gz", hash = "sha256:6598df0bc7a003294edd0ba88a331e0793acbb8c910c43edf398791e3b2eccda"},
@@ -6329,8 +6294,8 @@ Events = "*"
 python-dateutil = "*"
 requests = ">=2.32.0,<3.0.0"
 urllib3 = [
-    {version = ">=1.26.19,<1.27", markers = "python_version < \"3.10\""},
     {version = ">=1.26.19,<2.2.0 || >2.2.0,<2.2.1 || >2.2.1,<3", markers = "python_version >= \"3.10\""},
+    {version = ">=1.26.19,<1.27", markers = "python_version < \"3.10\""},
 ]
 
 [package.extras]
@@ -6388,7 +6353,7 @@ description = "Awesome OCR toolkits based on PaddlePaddle(8.6M ultra-lightweight
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "paddleocr-2.10.0-py3-none-any.whl", hash = "sha256:38df818d87a00af854cbfd14e33615edc3c4fa2caeb662149d51e6f2e212013f"},
     {file = "paddleocr-2.10.0.tar.gz", hash = "sha256:c0646aae769c957df698558e9264c94113ee60244a4ac0c46dfcd2324d215df4"},
@@ -6593,7 +6558,7 @@ description = "Pexpect allows easy control of interactive console applications."
 optional = false
 python-versions = "*"
 groups = ["dev", "notebook"]
-markers = "sys_platform != \"win32\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and sys_platform != \"win32\" or python_version == \"3.9\" and sys_platform != \"win32\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and sys_platform != \"win32\" or python_version == \"3.12\" and sys_platform != \"win32\""
 files = [
     {file = "pexpect-4.9.0-py2.py3-none-any.whl", hash = "sha256:7236d1e080e4936be2dc3e326cec0af72acf9212a7e1d060210e70a47e253523"},
     {file = "pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f"},
@@ -6609,7 +6574,7 @@ description = "Python interface for libheif library"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "pi_heif-0.21.0-cp310-cp310-macosx_13_0_x86_64.whl", hash = "sha256:3b623724c75b3049fd10e268d3283f98be643b0e421264d405aa7c4bc310383a"},
     {file = "pi_heif-0.21.0-cp310-cp310-macosx_14_0_arm64.whl", hash = "sha256:4b6a4fb3e73a7a859ba9ecf6d564e0445e961779145fff2282440915fe55310f"},
@@ -6673,7 +6638,7 @@ description = "Read and write PDFs with Python, powered by qpdf"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "pikepdf-9.5.2-cp310-cp310-macosx_13_0_x86_64.whl", hash = "sha256:412bd45c806ea3d7ef25a04b24a777c87efef725ac7f047d1fc71062049d2625"},
     {file = "pikepdf-9.5.2-cp310-cp310-macosx_14_0_arm64.whl", hash = "sha256:bee6e7f93533c0d5ee66f65547963a56f85d0469b1134ddfc13439cf45b0e989"},
@@ -6826,7 +6791,7 @@ description = "Pinecone client and SDK"
 optional = true
 python-versions = "<4.0,>=3.8"
 groups = ["main"]
-markers = "extra == \"pinecone\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"pinecone\" or python_version == \"3.9\" and extra == \"pinecone\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"pinecone\" or python_version == \"3.12\" and extra == \"pinecone\""
 files = [
     {file = "pinecone_client-4.1.2-py3-none-any.whl", hash = "sha256:3d69cbbca2d9d4f77c90bad59a1194e3d20d535b29f277eee32b439fd526546b"},
     {file = "pinecone_client-4.1.2.tar.gz", hash = "sha256:fa89c605792ec94de36d4c9585250b47b0b643407457053eca89008424be6281"},
@@ -6860,7 +6825,7 @@ description = "Plugin interface for the Pinecone python client"
 optional = true
 python-versions = "<4.0,>=3.8"
 groups = ["main"]
-markers = "extra == \"pinecone\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"pinecone\" or python_version == \"3.9\" and extra == \"pinecone\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"pinecone\" or python_version == \"3.12\" and extra == \"pinecone\""
 files = [
     {file = "pinecone_plugin_interface-0.0.7-py3-none-any.whl", hash = "sha256:875857ad9c9fc8bbc074dbe780d187a2afd21f5bfe0f3b08601924a61ef1bba8"},
     {file = "pinecone_plugin_interface-0.0.7.tar.gz", hash = "sha256:b8e6675e41847333aa13923cc44daa3f85676d7157324682dc1640588a982846"},
@@ -6873,7 +6838,7 @@ description = "Text utilities library by Pinecone.io"
 optional = true
 python-versions = "<4.0,>=3.8"
 groups = ["main"]
-markers = "extra == \"pinecone\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"pinecone\" or python_version == \"3.9\" and extra == \"pinecone\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"pinecone\" or python_version == \"3.12\" and extra == \"pinecone\""
 files = [
     {file = "pinecone_text-0.9.0-py3-none-any.whl", hash = "sha256:7a1ad2e282d10b59f0288a2a4f4b8c583a77378172232fae573cf398a3c44240"},
     {file = "pinecone_text-0.9.0.tar.gz", hash = "sha256:f8244a9bc090ee2fc904053a2415cfc114fd8bbfbc9a6ba8b0581c84990d0239"},
@@ -6939,7 +6904,7 @@ description = "Wraps the portalocker recipe for easy usage"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"qdrant\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"qdrant\" or python_version == \"3.9\" and extra == \"qdrant\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"qdrant\" or python_version == \"3.12\" and extra == \"qdrant\""
 files = [
     {file = "portalocker-2.10.1-py3-none-any.whl", hash = "sha256:53a5984ebc86a025552264b459b46a2086e269b21823cb572f8f28ee759e45bf"},
     {file = "portalocker-2.10.1.tar.gz", hash = "sha256:ef1bf844e878ab08aee7e40184156e1151f228f103aa5c6bd0724cc330960f8f"},
@@ -7175,7 +7140,7 @@ description = "Provides the missing pieces for gRPC Gateway."
 optional = true
 python-versions = ">=3.6"
 groups = ["main"]
-markers = "extra == \"pinecone\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"pinecone\" or python_version == \"3.9\" and extra == \"pinecone\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"pinecone\" or python_version == \"3.12\" and extra == \"pinecone\""
 files = [
     {file = "protoc-gen-openapiv2-0.0.1.tar.gz", hash = "sha256:6f79188d842c13177c9c0558845442c340b43011bf67dfef1dfc3bc067506409"},
     {file = "protoc_gen_openapiv2-0.0.1-py3-none-any.whl", hash = "sha256:18090c8be3877c438e7da0f7eb7cace45a9a210306bca4707708dbad367857be"},
@@ -7204,7 +7169,7 @@ files = [
     {file = "psutil-7.0.0-cp37-abi3-win_amd64.whl", hash = "sha256:4cf3d4eb1aa9b348dec30105c55cd9b7d4629285735a102beb4441e38db90553"},
     {file = "psutil-7.0.0.tar.gz", hash = "sha256:7be9c3eba38beccb6495ea33afd982a44074b78f28c434a1f51cc07fd315c456"},
 ]
-markers = {main = "extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\"", notebook = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\"", notebook = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [package.extras]
 dev = ["abi3audit", "black (==24.10.0)", "check-manifest", "coverage", "packaging", "pylint", "pyperf", "pypinfo", "pytest", "pytest-cov", "pytest-xdist", "requests", "rstcheck", "ruff", "setuptools", "sphinx", "sphinx_rtd_theme", "toml-sort", "twine", "virtualenv", "vulture", "wheel"]
@@ -7221,7 +7186,7 @@ files = [
     {file = "ptyprocess-0.7.0-py2.py3-none-any.whl", hash = "sha256:4b41f3967fce3af57cc7e94b888626c18bf37a083e3651ca8feeb66d492fef35"},
     {file = "ptyprocess-0.7.0.tar.gz", hash = "sha256:5c5d0a3b48ceee0b48485e0c26037c0acd7d29765ca3fbb5cb3831d347423220"},
 ]
-markers = {dev = "sys_platform != \"win32\"", notebook = "(sys_platform != \"win32\" or os_name != \"nt\") and platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {dev = "(python_version == \"3.10\" or python_version == \"3.11\") and sys_platform != \"win32\" or python_version == \"3.9\" and sys_platform != \"win32\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and sys_platform != \"win32\" or python_version == \"3.12\" and sys_platform != \"win32\"", notebook = "(sys_platform != \"win32\" or os_name != \"nt\") and platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [[package]]
 name = "pure-eval"
@@ -7315,7 +7280,7 @@ description = ""
 optional = true
 python-versions = ">=3.5"
 groups = ["main"]
-markers = "extra == \"eval\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"eval\" or python_version == \"3.9\" and extra == \"eval\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"eval\" or python_version == \"3.12\" and extra == \"eval\""
 files = [
     {file = "pyarrow_hotfix-0.6-py3-none-any.whl", hash = "sha256:dcc9ae2d220dff0083be6a9aa8e0cdee5182ad358d4931fce825c545e5c89178"},
     {file = "pyarrow_hotfix-0.6.tar.gz", hash = "sha256:79d3e030f7ff890d408a100ac16d6f00b14d44a502d7897cd9fc3e3a534e9945"},
@@ -7357,7 +7322,7 @@ description = "Cython wrapper for the C++ translation of the Angus Johnson's Cli
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "pyclipper-1.3.0.post6-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:fa0f5e78cfa8262277bb3d0225537b3c2a90ef68fd90a229d5d24cf49955dcf4"},
     {file = "pyclipper-1.3.0.post6-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:a01f182d8938c1dc515e8508ed2442f7eebd2c25c7d5cb29281f583c1a8008a4"},
@@ -7418,7 +7383,7 @@ description = "Official APIs for the MS-COCO dataset"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "pycocotools-2.0.8-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:9a66886f45b04cee1ff0492e9f5e25d430d8aa3eb63e63c4ebc620945caa11b9"},
     {file = "pycocotools-2.0.8-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:257130b65b7b0f122ce1ed62942867ca9789e56a68109682796cc85c9770c74a"},
@@ -7479,7 +7444,7 @@ files = [
     {file = "pycparser-2.22-py3-none-any.whl", hash = "sha256:c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc"},
     {file = "pycparser-2.22.tar.gz", hash = "sha256:491c8be9c040f5390f5bf44a5b07752bd07f56edf992381b05c701439eec10f6"},
 ]
-markers = {main = "platform_python_implementation != \"PyPy\" and (extra == \"weaviate\" or extra == \"local-inference\" or extra == \"legacy-partitioners\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", dev = "(platform_python_implementation != \"PyPy\" or implementation_name == \"pypy\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", docker = "platform_python_implementation != \"PyPy\"", notebook = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "platform_python_implementation != \"PyPy\" and (extra == \"weaviate\" or extra == \"local-inference\" or extra == \"legacy-partitioners\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", dev = "(platform_python_implementation != \"PyPy\" or implementation_name == \"pypy\") and platform_system == \"Linux\" and platform_machine == \"aarch64\"", docker = "(python_version == \"3.10\" or python_version == \"3.11\") and platform_python_implementation != \"PyPy\" or python_version == \"3.9\" and platform_python_implementation != \"PyPy\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and platform_python_implementation != \"PyPy\" or python_version == \"3.12\" and platform_python_implementation != \"PyPy\"", notebook = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [[package]]
 name = "pydantic"
@@ -7624,7 +7589,7 @@ description = "Multi-producer multi-consumer in-memory signal dispatch system"
 optional = false
 python-versions = "*"
 groups = ["dev"]
-markers = "platform_python_implementation == \"CPython\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and platform_python_implementation == \"CPython\" or python_version == \"3.9\" and platform_python_implementation == \"CPython\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and platform_python_implementation == \"CPython\" or python_version == \"3.12\" and platform_python_implementation == \"CPython\""
 files = [
     {file = "PyDispatcher-2.0.7-py3-none-any.whl", hash = "sha256:96543bea04115ffde08f851e1d45cacbfd1ee866ac42127d9b476dc5aefa7de0"},
     {file = "PyDispatcher-2.0.7.tar.gz", hash = "sha256:b777c6ad080dc1bad74a4c29d6a46914fa6701ac70f94b0d66fbcfde62f5be31"},
@@ -7769,7 +7734,7 @@ description = "Python bindings to PDFium"
 optional = true
 python-versions = ">=3.6"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "pypdfium2-4.30.1-py3-none-macosx_10_13_x86_64.whl", hash = "sha256:e07c47633732cc18d890bb7e965ad28a9c5a932e548acb928596f86be2e5ae37"},
     {file = "pypdfium2-4.30.1-py3-none-macosx_11_0_arm64.whl", hash = "sha256:5ea2d44e96d361123b67b00f527017aa9c847c871b5714e013c01c3eb36a79fe"},
@@ -7793,7 +7758,7 @@ description = "Multi-producer-multi-consumer signal dispatching mechanism"
 optional = false
 python-versions = "*"
 groups = ["dev"]
-markers = "platform_python_implementation == \"PyPy\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and platform_python_implementation == \"PyPy\" or python_version == \"3.9\" and platform_python_implementation == \"PyPy\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and platform_python_implementation == \"PyPy\" or python_version == \"3.12\" and platform_python_implementation == \"PyPy\""
 files = [
     {file = "PyPyDispatcher-2.1.2.tar.gz", hash = "sha256:b6bec5dfcff9d2535bca2b23c80eae367b1ac250a645106948d315fcfa9130f2"},
 ]
@@ -7809,7 +7774,7 @@ files = [
     {file = "pyreadline3-3.5.4-py3-none-any.whl", hash = "sha256:eaf8e6cc3c49bcccf145fc6067ba8643d1df34d604a1ec0eccbf7a18e6d3fae6"},
     {file = "pyreadline3-3.5.4.tar.gz", hash = "sha256:8d57d53039a1c75adba8e50dd3d992b28143480816187ea5efbd5c78e6c885b7"},
 ]
-markers = {main = "extra == \"legacy-partitioners\" and sys_platform == \"win32\" and platform_system == \"Linux\" and platform_machine == \"aarch64\"", dev = "sys_platform == \"win32\""}
+markers = {main = "sys_platform == \"win32\" and platform_system == \"Linux\" and extra == \"legacy-partitioners\" and platform_machine == \"aarch64\"", dev = "(python_version == \"3.10\" or python_version == \"3.11\") and sys_platform == \"win32\" or python_version == \"3.9\" and sys_platform == \"win32\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and sys_platform == \"win32\" or sys_platform == \"win32\" and python_version == \"3.12\""}
 
 [package.extras]
 dev = ["build", "flake8", "mypy", "pytest", "twine"]
@@ -7821,7 +7786,7 @@ description = "Python-tesseract is a python wrapper for Google's Tesseract-OCR"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "pytesseract-0.3.13-py3-none-any.whl", hash = "sha256:7a99c6c2ac598360693d83a416e36e0b33a67638bb9d77fdcac094a3589d4b34"},
     {file = "pytesseract-0.3.13.tar.gz", hash = "sha256:4bf5f880c99406f52a3cfc2633e42d9dc67615e69d8a509d74867d3baddb5db9"},
@@ -7903,7 +7868,7 @@ description = "Python Bidi layout wrapping the Rust crate unicode-bidi"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "python_bidi-0.6.6-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:09d4da6b5851d0df01d7313a11d22f308fdfb0e12461f7262e0f55c521ccc0f1"},
     {file = "python_bidi-0.6.6-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:493a844891e23264411b01df58ba77d5dbb0045da3787f4195f50a56bfb847d9"},
@@ -8042,7 +8007,7 @@ description = "Create, read, and update Microsoft Word .docx files."
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "python_docx-1.1.2-py3-none-any.whl", hash = "sha256:08c20d6058916fb19853fcf080f7f42b6270d89eac9fa5f8c15f691c0017fabe"},
     {file = "python_docx-1.1.2.tar.gz", hash = "sha256:0cf1f22e95b9002addca7948e16f2cd7acdfd498047f1941ca5d293db7762efd"},
@@ -8059,7 +8024,7 @@ description = "Read key-value pairs from a .env file and set them as environment
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"pinecone\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"pinecone\" or python_version == \"3.9\" and extra == \"pinecone\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"pinecone\" or python_version == \"3.12\" and extra == \"pinecone\""
 files = [
     {file = "python-dotenv-1.0.1.tar.gz", hash = "sha256:e324ee90a023d808f1959c46bcbc04446a10ced277783dc6ee09987c37ec10ca"},
     {file = "python_dotenv-1.0.1-py3-none-any.whl", hash = "sha256:f7b63ef50f1b690dddf550d03497b66d609393b40b564ed0d674909a68ebf16a"},
@@ -8075,7 +8040,7 @@ description = "ISO 639 language codes, names, and other associated information"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "python_iso639-2025.2.18-py3-none-any.whl", hash = "sha256:b2d471c37483a26f19248458b20e7bd96492e15368b01053b540126bcc23152f"},
     {file = "python_iso639-2025.2.18.tar.gz", hash = "sha256:34e31e8e76eb3fc839629e257b12bcfd957c6edcbd486bbf66ba5185d1f566e8"},
@@ -8110,7 +8075,7 @@ description = "File type identification using libmagic"
 optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "python-magic-0.4.27.tar.gz", hash = "sha256:c1ba14b08e4a5f5c31a302b7721239695b2f0f058d125bd5ce1ee36b9d9d3c3b"},
     {file = "python_magic-0.4.27-py2.py3-none-any.whl", hash = "sha256:c212960ad306f700aa0d01e5d7a325d20548ff97eb9920dcd29513174f0294d3"},
@@ -8123,7 +8088,7 @@ description = "A streaming multipart parser for Python"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "python_multipart-0.0.20-py3-none-any.whl", hash = "sha256:8a62d3a8335e06589fe01f2a3e178cdcc632f3fbe0d492ad9ee0ec35aab1f104"},
     {file = "python_multipart-0.0.20.tar.gz", hash = "sha256:8dd0cab45b8e23064ae09147625994d090fa46f5b0d1e13af944c331a7fa9d13"},
@@ -8136,7 +8101,7 @@ description = "Extract attachments from Outlook .msg files."
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "python_oxmsg-0.0.2-py3-none-any.whl", hash = "sha256:22be29b14c46016bcd05e34abddfd8e05ee82082f53b82753d115da3fc7d0355"},
     {file = "python_oxmsg-0.0.2.tar.gz", hash = "sha256:a6aff4deb1b5975d44d49dab1d9384089ffeec819e19c6940bc7ffbc84775fad"},
@@ -8154,7 +8119,7 @@ description = "Generate and manipulate Open XML PowerPoint (.pptx) files"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "python-pptx-0.6.23.tar.gz", hash = "sha256:587497ff28e779ab18dbb074f6d4052893c85dedc95ed75df319364f331fedee"},
     {file = "python_pptx-0.6.23-py3-none-any.whl", hash = "sha256:dd0527194627a2b7cc05f3ba23ecaa2d9a0d5ac9b6193a28ed1b7a716f4217d4"},
@@ -8225,7 +8190,7 @@ description = "Pseudo terminal support for Windows from Python."
 optional = false
 python-versions = ">=3.9"
 groups = ["notebook"]
-markers = "os_name == \"nt\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and os_name == \"nt\" or python_version == \"3.9\" and os_name == \"nt\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and os_name == \"nt\" or python_version == \"3.12\" and os_name == \"nt\""
 files = [
     {file = "pywinpty-2.0.15-cp310-cp310-win_amd64.whl", hash = "sha256:8e7f5de756a615a38b96cd86fa3cd65f901ce54ce147a3179c45907fa11b4c4e"},
     {file = "pywinpty-2.0.15-cp311-cp311-win_amd64.whl", hash = "sha256:9a6bcec2df2707aaa9d08b86071970ee32c5026e10bcc3cc5f6f391d85baf7ca"},
@@ -8414,7 +8379,7 @@ description = "Client library for the Qdrant vector search engine"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"qdrant\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"qdrant\" or python_version == \"3.9\" and extra == \"qdrant\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"qdrant\" or python_version == \"3.12\" and extra == \"qdrant\""
 files = [
     {file = "qdrant_client-1.13.3-py3-none-any.whl", hash = "sha256:f52cacbb936e547d3fceb1aaed3e3c56be0ebfd48e8ea495ea3dbc89c671d1d2"},
     {file = "qdrant_client-1.13.3.tar.gz", hash = "sha256:61ca09e07c6d7ac0dfbdeb13dca4fe5f3e08fa430cb0d74d66ef5d023a70adfc"},
@@ -8425,8 +8390,8 @@ grpcio = ">=1.41.0"
 grpcio-tools = ">=1.41.0"
 httpx = {version = ">=0.20.0", extras = ["http2"]}
 numpy = [
-    {version = ">=1.21,<2.1.0", markers = "python_version < \"3.10\""},
     {version = ">=1.21", markers = "python_version >= \"3.10\" and python_version < \"3.12\""},
+    {version = ">=1.21,<2.1.0", markers = "python_version < \"3.10\""},
     {version = ">=1.26", markers = "python_version == \"3.12\""},
 ]
 portalocker = ">=2.7.0,<3.0.0"
@@ -8598,8 +8563,8 @@ colorful = {version = "*", optional = true, markers = "extra == \"default\""}
 filelock = "*"
 frozenlist = "*"
 grpcio = [
-    {version = ">=1.32.0", optional = true, markers = "python_version < \"3.10\" and extra == \"default\""},
     {version = ">=1.42.0", optional = true, markers = "python_version >= \"3.10\" and extra == \"default\""},
+    {version = ">=1.32.0", optional = true, markers = "python_version < \"3.10\" and extra == \"default\""},
 ]
 jsonschema = "*"
 msgpack = ">=1.0.0,<2.0.0"
@@ -8848,7 +8813,7 @@ description = "A utility belt for advanced users of python-requests"
 optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "requests-toolbelt-1.0.0.tar.gz", hash = "sha256:7681a0a3d047012b5bdc0ee37d7f8f07ebe76ab08caeccfc3921ce23c88d5bc6"},
     {file = "requests_toolbelt-1.0.0-py2.py3-none-any.whl", hash = "sha256:cccfdd665f0a24fcf4726e690f65639d272bb0637b9b92dfd91a5568ccf6bd06"},
@@ -8914,7 +8879,7 @@ description = "Full Python ROUGE Score Implementation (not a wrapper)"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"eval\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"eval\" or python_version == \"3.9\" and extra == \"eval\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"eval\" or python_version == \"3.12\" and extra == \"eval\""
 files = [
     {file = "rouge-1.0.1-py3-none-any.whl", hash = "sha256:28d118536e8c774dc47d1d15ec266479b4dd0914c4672ce117d4002789bdc644"},
     {file = "rouge-1.0.1.tar.gz", hash = "sha256:12b48346ca47d6bcf3c45061f315452b9ccec0620ee895ec85b7efc3d54aae34"},
@@ -9196,7 +9161,7 @@ description = "Image processing in Python"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version >= \"3.10\" and extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\" or python_version == \"3.12\") and extra == \"local-inference\""
 files = [
     {file = "scikit_image-0.25.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:d3278f586793176599df6a4cf48cb6beadae35c31e58dc01a98023af3dc31c78"},
     {file = "scikit_image-0.25.2-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:5c311069899ce757d7dbf1d03e32acb38bb06153236ae77fcd820fd62044c063"},
@@ -9247,7 +9212,7 @@ description = "A set of python modules for machine learning and data mining"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "scikit_learn-1.6.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:d056391530ccd1e501056160e3c9673b4da4805eb67eb2bdf4e983e1f9c9204e"},
     {file = "scikit_learn-1.6.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:0c8d036eb937dbb568c6242fa598d551d88fb4399c0344d95c001980ec1c7d36"},
@@ -9398,7 +9363,7 @@ description = "State-of-the-Art Text Embeddings"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "sentence_transformers-3.4.1-py3-none-any.whl", hash = "sha256:e026dc6d56801fd83f74ad29a30263f401b4b522165c19386d8bc10dcca805da"},
     {file = "sentence_transformers-3.4.1.tar.gz", hash = "sha256:68daa57504ff548340e54ff117bd86c1d2f784b21e0fb2689cf3272b8937b24b"},
@@ -9453,7 +9418,7 @@ description = "Easily download, build, install, upgrade, and uninstall Python pa
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev", "docker", "notebook"]
-markers = "python_version >= \"3.12\""
+markers = "python_version == \"3.12\""
 files = [
     {file = "setuptools-75.9.1-py3-none-any.whl", hash = "sha256:0a6f876d62f4d978ca1a11ab4daf728d1357731f978543ff18ecdbf9fd071f73"},
     {file = "setuptools-75.9.1.tar.gz", hash = "sha256:b6eca2c3070cdc82f71b4cb4bb2946bc0760a210d11362278cf1ff394e6ea32c"},
@@ -9475,7 +9440,7 @@ description = "Easily download, build, install, upgrade, and uninstall Python pa
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev", "docker", "notebook"]
-markers = "python_version == \"3.9\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.12\" or python_version == \"3.10\" or python_version == \"3.11\""
+markers = "python_version == \"3.10\" or python_version == \"3.11\" or python_version == \"3.9\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.12\""
 files = [
     {file = "setuptools-76.0.0-py3-none-any.whl", hash = "sha256:199466a166ff664970d0ee145839f5582cb9bca7a0a3a2e795b6a9cb2308e9c6"},
     {file = "setuptools-76.0.0.tar.gz", hash = "sha256:43b4ee60e10b0d0ee98ad11918e114c70701bc6051662a9a675a0496c1a158f4"},
@@ -9497,7 +9462,7 @@ description = "Manipulation and analysis of geometric objects"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "shapely-2.0.7-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:33fb10e50b16113714ae40adccf7670379e9ccf5b7a41d0002046ba2b8f0f691"},
     {file = "shapely-2.0.7-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:f44eda8bd7a4bccb0f281264b34bf3518d8c4c9a8ffe69a1a05dabf6e8461147"},
@@ -9557,7 +9522,7 @@ description = "Portable mixed-precision BLAS-like vector math library for x86 an
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "simsimd-6.2.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:9c79486cf75eb06c5e1f623e8315f9fb73620ac63b846d5a6c843f14905de43f"},
     {file = "simsimd-6.2.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:104d53f2489dcbf569b8260d678e2183af605510115dc2b22ed0340aa47fe892"},
@@ -9737,7 +9702,7 @@ description = "This package provides 29 stemmers for 28 languages generated from
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "snowballstemmer-2.2.0-py2.py3-none-any.whl", hash = "sha256:c8e1716e83cc398ae16824e5572ae04e0d9fc2c6b985fb0f900f5f0c96ecba1a"},
     {file = "snowballstemmer-2.2.0.tar.gz", hash = "sha256:09b16deb8547d3412ad7b590689584cd0fe25ec8db3be37788be3810cbf19cb1"},
@@ -9763,7 +9728,7 @@ description = "Python documentation generator"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "sphinx-7.4.7-py3-none-any.whl", hash = "sha256:c2419e2135d11f1951cd994d6eb18a1835bd8fdd8429f9ca375dc1f3281bd239"},
     {file = "sphinx-7.4.7.tar.gz", hash = "sha256:242f92a7ea7e6c5b406fdc2615413890ba9f699114a9c09192d7dfead2ee9cfe"},
@@ -9801,7 +9766,7 @@ description = "A modern skeleton for Sphinx themes."
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "sphinx_basic_ng-1.0.0b2-py3-none-any.whl", hash = "sha256:eb09aedbabfb650607e9b4b68c9d240b90b1e1be221d6ad71d61c52e29f7932b"},
     {file = "sphinx_basic_ng-1.0.0b2.tar.gz", hash = "sha256:9ec55a47c90c8c002b5960c57492ec3021f5193cb26cebc2dc4ea226848651c9"},
@@ -9820,7 +9785,7 @@ description = "sphinxcontrib-applehelp is a Sphinx extension which outputs Apple
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "sphinxcontrib_applehelp-2.0.0-py3-none-any.whl", hash = "sha256:4cd3f0ec4ac5dd9c17ec65e9ab272c9b867ea77425228e68ecf08d6b28ddbdb5"},
     {file = "sphinxcontrib_applehelp-2.0.0.tar.gz", hash = "sha256:2f29ef331735ce958efa4734873f084941970894c6090408b079c61b2e1c06d1"},
@@ -9838,7 +9803,7 @@ description = "sphinxcontrib-devhelp is a sphinx extension which outputs Devhelp
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "sphinxcontrib_devhelp-2.0.0-py3-none-any.whl", hash = "sha256:aefb8b83854e4b0998877524d1029fd3e6879210422ee3780459e28a1f03a8a2"},
     {file = "sphinxcontrib_devhelp-2.0.0.tar.gz", hash = "sha256:411f5d96d445d1d73bb5d52133377b4248ec79db5c793ce7dbe59e074b4dd1ad"},
@@ -9856,7 +9821,7 @@ description = "sphinxcontrib-htmlhelp is a sphinx extension which renders HTML h
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "sphinxcontrib_htmlhelp-2.1.0-py3-none-any.whl", hash = "sha256:166759820b47002d22914d64a075ce08f4c46818e17cfc9470a9786b759b19f8"},
     {file = "sphinxcontrib_htmlhelp-2.1.0.tar.gz", hash = "sha256:c9e2916ace8aad64cc13a0d233ee22317f2b9025b9cf3295249fa985cc7082e9"},
@@ -9874,7 +9839,7 @@ description = "A sphinx extension which renders display math in HTML via JavaScr
 optional = true
 python-versions = ">=3.5"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "sphinxcontrib-jsmath-1.0.1.tar.gz", hash = "sha256:a9925e4a4587247ed2191a22df5f6970656cb8ca2bd6284309578f2153e0c4b8"},
     {file = "sphinxcontrib_jsmath-1.0.1-py2.py3-none-any.whl", hash = "sha256:2ec2eaebfb78f3f2078e73666b1415417a116cc848b72e5172e596c871103178"},
@@ -9890,7 +9855,7 @@ description = "sphinxcontrib-qthelp is a sphinx extension which outputs QtHelp d
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "sphinxcontrib_qthelp-2.0.0-py3-none-any.whl", hash = "sha256:b18a828cdba941ccd6ee8445dbe72ffa3ef8cbe7505d8cd1fa0d42d3f2d5f3eb"},
     {file = "sphinxcontrib_qthelp-2.0.0.tar.gz", hash = "sha256:4fe7d0ac8fc171045be623aba3e2a8f613f8682731f9153bb2e40ece16b9bbab"},
@@ -9908,7 +9873,7 @@ description = "sphinxcontrib-serializinghtml is a sphinx extension which outputs
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"docs\" or python_version == \"3.12\" and extra == \"docs\""
 files = [
     {file = "sphinxcontrib_serializinghtml-2.0.0-py3-none-any.whl", hash = "sha256:6e2cb0eef194e10c27ec0023bfeb25badbbb5868244cf5bc5bdc04e4464bf331"},
     {file = "sphinxcontrib_serializinghtml-2.0.0.tar.gz", hash = "sha256:e9d912827f872c029017a53f0ef2180b327c3f7fd23c87229f7a8e8b70031d4d"},
@@ -9947,7 +9912,7 @@ description = "SIMD-accelerated string search, sort, hashes, fingerprints, & edi
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "stringzilla-3.12.3-cp310-cp310-macosx_10_11_universal2.whl", hash = "sha256:8ec8f95af09d62b4ca5dc8c6f557035acadfe794edd2291f515b54f3afb59260"},
     {file = "stringzilla-3.12.3-cp310-cp310-macosx_10_11_x86_64.whl", hash = "sha256:d305ed6f35132852844f59964910b202675f76ad48060fea8c6c959b67959c3d"},
@@ -10172,21 +10137,6 @@ files = [
 widechars = ["wcwidth"]
 
 [[package]]
-name = "tbb"
-version = "2021.13.1"
-description = "Intel® oneAPI Threading Building Blocks (oneTBB)"
-optional = true
-python-versions = "*"
-groups = ["main"]
-markers = "(extra == \"local-inference\" or extra == \"legacy-partitioners\") and platform_system == \"Windows\""
-files = [
-    {file = "tbb-2021.13.1-py2.py3-none-manylinux1_i686.whl", hash = "sha256:bb5bdea0c0e9e6ad0739e7a8796c2635ce9eccca86dd48c426cd8027ac70fb1d"},
-    {file = "tbb-2021.13.1-py2.py3-none-manylinux1_x86_64.whl", hash = "sha256:d916359dc685579d09e4b344241550afc1cc034f7f5ec7234c258b6680912d70"},
-    {file = "tbb-2021.13.1-py3-none-win32.whl", hash = "sha256:00f5e5a70051650ddd0ab6247c0549521968339ec21002e475cd23b1cbf46d66"},
-    {file = "tbb-2021.13.1-py3-none-win_amd64.whl", hash = "sha256:cbf024b2463fdab3ebe3fa6ff453026358e6b903839c80d647e08ad6d0796ee9"},
-]
-
-[[package]]
 name = "tenacity"
 version = "8.5.0"
 description = "Retry code until it succeeds"
@@ -10210,7 +10160,7 @@ description = "ANSI color formatting for output in terminal"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "termcolor-2.5.0-py3-none-any.whl", hash = "sha256:37b17b5fc1e604945c2642c872a3764b5d547a48009871aea3edd3afa180afb8"},
     {file = "termcolor-2.5.0.tar.gz", hash = "sha256:998d8d27da6d48442e8e1f016119076b690d962507531df4890fcd2db2ef8a6f"},
@@ -10249,7 +10199,7 @@ description = "threadpoolctl"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"local-inference\" or python_version == \"3.9\" and extra == \"local-inference\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"local-inference\" or python_version == \"3.12\" and extra == \"local-inference\""
 files = [
     {file = "threadpoolctl-3.6.0-py3-none-any.whl", hash = "sha256:43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb"},
     {file = "threadpoolctl-3.6.0.tar.gz", hash = "sha256:8ab8b4aa3491d812b623328249fab5302a68d2d71745c8a4c719a2fcaba9f44e"},
@@ -10286,7 +10236,7 @@ description = "Read and write TIFF files"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version >= \"3.10\" and extra == \"local-inference\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\" or python_version == \"3.12\") and extra == \"local-inference\""
 files = [
     {file = "tifffile-2025.2.18-py3-none-any.whl", hash = "sha256:54b36c4d5e5b8d8920134413edfe5a7cfb1c7617bb50cddf7e2772edb7149043"},
     {file = "tifffile-2025.2.18.tar.gz", hash = "sha256:8d731789e691b468746c1615d989bc550ac93cf753e9210865222e90a5a95d11"},
@@ -10490,101 +10440,102 @@ files = [
     {file = "tomli-2.2.1-py3-none-any.whl", hash = "sha256:cb55c73c5f4408779d0cf3eef9f762b9c9f147a77de7b258bef0a5628adc85cc"},
     {file = "tomli-2.2.1.tar.gz", hash = "sha256:cd45e1dc79c835ce60f7404ec8119f2eb06d38b1deba146f07ced3bbc44505ff"},
 ]
-markers = {main = "python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and extra == \"docs\" and platform_machine == \"aarch64\" and python_version <= \"3.10\" or python_version == \"3.10\" and extra == \"docs\"", dev = "python_version == \"3.9\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version <= \"3.10\" or python_version == \"3.10\"", notebook = "python_version == \"3.9\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version <= \"3.10\" or python_version == \"3.10\"", test = "python_version == \"3.9\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version <= \"3.10\" or python_version == \"3.10\""}
+markers = {main = "python_version == \"3.10\" and extra == \"docs\" or python_version == \"3.9\" and extra == \"docs\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version <= \"3.10\" and extra == \"docs\"", dev = "python_version == \"3.9\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version <= \"3.10\" or python_version == \"3.10\"", notebook = "python_version == \"3.9\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version <= \"3.10\" or python_version == \"3.10\"", test = "python_version == \"3.9\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version <= \"3.10\" or python_version == \"3.10\""}
 
 [[package]]
 name = "torch"
-version = "2.3.1"
+version = "2.4.1"
 description = "Tensors and Dynamic neural networks in Python with strong GPU acceleration"
 optional = true
 python-versions = ">=3.8.0"
 groups = ["main"]
 markers = "platform_system == \"Linux\" and (extra == \"local-inference\" or extra == \"legacy-partitioners\") and platform_machine == \"aarch64\""
 files = [
-    {file = "torch-2.3.1-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:605a25b23944be5ab7c3467e843580e1d888b8066e5aaf17ff7bf9cc30001cc3"},
-    {file = "torch-2.3.1-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:f2357eb0965583a0954d6f9ad005bba0091f956aef879822274b1bcdb11bd308"},
-    {file = "torch-2.3.1-cp310-cp310-win_amd64.whl", hash = "sha256:32b05fe0d1ada7f69c9f86c14ff69b0ef1957a5a54199bacba63d22d8fab720b"},
-    {file = "torch-2.3.1-cp310-none-macosx_11_0_arm64.whl", hash = "sha256:7c09a94362778428484bcf995f6004b04952106aee0ef45ff0b4bab484f5498d"},
-    {file = "torch-2.3.1-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:b2ec81b61bb094ea4a9dee1cd3f7b76a44555375719ad29f05c0ca8ef596ad39"},
-    {file = "torch-2.3.1-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:490cc3d917d1fe0bd027057dfe9941dc1d6d8e3cae76140f5dd9a7e5bc7130ab"},
-    {file = "torch-2.3.1-cp311-cp311-win_amd64.whl", hash = "sha256:5802530783bd465fe66c2df99123c9a54be06da118fbd785a25ab0a88123758a"},
-    {file = "torch-2.3.1-cp311-none-macosx_11_0_arm64.whl", hash = "sha256:a7dd4ed388ad1f3d502bf09453d5fe596c7b121de7e0cfaca1e2017782e9bbac"},
-    {file = "torch-2.3.1-cp312-cp312-manylinux1_x86_64.whl", hash = "sha256:a486c0b1976a118805fc7c9641d02df7afbb0c21e6b555d3bb985c9f9601b61a"},
-    {file = "torch-2.3.1-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:224259821fe3e4c6f7edf1528e4fe4ac779c77addaa74215eb0b63a5c474d66c"},
-    {file = "torch-2.3.1-cp312-cp312-win_amd64.whl", hash = "sha256:e5fdccbf6f1334b2203a61a0e03821d5845f1421defe311dabeae2fc8fbeac2d"},
-    {file = "torch-2.3.1-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:3c333dc2ebc189561514eda06e81df22bf8fb64e2384746b2cb9f04f96d1d4c8"},
-    {file = "torch-2.3.1-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:07e9ba746832b8d069cacb45f312cadd8ad02b81ea527ec9766c0e7404bb3feb"},
-    {file = "torch-2.3.1-cp38-cp38-manylinux2014_aarch64.whl", hash = "sha256:462d1c07dbf6bb5d9d2f3316fee73a24f3d12cd8dacf681ad46ef6418f7f6626"},
-    {file = "torch-2.3.1-cp38-cp38-win_amd64.whl", hash = "sha256:ff60bf7ce3de1d43ad3f6969983f321a31f0a45df3690921720bcad6a8596cc4"},
-    {file = "torch-2.3.1-cp38-none-macosx_11_0_arm64.whl", hash = "sha256:bee0bd33dc58aa8fc8a7527876e9b9a0e812ad08122054a5bff2ce5abf005b10"},
-    {file = "torch-2.3.1-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:aaa872abde9a3d4f91580f6396d54888620f4a0b92e3976a6034759df4b961ad"},
-    {file = "torch-2.3.1-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:3d7a7f7ef21a7520510553dc3938b0c57c116a7daee20736a9e25cbc0e832bdc"},
-    {file = "torch-2.3.1-cp39-cp39-win_amd64.whl", hash = "sha256:4777f6cefa0c2b5fa87223c213e7b6f417cf254a45e5829be4ccd1b2a4ee1011"},
-    {file = "torch-2.3.1-cp39-none-macosx_11_0_arm64.whl", hash = "sha256:2bb5af780c55be68fe100feb0528d2edebace1d55cb2e351de735809ba7391eb"},
+    {file = "torch-2.4.1-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:362f82e23a4cd46341daabb76fba08f04cd646df9bfaf5da50af97cb60ca4971"},
+    {file = "torch-2.4.1-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:e8ac1985c3ff0f60d85b991954cfc2cc25f79c84545aead422763148ed2759e3"},
+    {file = "torch-2.4.1-cp310-cp310-win_amd64.whl", hash = "sha256:91e326e2ccfb1496e3bee58f70ef605aeb27bd26be07ba64f37dcaac3d070ada"},
+    {file = "torch-2.4.1-cp310-none-macosx_11_0_arm64.whl", hash = "sha256:d36a8ef100f5bff3e9c3cea934b9e0d7ea277cb8210c7152d34a9a6c5830eadd"},
+    {file = "torch-2.4.1-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:0b5f88afdfa05a335d80351e3cea57d38e578c8689f751d35e0ff36bce872113"},
+    {file = "torch-2.4.1-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:ef503165f2341942bfdf2bd520152f19540d0c0e34961232f134dc59ad435be8"},
+    {file = "torch-2.4.1-cp311-cp311-win_amd64.whl", hash = "sha256:092e7c2280c860eff762ac08c4bdcd53d701677851670695e0c22d6d345b269c"},
+    {file = "torch-2.4.1-cp311-none-macosx_11_0_arm64.whl", hash = "sha256:ddddbd8b066e743934a4200b3d54267a46db02106876d21cf31f7da7a96f98ea"},
+    {file = "torch-2.4.1-cp312-cp312-manylinux1_x86_64.whl", hash = "sha256:fdc4fe11db3eb93c1115d3e973a27ac7c1a8318af8934ffa36b0370efe28e042"},
+    {file = "torch-2.4.1-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:18835374f599207a9e82c262153c20ddf42ea49bc76b6eadad8e5f49729f6e4d"},
+    {file = "torch-2.4.1-cp312-cp312-win_amd64.whl", hash = "sha256:ebea70ff30544fc021d441ce6b219a88b67524f01170b1c538d7d3ebb5e7f56c"},
+    {file = "torch-2.4.1-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:72b484d5b6cec1a735bf3fa5a1c4883d01748698c5e9cfdbeb4ffab7c7987e0d"},
+    {file = "torch-2.4.1-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:c99e1db4bf0c5347107845d715b4aa1097e601bdc36343d758963055e9599d93"},
+    {file = "torch-2.4.1-cp38-cp38-manylinux2014_aarch64.whl", hash = "sha256:b57f07e92858db78c5b72857b4f0b33a65b00dc5d68e7948a8494b0314efb880"},
+    {file = "torch-2.4.1-cp38-cp38-win_amd64.whl", hash = "sha256:f18197f3f7c15cde2115892b64f17c80dbf01ed72b008020e7da339902742cf6"},
+    {file = "torch-2.4.1-cp38-none-macosx_11_0_arm64.whl", hash = "sha256:5fc1d4d7ed265ef853579caf272686d1ed87cebdcd04f2a498f800ffc53dab71"},
+    {file = "torch-2.4.1-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:40f6d3fe3bae74efcf08cb7f8295eaddd8a838ce89e9d26929d4edd6d5e4329d"},
+    {file = "torch-2.4.1-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:c9299c16c9743001ecef515536ac45900247f4338ecdf70746f2461f9e4831db"},
+    {file = "torch-2.4.1-cp39-cp39-win_amd64.whl", hash = "sha256:6bce130f2cd2d52ba4e2c6ada461808de7e5eccbac692525337cfb4c19421846"},
+    {file = "torch-2.4.1-cp39-none-macosx_11_0_arm64.whl", hash = "sha256:a38de2803ee6050309aac032676536c3d3b6a9804248537e38e098d0e14817ec"},
 ]
 
 [package.dependencies]
 filelock = "*"
 fsspec = "*"
 jinja2 = "*"
-mkl = {version = ">=2021.1.1,<=2021.4.0", markers = "platform_system == \"Windows\""}
 networkx = "*"
 nvidia-cublas-cu12 = {version = "12.1.3.1", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
 nvidia-cuda-cupti-cu12 = {version = "12.1.105", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
 nvidia-cuda-nvrtc-cu12 = {version = "12.1.105", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
 nvidia-cuda-runtime-cu12 = {version = "12.1.105", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
-nvidia-cudnn-cu12 = {version = "8.9.2.26", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
+nvidia-cudnn-cu12 = {version = "9.1.0.70", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
 nvidia-cufft-cu12 = {version = "11.0.2.54", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
 nvidia-curand-cu12 = {version = "10.3.2.106", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
 nvidia-cusolver-cu12 = {version = "11.4.5.107", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
 nvidia-cusparse-cu12 = {version = "12.1.0.106", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
 nvidia-nccl-cu12 = {version = "2.20.5", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
 nvidia-nvtx-cu12 = {version = "12.1.105", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
+setuptools = "*"
 sympy = "*"
-triton = {version = "2.3.1", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\" and python_version < \"3.12\""}
+triton = {version = "3.0.0", markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\" and python_version < \"3.13\""}
 typing-extensions = ">=4.8.0"
 
 [package.extras]
 opt-einsum = ["opt-einsum (>=3.3)"]
-optree = ["optree (>=0.9.1)"]
+optree = ["optree (>=0.11.0)"]
 
 [[package]]
 name = "torchvision"
-version = "0.18.1"
+version = "0.19.1"
 description = "image and video datasets and models for torch deep learning"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
 markers = "platform_system == \"Linux\" and (extra == \"local-inference\" or extra == \"legacy-partitioners\") and platform_machine == \"aarch64\""
 files = [
-    {file = "torchvision-0.18.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:3e694e54b0548dad99c12af6bf0c8e4f3350137d391dcd19af22a1c5f89322b3"},
-    {file = "torchvision-0.18.1-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:0b3bda0aa5b416eeb547143b8eeaf17720bdba9cf516dc991aacb81811aa96a5"},
-    {file = "torchvision-0.18.1-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:573ff523c739405edb085f65cb592f482d28a30e29b0be4c4ba08040b3ae785f"},
-    {file = "torchvision-0.18.1-cp310-cp310-win_amd64.whl", hash = "sha256:ef7bbbc60b38e831a75e547c66ca1784f2ac27100f9e4ddbe9614cef6cbcd942"},
-    {file = "torchvision-0.18.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:80b5d794dd0fdba787adc22f1a367a5ead452327686473cb260dd94364bc56a6"},
-    {file = "torchvision-0.18.1-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:9077cf590cdb3a5e8fdf5cdb71797f8c67713f974cf0228ecb17fcd670ab42f9"},
-    {file = "torchvision-0.18.1-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:ceb993a882f1ae7ae373ed39c28d7e3e802205b0e59a7ed84ef4028f0bba8d7f"},
-    {file = "torchvision-0.18.1-cp311-cp311-win_amd64.whl", hash = "sha256:52f7436140045dc2239cdc502aa76b2bd8bd676d64244ff154d304aa69852046"},
-    {file = "torchvision-0.18.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:2be6f0bf7c455c89a51a1dbb6f668d36c6edc479f49ac912d745d10df5715657"},
-    {file = "torchvision-0.18.1-cp312-cp312-manylinux1_x86_64.whl", hash = "sha256:f118d887bfde3a948a41d56587525401e5cac1b7db2eaca203324d6ed2b1caca"},
-    {file = "torchvision-0.18.1-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:13d24d904f65e62d66a1e0c41faec630bc193867b8a4a01166769e8a8e8df8e9"},
-    {file = "torchvision-0.18.1-cp312-cp312-win_amd64.whl", hash = "sha256:ed6340b69a63a625e512a66127210d412551d9c5f2ad2978130c6a45bf56cd4a"},
-    {file = "torchvision-0.18.1-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:b1c3864fa9378c88bce8ad0ef3599f4f25397897ce612e1c245c74b97092f35e"},
-    {file = "torchvision-0.18.1-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:02085a2ffc7461f5c0edb07d6f3455ee1806561f37736b903da820067eea58c7"},
-    {file = "torchvision-0.18.1-cp38-cp38-manylinux2014_aarch64.whl", hash = "sha256:9726c316a2501df8503e5a5dc46a631afd4c515a958972e5b7f7b9c87d2125c0"},
-    {file = "torchvision-0.18.1-cp38-cp38-win_amd64.whl", hash = "sha256:64a2662dbf30db9055d8b201d6e56f312a504e5ccd9d144c57c41622d3c524cb"},
-    {file = "torchvision-0.18.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:975b8594c0f5288875408acbb74946eea786c5b008d129c0d045d0ead23742bc"},
-    {file = "torchvision-0.18.1-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:da83c8bbd34d8bee48bfa1d1b40e0844bc3cba10ed825a5a8cbe3ce7b62264cd"},
-    {file = "torchvision-0.18.1-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:54bfcd352abb396d5c9c237d200167c178bd136051b138e1e8ef46ce367c2773"},
-    {file = "torchvision-0.18.1-cp39-cp39-win_amd64.whl", hash = "sha256:5c8366a1aeee49e9ea9e64b30d199debdf06b1bd7610a76165eb5d7869c3bde5"},
+    {file = "torchvision-0.19.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:54e8513099e6f586356c70f809d34f391af71ad182fe071cc328a28af2c40608"},
+    {file = "torchvision-0.19.1-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:20a1f5e02bfdad7714e55fa3fa698347c11d829fa65e11e5a84df07d93350eed"},
+    {file = "torchvision-0.19.1-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:7b063116164be52fc6deb4762de7f8c90bfa3a65f8d5caf17f8e2d5aadc75a04"},
+    {file = "torchvision-0.19.1-cp310-cp310-win_amd64.whl", hash = "sha256:f40b6acabfa886da1bc3768f47679c61feee6bde90deb979d9f300df8c8a0145"},
+    {file = "torchvision-0.19.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:40514282b4896d62765b8e26d7091c32e17c35817d00ec4be2362ea3ba3d1787"},
+    {file = "torchvision-0.19.1-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:5a91be061ae5d6d5b95e833b93e57ca4d3c56c5a57444dd15da2e3e7fba96050"},
+    {file = "torchvision-0.19.1-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:d71a6a6fe3a5281ca3487d4c56ad4aad20ff70f82f1d7c79bcb6e7b0c2af00c8"},
+    {file = "torchvision-0.19.1-cp311-cp311-win_amd64.whl", hash = "sha256:70dea324174f5e9981b68e4b7cd524512c106ba64aedef560a86a0bbf2fbf62c"},
+    {file = "torchvision-0.19.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:27ece277ff0f6cdc7fed0627279c632dcb2e58187da771eca24b0fbcf3f8590d"},
+    {file = "torchvision-0.19.1-cp312-cp312-manylinux1_x86_64.whl", hash = "sha256:c659ff92a61f188a1a7baef2850f3c0b6c85685447453c03d0e645ba8f1dcc1c"},
+    {file = "torchvision-0.19.1-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:c07bf43c2a145d792ecd9d0503d6c73577147ece508d45600d8aac77e4cdfcf9"},
+    {file = "torchvision-0.19.1-cp312-cp312-win_amd64.whl", hash = "sha256:b4283d283675556bb0eae31d29996f53861b17cbdcdf3509e6bc050414ac9289"},
+    {file = "torchvision-0.19.1-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:4c4e4f5b24ea6b087b02ed492ab1e21bba3352c4577e2def14248cfc60732338"},
+    {file = "torchvision-0.19.1-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:9281d63ead929bb19143731154cd1d8bf0b5e9873dff8578a40e90a6bec3c6fa"},
+    {file = "torchvision-0.19.1-cp38-cp38-manylinux2014_aarch64.whl", hash = "sha256:4d10bc9083c4d5fadd7edd7b729700a7be48dab4f62278df3bc73fa48e48a155"},
+    {file = "torchvision-0.19.1-cp38-cp38-win_amd64.whl", hash = "sha256:ccf085ef1824fb9e16f1901285bf89c298c62dfd93267a39e8ee42c71255242f"},
+    {file = "torchvision-0.19.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:731f434d91586769e255b5d70ed1a4457e0a1394a95f4aacf0e1e7e21f80c098"},
+    {file = "torchvision-0.19.1-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:febe4f14d4afcb47cc861d8be7760ab6a123cd0817f97faf5771488cb6aa90f4"},
+    {file = "torchvision-0.19.1-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:e328309b8670a2e889b2fe76a1c2744a099c11c984da9a822357bd9debd699a5"},
+    {file = "torchvision-0.19.1-cp39-cp39-win_amd64.whl", hash = "sha256:6616f12e00a22e7f3fedbd0fccb0804c05e8fe22871668f10eae65cf3f283614"},
 ]
 
 [package.dependencies]
 numpy = "*"
 pillow = ">=5.3.0,<8.3.dev0 || >=8.4.dev0"
-torch = "2.3.1"
+torch = "2.4.1"
 
 [package.extras]
+gdown = ["gdown (>=4.7.3)"]
 scipy = ["scipy"]
 
 [[package]]
@@ -10722,19 +10673,23 @@ vision = ["Pillow (>=10.0.1,<=15.0)"]
 
 [[package]]
 name = "triton"
-version = "2.3.1"
+version = "3.0.0"
 description = "A language and compiler for custom Deep Learning operations"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\" and (extra == \"local-inference\" or extra == \"legacy-partitioners\") and (python_version == \"3.9\" or python_version == \"3.10\" or python_version == \"3.11\")"
+markers = "platform_system == \"Linux\" and platform_machine == \"x86_64\" and (extra == \"local-inference\" or extra == \"legacy-partitioners\")"
 files = [
-    {file = "triton-2.3.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3c84595cbe5e546b1b290d2a58b1494df5a2ef066dd890655e5b8a8a92205c33"},
-    {file = "triton-2.3.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c9d64ae33bcb3a7a18081e3a746e8cf87ca8623ca13d2c362413ce7a486f893e"},
-    {file = "triton-2.3.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:eaf80e8761a9e3498aa92e7bf83a085b31959c61f5e8ac14eedd018df6fccd10"},
-    {file = "triton-2.3.1-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b13bf35a2b659af7159bf78e92798dc62d877aa991de723937329e2d382f1991"},
-    {file = "triton-2.3.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:63381e35ded3304704ea867ffde3b7cfc42c16a55b3062d41e017ef510433d66"},
-    {file = "triton-2.3.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1d968264523c7a07911c8fb51b4e0d1b920204dae71491b1fe7b01b62a31e124"},
+    {file = "triton-3.0.0-1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:e1efef76935b2febc365bfadf74bcb65a6f959a9872e5bddf44cc9e0adce1e1a"},
+    {file = "triton-3.0.0-1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:5ce8520437c602fb633f1324cc3871c47bee3b67acf9756c1a66309b60e3216c"},
+    {file = "triton-3.0.0-1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:34e509deb77f1c067d8640725ef00c5cbfcb2052a1a3cb6a6d343841f92624eb"},
+    {file = "triton-3.0.0-1-cp38-cp38-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:bcbf3b1c48af6a28011a5c40a5b3b9b5330530c3827716b5fbf6d7adcc1e53e9"},
+    {file = "triton-3.0.0-1-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:6e5727202f7078c56f91ff13ad0c1abab14a0e7f2c87e91b12b6f64f3e8ae609"},
+    {file = "triton-3.0.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:39b052da883351fdf6be3d93cedae6db3b8e3988d3b09ed221bccecfa9612230"},
+    {file = "triton-3.0.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cd34f19a8582af96e6291d4afce25dac08cb2a5d218c599163761e8e0827208e"},
+    {file = "triton-3.0.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0d5e10de8c011adeb7c878c6ce0dd6073b14367749e34467f1cff2bde1b78253"},
+    {file = "triton-3.0.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e8903767951bf86ec960b4fe4e21bc970055afc65e9d57e916d79ae3c93665e3"},
+    {file = "triton-3.0.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:41004fb1ae9a53fcb3e970745feb87f0e3c94c6ce1ba86e95fa3b8537894bef7"},
 ]
 
 [package.dependencies]
@@ -10742,8 +10697,8 @@ filelock = "*"
 
 [package.extras]
 build = ["cmake (>=3.20)", "lit"]
-tests = ["autopep8", "flake8", "isort", "numpy", "pytest", "scipy (>=1.7.1)", "torch"]
-tutorials = ["matplotlib", "pandas", "tabulate", "torch"]
+tests = ["autopep8", "flake8", "isort", "llnl-hatchet", "numpy", "pytest", "scipy (>=1.7.1)"]
+tutorials = ["matplotlib", "pandas", "tabulate"]
 
 [[package]]
 name = "twisted"
@@ -10881,7 +10836,7 @@ description = "Typing stubs for requests"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "python_version >= \"3.10\" and extra == \"pinecone\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\" or python_version == \"3.12\") and extra == \"pinecone\""
 files = [
     {file = "types_requests-2.32.0.20250306-py3-none-any.whl", hash = "sha256:25f2cbb5c8710b2022f8bbee7b2b66f319ef14aeea2f35d80f18c9dbf3b60a0b"},
     {file = "types_requests-2.32.0.20250306.tar.gz", hash = "sha256:0962352694ec5b2f95fda877ee60a159abdf84a0fc6fdace599f20acb41a03d1"},
@@ -10952,7 +10907,7 @@ description = "Runtime inspection utilities for typing module."
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "typing_inspect-0.9.0-py3-none-any.whl", hash = "sha256:9ee6fc59062311ef8547596ab6b955e1b8aa46242d854bfc78f4f6b0eff35f9f"},
     {file = "typing_inspect-0.9.0.tar.gz", hash = "sha256:b23fc42ff6f6ef6954e4852c1fb512cdd18dbea03134f91f856a95ccc9461f78"},
@@ -10969,7 +10924,7 @@ description = "Runtime typing introspection tools"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "typing_inspection-0.4.0-py3-none-any.whl", hash = "sha256:50e72559fcd2a6367a19f7a7e610e6afcb9fac940c650290eed893d61386832f"},
     {file = "typing_inspection-0.4.0.tar.gz", hash = "sha256:9765c87de36671694a67904bf2c96e395be9c6439bb6c87b5142569dcdd65122"},
@@ -11017,7 +10972,7 @@ description = "A library that prepares raw documents for downstream ML tasks."
 optional = true
 python-versions = ">=3.9.0"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "unstructured-0.16.25-py3-none-any.whl", hash = "sha256:14719ccef2830216cf1c5bf654f75e2bf07b17ca5dcee9da5ac74618130fd337"},
     {file = "unstructured-0.16.25.tar.gz", hash = "sha256:73b9b0f51dbb687af572ecdb849a6811710b9cac797ddeab8ee80fa07d8aa5e6"},
@@ -11084,7 +11039,7 @@ description = "Python Client SDK for Unstructured API"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "unstructured_client-0.31.1-py3-none-any.whl", hash = "sha256:a41f71e910c55d82b9c3f1f523a023535cec880d7ee0aa47df3161732e8592c4"},
     {file = "unstructured_client-0.31.1.tar.gz", hash = "sha256:e120105a4d50d23ee608b8693a31e6fe1d25452a495622b0d8ac132365411ef1"},
@@ -11109,7 +11064,7 @@ description = "A library for performing inference using trained models."
 optional = true
 python-versions = ">=3.7.0"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "unstructured_inference-0.8.9-py3-none-any.whl", hash = "sha256:cf72b3084db7ebadf4b1b72fb2594fd1402578f6fd71d58d82ab4e30f49cdcf8"},
     {file = "unstructured_inference-0.8.9.tar.gz", hash = "sha256:1422d4b1282a056c86e619d5e9a353bcee44c0c59f22971c93b95540f371b6b2"},
@@ -11139,7 +11094,7 @@ description = "Python-tesseract is a python wrapper for Google's Tesseract-OCR"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"legacy-partitioners\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\""
 files = [
     {file = "unstructured.pytesseract-0.3.15-py3-none-any.whl", hash = "sha256:a3f505c5efb7ff9f10379051a7dd6aa624b3be6b0f023ed6767cc80d0b1613d1"},
     {file = "unstructured.pytesseract-0.3.15.tar.gz", hash = "sha256:4b81bc76cfff4e2ef37b04863f0e48bd66184c0b39c3b2b4e017483bca1a7394"},
@@ -11190,7 +11145,7 @@ description = "HTTP library with thread-safe connection pooling, file post, and 
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev", "docker", "notebook"]
-markers = "python_version >= \"3.10\""
+markers = "python_version == \"3.10\" or python_version == \"3.11\" or python_version == \"3.12\""
 files = [
     {file = "urllib3-2.3.0-py3-none-any.whl", hash = "sha256:1cee9ad369867bfdbbb48b7dd50374c0967a0bb7710050facf0dd6911440e3df"},
     {file = "urllib3-2.3.0.tar.gz", hash = "sha256:f8c5449b3cf0861679ce7e0503c7b44b5ec981bec0d1d3795a07f1ba96f0204d"},
@@ -11213,7 +11168,7 @@ files = [
     {file = "validators-0.28.3-py3-none-any.whl", hash = "sha256:53cafa854f13850156259d9cc479b864ee901f6a96e6b109e6fc33f98f37d99f"},
     {file = "validators-0.28.3.tar.gz", hash = "sha256:c6c79840bcde9ba77b19f6218f7738188115e27830cbaff43264bc4ed24c429d"},
 ]
-markers = {main = "extra == \"weaviate\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"weaviate\" or python_version == \"3.9\" and extra == \"weaviate\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"weaviate\" or python_version == \"3.12\" and extra == \"weaviate\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [[package]]
 name = "virtualenv"
@@ -11274,7 +11229,7 @@ files = [
     {file = "weaviate_client-4.6.4-py3-none-any.whl", hash = "sha256:19b76fb923a5f0b6fcb7471ef3cd990d2791ede71731e53429e1066a9dbf2af2"},
     {file = "weaviate_client-4.6.4.tar.gz", hash = "sha256:5378db8a33bf1d48adff3f9efa572d9fb04eaeb36444817cab56f1ba3c595500"},
 ]
-markers = {main = "extra == \"weaviate\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"weaviate\" or python_version == \"3.9\" and extra == \"weaviate\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"weaviate\" or python_version == \"3.12\" and extra == \"weaviate\"", dev = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [package.dependencies]
 authlib = ">=1.2.1,<2.0.0"
@@ -11310,7 +11265,7 @@ files = [
     {file = "webencodings-0.5.1-py2.py3-none-any.whl", hash = "sha256:a0af1213f3c2226497a97e2b3aa01a7e4bee4f403f95be16fc9acd2947514a78"},
     {file = "webencodings-0.5.1.tar.gz", hash = "sha256:b36a1c245f2d304965eb4e0a82848379241dc04b865afcc4aab16748587e1923"},
 ]
-markers = {main = "extra == \"legacy-partitioners\"", notebook = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
+markers = {main = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"legacy-partitioners\" or python_version == \"3.9\" and extra == \"legacy-partitioners\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"legacy-partitioners\" or python_version == \"3.12\" and extra == \"legacy-partitioners\"", notebook = "platform_system == \"Linux\" and platform_machine == \"aarch64\""}
 
 [[package]]
 name = "websocket-client"
@@ -11337,7 +11292,7 @@ description = "An implementation of the WebSocket Protocol (RFC 6455 & 7692)"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"google-genai\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"google-genai\" or python_version == \"3.9\" and extra == \"google-genai\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"google-genai\" or python_version == \"3.12\" and extra == \"google-genai\""
 files = [
     {file = "websockets-14.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:e8179f95323b9ab1c11723e5d91a89403903f7b001828161b480a7810b334885"},
     {file = "websockets-14.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:0d8c3e2cdb38f31d8bd7d9d28908005f6fa9def3324edb9bf336d7e4266fd397"},
@@ -11417,7 +11372,7 @@ description = "pure python download utility"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"pinecone\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"pinecone\" or python_version == \"3.9\" and extra == \"pinecone\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"pinecone\" or python_version == \"3.12\" and extra == \"pinecone\""
 files = [
     {file = "wget-3.2.zip", hash = "sha256:35e630eca2aa50ce998b9b1a127bb26b30dfee573702782aa982f875e3f16061"},
 ]
@@ -11545,7 +11500,7 @@ description = "Python binding for xxHash"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"eval\""
+markers = "(python_version == \"3.10\" or python_version == \"3.11\") and extra == \"eval\" or python_version == \"3.9\" and extra == \"eval\" or platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version < \"3.10\" and extra == \"eval\" or python_version == \"3.12\" and extra == \"eval\""
 files = [
     {file = "xxhash-3.5.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:ece616532c499ee9afbb83078b1b952beffef121d989841f7f4b3dc5ac0fd212"},
     {file = "xxhash-3.5.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:3171f693dbc2cef6477054a665dc255d996646b4023fe56cb4db80e26f4cc520"},
@@ -11865,4 +11820,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<3.13"
-content-hash = "bbc11fa6dfbf8de7dad2ab352ca87f6c1550dfd7c3ea91d045c9c08c72c415fc"
+content-hash = "4e6dc8a819764548f32dfeb5d4f667555656c0962af19a99c8d7a4858b57c1b5"

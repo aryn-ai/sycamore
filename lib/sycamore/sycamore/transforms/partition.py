@@ -451,6 +451,7 @@ class ArynPartitioner(Partitioner):
         table_structure_extractor: Optional[TableStructureExtractor] = None,
         table_extractor_options: dict[str, Any] = {},
         extract_images: bool = False,
+        extract_image_format: str = "PPM",
         device=None,
         batch_size: int = 1,
         use_partitioning_service: bool = True,
@@ -494,6 +495,7 @@ class ArynPartitioner(Partitioner):
         self._table_structure_extractor = table_structure_extractor
         self._table_extractor_options = table_extractor_options
         self._extract_images = extract_images
+        self._extract_image_format = extract_image_format
         self._output_format = output_format
         self._batch_size = batch_size
         self._use_partitioning_service = use_partitioning_service
@@ -524,6 +526,7 @@ class ArynPartitioner(Partitioner):
                 table_structure_extractor=self._table_structure_extractor,
                 table_extractor_options=self._table_extractor_options,
                 extract_images=self._extract_images,
+                extract_image_format=self._extract_image_format,
                 batch_size=self._batch_size,
                 use_partitioning_service=self._use_partitioning_service,
                 aryn_api_key=self._aryn_api_key,

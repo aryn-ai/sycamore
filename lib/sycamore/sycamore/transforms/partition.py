@@ -451,7 +451,7 @@ class ArynPartitioner(Partitioner):
         table_structure_extractor: Optional[TableStructureExtractor] = None,
         table_extractor_options: dict[str, Any] = {},
         extract_images: bool = False,
-        extract_image_format: Literal["PPM", "PNG"] = "PPM",
+        extract_image_format: str = "PPM",
         device=None,
         batch_size: int = 1,
         use_partitioning_service: bool = True,

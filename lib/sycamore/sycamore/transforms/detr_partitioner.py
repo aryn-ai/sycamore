@@ -159,7 +159,7 @@ class ArynPDFPartitioner:
         table_structure_extractor=None,
         table_extractor_options: dict = {},
         extract_images=False,
-        extract_image_format: Literal["PPM", "PNG"] = "PPM",
+        extract_image_format: str = "PPM",
         batch_size: int = 1,
         use_partitioning_service=True,
         aryn_api_key: str = "",
@@ -318,7 +318,7 @@ class ArynPDFPartitioner:
         table_structure_extractor=None,
         table_extractor_options: dict = {},
         extract_images: bool = False,
-        extract_image_format: Literal["PPM", "PNG"] = "PPM",
+        extract_image_format: str = "PPM",
         batch_size: int = 1,
         use_cache=False,
         text_extraction_options: dict[str, Any] = {},
@@ -439,7 +439,7 @@ class ArynPDFPartitioner:
         table_structure_extractor,
         table_extractor_options: dict,
         extract_images: bool,
-        extract_image_format: Literal["PPM", "PNG"],
+        extract_image_format: str,
         use_cache,
     ) -> Any:
         with LogTime("infer"):
@@ -547,7 +547,7 @@ class ArynPDFPartitioner:
         table_structure_extractor,
         table_extractor_options: dict,
         extract_images: bool,
-        extract_image_format: Literal["PPM", "PNG"] = "PPM",
+        extract_image_format: str = "PPM",
     ) -> Any:
         if extract_table_structure:
             with LogTime("extract_table_structure_batch"):

@@ -58,6 +58,8 @@ def base64_data(image: Image.Image, format="PNG") -> str:
     Args:
        image: A PIL image.
     """
+    if format is None:
+        format = "PNG"
 
     return base64.b64encode(image_to_bytes(image, format)).decode("utf-8")
 

@@ -21,7 +21,7 @@ from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_
 from sycamore.utils import choose_device
 from sycamore.utils.bbox_sort import bbox_sort_page
 from sycamore.utils.cache import Cache
-from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
+from sycamore.utils.image_utils import crop_to_bbox, base64_data
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.markdown import elements_to_markdown
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
@@ -159,7 +159,7 @@ class ArynPDFPartitioner:
         table_structure_extractor=None,
         table_extractor_options: dict = {},
         extract_images=False,
-        extract_image_format: str = "PPM",
+        extract_image_format: str = "PNG",
         batch_size: int = 1,
         use_partitioning_service=True,
         aryn_api_key: str = "",
@@ -318,7 +318,7 @@ class ArynPDFPartitioner:
         table_structure_extractor=None,
         table_extractor_options: dict = {},
         extract_images: bool = False,
-        extract_image_format: str = "PPM",
+        extract_image_format: str = "PNG",
         batch_size: int = 1,
         use_cache=False,
         text_extraction_options: dict[str, Any] = {},
@@ -365,7 +365,7 @@ class ArynPDFPartitioner:
         table_structure_extractor=None,
         table_extractor_options: dict = {},
         extract_images=False,
-        extract_image_format="PPM",
+        extract_image_format="PNG",
         batch_size: int = 1,
         use_cache=False,
         text_extraction_options: dict[str, Any] = {},
@@ -489,7 +489,7 @@ class ArynPDFPartitioner:
                         if isinstance(element, ImageElement) and element.bbox is not None:
                             cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
                             resolved_format = None if extract_image_format == "PPM" else extract_image_format
-                            element.binary_representation = image_to_bytes(cropped_image, format=resolved_format)
+                            element.binary_representation = base64_data(cropped_image, format=resolved_format)
                             element.image_mode = cropped_image.mode
                             element.image_size = cropped_image.size
                             element.image_format = resolved_format
@@ -547,7 +547,7 @@ class ArynPDFPartitioner:
         table_structure_extractor,
         table_extractor_options: dict,
         extract_images: bool,
-        extract_image_format: str = "PPM",
+        extract_image_format: str = "PNG",
     ) -> Any:
         if extract_table_structure:
             with LogTime("extract_table_structure_batch"):
@@ -567,7 +567,7 @@ class ArynPDFPartitioner:
                         if isinstance(element, ImageElement) and element.bbox is not None:
                             cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
                             resolved_format = None if extract_image_format == "PPM" else extract_image_format
-                            element.binary_representation = image_to_bytes(cropped_image, format=resolved_format)
+                            element.binary_representation = base64_data(cropped_image, format=resolved_format)
                             element.image_mode = cropped_image.mode
                             element.image_size = cropped_image.size
                             element.image_format = resolved_format

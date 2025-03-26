@@ -150,6 +150,19 @@ class TestMultiStepSummarize:
         usermessage = prompt.messages[-1].content
         assert occurrences(usermessage, ": sum") == 2
 
+    def test_no_sub_docs(self, mocker):
+        llm = mocker.Mock(spec=LLM)
+        generate = mocker.patch.object(llm, "generate")
+        generate.return_value = "no summary"
+
+        single_element_doc = SummaryDocument()
+
+        summarizer = MultiStepDocumentSummarizer(llm=llm, question="What is this about?")
+        d = summarizer.summarize(single_element_doc)
+
+        assert d.properties["summary"] == "Empty Summary Document, nothing to summarize"
+        assert generate.call_count == 0  # No sub-documents to summarize
+
     def test_summary_document(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
@@ -326,6 +339,22 @@ class TestOneStepSummarize:
         assert occurrences(usermessage, "properties.title") == 4
         assert "say what?" in usermessage
         assert "properties.state" not in usermessage
+
+    def test_no_sub_docs(self, mocker):
+        llm = mocker.Mock(spec=LLM)
+        generate = mocker.patch.object(llm, "generate")
+        generate.return_value = "sum"
+
+        doc = SummaryDocument()
+
+        summarizer = OneStepDocumentSummarizer(llm, question="What is this about?")
+        summarized_doc = summarizer.summarize(doc)
+
+        assert summarized_doc.properties["summary"] == "sum"
+        assert generate.call_count == 1
+        prompt = generate.call_args.kwargs["prompt"]
+        usermessage = prompt.messages[-1].content
+        assert "What is this about?" in usermessage
 
     def test_basic_with_serde(self, mocker):
         serde_doc = Document.deserialize(self.doc.serialize())

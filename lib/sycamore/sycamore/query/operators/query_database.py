@@ -119,3 +119,13 @@ class QueryVectorDatabase(Node):
     @property
     def input_types(self) -> set[type]:
         return set()
+
+
+class QueryBookmark(Node):
+
+    path: str
+    """The path to load data from."""
+
+    @property
+    def input_types(self) -> set[type]:
+        return set()

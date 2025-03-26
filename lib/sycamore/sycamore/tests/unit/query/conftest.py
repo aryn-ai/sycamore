@@ -1,5 +1,9 @@
+from pathlib import Path
+
 import pytest
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Dict, List, Optional, TYPE_CHECKING, Union
+
+from sycamore.materialize import Materialize
 
 if TYPE_CHECKING:
     from ray.data import Dataset
@@ -30,6 +34,15 @@ class MockOpenSearchReader(OpenSearchReader):
         return from_items(items=[{"doc": doc.serialize()} for doc in self.read_docs()])
 
 
+class MockMaterialize(Materialize):
+    """Mock out OpenSearchReader for tests."""
+
+    def execute(self, **kwargs) -> "Dataset":
+        from ray.data import from_items
+
+        return from_items(items=[{"doc": doc.serialize()} for doc in get_mock_docs()])
+
+
 class MockDocSetReader(DocSetReader):
     """Mock out DocSetReader for tests."""
 
@@ -48,6 +61,10 @@ class MockDocSetReader(DocSetReader):
         )
         mock_osr = MockOpenSearchReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, mock_osr)
+
+    def materialize(self, path: Union[Path, str], **kwargs) -> DocSet:
+        m = MockMaterialize(child=None, context=self._context, path=path)
+        return DocSet(self._context, m)
 
 
 @pytest.fixture

@@ -306,6 +306,22 @@ class TestOneStepSummarize:
         assert "say what?" in usermessage
         assert "properties.state" not in usermessage
 
+    def test_no_sub_docs(self, mocker):
+        llm = mocker.Mock(spec=LLM)
+        generate = mocker.patch.object(llm, "generate")
+        generate.return_value = "sum"
+
+        doc = SummaryDocument()
+
+        summarizer = OneStepDocumentSummarizer(llm, question="What is this about?")
+        summarized_doc = summarizer.summarize(doc)
+
+        assert summarized_doc.properties["summary"] == "sum"
+        assert generate.call_count == 1
+        prompt = generate.call_args.kwargs["prompt"]
+        usermessage = prompt.messages[-1].content
+        assert "What is this about?" in usermessage
+
 
 def filter_elements_on_length(element: Element) -> bool:
     return False if element.text_representation is None else len(element.text_representation) > 10

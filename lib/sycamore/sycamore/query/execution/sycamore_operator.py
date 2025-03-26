@@ -17,7 +17,7 @@ from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
+from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase, QueryBookmark
 from sycamore.query.operators.top_k import TopK, GroupByCount
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.sort import Sort
@@ -116,6 +116,37 @@ class SycamoreQueryDatabase(SycamoreOperator):
 {output_var or get_var_name(self.logical_node)} = context.read.opensearch(
     index_name='{self.logical_node.index}', query={os_query}, reconstruct_document=True
 )
+""",
+            [],
+        )
+
+
+class SycamoreQueryBookmark(SycamoreOperator):
+
+    def __init__(
+        self,
+        context: Context,
+        logical_node: QueryBookmark,
+        query_id: str,
+        trace_dir: Optional[str] = None,
+    ) -> None:
+        super().__init__(context=context, logical_node=logical_node, query_id=query_id, trace_dir=trace_dir)
+
+    def execute(self) -> Any:
+        assert isinstance(self.logical_node, QueryBookmark)
+
+        path = self.logical_node.path
+        result = self.context.read.materialize(path)
+
+        return result
+
+    def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
+        assert isinstance(self.logical_node, QueryDatabase)
+
+        return (
+            f"""
+{output_var or get_var_name(self.logical_node)} = context.read.materialize(
+    path='{self.logical_node.index}')
 """,
             [],
         )

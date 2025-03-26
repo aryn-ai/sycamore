@@ -536,10 +536,7 @@ class OneStepDocumentSummarizer(Summarizer):
         vars = self.get_const_vars()
         prompt = self.prompt.fork(ignore_none=True, question=self.question)
         fields = copy.deepcopy(self.fields)
-        if "sub_docs" in doc.data:
-            data = doc.data
-            data.pop("elements", None)
-            doc = SummaryDocument(**data)
+        if isinstance(doc, SummaryDocument):
             doc.properties = {k: True for d in doc.sub_docs for k in d.properties.keys()}
         doc_fields, elt_fields = _partition_fields(doc, fields)
         fieldset = {f for f in fields if f is not EtCetera}

@@ -163,6 +163,27 @@ class TestMultiStepSummarize:
         assert d.properties["summary"] == "Empty Summary Document, nothing to summarize"
         assert generate.call_count == 0  # No sub-documents to summarize
 
+    def test_summary_document(self, mocker):
+        llm = mocker.Mock(spec=LLM)
+        generate = mocker.patch.object(llm, "generate")
+        generate.return_value = "sum"
+        summarizer = MultiStepDocumentSummarizer(
+            llm=llm, tokenizer=CharacterTokenizer(max_tokens=1000)
+        )  # 1 element -> ~500 chars
+        d = summarizer.summarize(TestOneStepSummarize.doc)
+        assert d.properties["summary"] == "sum"
+
+    def test_summary_document_serde(self, mocker):
+        serde_doc = Document.deserialize(TestOneStepSummarize.doc.serialize())
+        llm = mocker.Mock(spec=LLM)
+        generate = mocker.patch.object(llm, "generate")
+        generate.return_value = "sum"
+        summarizer = MultiStepDocumentSummarizer(
+            llm=llm, tokenizer=CharacterTokenizer(max_tokens=1000)
+        )  # 1 element -> ~500 chars
+        d = summarizer.summarize(serde_doc)
+        assert d.properties["summary"] == "sum"
+
 
 class TestOneStepSummarize:
     doc = SummaryDocument(
@@ -334,6 +355,24 @@ class TestOneStepSummarize:
         prompt = generate.call_args.kwargs["prompt"]
         usermessage = prompt.messages[-1].content
         assert "What is this about?" in usermessage
+
+    def test_basic_with_serde(self, mocker):
+        serde_doc = Document.deserialize(self.doc.serialize())
+        llm = mocker.Mock(spec=LLM)
+        generate = mocker.patch.object(llm, "generate")
+        generate.return_value = "sum"
+        summarizer = OneStepDocumentSummarizer(llm, question="say what?", fields=[])
+        d = summarizer.summarize(serde_doc)
+
+        assert d.properties["summary"] == "sum"
+        assert generate.call_count == 1
+        prompt = generate.call_args.kwargs["prompt"]
+        usermessage = prompt.messages[-1].content
+        assert occurrences(usermessage, "subelement") == 52
+        assert "say what?" in usermessage
+        for e in self.doc.elements:
+            for p in e.properties:
+                assert f"properties.{p}: {e.properties[p]}" in usermessage
 
 
 def filter_elements_on_length(element: Element) -> bool:

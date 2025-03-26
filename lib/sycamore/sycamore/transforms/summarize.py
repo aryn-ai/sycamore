@@ -498,7 +498,11 @@ class OneStepDocumentSummarizer(Summarizer):
         """
         vars = self.get_const_vars()
         # This is complicated bc we might get a SummarizeDocument or a Document
-        max_numel = max(len(d.data.get("elements", [])) for d in doc.data.get("sub_docs", doc.elements))
+        max_numel = (
+            max(len(d.data.get("elements", [])) for d in doc.data.get("sub_docs", doc.elements))
+            if doc.data.get("sub_docs")
+            else 0
+        )
         # If elements can fit there's a little additional fluff added, so recompute baseline tokens
         # with no elements (but the element introduction fluff)
         doc.properties[vars["numel_key"]] = 1

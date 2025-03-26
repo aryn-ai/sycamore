@@ -195,6 +195,10 @@ class Document(UserDict):
             return MetadataDocument(data)
         elif "children" in data:
             return HierarchicalDocument(data)
+        elif "sub_docs" in data:
+            from sycamore.transforms.summarize import SummaryDocument
+
+            return SummaryDocument(data)
         else:
             return Document(data)
 

@@ -150,6 +150,19 @@ class TestMultiStepSummarize:
         usermessage = prompt.messages[-1].content
         assert occurrences(usermessage, ": sum") == 2
 
+    def test_no_sub_docs(self, mocker):
+        llm = mocker.Mock(spec=LLM)
+        generate = mocker.patch.object(llm, "generate")
+        generate.return_value = "no summary"
+
+        single_element_doc = SummaryDocument()
+
+        summarizer = MultiStepDocumentSummarizer(llm=llm, question="What is this about?")
+        d = summarizer.summarize(single_element_doc)
+
+        assert d.properties["summary"] == "Empty Summary Document, nothing to summarize"
+        assert generate.call_count == 0  # No sub-documents to summarize
+
 
 class TestOneStepSummarize:
     doc = SummaryDocument(

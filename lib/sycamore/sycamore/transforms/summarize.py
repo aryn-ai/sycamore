@@ -303,7 +303,10 @@ class MultiStepDocumentSummarizer(Summarizer):
                 break
             last_elt_len = len(remaining_elements)
             round += 1
-        document.properties["summary"] = remaining_elements[0].properties["summary"]
+        if remaining_elements:
+            document.properties["summary"] = remaining_elements[0].properties["summary"]
+        else:
+            document.properties["summary"] = "Empty Summary Document, nothing to summarize"
         for e in document.elements:
             e.properties.pop("summary", None)
         return document
@@ -327,9 +330,10 @@ class MultiStepDocumentSummarizer(Summarizer):
         final_elements = []
         to_infer = []
         for eb in elt_batches:
-            document.elements = eb
-            final_elements.append(eb[0])
-            to_infer.append(base_prompt.render_document(document))
+            if eb:
+                document.elements = eb
+                final_elements.append(eb[0])
+                to_infer.append(base_prompt.render_document(document))
 
         # Invoke the llm and attach summaries
         summaries = _infer_prompts(prompts=to_infer, llm=self.llm, llm_mode=self.llm_mode)

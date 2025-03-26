@@ -124,8 +124,8 @@ def generate_doc(doc_id, keywords, probabilities, max_elems):
     Returns:
         A Document objects with a random set of elements.
     """
-#    return Document (doc_id=doc_id, elements=generate_elements(keywords, probabilities, max_elems))
-    return {'doc_id':doc_id, 'elements':generate_elements(keywords, probabilities, max_elems)}
+    return Document (doc_id=doc_id, elements=generate_elements(keywords, probabilities, max_elems))
+#    return {'doc_id':doc_id, 'elements':generate_elements(keywords, probabilities, max_elems)}
 
 
 def generate_docset(keywords, probabilities, max_docs, max_elems):
@@ -143,7 +143,7 @@ def generate_docset(keywords, probabilities, max_docs, max_elems):
     """
     docset = []
     for i in range(max_docs):
-        doc = generate_doc(i, keywords, probabilities, max_elems)
+        doc = generate_doc(str(i), keywords, probabilities, max_elems)
         docset.append(doc)
     return docset
 
@@ -159,7 +159,8 @@ context = sycamore.init()
 tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
 
-docset_loaded = context.read.document(docs=docset)
+docset_loaded = (context.read.document(docs=docset)
+                .explode())
 # partitioning docset
 docset_loaded.write.opensearch(
         os_client_args=os_client_args,

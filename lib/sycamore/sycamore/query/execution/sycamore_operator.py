@@ -200,8 +200,8 @@ class SycamoreSummarizeData(SycamoreOperator):
         assert description is not None and isinstance(description, str)
         result = summarize_data(
             question=question,
-            result_description=description,
-            result_data=self.inputs,
+            data_description=description,
+            input_data=self.inputs,
             context=self.context,
             **self.get_execute_args(),
         )
@@ -222,8 +222,8 @@ class SycamoreSummarizeData(SycamoreOperator):
         result = f"""
 {output_var or get_var_name(self.logical_node)} = summarize_data(
     question='{question}',
-    result_description='{description}',
-    result_data=[{logical_deps_str}],
+    data_description='{description}',
+    input_data=[{logical_deps_str}],
     context=context,
     use_elements=True,
     **{get_str_for_dict(self.get_execute_args())},
@@ -266,7 +266,7 @@ class SycamoreLlmFilter(SycamoreOperator):
 
         # load into local vars for Ray serialization magic
 
-        prompt = LlmFilterMessagesJinjaPrompt.set(filter_question=question)
+        prompt = LlmFilterMessagesJinjaPrompt.fork(filter_question=question)
 
         result = self.inputs[0].llm_filter(
             new_field="_autogen_LLMFilterOutput",
@@ -283,7 +283,7 @@ class SycamoreLlmFilter(SycamoreOperator):
         input_str = input_var or get_var_name(self.logical_node.input_nodes()[0])
         output_str = output_var or get_var_name(self.logical_node)
         result = f"""
-prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}').as_messages()
+prompt = LlmFilterMessagesJinjaPrompt.fork(filter_question='{self.logical_node.question}').as_messages()
 {output_str} = {input_str}.llm_filter(
     new_field='_autogen_LLMFilterOutput',
     prompt=prompt,

@@ -200,8 +200,8 @@ class SycamoreSummarizeData(SycamoreOperator):
         assert description is not None and isinstance(description, str)
         result = summarize_data(
             question=question,
-            data_description=description,
-            input_data=self.inputs,
+            result_description=description,
+            result_data=self.inputs,
             context=self.context,
             **self.get_execute_args(),
         )
@@ -222,8 +222,8 @@ class SycamoreSummarizeData(SycamoreOperator):
         result = f"""
 {output_var or get_var_name(self.logical_node)} = summarize_data(
     question='{question}',
-    data_description='{description}',
-    input_data=[{logical_deps_str}],
+    result_description='{description}',
+    result_data=[{logical_deps_str}],
     context=context,
     use_elements=True,
     **{get_str_for_dict(self.get_execute_args())},
@@ -266,7 +266,7 @@ class SycamoreLlmFilter(SycamoreOperator):
 
         # load into local vars for Ray serialization magic
 
-        prompt = LlmFilterMessagesJinjaPrompt.fork(filter_question=question)
+        prompt = LlmFilterMessagesJinjaPrompt.set(filter_question=question)
 
         result = self.inputs[0].llm_filter(
             new_field="_autogen_LLMFilterOutput",
@@ -283,7 +283,7 @@ class SycamoreLlmFilter(SycamoreOperator):
         input_str = input_var or get_var_name(self.logical_node.input_nodes()[0])
         output_str = output_var or get_var_name(self.logical_node)
         result = f"""
-prompt = LlmFilterMessagesJinjaPrompt.fork(filter_question='{self.logical_node.question}')
+prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}').as_messages()
 {output_str} = {input_str}.llm_filter(
     new_field='_autogen_LLMFilterOutput',
     prompt=prompt,
@@ -293,7 +293,7 @@ prompt = LlmFilterMessagesJinjaPrompt.fork(filter_question='{self.logical_node.q
 )
 """
         return result, [
-            "from sycamore.llms.prompts.default_prompts import LlmFilterMessagesJinjaPrompt",
+            "from sycamore.llms.prompts.default_prompts import LlmFilterMessagesPrompt",
         ]
 
 
@@ -740,7 +740,7 @@ class SycamoreLimit(SycamoreOperator):
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
         assert isinstance(logical_node, Limit)
-        result = self.inputs[0].limit(logical_node.num_records)
+        result = self.inputs[0].limit(logical_node.num_records, logical_node.field)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:

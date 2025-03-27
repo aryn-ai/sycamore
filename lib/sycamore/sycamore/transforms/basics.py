@@ -1,8 +1,9 @@
-from typing import Callable, TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING, Optional
 
-from sycamore.data import Document
+from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node, NonGPUUser, NonCPUUser, Transform
 from sycamore.transforms.map import MapBatch
+from sycamore.utils.nested import dotted_lookup
 
 if TYPE_CHECKING:
     from ray.data import Dataset
@@ -24,16 +25,59 @@ class Limit(NonCPUUser, NonGPUUser, Transform):
             limited_dataset = limit_transform.execute()
     """
 
-    def __init__(self, child: Node, limit: int):
+    def __init__(self, child: Node, limit: int, field: Optional[str] = None):
         super().__init__(child)
         self._limit = limit
+        self._field = field
 
     def execute(self, **kwargs) -> "Dataset":
+        import ray
+
         dataset = self.child().execute()
-        return dataset.limit(self._limit)
+        rayDocs = []
+        if self._field:
+            unique_docs = set()
+        count = 0
+        for doc in dataset.iter_rows():
+            deser_doc = Document.deserialize(doc["doc"])
+            if self._field:
+                field_val = dotted_lookup(deser_doc, self._field)
+                if field_val is not None and field_val not in unique_docs:
+                    unique_docs.add(field_val)
+                    if len(unique_docs) > self._limit:
+                        break
+                rayDocs.append(doc)
+            else:
+                if not isinstance(deser_doc, MetadataDocument):
+                    count += 1
+                    if count > self._limit:
+                        break
+                rayDocs.append(doc)
+
+        return ray.data.from_items(rayDocs)
 
     def local_execute(self, all_docs: list[Document]) -> list[Document]:
-        return all_docs[: self._limit]
+        filtered_docs: list[Document] = []
+        if self._field:
+            unique_docs = set()
+        count = 0
+
+        for doc in all_docs:
+            if self._field:
+                field_val = dotted_lookup(doc, self._field)
+                if field_val is not None and field_val not in unique_docs:
+                    unique_docs.add(field_val)
+                    if len(unique_docs) > self._limit:
+                        break
+                filtered_docs.append(doc)
+            else:
+                if not isinstance(doc, MetadataDocument):
+                    count += 1
+                    if count > self._limit:
+                        break
+                filtered_docs.append(doc)
+
+        return filtered_docs
 
 
 class Filter(MapBatch):

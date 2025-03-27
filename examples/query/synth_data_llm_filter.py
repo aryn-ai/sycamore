@@ -50,7 +50,7 @@ def generate_doc(doc_id:int, keyword_to_probability:Dict[str, float], maxelems:i
     Returns:
         A Document objects with a random set of elements.
     """
-    return Document (doc_id=doc_id, elements=generate_elements(keyword_to_probability, maxelems))
+    return Document (doc_id=str(doc_id), elements=generate_elements(keyword_to_probability, maxelems))
 #    return {'doc_id':doc_id, 'elements':generate_elements(keywords, probabilities, maxelems)}
 
 
@@ -69,7 +69,7 @@ def generate_docset(keyword_to_probability:Dict[str, float], numdocs:int, maxele
     """
     docset = []
     for i in range(numdocs):
-        doc = generate_doc(str(i), keyword_to_probability, maxelems)
+        doc = generate_doc(i, keyword_to_probability, maxelems)
         docset.append(doc)
     return docset
 
@@ -147,17 +147,17 @@ def main():
     #tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
     #llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
 
-   context.read.document(docs=docset)
-                .explode()
-                .embed(
-                    embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
-                )
-                .write.opensearch(
-                    os_client_args=os_client_args,
-                    index_name=INDEX,
-                    index_settings=index_settings,
-                )
-
+    ctx = (context.read.document(docs=docset)
+                        .explode()
+                        .embed(
+                            embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
+                        )
+                        .write.opensearch(
+                            os_client_args=os_client_args,
+                            index_name=INDEX,
+                            index_settings=index_settings,
+                        )
+    )
 
 
 if __name__ == "__main__":

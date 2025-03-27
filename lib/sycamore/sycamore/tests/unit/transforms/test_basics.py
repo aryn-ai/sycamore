@@ -4,12 +4,14 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms import Limit
 import ray
 
+
 class MockNode(Node):
     def __init__(self, docs):
         self._docs = docs
 
     def execute(self, **kwargs):
-        return ray.data.from_items([{'doc': doc.serialize()} for doc in self._docs])
+        return ray.data.from_items([{"doc": doc.serialize()} for doc in self._docs])
+
 
 @pytest.fixture(scope="module", autouse=True)
 def ray_init():
@@ -17,27 +19,30 @@ def ray_init():
     yield
     ray.shutdown()
 
+
 def test_limit():
-    docs = [Document({'text': f'Doc {i}'}) for i in range(10)]
+    docs = [Document({"text": f"Doc {i}"}) for i in range(10)]
     node = MockNode(docs)
     limit_transform = Limit(node, limit=5)
     result = limit_transform.execute()
     assert len(result.take_all()) == 5
 
+
 def test_limit_with_field_and_metadata():
-    docs = [Document({'id': 1, 'text': f'Doc {i}'}) for i in range(3)]
-    docs.extend([MetadataDocument({ 'text': f'Doc {i}'}) for i in range(3)])
-    docs.extend([Document({'id': 3, 'text': f'Doc {i}'}) for i in range(3)])
-    docs.extend([Document({'id': 4, 'text': f'Doc {i}'}) for i in range(3)])
+    docs = [Document({"id": 1, "text": f"Doc {i}"}) for i in range(3)]
+    docs.extend([MetadataDocument({"text": f"Doc {i}"}) for i in range(3)])
+    docs.extend([Document({"id": 3, "text": f"Doc {i}"}) for i in range(3)])
+    docs.extend([Document({"id": 4, "text": f"Doc {i}"}) for i in range(3)])
     node = MockNode(docs)
-    limit_transform = Limit(node, limit=2, field='id')
+    limit_transform = Limit(node, limit=2, field="id")
     result = limit_transform.execute()
     assert len(result.take_all()) == 9
-    list_of_docs = [Document.deserialize(d['doc']) for d in result.take_all()]
+    list_of_docs = [Document.deserialize(d["doc"]) for d in result.take_all()]
     documents = [doc for doc in list_of_docs if not isinstance(doc, MetadataDocument)]
     assert len(documents) == 6
-    unique_ids = set(doc['id'] for doc in documents)
+    unique_ids = set(doc["id"] for doc in documents)
     assert len(unique_ids) == 2
+
 
 def test_limit_empty_dataset():
     node = MockNode([])
@@ -45,14 +50,15 @@ def test_limit_empty_dataset():
     result = limit_transform.execute()
     assert len(result.take_all()) == 0
 
+
 def test_limit_with_metadata():
-    docs = [Document({'id': i, 'text': f'Doc {i}'}) for i in range(3)]
-    docs.extend([MetadataDocument({'id': i, 'text': f'Doc {i}'}) for i in range(3,6)])
-    docs.extend([Document({'id': i, 'text': f'Doc {i}'}) for i in range(6,9)])
+    docs = [Document({"id": i, "text": f"Doc {i}"}) for i in range(3)]
+    docs.extend([MetadataDocument({"id": i, "text": f"Doc {i}"}) for i in range(3, 6)])
+    docs.extend([Document({"id": i, "text": f"Doc {i}"}) for i in range(6, 9)])
     node = MockNode(docs)
     limit_transform = Limit(node, limit=4)
     result = limit_transform.execute()
-    list_of_docs = [Document.deserialize(d['doc']) for d in result.take_all()]
+    list_of_docs = [Document.deserialize(d["doc"]) for d in result.take_all()]
     documents = [doc for doc in list_of_docs if not isinstance(doc, MetadataDocument)]
     assert len(list_of_docs) == 7
     assert len(documents) == 4

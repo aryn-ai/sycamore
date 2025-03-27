@@ -740,7 +740,10 @@ class SycamoreLimit(SycamoreOperator):
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
         assert isinstance(logical_node, Limit)
-        result = self.inputs[0].limit(logical_node.num_records, logical_node.field)
+        if logical_node.field is not None:
+            result = self.inputs[0].limit(logical_node.num_records, logical_node.field)
+        else:
+            result = self.inputs[0].limit(logical_node.num_records)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
@@ -748,10 +751,19 @@ class SycamoreLimit(SycamoreOperator):
         assert isinstance(logical_node, Limit)
         assert len(logical_node.inputs) == 1
 
-        result = f"""
-{output_var or get_var_name(logical_node)} = {input_var or get_var_name(logical_node.input_nodes()[0])}.limit(
+        # Only include the field if it's not None
+        if logical_node.field is not None:
+            result = f"""
+    {output_var or get_var_name(logical_node)} = {input_var or get_var_name(logical_node.input_nodes()[0])}.limit(
+    {logical_node.num_records}, {logical_node.field},
+    **{get_str_for_dict(self.get_execute_args())},
+    )
+    """
+        else:
+            result = f"""
+    {output_var or get_var_name(logical_node)} = {input_var or get_var_name(logical_node.input_nodes()[0])}.limit(
     {logical_node.num_records},
     **{get_str_for_dict(self.get_execute_args())},
-)
-"""
+    )
+    """
         return result, []

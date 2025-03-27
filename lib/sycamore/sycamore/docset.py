@@ -265,7 +265,7 @@ class DocSet:
             if include_metadata or not isinstance(doc, MetadataDocument):
                 yield doc
 
-    def limit(self, limit: int = 20, **kwargs) -> "DocSet":
+    def limit(self, limit: int = 20, field: Optional[str] = None, **kwargs) -> "DocSet":
         """
         Applies the Limit transforms on the Docset.
 
@@ -284,7 +284,7 @@ class DocSet:
         """
         from sycamore.transforms import Limit
 
-        return DocSet(self.context, Limit(self.plan, limit, **kwargs))
+        return DocSet(self.context, Limit(self.plan, limit, field, **kwargs))
 
     def partition(
         self, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **kwargs

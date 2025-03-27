@@ -1,6 +1,5 @@
 import sycamore
 from sycamore.data import Document, Element
-from sycamore.docset import DocSet
 from sycamore.functions import HuggingFaceTokenizer
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
@@ -9,7 +8,7 @@ from sycamore.utils.opensearch import guess_opensearch_host
 import argparse
 import random
 from opensearchpy import OpenSearch
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 
 def make_element_from_text(text:str) -> Element: 
@@ -33,7 +32,7 @@ def generate_elements(keyword_to_probability:Dict[str, float], max_elements:int)
      gravida turpis vitae aliquet.
     """
     for i in range(num):
-        text = "base_text" + str(i)
+        text = base_text + str(i)
         # choose keywords to include based on the probability of each keyword
         selected_keywords = " ".join([k for k in keyword_to_probability if random.random() < keyword_to_probability[k]])
         strings.append(make_element_from_text(text+selected_keywords))
@@ -76,8 +75,8 @@ def generate_docset(keyword_to_probability:Dict[str, float], numdocs:int, maxele
 
 def main():
     argparser = argparse.ArgumentParser(prog="synth_data_llm_filter")
-    argparser.add_argument("--oshost", default=None, help="The OpenSearch host to use. Defaults to guessing based on whether it is in a container.")
-    argparser.add_argument("--osport", default=9200, help="The OpenSearch port to use")
+    argparser.add_argument("--oshost", default=None, help="OpenSearch host. Defaults to guessing based on whether it is in a container.")
+    argparser.add_argument("--osport", default=9200, help="OpenSearch port to use, Defaults to 9200")
     argparser.add_argument("--numdocs", default=10, help="Number of documents to generate")
     argparser.add_argument("--maxelems", default=5, help="Maximum number of elements in each document")
     argparser.add_argument("--index", default=None, help="The OpenSearch index name to populate")
@@ -135,9 +134,6 @@ def main():
     # The maximum number of elements in each document.
     maxelems = int(args.maxelems)
 
-
-    keywords = ['cat', 'dog']
-    probabilities = [0.1, 0.2]
     keyword_to_probability = {
     'cat': 0.1,
     'dog': 0.2,
@@ -148,17 +144,20 @@ def main():
     print(docset[0])
 
     context = sycamore.init()
-    tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
-    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
+    #tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
+    #llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
 
-    docset_loaded = (context.read.document(docs=docset)
-                    .explode()
-                    .write.opensearch(
-                        os_client_args=os_client_args,
-                        index_name=INDEX,
-                        index_settings=index_settings,
-                    )
-    )
+   context.read.document(docs=docset)
+                .explode()
+                .embed(
+                    embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
+                )
+                .write.opensearch(
+                    os_client_args=os_client_args,
+                    index_name=INDEX,
+                    index_settings=index_settings,
+                )
+
 
 
 if __name__ == "__main__":

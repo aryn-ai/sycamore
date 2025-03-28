@@ -505,7 +505,7 @@ class OpenSearchReader(BaseDBReader):
 
         # logger.info(f"Sample docs: {docs[:5]}")
         ds = from_items(items=[doc["_source"] for doc in docs])
-        if self._query_params.reconstruct_document:
+        if self._query_params.reconstruct_document or self._query_params.doc_reconstructor is not None:
             return ds.groupby("parent_id").map_groups(self.map_reduce_parent_id).map(self.reconstruct)
         else:
             return (
@@ -573,7 +573,7 @@ class OpenSearchReader(BaseDBReader):
 
             ds = from_items(items=docs)
 
-            if self._query_params.reconstruct_document:
+            if self._query_params.reconstruct_document or self._query_params.doc_reconstructor is not None:
                 # Step 1: Construct slices (pages)
                 # Step 2: For each page, get all parent documents
                 # Step 3: Group by parent_id

@@ -9,6 +9,7 @@ from sycamore.utils.pdf import pdf_to_image_files
 from sycamore.utils.import_utils import requires_modules
 from sycamore.transforms.text_extraction.text_extractor import TextExtractor
 import logging
+import os
 from sycamore.utils.time_trace import timetrace
 import tempfile
 
@@ -70,7 +71,21 @@ class EasyOcr(OcrModel):
     def __init__(self, lang_list=["en"], **kwargs):
         import easyocr
 
+        if os.environ.get("ARYN_AIRGAPPED", "false") == "true":
+            md = self._model_dir()
+            assert md is not None, "Unable to find pre-downloaded model directory"
+            kwargs["model_storage_directory"] = md
+            kwargs["download_enabled"] = False
+
         self.reader = easyocr.Reader(lang_list=lang_list, **kwargs)
+
+    def _model_dir(self):
+        possibles = ["/aryn/models/easyocr", "/app/models/easyocr"]
+        for p in possibles:
+            if os.path.exists(p):
+                return p + "/"
+
+        return None
 
     def get_text(self, image: Image.Image) -> tuple[str, Optional[float]]:
         image_bytes = BytesIO()

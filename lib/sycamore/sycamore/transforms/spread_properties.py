@@ -2,6 +2,7 @@ from sycamore.data import Document
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
+from copy import deepcopy
 
 
 class SpreadProperties(SingleThreadUser, NonGPUUser, Map):
@@ -35,5 +36,9 @@ class SpreadProperties(SingleThreadUser, NonGPUUser, Map):
 
         # TODO: Have a way to let existing element properties win.
         for element in parent.elements:
-            element.properties.update(newProps)
+            for k, v in newProps.items():
+                if isinstance(v, (dict, list)):
+                    element.properties[k] = deepcopy(v)
+                else:
+                    element.properties[k] = v
         return parent

@@ -49,3 +49,12 @@ class TestSpreadProperties:
                 assert elem.properties["filetype"] == "text/plain"
                 assert elem.properties["path"] == "/docs/foo.txt"
                 assert elem.properties["title"] == "bar"
+
+    def test_spread_dict_copies_dict(self):
+        doc = self.doc.copy()
+        doc.properties["copyme"] = {"key": "value"}
+        sdoc = SpreadProperties(None, ["copyme"]).run(doc)
+        sdoc.elements[0].properties["copyme"]["key"] = "othervalue"
+        assert sdoc.properties["copyme"]["key"] == "value"
+        assert sdoc.elements[0].properties["copyme"]["key"] == "othervalue"
+        assert sdoc.elements[1].properties["copyme"]["key"] == "value"

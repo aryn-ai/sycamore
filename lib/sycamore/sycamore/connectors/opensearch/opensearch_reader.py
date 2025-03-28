@@ -281,6 +281,10 @@ class OpenSearchReader(BaseDBReader):
             query_params, OpenSearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
 
+        if query_params.reconstruct_document and query_params.doc_reconstructor is not None:
+            logger.info("Both reconstruct_document and doc_reconstructor are set. doc_reconstructor will be used.")
+            query_params.reconstruct_document = False
+
         super().__init__(client_params, query_params, **kwargs)
         self._client_params = client_params
         self._query_params = query_params

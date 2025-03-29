@@ -1,4 +1,5 @@
 from sycamore.query.logical_plan import Node
+from typing import Optional
 
 
 class Limit(Node):
@@ -8,4 +9,5 @@ class Limit(Node):
     """
 
     num_records: int
+    field: Optional[str] = None
     """The number of records of the database to return."""

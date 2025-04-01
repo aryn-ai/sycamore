@@ -11,6 +11,21 @@ from sycamore.transforms.table_structure.extract import (
 HTSE = HybridTableStructureExtractor
 
 
+class MockTableModel(TableTransformerStructureExtractor):
+    def __init__(self, killme: bool):
+        self.die = killme
+
+    def extract(
+        self, element: TableElement, doc_image: Image.Image, union_tokens: bool = False, apply_thresholds: bool = False
+    ) -> TableElement:
+        if self.die:
+            raise ValueError("I should die")
+        return element
+
+    def _init_structure_model(self):
+        pass
+
+
 class TestTableExtractors:
 
     @staticmethod
@@ -46,6 +61,17 @@ class TestTableExtractors:
         extractor = HybridTableStructureExtractor(deformable_model="dont initialize me")
         chosen = extractor._pick_model(elt, im, model_selection="pixels>500->deformable_detr;table_transformer")
         assert type(chosen) == TableTransformerStructureExtractor
+
+    def test_hybrid_deformable_fail(self, mocker):
+        im = TestTableExtractors.mock_doc_image(mocker, 1000, 1000)
+        elt = TestTableExtractors.mock_table_element(mocker, 0.2, 0.2)
+
+        extractor = HybridTableStructureExtractor(deformable_model="dont initialize me")
+        extractor._tatr = MockTableModel(killme=False)
+        extractor._deformable = MockTableModel(killme=True)  # type: ignore
+        with pytest.raises(Exception):
+            extractor._deformable.extract(elt, im)
+        extractor.extract(elt, im, model_selection="deformable_detr")
 
 
 class TestHybridSelectionStatements:

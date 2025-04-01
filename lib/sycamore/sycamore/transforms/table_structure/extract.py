@@ -316,6 +316,11 @@ class HybridTableStructureExtractor(TableStructureExtractor):
                 If no statements are matched, defaults to table transformer.
         """
         m = self._pick_model(element, doc_image, model_selection)
+        if m is self._deformable:
+            try:
+                return m.extract(element, doc_image, union_tokens)
+            except Exception:
+                m = self._tatr
         return m.extract(element, doc_image, union_tokens)
 
     @classmethod

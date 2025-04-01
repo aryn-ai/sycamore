@@ -1,6 +1,11 @@
 import sycamore
+from sycamore.connectors.opensearch.utils import get_knn_query
 from sycamore.data import Document, Element
-from sycamore.functions import HuggingFaceTokenizer
+from sycamore.docset import DocSet
+#from sycamore.functions import HuggingFaceTokenizer
+from sycamore.query.client import SycamoreQueryClient
+from sycamore.query.logical_plan import LogicalPlan
+from sycamore.query.execution.sycamore_operator import QueryDatabase, QueryVectorDatabase, Limit, LlmFilter, BasicFilter, TopK
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.utils.opensearch import guess_opensearch_host
@@ -9,7 +14,23 @@ import argparse
 import random
 from opensearchpy import OpenSearch
 from typing import List, Dict
+from rich.console import Console
+import time
 
+
+def get_docs(result):
+    console = Console()
+    if isinstance(result, DocSet):
+        print("Got a docset back, forcing execution")
+        result = result.take_all()
+        console.rule("Docset query result")
+        print(f"Got {len(result)} documents back")
+        #print(result[:3])
+        return [doc['doc_id'] for doc in result]
+    else:
+        console.rule("Non-docset query result")
+        print("Got a non-docset back")
+        print(result)
 
 def make_element_from_text(text:str) -> Element: 
 
@@ -32,13 +53,13 @@ def generate_elements(keyword_to_probability:Dict[str, float], max_elements:int)
      gravida turpis vitae aliquet.
     """
     for i in range(num):
-        text = base_text + str(i)
+        text = base_text
         # choose keywords to include based on the probability of each keyword
         selected_keywords = " ".join([k for k in keyword_to_probability if random.random() < keyword_to_probability[k]])
         strings.append(make_element_from_text(text+selected_keywords))
     return strings
 
-def generate_doc(doc_id:int, keyword_to_probability:Dict[str, float], maxelems:int) -> Document:
+def generate_doc(doc_id:str, keyword_to_probability:Dict[str, float], maxelems:int) -> Document:
     """
     Generate a document with random elements.
 
@@ -50,7 +71,7 @@ def generate_doc(doc_id:int, keyword_to_probability:Dict[str, float], maxelems:i
     Returns:
         A Document objects with a random set of elements.
     """
-    return Document (doc_id=str(doc_id), elements=generate_elements(keyword_to_probability, maxelems))
+    return Document (doc_id=doc_id, elements=generate_elements(keyword_to_probability, maxelems))
 #    return {'doc_id':doc_id, 'elements':generate_elements(keywords, probabilities, maxelems)}
 
 
@@ -69,9 +90,107 @@ def generate_docset(keyword_to_probability:Dict[str, float], numdocs:int, maxele
     """
     docset = []
     for i in range(numdocs):
-        doc = generate_doc(i, keyword_to_probability, maxelems)
+        doc = generate_doc(str(i), keyword_to_probability, maxelems)
         docset.append(doc)
     return docset
+
+
+def create_search_plan(index, keyword):
+    return LogicalPlan(
+        query=keyword,
+        result_node=0,
+        nodes={
+            0: QueryDatabase(
+                node_type='QueryDatabase',
+                node_id=0,
+                description="Get all documents",
+                query={'bool': {
+                    'must': [{'match_phrase': {'text_representation': keyword}}]}
+                },
+                inputs=[],
+                index=index,
+            ),
+        },
+    )
+
+def create_qvdb_plan(index, keyword):
+    return LogicalPlan(
+        query=keyword,
+        result_node=0,
+        nodes={
+            0: QueryVectorDatabase(
+                description="Get docs involving "+keyword,
+                index=index,
+                query_phrase=keyword,
+                node_id=0,
+            ),
+        },
+    )
+
+def create_llm_filter_plan(index, keyword):
+    return LogicalPlan(
+        query="cats",
+        result_node=1,
+        nodes={
+            0: QueryDatabase(
+                node_type='QueryDatabase',
+                node_id=0,
+                description="Get all documents",
+                query={"match_all": {}},
+                inputs=[],
+                index=index,
+            ),
+            1: LlmFilter(
+                description="Filter documents involving "+keyword,
+                field='text_representation',
+                question='Does this document mention the word '+keyword+'?',
+                node_id=1,
+                inputs=[0]
+            ),
+        },
+    )
+
+def create_knn_plan(index, keyword, context, embedder):
+    return LogicalPlan(
+        query=keyword,
+        result_node=0,
+        nodes={
+            0: QueryVectorDatabase(
+                node_type='QueryVectorDatabase',
+                node_id=0,
+                description="Get all documents",
+                #query=get_knn_query(query_phrase=keyword, k=1000, context=context, text_embedder=embedder),
+                inputs=[],
+                query_phrase=keyword,
+                index=index,
+                k=1000,
+            ),
+        },
+    )
+
+def query(lp, context):
+    start_time = time.time()
+    # Existing code for the query function
+    llm = OpenAI(OpenAIModels.GPT_4O.value)
+
+    client = SycamoreQueryClient(llm=llm)
+    result = get_docs(client.run_plan(lp).result)
+    #    print(f"query generated {len(result)} results")
+    #    print(result)
+    # Existing code for the query function
+    end_time = time.time()
+    execution_time = end_time - start_time
+    return(result, execution_time)
+
+def query_knn(keyword, index, context, text_embedder, os_client_args):
+    start_time = time.time()
+    os_query = get_knn_query(query_phrase=keyword, context=context, k=10000, text_embedder=text_embedder)
+    print(f'os_query: {os_query}')
+    docset = context.read.opensearch(index_name=index, query=os_query, os_client_args=os_client_args, reconstruct_document=True)
+    result = get_docs(docset)
+    end_time = time.time()
+    execution_time = end_time - start_time
+    return (result, execution_time)
 
 def main():
     argparser = argparse.ArgumentParser(prog="synth_data_llm_filter")
@@ -80,6 +199,8 @@ def main():
     argparser.add_argument("--numdocs", default=10, help="Number of documents to generate")
     argparser.add_argument("--maxelems", default=5, help="Maximum number of elements in each document")
     argparser.add_argument("--index", default=None, help="The OpenSearch index name to populate")
+    argparser.add_argument("--query", action="store_true", help="Perform a query")
+
     args = argparser.parse_args()
 
     # The OpenSearch index name to populate.
@@ -128,6 +249,7 @@ def main():
         }
     }
 
+    embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
     # The number of documents to generate.
     numdocs = int(args.numdocs)
 
@@ -138,6 +260,28 @@ def main():
     'cat': 0.1,
     'dog': 0.2,
     }
+
+    if args.query:
+        context = sycamore.init()
+        lp_lf = create_llm_filter_plan(INDEX, "dog")
+#        lp_qvdb = create_qvdb_plan(INDEX, "dog")
+        lp_search = create_search_plan(INDEX, "cat")
+#        lp_knn = create_knn_plan(INDEX, "dog", context, embedder)
+    
+#        rs_lf, time_lf = query(lp_lf, context)
+#        rs_qvdb, time_qvdb = query(lp_qvdb, context)
+#        rs_search, time_search = query(lp_search, context)
+        rs_knn, time_knn = query_knn("cat", INDEX, context, embedder, os_client_args)
+#        rs_knn, time_knn = query(lp_knn, context)
+
+#        print(f"Llm_Filter Query returned {len(rs_lf)} results in {time_lf} seconds")
+#        print(f"Search Query returned {len(_search)} results in {time_search} seconds")
+        print(f"KNN Query returned {len(rs_knn)} results in {time_knn} seconds")
+#        print(f'Search x KNN Overlap = {len(set(rs_search).intersection(set(rs_knn)))}')
+#        print(f'Search - KNN Overlap = {len(set(rs_search).difference(set(rs_knn)))}')
+#        print(f'KNN - Search Overlap = {len(set(rs_knn).difference(set(rs_search)))}')
+        return
+
     docset = generate_docset(keyword_to_probability, numdocs, maxelems)
 
     print(f"Generated docset containing {len(docset)} documents")
@@ -149,9 +293,7 @@ def main():
 
     ctx = (context.read.document(docs=docset)
                         .explode()
-                        .embed(
-                            embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
-                        )
+                        .embed(embedder=embedder)
                         .write.opensearch(
                             os_client_args=os_client_args,
                             index_name=INDEX,

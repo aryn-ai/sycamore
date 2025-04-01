@@ -390,7 +390,10 @@ PropertiesZeroShotJinjaPrompt = JinjaPrompt(
 )
 
 PropertiesFromSchemaJinjaPrompt = JinjaPrompt(
-    system="You are given text contents from a document.",
+    system=(
+        "You are a helpful property extractor. You have to return your response as a JSON that"
+        "can be parsed with json.loads(<response>) in Python. Do not return any other text."
+    ),
     user=(
         J_FORMAT_SCHEMA_MACRO
         + """\
@@ -403,7 +406,7 @@ Document text:"""
 
 Don't return extra information.
 If you cannot find a value for a requested property, use the provided default or the value 'None'.
-Return your answers as a valid json dictionary that will be parsed in python.
+Return your answers as a valid json dictionary that will be parsed in python with json.loads(<response>).
 """
     ),
 )
@@ -453,6 +456,11 @@ LlmFilterMessagesJinjaPrompt = JinjaPrompt(
         )
         + J_ELEMENT_BATCHED_LIST
         + "{% endif %}"
+        + textwrap.dedent(
+            """\
+            The response should be a value from [0,1,2,3,4,5]. 0 is the least confident and 5 is the most confident.
+            Do not return any other text apart from the given values."""
+        )
     ),
 )
 

@@ -254,7 +254,7 @@ class TestLLMFilter:
             threshold=3,
             use_elements=True,
             tokenizer=mock_tokenizer,
-            max_tokens=80,  # Low token limit to test windowing
+            max_tokens=140,  # Low token limit to test windowing
         )
 
         taken = filtered_docset.take()
@@ -272,11 +272,6 @@ class TestLLMFilter:
         assert taken[0].elements[2]["properties"]["_autogen_LLMFilterOutput_source_indices"] == [0, 1, 2]
         assert taken[1].elements[0]["properties"]["_autogen_LLMFilterOutput_source_indices"] == [0]
         assert taken[1].elements[1]["properties"]["_autogen_LLMFilterOutput_source_indices"] == [1]
-        # assert taken[0].elements[0]["properties"]["_autogen_LLMFilterOutput"] == 4
-        # assert taken[0].elements[1]["properties"]["_autogen_LLMFilterOutput"] == 4
-        # assert taken[0].elements[2]["properties"]["_autogen_LLMFilterOutput"] == 4
-        # assert taken[1].elements[0]["properties"]["_autogen_LLMFilterOutput"] == 0
-        # assert taken[1].elements[1]["properties"]["_autogen_LLMFilterOutput"] == 5
 
 
 class BadEntityExtractor(EntityExtractor):

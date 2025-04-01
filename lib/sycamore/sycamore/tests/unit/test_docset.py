@@ -44,7 +44,7 @@ class MockLLM(LLM):
         print(prompt)
         if llm_kwargs is None:
             llm_kwargs = {}
-        if prompt.messages[-1].content.endswith("Element_index: 1\nText: third element\n"):
+        if "Element_index: 1\nText: third element\n" in prompt.messages[-1].content:
             return "None"
         if (
             asdict(prompt) == {"messages": [{"role": "user", "content": "Element_index: 1\nText: third element\n"}]}
@@ -66,13 +66,13 @@ class MockLLM(LLM):
             return "4"
         elif prompt.messages[0].content == "test1":
             return "4"
-        elif prompt.messages[-1].content.strip().endswith("test1"):
+        elif "test1" in prompt.messages[-1].content.strip() and "[0,1,2,3,4,5]" in prompt.messages[-1].content.strip():
             return "4"
         elif asdict(prompt) == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
             return "2"
         elif prompt.messages[0].content == "test2":
             return "2"
-        elif prompt.messages[-1].content.strip().endswith("test2"):
+        elif "test2" in prompt.messages[-1].content.strip() and "[0,1,2,3,4,5]" in prompt.messages[-1].content.strip():
             return "2"
 
         elif prompt.messages[-1].content.endswith('"1, 2, one, two, 1, 3".'):

@@ -231,7 +231,7 @@ class BinaryScan(FileScan):
         partition_filter: Optional[Callable[[dict[str, str]], bool]] = None
         if self._path_filter is not None:
             partition_filter = PathPartitionFilter(
-                cast(PathPartitionParser, RayPathParser()), partial(self._path_filter, read=True)
+                cast(PathPartitionParser, RayPathParser()), partial(self._path_filter, read_binary=True)
             )
         shuffle = None if partition_filter is None else "files"
 

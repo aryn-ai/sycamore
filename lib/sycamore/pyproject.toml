@@ -101,10 +101,10 @@ pytest-xdist = "^3.6.1"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
-ruff = "^0.11.2"
-black = "^25.1"
-pre-commit = "^4.2.0"
-mypy = "^1.15.0"
+ruff = ">=0.11.2"
+black = ">=25.1"
+pre-commit = ">=4.2.0"
+mypy = ">=1.15.0"
 nbmake = "^1.4.5"
 
 [tool.poetry.group.notebook.dependencies]

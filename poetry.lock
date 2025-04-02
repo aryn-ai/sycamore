@@ -12490,4 +12490,4 @@ docs = ["enum-tools", "furo", "myst-parser", "sphinx", "sphinx-toolbox"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<3.9.7 || >3.9.7,<3.13"
-content-hash = "9e430fb562a9b8e2610d366b1f842ce3730d7abf2ceb2f8663f867049db8892a"
+content-hash = "2bb7a77b833f19d4a7e7f16cd9e5133383f0a653f087dd65ea14f31e23cd49aa"

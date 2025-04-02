@@ -2,7 +2,7 @@ from sycamore.data import Element
 
 
 def assert_deep_eq(a, b, path):
-    assert type(a) == type(b), f"type {a} {b} {path}"
+    assert type(a) is type(b), f"type {a} {b} {path}"
     if a is None:
         assert b is None
         return True

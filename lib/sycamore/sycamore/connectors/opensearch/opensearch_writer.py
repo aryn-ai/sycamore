@@ -134,8 +134,8 @@ class OpenSearchWriterTargetParams(BaseDBWriter.TargetParams):
             from sycamore.materialize import Materialize
 
             assert execute, "Reliability rewriter requires execute to be True"
-            assert (
-                type(plan) == Materialize
+            assert isinstance(
+                plan, Materialize
             ), "The first node must be a materialize node for reliability rewriter to work"
             assert not plan.children[
                 0

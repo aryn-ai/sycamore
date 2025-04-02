@@ -338,7 +338,7 @@ def compare_graphs(
 
     # Compare node types
     # pylint: disable=unidiomatic-typecheck
-    if type(node_a) != type(node_b):
+    if type(node_a) is not type(node_b):
         diff_results.append(
             LogicalPlanDiffEntry(node_a=node_a, node_b=node_b, diff_type=LogicalNodeDiffType.OPERATOR_TYPE)
         )

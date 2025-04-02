@@ -46,21 +46,21 @@ class TestTableExtractors:
         elt = TestTableExtractors.mock_table_element(mocker, 0.7, 0.7)
         extractor = HybridTableStructureExtractor(deformable_model="dont initialize me")
         chosen = extractor._pick_model(elt, im, model_selection="pixels>500->deformable_detr;table_transformer")
-        assert type(chosen) == DeformableTableStructureExtractor
+        assert isinstance(chosen, DeformableTableStructureExtractor)
 
     def test_hybrid_routing_one_gt500(self, mocker):
         im = TestTableExtractors.mock_doc_image(mocker, 1000, 1000)
         elt = TestTableExtractors.mock_table_element(mocker, 0.7, 0.2)
         extractor = HybridTableStructureExtractor(deformable_model="dont initialize me")
         chosen = extractor._pick_model(elt, im, model_selection="pixels>500->deformable_detr;table_transformer")
-        assert type(chosen) == DeformableTableStructureExtractor
+        assert isinstance(chosen, DeformableTableStructureExtractor)
 
     def test_hybrid_routing_neither_gt500(self, mocker):
         im = TestTableExtractors.mock_doc_image(mocker, 1000, 1000)
         elt = TestTableExtractors.mock_table_element(mocker, 0.2, 0.2)
         extractor = HybridTableStructureExtractor(deformable_model="dont initialize me")
         chosen = extractor._pick_model(elt, im, model_selection="pixels>500->deformable_detr;table_transformer")
-        assert type(chosen) == TableTransformerStructureExtractor
+        assert isinstance(chosen, TableTransformerStructureExtractor)
 
     def test_hybrid_deformable_fail(self, mocker):
         im = TestTableExtractors.mock_doc_image(mocker, 1000, 1000)

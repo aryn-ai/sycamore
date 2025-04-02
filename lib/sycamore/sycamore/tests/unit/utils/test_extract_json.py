@@ -16,8 +16,8 @@ def test_none():
 
 
 def test_bad_escape():
-    want = "\xFF"
-    input = '"\xFF"'  # json.loads("\xFF") -> error; escaping is \uHHHH
+    want = "\xff"
+    input = '"\xff"'  # json.loads("\xFF") -> error; escaping is \uHHHH
     assert extract_json(input) == want
 
 

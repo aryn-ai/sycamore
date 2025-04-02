@@ -1,7 +1,7 @@
 """WARNING: this test needs to be run separately from other tests because if they
-   import sycamore and run it, then the checks for no direct depenencies will be
-   incorrect. Similarly, this test has to be run directly as python. pytest will
-   pre-import sycamore."""
+import sycamore and run it, then the checks for no direct depenencies will be
+incorrect. Similarly, this test has to be run directly as python. pytest will
+pre-import sycamore."""
 
 import inspect
 import sys

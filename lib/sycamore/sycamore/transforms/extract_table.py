@@ -20,6 +20,7 @@ logger = logging.getLogger("sycamore")
 
 class MissingS3UploadPath(Exception):
     "Raised when an S3 upload path is needed but one wasn't provided"
+
     pass
 
 

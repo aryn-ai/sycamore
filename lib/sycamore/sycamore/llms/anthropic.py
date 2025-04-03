@@ -22,6 +22,7 @@ BATCH_POLL_INTERVAL = 10
 class AnthropicModels(Enum):
     """Represents available Claude models."""
 
+    CLAUDE_3_7_SONNET = "claude-3-7-sonnet-latest"
     CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest"
     CLAUDE_3_5_HAIKU = "claude-3-5-haiku-latest"
     CLAUDE_3_OPUS = "claude-3-opus-latest"

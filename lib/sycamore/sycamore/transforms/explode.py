@@ -1,6 +1,9 @@
-from typing import Union
+from typing import Union, Optional, Callable
+
+import streamlit
+
 from sycamore.data import Document, HierarchicalDocument, mkdocid
-from sycamore.data.element import TableElement
+from sycamore.data.element import TableElement, Element
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import FlatMap
 from sycamore.utils.time_trace import timetrace
@@ -29,25 +32,27 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
 
     @staticmethod
     @timetrace("explode")
-    def explode(parent: Union[Document, HierarchicalDocument]) -> Union[list[Document], list[HierarchicalDocument]]:
+    def explode(parent: Union[Document, HierarchicalDocument], **kwargs) -> Union[list[Document], list[HierarchicalDocument]]:
         if isinstance(parent, HierarchicalDocument):
             return Explode.explode_hierarchical(parent)
         if isinstance(parent, Document):
-            return Explode.explode_default(parent)
+            return Explode.explode_default(parent, **kwargs)
+        parent.properties["exploded"] = True
         raise ValueError(f"Unsupported document type: {type(parent)}")
 
     @staticmethod
     @timetrace("explode")
-    def explode_default(parent: Document) -> list[Document]:
+    def explode_default(parent: Document, doc_id_func: Optional[Callable[[Element], str]] = None,
+                        spread_properties_func: Optional[Callable[[str], bool]] = lambda p: p.startswith("_")) -> list[Document]:
         documents: list[Document] = [parent]
         for i, element in enumerate(parent.elements):
             cur = Document(element.data)
-            cur.doc_id = mkdocid("c")
+            cur.doc_id = doc_id_func(element) if doc_id_func else mkdocid("c")
             cur.parent_id = parent.doc_id
             if isinstance(element, TableElement):
                 cur.text_representation = element.text_representation
             for doc_property in parent.properties.keys():
-                if doc_property.startswith("_"):
+                if spread_properties_func(doc_property):
                     cur.properties[doc_property] = parent.properties[doc_property]
             documents.append(cur)
         del parent.elements

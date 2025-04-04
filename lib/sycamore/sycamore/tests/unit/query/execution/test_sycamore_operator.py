@@ -21,13 +21,13 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreTopK,
     SycamoreLimit,
     SycamoreQueryVectorDatabase,
-    SycamoreQueryBookmark,
+    SycamoreDataLoader,
 )
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase, QueryBookmark
+from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase, DataLoader
 from sycamore.query.operators.top_k import TopK
 from sycamore.transforms import Embedder
 
@@ -60,11 +60,11 @@ def test_query_database(mock_sycamore_docsetreader, mock_opensearch_num_docs):
         assert result.count() == mock_opensearch_num_docs
 
 
-def test_query_bookmark(mock_sycamore_docsetreader, mock_opensearch_num_docs):
+def test_dataloader(mock_sycamore_docsetreader, mock_opensearch_num_docs):
     with patch("sycamore.reader.DocSetReader", new=mock_sycamore_docsetreader):
         context = sycamore.init()
-        logical_node = QueryBookmark(node_id=0, description="Load data", path="path")
-        sycamore_operator = SycamoreQueryBookmark(context=context, logical_node=logical_node, query_id="test")
+        logical_node = DataLoader(node_id=0, description="Load data", path="path")
+        sycamore_operator = SycamoreDataLoader(context=context, logical_node=logical_node, query_id="test")
         result = sycamore_operator.execute()
         # Validate result type
         assert isinstance(result, DocSet)

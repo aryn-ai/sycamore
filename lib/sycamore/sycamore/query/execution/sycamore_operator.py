@@ -17,7 +17,7 @@ from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase, QueryBookmark
+from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase, DataLoader
 from sycamore.query.operators.top_k import TopK, GroupByCount
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.sort import Sort
@@ -121,19 +121,19 @@ class SycamoreQueryDatabase(SycamoreOperator):
         )
 
 
-class SycamoreQueryBookmark(SycamoreOperator):
+class SycamoreDataLoader(SycamoreOperator):
 
     def __init__(
         self,
         context: Context,
-        logical_node: QueryBookmark,
+        logical_node: DataLoader,
         query_id: str,
         trace_dir: Optional[str] = None,
     ) -> None:
         super().__init__(context=context, logical_node=logical_node, query_id=query_id, trace_dir=trace_dir)
 
     def execute(self) -> Any:
-        assert isinstance(self.logical_node, QueryBookmark)
+        assert isinstance(self.logical_node, DataLoader)
 
         path = self.logical_node.path
         result = self.context.read.materialize(path)

@@ -16,7 +16,7 @@ from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
+from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase, DataLoader
 from sycamore.query.execution.physical_operator import PhysicalOperator
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
@@ -36,6 +36,7 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreFieldIn,
     SycamoreQueryVectorDatabase,
     SycamoreGroupByCount,
+    SycamoreDataLoader,
 )
 
 log = structlog.get_logger(__name__)
@@ -124,6 +125,13 @@ class SycamoreExecutor:
             )
         elif isinstance(logical_node, QueryVectorDatabase):
             operation = SycamoreQueryVectorDatabase(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                trace_dir=self.trace_dir,
+            )
+        elif isinstance(logical_node, DataLoader):
+            operation = SycamoreDataLoader(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,

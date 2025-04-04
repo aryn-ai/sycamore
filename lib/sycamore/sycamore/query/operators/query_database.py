@@ -121,7 +121,7 @@ class QueryVectorDatabase(Node):
         return set()
 
 
-class QueryBookmark(Node):
+class DataLoader(Node):
 
     path: str
     """The path to load data from."""

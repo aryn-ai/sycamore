@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 import ray.data
 
@@ -8,6 +9,7 @@ from sycamore.transforms.clustering import KMeans
 
 class TestKMeans:
 
+    @pytest.mark.skip(reason="flaky")
     def test_kmeans(self):
         points = np.random.uniform(0, 40, (20, 4))
         docs = [

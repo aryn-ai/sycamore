@@ -51,6 +51,15 @@ class Embedder(ABC):
     def __call__(self, doc_batch: list[Document]) -> list[Document]:
         return self.generate_embeddings(doc_batch)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, ex_type, ex_val, ex_tb):
+        self.close()
+
+    def close(self) -> None:
+        pass  # subclasses should override if they need to clean up
+
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
         if self.embed_name:
             for small_batch in batched(doc_batch, self._get_model_batch_size()):
@@ -257,6 +266,12 @@ class OpenAIEmbedder(Embedder):
         else:
             default_batch_size = None
         return Embedder.clamp_batch_size(self.model_batch_size, default_batch_size)
+
+    def close(self) -> None:
+        try:
+            self._client.close()  # type: ignore[union-attr]
+        except (AttributeError, TypeError):
+            pass
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         # TODO: Add some input validation here.

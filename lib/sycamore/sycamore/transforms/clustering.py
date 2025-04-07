@@ -1,4 +1,4 @@
-import random
+import numpy as np
 
 
 class KMeans:
@@ -27,12 +27,10 @@ class KMeans:
         K = K if count > K else count
         fraction = min(2 * K / count, 1.0)
 
-        candidates = [list(c["vector"]) for c in embeddings.random_sample(fraction).take()]
-        candidates.sort()
-        from itertools import groupby
+        candidates = np.array([c["vector"] for c in embeddings.random_sample(fraction).take()])
+        print(candidates)
 
-        uniques = [key for key, _ in groupby(candidates)]
-        centroids = random.sample(uniques, K) if K < len(uniques) else uniques
+        centroids = np.unique(candidates, axis=0)[:K].tolist()
         return centroids
 
     @staticmethod

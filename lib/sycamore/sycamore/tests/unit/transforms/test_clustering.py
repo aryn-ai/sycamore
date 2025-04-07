@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 import ray.data
 
@@ -9,8 +8,8 @@ from sycamore.transforms.clustering import KMeans
 
 class TestKMeans:
 
-    @pytest.mark.skip(reason="flaky")
     def test_kmeans(self):
+        np.random.seed(2024)
         points = np.random.uniform(0, 40, (20, 4))
         docs = [
             Document(text_representation=f"Document {i}", doc_id=i, embedding=point, properties={"document_number": i})
@@ -31,6 +30,7 @@ class TestKMeans:
         assert KMeans.closest(row, centroids) == 0
 
     def test_random(self):
+        np.random.seed(2024)
         points = np.random.uniform(0, 40, (20, 4))
         embeddings = [{"vector": list(point), "cluster": -1} for point in points]
         embeddings = ray.data.from_items(embeddings)
@@ -44,6 +44,7 @@ class TestKMeans:
         assert KMeans.converged(last_ones, next_ones, 1).item() is False
 
     def test_converge(self):
+        np.random.seed(2024)
         points = np.random.uniform(0, 10, (20, 4))
         embeddings = [{"vector": list(point), "cluster": -1} for point in points]
         embeddings = ray.data.from_items(embeddings)

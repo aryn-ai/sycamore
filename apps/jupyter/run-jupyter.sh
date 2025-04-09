@@ -38,7 +38,7 @@ fi
 
 if [[ ! -f "${JUPYTER_CONFIG_DOCKER}" ]]; then
     s3_token="s3://${JUPYTER_S3_BUCKET}/${JUPYTER_S3_PREFIX}/jupyter_token"
-    [[ ${s3_token} == "s3:///jupyter_token" ]] && s3_token=""
+    [[ ${s3_token} == "s3:////jupyter_token" ]] && s3_token=""
     if [[ ${s3_token} != "" && ! -f "${VOLUME}/token" ]]; then
 	    echo "Trying to fetch token from ${s3_token}"
 	    aws s3 cp ${s3_token} "${VOLUME}/token"

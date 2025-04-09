@@ -8,7 +8,7 @@ import time
 
 from PIL import Image
 
-from sycamore.llms.llms import LLM
+from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data
@@ -126,6 +126,7 @@ class Anthropic(LLM):
         self,
         model_name: Union[AnthropicModels, str],
         cache: Optional[Cache] = None,
+        default_mode: Optional[LLMMode] = None,
     ):
 
         # We import this here so we can share utility code with the Bedrock
@@ -145,14 +146,19 @@ class Anthropic(LLM):
 
         self._client = AnthropicClient()
         self._async_client = AsyncAnthropicClient()
-        super().__init__(self.model.value, cache)
+        super().__init__(self.model.value, cache, default_mode)
 
     def __reduce__(self):
         def deserializer(kwargs):
             return Anthropic(**kwargs)
 
-        kwargs = {"model_name": self.model_name, "cache": self._cache}
+        kwargs = {"model_name": self.model_name, "cache": self._cache, "default_mode": self._default_mode}
         return deserializer, (kwargs,)
+
+    def default_mode(self) -> LLMMode:
+        if self._default_mode is not None:
+            return self._default_mode
+        return LLMMode.ASYNC
 
     def is_chat_mode(self) -> bool:
         """Returns True if the LLM is in chat mode, False otherwise."""

@@ -8,8 +8,9 @@ from typing import Optional
 
 
 class FakeLLM(LLM):
-    def __init__(self):
-        super().__init__(model_name="dummy")
+    def __init__(self, default_mode: Optional[LLMMode] = None):
+        super().__init__(model_name="dummy", default_mode=default_mode)
+        self.async_calls = 0
 
     def is_chat_mode(self) -> bool:
         return True
@@ -18,6 +19,7 @@ class FakeLLM(LLM):
         return "".join(m.content for m in prompt.messages)
 
     async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        self.async_calls += 1
         return self.generate(prompt=prompt, llm_kwargs=llm_kwargs)
 
 
@@ -57,6 +59,24 @@ class TestLLMMap:
         assert outdocs[0].properties["out"] == "ooga"
         assert outdocs[1].text_representation == "booga"
         assert outdocs[1].properties["out"] == "booga"
+
+    @pytest.mark.parametrize("mode", [LLMMode.SYNC, LLMMode.ASYNC])
+    def test_mode_from_llm(self, mode):
+        prompt = FakeDocPrompt()
+        llm = FakeLLM(default_mode=mode)
+        doc1 = Document({"text_representation": "ooga"})
+        doc2 = Document({"text_representation": "booga"})
+        map = LLMMap(None, prompt, "out", llm)
+        outdocs = map.llm_map([doc1, doc2])
+
+        assert outdocs[0].text_representation == "ooga"
+        assert outdocs[0].properties["out"] == "ooga"
+        assert outdocs[1].text_representation == "booga"
+        assert outdocs[1].properties["out"] == "booga"
+        if mode == LLMMode.SYNC:
+            assert llm.async_calls == 0
+        if mode == LLMMode.ASYNC:
+            assert llm.async_calls == 2
 
     @pytest.mark.parametrize("mode", [LLMMode.SYNC, LLMMode.ASYNC])
     def test_validate(self, mode):
@@ -104,6 +124,30 @@ class TestLLMMapElements:
         assert outdocs[0].elements[1].properties["out"] == "oogaho"
         assert outdocs[1].elements[0].properties["out"] == "Nonebooga"
         assert outdocs[1].elements[1].properties["out"] == "NoneNone"
+
+    @pytest.mark.parametrize("mode", [LLMMode.SYNC, LLMMode.ASYNC])
+    def test_mode_from_llm(self, mode):
+        prompt = FakeEltPrompt()
+        llm = FakeLLM(default_mode=mode)
+        doc1 = Document(
+            {
+                "doc_id": "1",
+                "text_representation": "ooga",
+                "elements": [{"text_representation": "yo"}, {"text_representation": "ho"}],
+            }
+        )
+        doc2 = Document({"doc_id": "2", "elements": [{"text_representation": "booga"}, {}]})
+        map = LLMMapElements(None, prompt, "out", llm, llm_mode=mode)
+        outdocs = map.llm_map_elements([doc1, doc2])
+
+        assert outdocs[0].elements[0].properties["out"] == "oogayo"
+        assert outdocs[0].elements[1].properties["out"] == "oogaho"
+        assert outdocs[1].elements[0].properties["out"] == "Nonebooga"
+        assert outdocs[1].elements[1].properties["out"] == "NoneNone"
+        if mode == LLMMode.SYNC:
+            assert llm.async_calls == 0
+        if mode == LLMMode.ASYNC:
+            assert llm.async_calls == 4
 
     @pytest.mark.parametrize("mode", [LLMMode.SYNC, LLMMode.ASYNC])
     def test_postprocess(self, mode):

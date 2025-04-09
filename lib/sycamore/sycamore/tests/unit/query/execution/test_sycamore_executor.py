@@ -18,7 +18,7 @@ from sycamore.query.result import SycamoreQueryResult
 
 class MockLLM(LLM):
     def __init__(self):
-        pass
+        super().__init__(model_name="dummy")
 
     def is_chat_mode(self):
         return True

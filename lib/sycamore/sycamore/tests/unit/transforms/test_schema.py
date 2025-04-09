@@ -6,7 +6,7 @@ from typing import Optional
 from ray.util import inspect_serializability
 
 from sycamore.data import Document, Element
-from sycamore.llms.llms import LLM, FakeLLM
+from sycamore.llms.llms import LLM, FakeLLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.plan_nodes import Node
 from sycamore.schema import Schema, SchemaField
@@ -29,6 +29,13 @@ class TrivialExtractor(SchemaExtractor):
 
 
 class TestSchema:
+    @staticmethod
+    def llm(mocker):
+        llm = mocker.Mock(spec=LLM)
+        mode = mocker.patch.object(llm, "default_mode")
+        mode.return_value = LLMMode.SYNC
+        return llm
+
     def test_serializable(self, mocker):
         t = TrivialExtractor()
         check_serializable(t)
@@ -37,13 +44,13 @@ class TestSchema:
         o = LLMSchemaExtractor("Foo", llm)
         check_serializable(o)
 
-        llm = mocker.Mock(spec=LLM)
+        llm = TestSchema.llm(mocker)
         mocker.patch.object(llm, "generate")
         (ok, log) = inspect_serializability(llm)
         assert not ok
 
     def test_extract_schema(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestSchema.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = '```json {"accidentNumber": "string"}```'
 
@@ -80,7 +87,7 @@ class TestSchema:
         assert f"ELEMENT None: {element2.text_representation}" in messages[1].content
 
     def test_extract_batch_schema(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestSchema.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = '```json {"accidentNumber": "string"}```'
         schema_extractor = LLMSchemaExtractor("AircraftIncident", llm)
@@ -103,7 +110,7 @@ class TestSchema:
         assert dicts[0]["properties"] == ground_truth and dicts[1]["properties"] == ground_truth
 
     def test_extract_properties(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestSchema.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = '```json {"accidentNumber": "FTW95FA129", "location": "Fort Worth, TX"}```'
 
@@ -138,7 +145,7 @@ class TestSchema:
         assert doc.properties["AircraftIncident"]["location"] == "Fort Worth, TX"
 
     def test_extract_properties_default_to_entity(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestSchema.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = '```json {"accidentNumber": "FTW95FA129", "location": "Fort Worth, TX"}```'
 
@@ -172,7 +179,7 @@ class TestSchema:
         assert doc.properties["entity"]["location"] == "Fort Worth, TX"
 
     def test_extract_properties_explicit_json(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestSchema.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = '{"accidentNumber": "FTW95FA129"}'
 
@@ -202,7 +209,7 @@ class TestSchema:
         assert doc.properties["AircraftIncident"]["accidentNumber"] == "FTW95FA129"
 
     def test_extract_properties_llm_say_none(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestSchema.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "None"
 
@@ -226,7 +233,7 @@ class TestSchema:
         assert len(doc.properties["AircraftIncident"]) == 0
 
     def test_extract_properties_fixed_json(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestSchema.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = '{"accidentNumber": "FTW95FA129"}'
 
@@ -254,7 +261,7 @@ class TestSchema:
         # assert doc.properties["entity"]["accidentNumber"] == "FTW95FA129"
 
     def test_extract_properties_with_schema(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestSchema.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = (
             '{"startDate": "2022-01-22 00:01:31", '

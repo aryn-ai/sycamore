@@ -15,7 +15,7 @@ def image_element() -> ImageElement:
 
 class MockLLM(LLM):
     def __init__(self):
-        pass
+        super().__init__(model_name="dummy")
 
     def is_chat_mode(self):
         return True

@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from sycamore.llms import OpenAI, OpenAIModels, Bedrock, BedrockModels, get_llm, MODELS
-from sycamore.llms.llms import FakeLLM
+from sycamore.llms.llms import FakeLLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.utils.cache import DiskCache
 import datetime
@@ -47,6 +47,14 @@ def test_openai_davinci_fallback():
 def test_model_list():
     assert "openai." + OpenAIModels.TEXT_DAVINCI.value.name in MODELS
     assert "bedrock." + BedrockModels.CLAUDE_3_5_SONNET.value.name in MODELS
+
+
+def test_default_llm_mode():
+    llm = FakeLLM()
+    assert llm.default_mode() == LLMMode.SYNC
+
+    async_llm = FakeLLM(default_mode=LLMMode.ASYNC)
+    assert async_llm.default_mode() == LLMMode.ASYNC
 
 
 @patch("boto3.client")

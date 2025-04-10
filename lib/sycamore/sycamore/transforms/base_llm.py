@@ -82,7 +82,7 @@ class LLMMap(MapBatch):
         prompt: SycamorePrompt,
         output_field: str,
         llm: LLM,
-        llm_mode: LLMMode = LLMMode.SYNC,
+        llm_mode: Optional[LLMMode] = None,
         iteration_var: Optional[str] = None,
         validate: Callable[[Document], bool] = lambda d: True,
         max_tries: int = 5,
@@ -93,7 +93,7 @@ class LLMMap(MapBatch):
         self._validate_prompt()
         self._output_field = output_field
         self._llm = llm
-        self._llm_mode = llm_mode
+        self._llm_mode = llm_mode if llm_mode is not None else llm.default_mode()
         self._iteration_var = iteration_var
         self._validate = validate
         self._max_tries = max_tries
@@ -183,7 +183,7 @@ class LLMMapElements(MapBatch):
         prompt: SycamorePrompt,
         output_field: str,
         llm: LLM,
-        llm_mode: LLMMode = LLMMode.SYNC,
+        llm_mode: Optional[LLMMode] = None,
         iteration_var: Optional[str] = None,
         validate: Callable[[Element], bool] = lambda e: True,
         max_tries: int = 5,
@@ -194,7 +194,7 @@ class LLMMapElements(MapBatch):
         self._validate_prompt()
         self._output_field = output_field
         self._llm = llm
-        self._llm_mode = llm_mode
+        self._llm_mode = llm_mode if llm_mode is not None else llm.default_mode()
         self._iteration_var = iteration_var
         self._validate = validate
         self._max_tries = max_tries

@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import sycamore
 from sycamore.data.document import Document, HierarchicalDocument
 from sycamore.data.element import Element
-from sycamore.llms.llms import LLM
+from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.reader import DocSetReader
 from sycamore.transforms.extract_document_structure import StructureBySection
@@ -59,7 +59,7 @@ class TestGraphRelationshipExtractor:
 
     class MockEntityLLM(LLM):
         def __init__(self):
-            super().__init__(model_name="mock_model")
+            super().__init__(model_name="mock_model", default_mode=LLMMode.SYNC)
 
         def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
             return ""
@@ -79,7 +79,7 @@ class TestGraphRelationshipExtractor:
 
     class MockRelationshipLLM(LLM):
         def __init__(self):
-            super().__init__(model_name="mock_model")
+            super().__init__(model_name="mock_model", default_mode=LLMMode.SYNC)
 
         def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
             return ""

@@ -25,7 +25,7 @@ from openai.types.chat.chat_completion import ChatCompletion
 
 import pydantic
 
-from sycamore.llms.llms import LLM
+from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data_url
@@ -243,6 +243,7 @@ class OpenAI(LLM):
         params: An instance of OpenAIClientParameters to use for the OpenAI client. If not provided, a new instance
             will be created using the provided parameters.
         cache: An instance of Cache to use for caching responses. If not provided, no caching will be used.
+        default_mode: Default execution mode for the llm
         **kwargs: Additional parameters to pass to the OpenAI client.
     """
 
@@ -252,6 +253,7 @@ class OpenAI(LLM):
         api_key: Optional[str] = None,
         client_wrapper: Optional[OpenAIClientWrapper] = None,
         params: Optional[OpenAIClientParameters] = None,
+        default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
         **kwargs,
     ):
@@ -267,7 +269,7 @@ class OpenAI(LLM):
         if self.model.name == OpenAIModels.TEXT_DAVINCI.value.name:
             logger.warning("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
             self.model = OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value
-        super().__init__(self.model.name, cache)
+        super().__init__(self.model.name, default_mode, cache)
 
         # This is somewhat complex to provide a degree of backward compatibility.
         if client_wrapper is None:
@@ -289,7 +291,12 @@ class OpenAI(LLM):
     # recreate the client on the other end.
     def __reduce__(self):
 
-        kwargs = {"client_wrapper": self.client_wrapper, "model_name": self.model, "cache": self._cache}
+        kwargs = {
+            "client_wrapper": self.client_wrapper,
+            "model_name": self.model,
+            "cache": self._cache,
+            "default_mode": self._default_mode,
+        }
 
         return openai_deserializer, (kwargs,)
 

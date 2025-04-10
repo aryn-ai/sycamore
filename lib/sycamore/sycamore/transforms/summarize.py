@@ -255,7 +255,7 @@ class MultiStepDocumentSummarizer(Summarizer):
     def __init__(
         self,
         llm: LLM,
-        llm_mode: LLMMode = LLMMode.SYNC,
+        llm_mode: Optional[LLMMode] = None,
         question: Optional[str] = None,
         data_description: Optional[str] = None,
         prompt: SycamorePrompt = MaxTokensHierarchyPrompt,
@@ -263,7 +263,7 @@ class MultiStepDocumentSummarizer(Summarizer):
         tokenizer: Tokenizer = CharacterTokenizer(),
     ):
         self.llm = llm
-        self.llm_mode = llm_mode
+        self.llm_mode = llm_mode if llm_mode is not None else llm.default_mode()
         self.prompt = prompt
         assert EtCetera not in fields[:-1], "EtCetera must be at the end of the list of fields if provided"
         self.fields = fields

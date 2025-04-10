@@ -5,7 +5,7 @@ from typing import Any, Optional, Union
 import os
 import io
 
-from sycamore.llms.llms import LLM
+from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.import_utils import requires_modules
@@ -49,6 +49,7 @@ class Gemini(LLM):
     def __init__(
         self,
         model_name: Union[GeminiModels, str],
+        default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
         api_key: Optional[str] = None,
     ):
@@ -62,14 +63,19 @@ class Gemini(LLM):
             self.model = GeminiModel(name=model_name)
         api_key = api_key if api_key else os.getenv("GEMINI_API_KEY")
         self._client = Client(api_key=api_key)
-        super().__init__(self.model.name, cache)
+        super().__init__(self.model.name, default_mode, cache)
 
     def __reduce__(self):
         def deserializer(kwargs):
             return Gemini(**kwargs)
 
-        kwargs = {"model_name": self.model_name, "cache": self._cache}
+        kwargs = {"model_name": self.model_name, "cache": self._cache, "default_mode": self._default_mode}
         return deserializer, (kwargs,)
+
+    def default_mode(self) -> LLMMode:
+        if self._default_mode is not None:
+            return self._default_mode
+        return LLMMode.ASYNC
 
     def is_chat_mode(self) -> bool:
         """Returns True if the LLM is in chat mode, False otherwise."""

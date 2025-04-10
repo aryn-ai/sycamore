@@ -3,6 +3,7 @@ import string
 
 from sycamore.data import Document, Element
 from sycamore.llms import LLM
+from sycamore.llms.llms import LLMMode
 from sycamore.functions.tokenizer import CharacterTokenizer
 from sycamore.transforms.summarize import (
     LLMElementTextSummarizer,
@@ -28,7 +29,7 @@ class TestSummarize:
         assert doc.elements[0].properties == {}
 
     def test_summarize_text_calls_llm(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestOneStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "this is the summary"
         doc = Document()
@@ -56,8 +57,15 @@ class TestMultiStepSummarize:
         ]
     )
 
-    def test_base(self, mocker):
+    @staticmethod
+    def llm(mocker):
         llm = mocker.Mock(spec=LLM)
+        mode = mocker.patch.object(llm, "default_mode")
+        mode.return_value = LLMMode.SYNC
+        return llm
+
+    def test_base(self, mocker):
+        llm = TestMultiStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = MultiStepDocumentSummarizer(llm=llm)
@@ -72,7 +80,7 @@ class TestMultiStepSummarize:
             assert f"properties.key: {e.properties['key']}" not in usermessage
 
     def test_multistep_set_fields(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestMultiStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = MultiStepDocumentSummarizer(llm=llm, fields=["properties.key"])
@@ -87,7 +95,7 @@ class TestMultiStepSummarize:
             assert f"properties.key: {e.properties['key']}" in usermessage
 
     def test_multistep_all_fields(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestMultiStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = MultiStepDocumentSummarizer(llm=llm, fields=[EtCetera])
@@ -102,7 +110,7 @@ class TestMultiStepSummarize:
             assert f"key: {e.properties['key']}" in usermessage
 
     def test_multistep_set_question(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestMultiStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = MultiStepDocumentSummarizer(llm=llm, question="loser says what?")
@@ -118,7 +126,7 @@ class TestMultiStepSummarize:
             assert f"properties.key: {e.properties['key']}" not in usermessage
 
     def test_small_token_limit(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestMultiStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = MultiStepDocumentSummarizer(
@@ -151,7 +159,7 @@ class TestMultiStepSummarize:
         assert occurrences(usermessage, ": sum") == 2
 
     def test_no_sub_docs(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestMultiStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "no summary"
 
@@ -164,7 +172,7 @@ class TestMultiStepSummarize:
         assert generate.call_count == 0  # No sub-documents to summarize
 
     def test_summary_document(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestMultiStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = MultiStepDocumentSummarizer(
@@ -175,7 +183,7 @@ class TestMultiStepSummarize:
 
     def test_summary_document_serde(self, mocker):
         serde_doc = Document.deserialize(TestOneStepSummarize.doc.serialize())
-        llm = mocker.Mock(spec=LLM)
+        llm = TestMultiStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = MultiStepDocumentSummarizer(
@@ -242,8 +250,15 @@ class TestOneStepSummarize:
         ]
     )
 
-    def test_basic(self, mocker):
+    @staticmethod
+    def llm(mocker):
         llm = mocker.Mock(spec=LLM)
+        mode = mocker.patch.object(llm, "default_mode")
+        mode.return_value = LLMMode.SYNC
+        return llm
+
+    def test_basic(self, mocker):
+        llm = TestOneStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = OneStepDocumentSummarizer(llm, question="say what?", fields=[])
@@ -260,7 +275,7 @@ class TestOneStepSummarize:
                 assert f"properties.{p}: {e.properties[p]}" in usermessage
 
     def test_title_first(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestOneStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = OneStepDocumentSummarizer(
@@ -288,7 +303,7 @@ class TestOneStepSummarize:
                 assert f"properties.{p}: {e.properties[p]}" in usermessage
 
     def test_only_title(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestOneStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = OneStepDocumentSummarizer(llm, question="say what?", fields=["properties.title"])
@@ -304,7 +319,7 @@ class TestOneStepSummarize:
         assert "properties.state" not in usermessage
 
     def test_too_many_tokens(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestOneStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = OneStepDocumentSummarizer(
@@ -322,7 +337,7 @@ class TestOneStepSummarize:
         assert "properties.state" not in usermessage
 
     def test_too_many_tokens_takes_evenly(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestOneStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = OneStepDocumentSummarizer(
@@ -341,7 +356,7 @@ class TestOneStepSummarize:
         assert "properties.state" not in usermessage
 
     def test_no_sub_docs(self, mocker):
-        llm = mocker.Mock(spec=LLM)
+        llm = TestOneStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
 
@@ -358,7 +373,7 @@ class TestOneStepSummarize:
 
     def test_basic_with_serde(self, mocker):
         serde_doc = Document.deserialize(self.doc.serialize())
-        llm = mocker.Mock(spec=LLM)
+        llm = TestOneStepSummarize.llm(mocker)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = OneStepDocumentSummarizer(llm, question="say what?", fields=[])

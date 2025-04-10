@@ -179,6 +179,14 @@ class OpenAIClientWrapper:
         else:
             raise ValueError(f"Invalid client_type {self.client_type}")
 
+    def close(self) -> None:
+        # This is tricky.  We want to close the client, but avoid creating one
+        # if there isn't one cached.  We can't close the async client from
+        # a non-async context.  Attempts to use clients after calling close()
+        # will fail.
+        if self.get_client.cache_info().currsize:
+            self.get_client().close()
+
     @functools.cache
     def get_async_client(self) -> AsyncOpenAIClient:
         if self.client_type == OpenAIClientType.OPENAI:
@@ -299,6 +307,10 @@ class OpenAI(LLM):
         }
 
         return openai_deserializer, (kwargs,)
+
+    def close(self) -> None:
+        # After closing, don't expect method calls to succeed.
+        self.client_wrapper.close()
 
     def is_chat_mode(self):
         return self.model.is_chat

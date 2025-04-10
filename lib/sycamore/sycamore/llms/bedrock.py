@@ -7,7 +7,7 @@ from typing import Any, Optional, Union
 
 from PIL import Image
 
-from sycamore.llms.llms import LLM
+from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.anthropic import format_image, get_generate_kwargs
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
@@ -60,7 +60,7 @@ class Bedrock(LLM):
             self.model = BedrockModel(name=model_name)
 
         self._client = boto3.client(service_name="bedrock-runtime")
-        super().__init__(self.model.name, cache)
+        super().__init__(self.model.name, default_mode=LLMMode.SYNC, cache=cache)
 
     def __reduce__(self):
         def deserializer(kwargs):

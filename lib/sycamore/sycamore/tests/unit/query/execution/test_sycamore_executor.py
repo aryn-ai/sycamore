@@ -7,6 +7,7 @@ import pytest
 
 import sycamore
 from sycamore.llms import LLM
+from sycamore.llms.llms import LLMMode
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
@@ -18,7 +19,7 @@ from sycamore.query.result import SycamoreQueryResult
 
 class MockLLM(LLM):
     def __init__(self):
-        super().__init__(model_name="dummy")
+        super().__init__(model_name="dummy", default_mode=LLMMode.SYNC)
 
     def is_chat_mode(self):
         return True

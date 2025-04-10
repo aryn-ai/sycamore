@@ -9,6 +9,7 @@ import sycamore
 from sycamore import DocSet, Context
 from sycamore.data import Document, Element
 from sycamore.llms import LLM
+from sycamore.llms.llms import LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
@@ -38,7 +39,7 @@ from sycamore.transforms.summarize import LLMElementTextSummarizer
 
 class MockLLM(LLM):
     def __init__(self):
-        super().__init__(model_name="mock_model")
+        super().__init__(model_name="mock_model", default_mode=LLMMode.SYNC)
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         print(prompt)

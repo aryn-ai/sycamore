@@ -253,8 +253,8 @@ class OpenAI(LLM):
         api_key: Optional[str] = None,
         client_wrapper: Optional[OpenAIClientWrapper] = None,
         params: Optional[OpenAIClientParameters] = None,
+        default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
-        default_mode: Optional[LLMMode] = None,
         **kwargs,
     ):
         if isinstance(model_name, OpenAIModels):
@@ -269,7 +269,7 @@ class OpenAI(LLM):
         if self.model.name == OpenAIModels.TEXT_DAVINCI.value.name:
             logger.warning("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
             self.model = OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value
-        super().__init__(self.model.name, cache, default_mode)
+        super().__init__(self.model.name, default_mode, cache)
 
         # This is somewhat complex to provide a degree of backward compatibility.
         if client_wrapper is None:
@@ -299,11 +299,6 @@ class OpenAI(LLM):
         }
 
         return openai_deserializer, (kwargs,)
-
-    def default_mode(self) -> LLMMode:
-        if self._default_mode is not None:
-            return self._default_mode
-        return LLMMode.ASYNC
 
     def is_chat_mode(self):
         return self.model.is_chat

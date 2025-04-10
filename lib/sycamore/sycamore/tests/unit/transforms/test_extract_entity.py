@@ -7,6 +7,7 @@ from sycamore.context import Context, OperationTypes, ExecMode
 from sycamore.data import Document, Element
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import LLM
+from sycamore.llms.llms import LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.tests.unit.test_docset import TestSimilarityScorer, MockTokenizer
 from sycamore.tests.unit.test_docset import MockLLM as docsetMockLLM
@@ -15,7 +16,7 @@ from sycamore.tests.unit.transforms.test_llm_filter import tokenizer_doc
 
 class MockLLM(LLM):
     def __init__(self):
-        super().__init__(model_name="mock_model")
+        super().__init__(model_name="mock_model", default_mode=LLMMode.SYNC)
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         print(prompt)

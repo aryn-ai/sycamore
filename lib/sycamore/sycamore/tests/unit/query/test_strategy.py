@@ -2,6 +2,7 @@ import unittest
 from typing import Optional
 
 from sycamore.llms import LLM
+from sycamore.llms.llms import LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.query_database import QueryDatabase
@@ -24,7 +25,7 @@ class DummyLLMClient(LLM):
 
 class TestStrategies(unittest.TestCase):
     def test_default(self):
-        processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model"))
+        processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model", LLMMode.SYNC))
         strategy = DefaultQueryPlanStrategy(post_processors=[processor])
 
         assert len(strategy.post_processors) == 1
@@ -32,7 +33,7 @@ class TestStrategies(unittest.TestCase):
         assert strategy.operators == ALL_OPERATORS
 
     def test_vector_search_only(self):
-        processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model"))
+        processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model", LLMMode.SYNC))
 
         strategy = VectorSearchOnlyStrategy(post_processors=[])
         assert strategy.post_processors == []
@@ -45,10 +46,10 @@ class TestStrategies(unittest.TestCase):
 
 class TestRemoveVectorSearchForAnalytics(unittest.TestCase):
 
-    processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model"))
+    processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model", default_mode=LLMMode.SYNC))
 
     def test_operators(self):
-        processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model"))
+        processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model", default_mode=LLMMode.SYNC))
         strategy = VectorSearchOnlyStrategy(post_processors=[processor])
         assert strategy.post_processors == [processor]
         assert QueryDatabase not in strategy.operators

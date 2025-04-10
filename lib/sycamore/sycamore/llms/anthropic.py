@@ -125,8 +125,8 @@ class Anthropic(LLM):
     def __init__(
         self,
         model_name: Union[AnthropicModels, str],
+        default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
-        default_mode: Optional[LLMMode] = None,
     ):
 
         # We import this here so we can share utility code with the Bedrock
@@ -146,7 +146,7 @@ class Anthropic(LLM):
 
         self._client = AnthropicClient()
         self._async_client = AsyncAnthropicClient()
-        super().__init__(self.model.value, cache, default_mode)
+        super().__init__(self.model.value, default_mode, cache)
 
     def __reduce__(self):
         def deserializer(kwargs):

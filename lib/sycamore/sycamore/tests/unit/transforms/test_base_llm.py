@@ -8,7 +8,7 @@ from typing import Optional
 
 
 class FakeLLM(LLM):
-    def __init__(self, default_mode: Optional[LLMMode] = None):
+    def __init__(self, default_mode: LLMMode = LLMMode.SYNC):
         super().__init__(model_name="dummy", default_mode=default_mode)
         self.async_calls = 0
 

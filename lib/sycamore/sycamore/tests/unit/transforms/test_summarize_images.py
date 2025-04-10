@@ -5,6 +5,7 @@ from sycamore.data.element import Element, ImageElement
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.tests.config import TEST_DIR
 from sycamore.llms import LLM
+from sycamore.llms.llms import LLMMode
 from sycamore.transforms.summarize_images import LLMImageSummarizer, SummarizeImages
 
 
@@ -15,7 +16,7 @@ def image_element() -> ImageElement:
 
 class MockLLM(LLM):
     def __init__(self):
-        super().__init__(model_name="dummy")
+        super().__init__(model_name="dummy", default_mode=LLMMode.SYNC)
 
     def is_chat_mode(self):
         return True

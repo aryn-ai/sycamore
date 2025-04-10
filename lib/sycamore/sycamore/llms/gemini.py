@@ -49,8 +49,8 @@ class Gemini(LLM):
     def __init__(
         self,
         model_name: Union[GeminiModels, str],
+        default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
-        default_mode: Optional[LLMMode] = None,
         api_key: Optional[str] = None,
     ):
         from google.genai import Client
@@ -63,7 +63,7 @@ class Gemini(LLM):
             self.model = GeminiModel(name=model_name)
         api_key = api_key if api_key else os.getenv("GEMINI_API_KEY")
         self._client = Client(api_key=api_key)
-        super().__init__(self.model.name, cache, default_mode)
+        super().__init__(self.model.name, default_mode, cache)
 
     def __reduce__(self):
         def deserializer(kwargs):

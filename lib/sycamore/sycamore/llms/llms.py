@@ -23,16 +23,14 @@ class LLMMode(Enum):
 class LLM(ABC):
     """Abstract representation of an LLM instance. and should be subclassed to implement specific LLM providers."""
 
-    def __init__(self, model_name, cache: Optional[Cache] = None, default_mode: Optional[LLMMode] = None):
+    def __init__(self, model_name, default_mode: LLMMode, cache: Optional[Cache] = None):
         self._model_name = model_name
         self._cache = cache
         self._default_mode = default_mode
 
     def default_mode(self) -> LLMMode:
         """Returns the default execution mode for the llm"""
-        if self._default_mode is not None:
-            return self._default_mode
-        return LLMMode.SYNC
+        return self._default_mode
 
     @abstractmethod
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
@@ -208,9 +206,7 @@ class LLM(ABC):
 class FakeLLM(LLM):
     """Useful for tests where the fake LLM needs to run in a ray function because mocks are not serializable"""
 
-    def __init__(
-        self, *, return_value="trivial", cache: Optional[Cache] = None, default_mode: Optional[LLMMode] = None
-    ):
+    def __init__(self, *, return_value="trivial", cache: Optional[Cache] = None, default_mode: LLMMode = LLMMode.SYNC):
         super().__init__("trivial", cache=cache, default_mode=default_mode)
         self._return_value = return_value
 

@@ -1,6 +1,6 @@
 from typing import Callable, TYPE_CHECKING
 
-from sycamore.data import Document
+from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node, NonGPUUser, NonCPUUser, Transform
 from sycamore.transforms.map import MapBatch
 
@@ -29,11 +29,34 @@ class Limit(NonCPUUser, NonGPUUser, Transform):
         self._limit = limit
 
     def execute(self, **kwargs) -> "Dataset":
+        import ray
+
         dataset = self.child().execute()
-        return dataset.limit(self._limit)
+        rayDocs = []
+
+        count = 0
+        for doc in dataset.iter_rows():
+            deser_doc = Document.deserialize(doc["doc"])
+            if not isinstance(deser_doc, MetadataDocument):
+                count += 1
+                if count > self._limit:
+                    break
+            rayDocs.append(doc)
+
+        return ray.data.from_items(rayDocs)
 
     def local_execute(self, all_docs: list[Document]) -> list[Document]:
-        return all_docs[: self._limit]
+        filtered_docs: list[Document] = []
+        count = 0
+
+        for doc in all_docs:
+            if not isinstance(doc, MetadataDocument):
+                count += 1
+                if count > self._limit:
+                    break
+            filtered_docs.append(doc)
+
+        return filtered_docs
 
 
 class Filter(MapBatch):

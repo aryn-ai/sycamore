@@ -115,6 +115,23 @@ def test_duckdb_writer_target_params_compatible_with():
     assert params8.compatible_with(params7)
 
 
+def test_duckdb_writer_target_params_compatible_with_error_messages():
+    params1 = DuckDBWriterTargetParams(dimensions=128)
+    params2 = DuckDBWriterTargetParams(dimensions=64)
+    with pytest.raises(ValueError, match="Incompatible dimensions: Expected 128, found 64"):
+        params1.compatible_with(params2)
+
+    params3 = DuckDBWriterTargetParams(dimensions=128, table_name="table1")
+    params4 = DuckDBWriterTargetParams(dimensions=128, table_name="table2")
+    with pytest.raises(ValueError, match="Incompatible table names: Expected table1, found table2"):
+        params3.compatible_with(params4)
+
+    params5 = DuckDBWriterTargetParams(dimensions=128, schema={"doc_id": "VARCHAR", "embedding": "FLOAT[128]"})
+    params6 = DuckDBWriterTargetParams(dimensions=128, schema={"doc_id": "VARCHAR", "embedding": "FLOAT"})
+    with pytest.raises(ValueError, match="Incompatible schemas: Expected {'doc_id': 'VARCHAR', 'embedding': 'FLOAT\\[128\\]'}, found {'doc_id': 'VARCHAR', 'embedding': 'FLOAT'}"):
+        params5.compatible_with(params6)
+
+
 def test_duckdb_writer_get_existing_target_params_table_not_exist(mock_duckdb, client_params, target_params):
     client = DuckDBClient(client_params)
     mock_duckdb.sql.side_effect = Exception("Table does not exist")

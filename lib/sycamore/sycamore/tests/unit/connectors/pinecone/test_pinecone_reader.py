@@ -119,3 +119,21 @@ def test_pinecone_reader_query_response_to_docs_with_sparse_vector():
     assert isinstance(docs[0], Document)
     assert docs[0].doc_id == "doc1"
     assert docs[0].properties["term_frequency"] == {0: 0.5, 1: 0.5}
+
+
+def test_pinecone_reader_query_params_compatible_with():
+    params1 = PineconeReaderQueryParams(index_name="test_index", namespace="test_namespace", query=None)
+    params2 = PineconeReaderQueryParams(index_name="test_index", namespace="test_namespace", query=None)
+    assert params1.compatible_with(params2)
+
+    params3 = PineconeReaderQueryParams(index_name="different_index", namespace="test_namespace", query=None)
+    with pytest.raises(ValueError, match="Incompatible index names: test_index != different_index"):
+        params1.compatible_with(params3)
+
+    params4 = PineconeReaderQueryParams(index_name="test_index", namespace="different_namespace", query=None)
+    with pytest.raises(ValueError, match="Incompatible namespaces: test_namespace != different_namespace"):
+        params1.compatible_with(params4)
+
+    params5 = PineconeReaderQueryParams(index_name="test_index", namespace="test_namespace", query={"key": "value"})
+    with pytest.raises(ValueError, match="Incompatible queries: None != {'key': 'value'}"):
+        params1.compatible_with(params5)

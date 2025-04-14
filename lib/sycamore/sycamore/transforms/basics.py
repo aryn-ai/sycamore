@@ -41,7 +41,7 @@ class Limit(NonCPUUser, NonGPUUser, Transform):
                 count += 1
                 if count > self._limit:
                     break
-            rayDocs.append(doc)
+                rayDocs.append(doc)
 
         return ray.data.from_items(rayDocs)
 
@@ -54,7 +54,7 @@ class Limit(NonCPUUser, NonGPUUser, Transform):
                 count += 1
                 if count > self._limit:
                     break
-            filtered_docs.append(doc)
+                filtered_docs.append(doc)
 
         return filtered_docs
 

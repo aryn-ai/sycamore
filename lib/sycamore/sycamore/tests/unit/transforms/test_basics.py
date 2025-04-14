@@ -44,5 +44,5 @@ def test_limit_with_metadata():
     result = limit_transform.execute()
     list_of_docs = [Document.deserialize(d["doc"]) for d in result.take_all()]
     documents = [doc for doc in list_of_docs if not isinstance(doc, MetadataDocument)]
-    assert len(list_of_docs) == 7
+    assert len(list_of_docs) == 4
     assert len(documents) == 4

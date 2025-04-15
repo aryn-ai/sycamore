@@ -1,7 +1,9 @@
 import pytest
 
 from sycamore import DocSet
-from sycamore.query.operators.top_k import GroupByCount
+from sycamore.query.operators.aggregate import AggregateCount
+from sycamore.query.operators.clustering import KMeanClustering
+from sycamore.query.operators.top_k import GroupBy
 from sycamore.query.strategy import QueryPlanStrategy
 
 from sycamore.query.client import SycamoreQueryClient
@@ -102,17 +104,31 @@ class TestSycamoreQuery:
         )
         assert len(plan.nodes) == 2
         assert isinstance(plan.nodes[0], QueryDatabase)
-        plan.nodes[1] = GroupByCount(
-            node_type="GroupByCount",
+        plan.nodes[1] = KMeanClustering(
+            node_type="KMeanClustering",
             node_id=1,
             description="Find the most common cause of accidents",
             inputs=[0],
-            entity_name="properties.cause",
-            embed_name="cause",
-            cluster_field_name="centroids",
+            field="properties.cause",
+            new_field="centroids",
             K=5,
-            descending=True,
         )
+        plan.nodes[2] = GroupBy(
+            node_type="GroupBy",
+            node_id=2,
+            description="Find the most common cause of accidents",
+            inputs=[1],
+            field="centroids",
+        )
+        plan.nodes[3] = AggregateCount(
+            node_type="AggregateCount",
+            node_id=3,
+            description="Find the most common cause of accidents",
+            inputs=[2],
+            llm_summary=True,
+            llm_summary_instruction="The cause accident for this group",
+        )
+        plan.result_node = 3
         result = client.run_plan(plan, codegen_mode=False)
         assert isinstance(result.result, DocSet)
         docs = result.result.take_all()

@@ -1335,6 +1335,11 @@ class DocSet:
         return DocSet(self.context, queries)
 
     def groupby(self, grouped_key: Union[str, list[str]], entity: Optional[str] = None) -> "GroupedData":
+        """
+        The original name for the grouped key, e.g. when grouped_key refers to
+        an embedding, the entity name would be the column which generates the
+        embedding.
+        """
         from sycamore.grouped_data import GroupedData
 
         return GroupedData(self, grouped_key, entity)

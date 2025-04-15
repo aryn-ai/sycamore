@@ -38,22 +38,13 @@ class TopK(Node):
     could be 'Form groups of different food'"""
 
 
-class GroupByCount(Node):
-    """Finds the top K frequent occurences of values for a particular field.
+class GroupBy(Node):
+    """Group documents based on a particular field.
 
     Returns a database with ONLY 2 FIELDS: "properties.key" (which corresponds to unique values of
     *field*) and "properties.count" (which contains the counts corresponding to unique values
     of *field*).
     """
 
-    entity_name: Optional[str] = None
-    embed_name: Optional[str] = None
-    """The database field to find the top K occurences for."""
-
-    cluster_field_name: str = "centroids"
-
-    K: int = 5
-
-    descending: bool = False
-    """If True, will return the top K most common occurrences. If False, will return the top K
-    least common occurrences."""
+    field: str = "centroids"
+    """The centroid field used for clustering"""

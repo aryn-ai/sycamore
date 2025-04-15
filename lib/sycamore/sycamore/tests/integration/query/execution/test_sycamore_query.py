@@ -111,7 +111,8 @@ class TestSycamoreQuery:
             embed_name="cause",
             cluster_field_name="centroids",
             K=5,
-            descending=True,
+            llm_summary=True,
+            llm_summary_instruction="The cause accident for this group",
         )
         result = client.run_plan(plan, codegen_mode=False)
         assert isinstance(result.result, DocSet)

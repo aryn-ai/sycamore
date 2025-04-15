@@ -667,6 +667,13 @@ class SycamoreGroupByCount(SycamoreOperator):
         logical_node = self.logical_node
         assert isinstance(logical_node, GroupByCount)
 
+        llm = None
+        if logical_node.llm_summary:
+            llm = get_val_from_context(
+                context=self.context, val_key="llm", param_names=[OperationTypes.BINARY_CLASSIFIER.value]
+            )
+            assert isinstance(llm, LLM), "GroupBy with llm summary requies an 'llm' configured on the Context"
+
         entity_name = logical_node.entity_name
         embed_name = logical_node.embed_name
 
@@ -676,7 +683,6 @@ class SycamoreGroupByCount(SycamoreOperator):
         embedder.embed_name = (entity_name, embed_name)
 
         cluster_field_name = logical_node.cluster_field_name
-        descending = logical_node.descending
         K = logical_node.K
 
         import tempfile
@@ -687,9 +693,22 @@ class SycamoreGroupByCount(SycamoreOperator):
         docset.execute()
         centroids = docset.kmeans(K=K * 2, field_name=embed_name)
         clustered = docset.clustering(centroids=centroids, cluster_field_name=cluster_field_name, field_name=embed_name)
-        result = (
-            clustered.groupby(cluster_field_name, entity_name).count().sort(descending, "properties.count", 0).limit(K)
-        )
+        result = clustered.groupby(cluster_field_name, entity_name).collect()
+
+        if logical_node.llm_summary:
+            from sycamore.llms.prompts.prompts import JinjaPrompt
+
+            prompt = JinjaPrompt(
+                system="You are a helpful summarizer",
+                user="""You are given a list of values corresponding to the database field {{ field }}.
+                These values belong to one group formed by a clustering algorithm.
+                Given the instruction "{{ instruction }}" and the values {{ doc.field_to_value(field) }}, find this group is
+                clustering on in less than 5 words.
+                """,
+                field="properties.key",
+                instruction=logical_node.llm_summary_instruction,
+            )
+            result = result.llm_map(prompt, "key", llm)
 
         return result
 

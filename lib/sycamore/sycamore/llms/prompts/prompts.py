@@ -582,7 +582,13 @@ class JinjaPrompt(SycamorePrompt):
     def __reduce__(self):
         # Cannot serialize compiled templates - so force recompilation
         return _deserialize_jinja_prompt, (
-            {"system": self.system, "user": self.user, "class": self.__class__.__name__, **self.kwargs},
+            {
+                "system": self.system,
+                "user": self.user,
+                "class": self.__class__.__name__,
+                "response_format": self.response_format,
+                **self.kwargs,
+            },
         )
 
     def render_document(self, doc: Document) -> RenderedPrompt:
@@ -677,6 +683,7 @@ class JinjaElementPrompt(SycamorePrompt):
                 "system": self.system,
                 "user": self.user,
                 "include_image": self.include_image,
+                "response_format": self.response_format,
                 "class": self.__class__.__name__,
                 **self.kwargs,
             },

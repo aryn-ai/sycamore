@@ -448,7 +448,8 @@ LlmFilterMessagesJinjaPrompt = JinjaPrompt(
             """\
         Given an entry and a question, you will answer the question relating to the
         entry. You only response with 0, 1, 2, 3, 4, or 5 based on your confidence
-        level. 0 is the most negative answer and 5 is the most positive answer.
+        level. 0 is a confident 'no' and 5 is a confident 'yes'. If you have to do
+        math to answer the question, do it in your head but be sure to get it right.
         Question: {{ filter_question }}
         Entry: {% if not use_elements -%}
         Field Name: {{ field }}; Field Value: {{ field_value(doc, field, no_field_behavior) }}
@@ -458,7 +459,7 @@ LlmFilterMessagesJinjaPrompt = JinjaPrompt(
         + "{% endif %}"
         + textwrap.dedent(
             """\
-            The response should be a value from [0,1,2,3,4,5]. 0 is the least confident and 5 is the most confident.
+            The response should be a value from [0,1,2,3,4,5]. 0 is a confident 'no' and 5 is a confident 'yes'.
             Do not return any other text apart from the given values."""
         )
     ),

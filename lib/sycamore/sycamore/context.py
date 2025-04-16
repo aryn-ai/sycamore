@@ -1,5 +1,5 @@
 import functools
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Any, Callable, Optional, Union, List
 import inspect
@@ -55,7 +55,7 @@ class Context:
 
 
 def get_val_from_context(
-    context: "Context", val_key: str, param_names: Optional[List[str]] = None, ignore_default: bool = False
+    context: Context, val_key: str, param_names: Optional[List[str]] = None, ignore_default: bool = False
 ) -> Optional[Any]:
     """
     Helper function: Given a Context object, return the possible value for a given val.
@@ -147,6 +147,22 @@ def context_params(*names):
         return decorator(names[0])
     else:
         return decorator
+
+
+def modified_context(context: Context, param_name: str, **overrides) -> Context:
+    """
+    Returns a Context just like the one passed in, but with individual values
+    within params[param_name] changed to values from the overrides kwargs.
+    Use param_name 'default' if unsure.  Avoids deep-copying anything.
+    """
+    rv = replace(context)  # shallow copy
+    if overrides:
+        if (dct := rv.params.get(param_name)) is None:
+            rv.params = rv.params.copy()
+            rv.params[param_name] = overrides.copy()  # not deep
+        else:
+            dct.update(overrides)
+    return rv
 
 
 def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, **kwargs) -> Context:

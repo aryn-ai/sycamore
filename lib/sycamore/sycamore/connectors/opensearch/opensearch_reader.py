@@ -290,6 +290,7 @@ class OpenSearchReader(BaseDBReader):
         self._query_params = query_params
         # TODO add support for 'search_after' pagination if a sort field is provided.
         self.use_pit = use_pit
+        self.pit_id = None
         logger.info(f"OpenSearchReader using PIT: {self.use_pit}")
 
     @timetrace("OpenSearchReader")
@@ -548,7 +549,7 @@ class OpenSearchReader(BaseDBReader):
             # num_slices = num_workers
 
             res = os_client.create_pit(index=index_name, keep_alive="100m")
-            pit_id = res["pit_id"]
+            self.pit_id = res["pit_id"]
             docs = []
             for i in range(num_slices):
                 _query = {
@@ -557,7 +558,7 @@ class OpenSearchReader(BaseDBReader):
                         "max": num_slices,
                     },
                     "pit": {
-                        "id": pit_id,
+                        "id": self.pit_id,
                         "keep_alive": "1m",
                     },
                 }
@@ -596,3 +597,13 @@ class OpenSearchReader(BaseDBReader):
                 # Step 1: Construct slices (pages)
                 # Step 2: For each page, get all documents
                 return ds.flat_map(self._to_doc, **self.resource_args)
+
+    def finalize(self) -> None:
+        """Clean up"""
+        if self.pit_id is not None:
+            logger.info(f"Deleting PIT {self.pit_id}")
+            client = self.Client.from_client_params(self._client_params)
+            os_client = client._client
+            os_client.delete_pit({"pit_id": [self.pit_id]})
+            client.close()
+        super().finalize()

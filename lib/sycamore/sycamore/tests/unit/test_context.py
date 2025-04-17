@@ -1,7 +1,7 @@
 from typing import Optional
 
 import sycamore
-from sycamore.context import context_params, Context, get_val_from_context, ExecMode
+from sycamore.context import context_params, Context, get_val_from_context, ExecMode, modified_context
 
 
 def test_init():
@@ -31,6 +31,45 @@ def test_get_val_from_context():
     assert get_val_from_context(context, "missing") is None
     assert get_val_from_context(Context(), "missing") is None
     assert get_val_from_context(Context(params={}), "missing") is None
+
+
+def test_modified_context():
+    params = {"paramKeyA": {"llm": 1}, "paramKeyB": {"llm": ["llm1", "llm2"]}, "default": {"llm": "openai"}}
+    c0 = Context(params=params)
+
+    # Case 1: simple copy
+    c1 = modified_context(c0, "")
+    assert get_val_from_context(c1, "llm") == "openai"
+    assert get_val_from_context(c1, "llm", param_names=["paramKeyA"]) == 1
+
+    # Case 2: add namespace
+    c2 = modified_context(c0, "monet", llm="claude")
+    assert get_val_from_context(c0, "llm") == "openai"
+    assert get_val_from_context(c0, "llm", param_names=["monet"]) == "openai"
+    assert get_val_from_context(c2, "llm") == "openai"
+    assert get_val_from_context(c2, "llm", param_names=["monet"]) == "claude"
+
+    # Case 3: change default
+    c3 = modified_context(c2, "default", llm="mistral")
+    assert get_val_from_context(c2, "llm") == "openai"
+    assert get_val_from_context(c2, "llm", param_names=["monet"]) == "claude"
+    assert get_val_from_context(c3, "llm") == "mistral"
+    assert get_val_from_context(c3, "llm", param_names=["monet"]) == "claude"
+
+    # Case 4: change non-default
+    c4 = modified_context(c3, "monet", llm="llama")
+    assert get_val_from_context(c3, "llm") == "mistral"
+    assert get_val_from_context(c3, "llm", param_names=["monet"]) == "claude"
+    assert get_val_from_context(c4, "llm") == "mistral"
+    assert get_val_from_context(c4, "llm", param_names=["monet"]) == "llama"
+
+    # Sanity check earlier values remain
+    assert get_val_from_context(c0, "llm") == "openai"
+    assert get_val_from_context(c0, "llm", param_names=["monet"]) == "openai"
+    assert get_val_from_context(c1, "llm") == "openai"
+    assert get_val_from_context(c1, "llm", param_names=["paramKeyA"]) == 1
+    assert get_val_from_context(c2, "llm") == "openai"
+    assert get_val_from_context(c2, "llm", param_names=["monet"]) == "claude"
 
 
 @context_params

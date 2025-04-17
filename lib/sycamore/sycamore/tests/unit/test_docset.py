@@ -69,6 +69,11 @@ class MockLLM(LLM):
             return "4"
         elif "test1" in prompt.messages[-1].content.strip() and "[0,1,2,3,4,5]" in prompt.messages[-1].content.strip():
             return "4"
+        elif (
+            "third element" in prompt.messages[-1].content.strip()
+            and "[0,1,2,3,4,5]" in prompt.messages[-1].content.strip()
+        ):
+            return "1"
         elif asdict(prompt) == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
             return "2"
         elif prompt.messages[0].content == "test2":

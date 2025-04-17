@@ -12,7 +12,6 @@
 import argparse
 import logging
 import os
-import uuid
 from typing import List, Optional, Union
 
 import structlog
@@ -23,7 +22,8 @@ from sycamore.schema import Schema
 
 import sycamore
 from sycamore import Context, ExecMode
-from sycamore.context import OperationTypes
+from sycamore.context import OperationTypes, modified_context
+from sycamore.data import nanoid36
 from sycamore.llms import LLM, get_llm, MODELS
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
@@ -216,16 +216,22 @@ class SycamoreQueryClient:
         plan = planner.plan(query)
         return plan
 
-    def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> SycamoreQueryResult:
+    def run_plan(
+        self, plan: LogicalPlan, dry_run=False, codegen_mode=False, os_client_args: Optional[dict] = None
+    ) -> SycamoreQueryResult:
         """Run the given logical query plan and return a tuple of the query ID and result."""
         assert self.context is not None, "Running a plan requires a configured Context"
+        if os_client_args:
+            my_ctx = modified_context(self.context, "default", os_client_args=os_client_args)
+        else:
+            my_ctx = self.context
         executor = SycamoreExecutor(
-            context=self.context,
+            context=my_ctx,
             cache_dir=self.cache_dir,
             dry_run=dry_run,
             codegen_mode=codegen_mode,
         )
-        query_id = str(uuid.uuid4())
+        query_id = nanoid36()
         return executor.execute(plan, query_id)
 
     def query(

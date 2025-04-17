@@ -7,7 +7,7 @@ from sycamore.data import Document, MetadataDocument
 from sycamore.utils.lineage_utils import update_lineage
 from sycamore.data.document import split_data_metadata
 from sycamore.plan_nodes import Node, UnaryNode
-from sycamore.utils.ray_utils import check_serializable
+from sycamore.utils.ray_utils import handle_serialization_exception
 from sycamore.utils.thread_local import ThreadLocal, ADD_METADATA_TO_OUTPUT
 
 if TYPE_CHECKING:
@@ -110,6 +110,7 @@ class BaseMapTransform(UnaryNode):
         self._constructor_kwargs = constructor_kwargs
         self._enable_auto_metadata = enable_auto_metadata
 
+    @handle_serialization_exception("_f", "_name", "_args", "_kwargs", "_constructor_args", "_constructor_kwargs")
     def execute(
         self,
         write_intermediate_data: bool = False,
@@ -117,12 +118,6 @@ class BaseMapTransform(UnaryNode):
         intermediate_datasink_kwargs: Optional[dict[str, Any]] = None,
         **kwargs,
     ) -> "Dataset":
-        # If serializability fails, the error messages are very confusing. These checks
-        # give a much more sensible error message and give it before ray starts execution.
-        check_serializable(
-            self._f, self._name, self._args, self._kwargs, self._constructor_args, self._constructor_kwargs
-        )
-
         from ray.data import ActorPoolStrategy
 
         if "num_gpus" in self.resource_args:

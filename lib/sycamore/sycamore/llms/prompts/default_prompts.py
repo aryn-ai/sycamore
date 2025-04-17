@@ -441,14 +441,14 @@ class EntityExtractorMessagesPrompt(SimplePrompt):
 # TODO: Need to separate the condition when use_elements is True but the field is a property that does not require chunking.
 #       Could save up on time by not scheduling llm calls.
 LlmFilterMessagesJinjaPrompt = JinjaPrompt(
-    system="You are a helpful classifier that generously filters database entries based on questions.",
+    system="You are a helpful classifier that filters database entries based on questions.",
     user=(
         J_FIELD_VALUE_MACRO
         + textwrap.dedent(
             """\
-        Given an entry and a question, you will answer the question relating to the
-        entry. You only response with 0, 1, 2, 3, 4, or 5 based on your confidence
-        level. 0 is the most negative answer and 5 is the most positive answer.
+        Given an entry and a yes or no question, you will answer the question relating
+        to the entry. You only respond with 0, 1, 2, 3, 4, or 5 based on your confidence
+        level. 0 is a confident 'no' and 5 is a confident 'yes'.
         Question: {{ filter_question }}
         Entry: {% if not use_elements -%}
         Field Name: {{ field }}; Field Value: {{ field_value(doc, field, no_field_behavior) }}
@@ -458,8 +458,8 @@ LlmFilterMessagesJinjaPrompt = JinjaPrompt(
         + "{% endif %}"
         + textwrap.dedent(
             """\
-            The response should be a value from [0,1,2,3,4,5]. 0 is the least confident and 5 is the most confident.
-            Do not return any other text apart from the given values."""
+            The response should be a value from [0,1,2,3,4,5]. 0 is a confident 'no' and 5 is a confident 'yes'.
+            Before writing the confidence score, provide justification."""
         )
     ),
 )

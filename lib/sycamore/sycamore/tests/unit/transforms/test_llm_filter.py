@@ -254,7 +254,7 @@ class TestLLMFilter:
             threshold=3,
             use_elements=True,
             tokenizer=mock_tokenizer,
-            max_tokens=140,  # Low token limit to test windowing
+            max_tokens=120,  # Low token limit to test windowing
         )
 
         taken = filtered_docset.take()

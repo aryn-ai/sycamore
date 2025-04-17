@@ -157,11 +157,14 @@ def modified_context(context: Context, param_name: str, **overrides) -> Context:
     """
     rv = replace(context)  # shallow copy
     if overrides:
-        if (dct := rv.params.get(param_name)) is None:
-            rv.params = rv.params.copy()
-            rv.params[param_name] = overrides.copy()  # not deep
+        params = rv.params.copy()
+        if (sub := params.get(param_name)) is None:
+            new = overrides.copy()  # not deep
         else:
-            dct.update(overrides)
+            new = sub.copy()  # not deep
+            new.update(overrides)
+        params[param_name] = new
+        rv.params = params
     return rv
 
 

@@ -9,6 +9,7 @@ def test_non_serializable():
     lock1 = threading.Lock()
     lock2 = threading.Lock()
     with pytest.raises(ValueError):
+        # Make sure this works with passing multiple objects.
         check_serializable(lock1, lock2)
 
 

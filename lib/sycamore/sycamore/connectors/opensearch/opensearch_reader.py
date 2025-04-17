@@ -519,7 +519,7 @@ class OpenSearchReader(BaseDBReader):
                 .map(lambda d: {"doc": Document(**d).serialize()})
             )
 
-    @handle_serialization_exception("_client_params", "._query_params")
+    @handle_serialization_exception("_client_params", "_query_params")
     def _execute_pit(self, **kwargs) -> "Dataset":
         """Distribute the work evenly across available workers.
         We don't want a slice with more than 10k documents as we need to use 'from' to paginate through the results."""

@@ -74,7 +74,7 @@ class BaseDBReader(Scan):
             client.close()
         return docs
 
-    @handle_serialization_exception("_client_params", "._query_params")
+    @handle_serialization_exception("_client_params", "_query_params")
     def execute(self, **kwargs) -> "Dataset":
         from ray.data import from_items
 

@@ -14,9 +14,9 @@ def check_serializable(*objects):
 def handle_serialization_exception(*objects):
     def decorator(func):
         @functools.wraps(func)
-        def wrapper(self, *args):
+        def wrapper(self, *args, **kwargs):
             try:
-                return func(self, *args)
+                return func(self, *args, **kwargs)
             except TypeError:
                 attrs = [getattr(self, attr) for attr in objects]
                 check_serializable(*tuple(attrs))

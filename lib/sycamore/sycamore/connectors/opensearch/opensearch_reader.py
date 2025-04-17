@@ -12,6 +12,7 @@ from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
 from typing import Optional, Any, List, TYPE_CHECKING
 
+from sycamore.utils.ray_utils import handle_serialization_exception
 from sycamore.utils.time_trace import TimeTrace, timetrace
 
 if TYPE_CHECKING:
@@ -518,16 +519,13 @@ class OpenSearchReader(BaseDBReader):
                 .map(lambda d: {"doc": Document(**d).serialize()})
             )
 
+    @handle_serialization_exception("_client_params", "._query_params")
     def _execute_pit(self, **kwargs) -> "Dataset":
         """Distribute the work evenly across available workers.
         We don't want a slice with more than 10k documents as we need to use 'from' to paginate through the results."""
         assert isinstance(
             self._query_params, OpenSearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {self._query_params}"
-
-        from sycamore.utils.ray_utils import check_serializable
-
-        check_serializable(self._client_params, self._query_params)
 
         client = None
         try:

@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Scan
+from sycamore.utils.ray_utils import handle_serialization_exception
 from sycamore.utils.time_trace import TimeTrace
 
 if TYPE_CHECKING:
@@ -73,10 +74,8 @@ class BaseDBReader(Scan):
             client.close()
         return docs
 
+    @handle_serialization_exception("_client_params", "._query_params")
     def execute(self, **kwargs) -> "Dataset":
-        from sycamore.utils.ray_utils import check_serializable
-
-        check_serializable(self._client_params, self._query_params)
         from ray.data import from_items
 
         with TimeTrace("Reader"):

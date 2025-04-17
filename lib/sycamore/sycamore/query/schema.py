@@ -73,7 +73,8 @@ class OpenSearchSchemaFetcher:
         )
 
         # Get type and example values for each field.
-        for key in schema[self._index]["mappings"].keys():
+        one_schema = next(iter(schema.values()))  # in case index is an alias
+        for key in one_schema["mappings"].keys():
             if key.endswith(".keyword"):
                 logger.debug(f"  Ignoring redundant exact match .keyword key {key}")
                 continue

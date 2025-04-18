@@ -39,7 +39,7 @@ class TopK(Node):
 
 
 class GroupByCount(Node):
-    """Finds the top K frequent occurences of values for a particular field.
+    """Group documents based on a particular field.
 
     Returns a database with ONLY 2 FIELDS: "properties.key" (which corresponds to unique values of
     *field*) and "properties.count" (which contains the counts corresponding to unique values
@@ -47,13 +47,21 @@ class GroupByCount(Node):
     """
 
     entity_name: Optional[str] = None
-    embed_name: Optional[str] = None
     """The database field to find the top K occurences for."""
 
+    embed_name: Optional[str] = None
+    """The field for entity embedding."""
+
     cluster_field_name: str = "centroids"
+    """The centroid field used for clustering"""
 
     K: int = 5
+    """The number of groups."""
 
-    descending: bool = False
-    """If True, will return the top K most common occurrences. If False, will return the top K
-    least common occurrences."""
+    llm_summary: bool = False
+    """If true, use llm_summary to summarize each group; If False, randomly select one entity from each group."""
+
+    llm_summary_instruction: Optional[str] = Field(default=None, json_schema_extra={"exclude_from_comparison": True})
+    """An instruction of what the group name should be about if llm_summary is True. E.g. if the
+    purpose of this operation is to group by cities, llm_cluster_instruction
+    could be 'The city name of this group'"""

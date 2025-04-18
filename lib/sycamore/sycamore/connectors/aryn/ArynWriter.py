@@ -20,9 +20,9 @@ class ArynWriterClientParams(BaseDBWriter.ClientParams):
 
 @dataclass
 class ArynWriterTargetParams(BaseDBWriter.TargetParams):
-    def __init__(self, docset_id: Optional[str] = None, autoschema: bool = False):
+    def __init__(self, docset_id: Optional[str] = None, update_schema: bool = False):
         self.docset_id = docset_id
-        self.autoschema = autoschema
+        self.update_schema = update_schema
 
     def compatible_with(self, other: "BaseDBWriter.TargetParams") -> bool:
         return True
@@ -53,7 +53,7 @@ class ArynWriterClient(BaseDBWriter.Client):
         docset_id = target_params.docset_id
 
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        update_schema = target_params.autoschema
+        update_schema = target_params.update_schema
         sess = requests.Session()
         for record in records:
             assert isinstance(record, ArynWriterRecord)

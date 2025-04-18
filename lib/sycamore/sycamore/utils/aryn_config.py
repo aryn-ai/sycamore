@@ -7,6 +7,7 @@ from typing import Dict, Any
 
 DEFAULT_PATH = os.path.join(pathlib.Path.home(), ".aryn", "config.yaml")
 _DEFAULT_PATH = DEFAULT_PATH
+DEFAULT_STORAGE_URL = "https://api.aryn.ai/v1/storage"
 ## ToDO: remove after 2024-08-31
 
 
@@ -25,7 +26,7 @@ class ArynConfig:
         if aryn_url:
             return aryn_url
 
-        return cls._get_aryn_config(config_path).get("aryn_url", "")
+        return cls._get_aryn_config(config_path).get("aryn_url", DEFAULT_STORAGE_URL)
 
     @classmethod
     def _get_aryn_config(cls, config_path: str = "") -> Dict[Any, Any]:

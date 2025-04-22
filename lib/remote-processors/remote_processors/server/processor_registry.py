@@ -20,10 +20,10 @@ class ProcessorRegistry:
             raise DuplicatedProcessorNameError(all_subclasses)
 
         self._request_processors: dict[str, type[RequestProcessor]] = {
-            c.get_class_name(): c for c in RequestProcessor.__subclasses__()
+            c.get_class_name(): c for c in RequestProcessor.__subclasses__()  # type: ignore[type-abstract]
         }
         self._response_processors: dict[str, type[ResponseProcessor]] = {
-            c.get_class_name(): c for c in ResponseProcessor.__subclasses__()
+            c.get_class_name(): c for c in ResponseProcessor.__subclasses__()  # type: ignore[type-abstract]
         }
 
     def get_processor(self, name: str) -> Union[type[RequestProcessor], type[ResponseProcessor], None]:

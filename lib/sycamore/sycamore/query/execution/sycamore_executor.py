@@ -1,12 +1,13 @@
 import os
 import traceback
-import uuid
+from io import StringIO
 from typing import Any, Dict, List, Optional
 
 import structlog
 from structlog.contextvars import clear_contextvars, bind_contextvars
 
 from sycamore import Context
+from sycamore.data import nanoid36
 from sycamore.materialize_config import MaterializeSourceMode
 from sycamore.query.logical_plan import LogicalPlan, Node
 from sycamore.query.result import SycamoreQueryResult, NodeExecution
@@ -115,113 +116,7 @@ class SycamoreExecutor:
         # refresh context as nested execution overrides it
         bind_contextvars(logical_node=logical_node)
         log.info("Executing node")
-        operation: Optional[PhysicalOperator] = None
-        if isinstance(logical_node, QueryDatabase):
-            operation = SycamoreQueryDatabase(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                trace_dir=self.trace_dir,
-            )
-        elif isinstance(logical_node, QueryVectorDatabase):
-            operation = SycamoreQueryVectorDatabase(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                trace_dir=self.trace_dir,
-            )
-        elif isinstance(logical_node, DataLoader):
-            operation = SycamoreDataLoader(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                trace_dir=self.trace_dir,
-            )
-        elif isinstance(logical_node, LlmFilter):
-            operation = SycamoreLlmFilter(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                inputs=inputs,
-                trace_dir=self.trace_dir,
-            )
-        elif isinstance(logical_node, BasicFilter):
-            operation = SycamoreBasicFilter(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                inputs=inputs,
-                trace_dir=self.trace_dir,
-            )
-        elif isinstance(logical_node, LlmExtractEntity):
-            operation = SycamoreLlmExtractEntity(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                inputs=inputs,
-                trace_dir=self.trace_dir,
-            )
-        elif isinstance(logical_node, Count):
-            operation = SycamoreCount(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                inputs=inputs,
-                trace_dir=self.trace_dir,
-            )
-        elif isinstance(logical_node, Sort):
-            operation = SycamoreSort(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                inputs=inputs,
-                trace_dir=self.trace_dir,
-            )
-        elif isinstance(logical_node, Limit):
-            operation = SycamoreLimit(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                inputs=inputs,
-                trace_dir=self.trace_dir,
-            )
-        elif isinstance(logical_node, TopK):
-            operation = SycamoreTopK(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                inputs=inputs,
-                trace_dir=self.trace_dir,
-            )
-        elif isinstance(logical_node, GroupByCount):
-            operation = SycamoreGroupByCount(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                inputs=inputs,
-                trace_dir=self.trace_dir,
-            )
-        elif isinstance(logical_node, FieldIn):
-            operation = SycamoreFieldIn(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                inputs=inputs,
-                trace_dir=self.trace_dir,
-            )
-        # Non-DocSet operations
-        elif isinstance(logical_node, SummarizeData):
-            operation = SycamoreSummarizeData(
-                context=self.context,
-                logical_node=logical_node,
-                query_id=query_id,
-                inputs=inputs,
-                trace_dir=self.trace_dir,
-            )
-        elif isinstance(logical_node, Math):
-            operation = MathOperator(logical_node=logical_node, query_id=query_id, inputs=inputs)
-        else:
-            raise ValueError(f"Unsupported node type: {str(logical_node)}")
+        operation = self.make_sycamore_op(logical_node, query_id, inputs)
 
         if self.codegen_mode:
             code, imports = operation.script(output_var=(self.OUTPUT_VAR_NAME if is_result_node else None))
@@ -240,41 +135,154 @@ class SycamoreExecutor:
         log.info("Executed node", result=str(operation_result))
         return operation_result
 
+    def make_sycamore_op(self, logical_node: Node, query_id: str, inputs: list[Any]) -> PhysicalOperator:
+        if isinstance(logical_node, QueryDatabase):
+            return SycamoreQueryDatabase(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, QueryVectorDatabase):
+            return SycamoreQueryVectorDatabase(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, DataLoader):
+            return SycamoreDataLoader(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, LlmFilter):
+            return SycamoreLlmFilter(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, BasicFilter):
+            return SycamoreBasicFilter(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, LlmExtractEntity):
+            return SycamoreLlmExtractEntity(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, Count):
+            return SycamoreCount(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, Sort):
+            return SycamoreSort(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, Limit):
+            return SycamoreLimit(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, TopK):
+            return SycamoreTopK(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, GroupByCount):
+            return SycamoreGroupByCount(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, FieldIn):
+            return SycamoreFieldIn(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
+        # Non-DocSet operations
+        if isinstance(logical_node, SummarizeData):
+            return SycamoreSummarizeData(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, Math):
+            return MathOperator(logical_node=logical_node, query_id=query_id, inputs=inputs)
+        raise ValueError(f"Unsupported node type: {logical_node}")
+
     def get_code_string(self):
         """Return the generated python code as a string."""
 
-        result = ""
+        sio = StringIO()
         unique_import_str = set()
         for import_str in self.imports:
             unique_import_str.add(import_str)
         for import_str in unique_import_str:
-            result += import_str + "\n"
+            sio.write(f"{import_str}\n")
         # Default imports
-        result += "from sycamore.query.execution.metrics import SycamoreQueryLogger\n"
-        result += "from sycamore.utils.cache import S3Cache\n"
-        result += "import sycamore\n\n"
+        sio.write(
+            """from sycamore.query.execution.metrics import SycamoreQueryLogger
+from sycamore.utils.cache import S3Cache
+import sycamore
+
+"""
+        )
 
         if not self.context.params:
-            result += "context = sycamore.init()\n\n"
+            sio.write("context = sycamore.init()\n\n")
 
         for node_id in sorted(self.node_id_to_node):
             description = self.node_id_to_node[node_id].description.strip("n")
             code = self.node_id_to_code[node_id].strip("\n")
-            result += f"""
+            sio.write(
+                f"""
 # {description}
 {code}
 """
+            )
 
-        result += "print(result)"
+        sio.write("print(result)")
 
-        return result
+        return sio.getvalue()
 
     def execute(self, plan: LogicalPlan, query_id: Optional[str] = None) -> SycamoreQueryResult:
         """Execute a logical plan using Sycamore."""
 
         try:
             if not query_id:
-                query_id = str(uuid.uuid4())
+                query_id = nanoid36()
             bind_contextvars(query_id=query_id)
 
             result = SycamoreQueryResult(query_id=query_id, plan=plan, result=None)

@@ -7,7 +7,7 @@ class ProcessorRegistry:
     easy lookup and use during pipeline configuration
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Collects the processors by looking at the subclasses of RequestProcessor and ResponseProcessor.
         Note that this only loads processor classes imported (or in files imported) by lib/processors/__init__.py
 

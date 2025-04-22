@@ -7,7 +7,7 @@ class ProcessorRegistry:
     easy lookup and use during pipeline configuration
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Collects the processors by looking at the subclasses of RequestProcessor and ResponseProcessor.
         Note that this only loads processor classes imported (or in files imported) by lib/processors/__init__.py
 
@@ -20,10 +20,10 @@ class ProcessorRegistry:
             raise DuplicatedProcessorNameError(all_subclasses)
 
         self._request_processors: dict[str, type[RequestProcessor]] = {
-            c.get_class_name(): c for c in RequestProcessor.__subclasses__()
+            c.get_class_name(): c for c in RequestProcessor.__subclasses__()  # type: ignore[type-abstract]
         }
         self._response_processors: dict[str, type[ResponseProcessor]] = {
-            c.get_class_name(): c for c in ResponseProcessor.__subclasses__()
+            c.get_class_name(): c for c in ResponseProcessor.__subclasses__()  # type: ignore[type-abstract]
         }
 
     def get_processor(self, name: str) -> Union[type[RequestProcessor], type[ResponseProcessor], None]:

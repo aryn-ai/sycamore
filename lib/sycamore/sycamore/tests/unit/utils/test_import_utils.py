@@ -12,4 +12,4 @@ def require_fn() -> int:
 # requires_modules decorator, as the revealed type is "Any".
 def test_mypy_type() -> None:
     res = require_fn()
-    assert_type(res, int)
+    assert_type(res, int)  # type: ignore[assert-type]

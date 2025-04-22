@@ -90,14 +90,14 @@ def test_draw_boxes_dict(source_image, image_boxes) -> None:
     check_image(output)
 
 
-def test_invalid_list(source_image, image_boxes):
+def test_invalid_list(source_image, image_boxes) -> None:
     boxes = [[b.coordinates] for b in image_boxes]
     output: Image.Image = try_draw_boxes(source_image, boxes)
     with pytest.raises(AssertionError, match=r".*Did not draw boxes.*"):
         check_image(output)
 
 
-def test_invalid_dict(source_image, image_boxes):
+def test_invalid_dict(source_image, image_boxes) -> None:
     boxes = [{"bboxes": b.coordinates} for b in image_boxes]
     output: Image.Image = try_draw_boxes(source_image, boxes)
     with pytest.raises(AssertionError, match=r".*Did not draw boxes.*"):

@@ -108,7 +108,7 @@ class SycamoreQueryDatabase(SycamoreOperator):
             os_query = {}
         result = self.context.read.opensearch(
             index_name=self.logical_node.index, query=os_query, reconstruct_document=True
-        ).map(remove_extra_fields)
+        ).map(remove_original_elements)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
@@ -188,7 +188,7 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
             os_query["query"]["knn"]["embedding"]["filter"] = self.logical_node.opensearch_filter
         result = self.context.read.opensearch(
             index_name=self.logical_node.index, query=os_query, reconstruct_document=True
-        ).map(remove_extra_fields)
+        ).map(remove_original_elements)
         if self.rerank:
             result = result.rerank(query=self.logical_node.query_phrase)
         return result

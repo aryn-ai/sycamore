@@ -85,5 +85,5 @@ def mock_docs() -> List[Document]:
 def get_mock_docs() -> List[Document]:
     docs = []
     for i in range(MOCK_SCAN_NUM_DOCUMENTS):
-        docs += [Document({"foo": "bar", "properties": {"counter": i}})]
+        docs += [Document({"foo": "bar", "properties": {"counter": i, "_original_elements": "value"}})]
     return docs

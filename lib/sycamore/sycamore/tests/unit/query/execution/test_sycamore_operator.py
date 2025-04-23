@@ -57,7 +57,10 @@ def test_query_database(mock_sycamore_docsetreader, mock_opensearch_num_docs):
         assert isinstance(result, DocSet)
 
         # Validate result
-        assert result.count() == mock_opensearch_num_docs
+        taken = result.take_all()
+        assert len(taken) == mock_opensearch_num_docs
+        assert taken[0].properties.get("counter") is not None
+        assert taken[0].properties.get("_original_elements") is None
 
 
 def test_dataloader(mock_sycamore_docsetreader, mock_opensearch_num_docs):
@@ -108,7 +111,7 @@ def test_query_database_with_query(mock_sycamore_docsetreader, mock_opensearch_n
         assert result.count() == mock_opensearch_num_docs
 
         # Validate that the correct query would be passed to OpenSearch.
-        assert result.plan._query_params.query == {"query": os_query_plan}
+        assert result.plan.children[0]._query_params.query == {"query": os_query_plan}  # OpensearchReader->Map
 
 
 def test_vector_query_database_with_rerank():
@@ -119,6 +122,7 @@ def test_vector_query_database_with_rerank():
 
         mock_docset = Mock(spec=DocSet)
         mock_docset.count.return_value = 5
+        mock_docset.map.return_value = mock_docset
 
         mock_docset_reader_impl = Mock()
         mock_docset_reader_class.return_value = mock_docset_reader_impl

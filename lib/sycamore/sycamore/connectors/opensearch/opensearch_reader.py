@@ -219,7 +219,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                 index=index,
                 body=query,
                 # _source_excludes=["embedding"],  In most cases, embeddings are not needed.
-                scroll = "1m"
+                scroll="1m",
             )
             scroll_id = response["_scroll_id"]
             try:
@@ -440,7 +440,9 @@ class OpenSearchReader(BaseDBReader):
             parent_ids.append(doc_id)
 
         mget_body = {"docs": [{"_id": doc_id} for doc_id in parent_ids]}
-        res = os_client.mget(index=self._query_params.index_name, body=mget_body, _source_includes=["doc_id", "parent_id", "properties"])
+        res = os_client.mget(
+            index=self._query_params.index_name, body=mget_body, _source_includes=["doc_id", "parent_id", "properties"]
+        )
         records = OpenSearchReaderQueryResponse(res["docs"], os_client)
         docs = records.to_docs(query_params=self._query_params)
         return pd.DataFrame({"doc": [doc.serialize() for doc in docs]})

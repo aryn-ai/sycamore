@@ -75,7 +75,7 @@ class SycamoreOperator(PhysicalOperator):
         return self.get_node_args()
 
 
-def remove_extra_fields(doc):  # these are fields we don't want to pass to query operations
+def remove_original_elements(doc):  # these are fields we don't want to pass to query operations
     if "_original_elements" in doc.properties:
         del doc.properties["_original_elements"]
     return doc

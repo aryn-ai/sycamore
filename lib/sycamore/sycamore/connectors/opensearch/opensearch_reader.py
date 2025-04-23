@@ -172,35 +172,8 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                     elements.add(doc.doc_id)
                     query_result_elements_per_doc[doc.parent_id] = elements
 
-            # Batched retrieval of all elements belong to unique docs
             doc_ids = list(unique_docs.keys())
-
-            def get_batches(doc_ids) -> list[list[str]]:
-                batches = []
-                batch_doc_count = 0
-                cur_batch: list[str] = []
-                for i in range(len(doc_ids)):
-                    query = {
-                        "query": {"terms": {"parent_id.keyword": [doc_ids[i]]}},
-                    }
-                    doc_count = get_doc_count(self.client, query_params.index_name, query)
-                    if batch_doc_count + doc_count > 10000:
-                        batches.append(cur_batch)
-                        cur_batch = [doc_ids[i]]
-                        batch_doc_count = 0
-                    else:
-                        batch_doc_count += doc_count
-                        cur_batch.append(doc_ids[i])
-
-                if len(cur_batch) > 0:
-                    batches.append(cur_batch)
-                return batches
-
-            batches = get_batches(doc_ids)
-
-            all_elements_for_docs = []
-            for batch in batches:
-                all_elements_for_docs += self._get_all_elements_for_doc_ids(batch, query_params.index_name)
+            all_elements_for_docs = self._get_all_elements_for_doc_ids(doc_ids, query_params.index_name)
 
             """
             Add elements to unique docs. If they were not part of the original result,
@@ -239,19 +212,26 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
         all_elements = []
         for i in range(0, len(doc_ids), batch_size):
             doc_ids_batch = doc_ids[i : i + batch_size]
-            from_offset = 0
-            while True:
-                query = {
-                    "query": {"terms": {"parent_id.keyword": doc_ids_batch}},
-                    "size": page_size,
-                    "from": from_offset,
-                }
-                response = self.client.search(index=index, body=query)
-                hits = response["hits"]["hits"]
-                all_elements.extend(hits)
-                if len(hits) < page_size:
-                    break
-                from_offset += page_size
+            query = {
+                "query": {"terms": {"parent_id.keyword": doc_ids_batch}},
+                "size": page_size,
+            }
+            response = self.client.search(
+                index=index,
+                body=query,
+                # _source_excludes=["embedding"],  In most cases, embeddings are not needed.
+                scroll="1m",
+            )
+            scroll_id = response["_scroll_id"]
+            try:
+                while True:
+                    hits = response["hits"]["hits"]
+                    if not hits:
+                        break
+                    all_elements.extend(hits)
+                    response = self.client.scroll(scroll_id=scroll_id, scroll="1m")
+            finally:
+                self.client.clear_scroll(scroll_id=scroll_id)
         return all_elements
 
 
@@ -295,7 +275,7 @@ class OpenSearchReader(BaseDBReader):
         logger.info(f"OpenSearchReader using PIT: {self.use_pit}")
 
     @timetrace("OpenSearchReader")
-    def _to_parent_doc(self, doc: dict[str, Any]) -> List[dict[str, Any]]:
+    def _to_parent_doc(self, doc: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Get all parent documents from a given slice.
         """
@@ -424,7 +404,7 @@ class OpenSearchReader(BaseDBReader):
             if row not in parent_ids:
                 parent_ids.add(row)
 
-        return pd.DataFrame([{"_source": {"doc_id": parent_id}} for parent_id in parent_ids])
+        return pd.DataFrame({"parent_id": list(parent_ids)})
 
     def reconstruct(self, doc: dict[str, Any]) -> dict[str, Any]:
         client = self.Client.from_client_params(self._client_params)
@@ -443,6 +423,30 @@ class OpenSearchReader(BaseDBReader):
         docs = records.to_docs(query_params=self._query_params)
 
         return {"doc": docs[0].serialize()}
+
+    def reconstruct_batch(self, df: pd.DataFrame) -> pd.DataFrame:
+        client = self.Client.from_client_params(self._client_params)
+
+        if not client.check_target_presence(self._query_params):
+            raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
+
+        os_client = client._client
+        assert isinstance(
+            self._query_params, OpenSearchReaderQueryParams
+        ), f"Wrong kind of query parameters found: {self._query_params}"
+
+        parent_ids = []
+        for index, row in df.iterrows():
+            doc_id = row["parent_id"]
+            parent_ids.append(doc_id)
+
+        mget_body = {"docs": [{"_id": doc_id} for doc_id in parent_ids]}
+        res = os_client.mget(
+            index=self._query_params.index_name, body=mget_body, _source_includes=["doc_id", "parent_id", "properties"]
+        )
+        records = OpenSearchReaderQueryResponse(res["docs"], os_client)
+        docs = records.to_docs(query_params=self._query_params)
+        return pd.DataFrame({"doc": [doc.serialize() for doc in docs]})
 
     def execute(self, **kwargs) -> "Dataset":
         assert isinstance(
@@ -587,9 +591,7 @@ class OpenSearchReader(BaseDBReader):
                     ds.flat_map(self._to_parent_doc, **self.resource_args)
                     .groupby("parent_id")
                     .map_groups(self.map_reduce_parent_id)
-                    # TODO use map_batches to improve 'get_all_elements_for_doc_ids' performance
-                    #  by making fewer requests to OpenSearch
-                    .map(self.reconstruct)
+                    .map_batches(self.reconstruct_batch, batch_size=50, batch_format="pandas")  # 50 - 100 seems to work
                 )
             else:
                 # Step 1: Construct slices (pages)

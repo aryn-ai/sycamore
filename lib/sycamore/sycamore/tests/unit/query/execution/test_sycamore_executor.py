@@ -168,5 +168,5 @@ def test_run_summarize_data_plan(mock_sycamore_docsetreader):
             # Check that the materialized data is complete.
             assert os.path.exists(os.path.join(cache_dirs[0], "materialize.success"))
             assert os.path.exists(os.path.join(cache_dirs[0], "materialize.clean"))
-            # 1000 docs + 2 'materialize' files
-            assert len(os.listdir(cache_dirs[0])) == 1000 + 2
+            # 1000 docs + 200 metadata docs + 2 'materialize' files
+            assert len(os.listdir(cache_dirs[0])) == 1200 + 2

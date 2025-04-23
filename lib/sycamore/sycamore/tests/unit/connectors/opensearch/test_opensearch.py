@@ -229,7 +229,7 @@ class TestOpenSearchReaderQueryResponse:
 
         # no elements match
         hits = [{"_source": record} for record in records]
-        return_val = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}}
+        return_val = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}, "_scroll_id": "123"}
         return_val["hits"]["hits"] += [
             {
                 "_source": {
@@ -250,6 +250,7 @@ class TestOpenSearchReaderQueryResponse:
         total = len(return_val["hits"]["hits"])
         return_val["hits"]["total"] = {"value": total}
         client.search.return_value = return_val
+        client.scroll.return_value = {"hits": {"hits": []}}
         query_response = OpenSearchReaderQueryResponse(hits, client=client)
         query_params = OpenSearchReaderQueryParams(
             index_name="some index", query=MATCH_ALL_QUERY, reconstruct_document=True
@@ -321,10 +322,11 @@ class TestOpenSearchReaderQueryResponse:
 
         # no elements match
         hits = [{"_source": record} for record in records]
-        return_val = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}}
+        return_val = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}, "_scroll_id": "123"}
         total = len(return_val["hits"]["hits"])
         return_val["hits"]["total"] = {"value": total}
         client.search.return_value = return_val
+        client.scroll.return_value = {"hits": {"hits": []}, "_scroll_id": "123"}
         query_response = OpenSearchReaderQueryResponse(hits, client=client)
         query_params = OpenSearchReaderQueryParams(
             index_name="some index", query=MATCH_ALL_QUERY, reconstruct_document=True

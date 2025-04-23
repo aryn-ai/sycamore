@@ -57,7 +57,10 @@ def test_query_database(mock_sycamore_docsetreader, mock_opensearch_num_docs):
         assert isinstance(result, DocSet)
 
         # Validate result
-        assert result.count() == mock_opensearch_num_docs
+        taken = result.take_all()
+        assert len(taken) == mock_opensearch_num_docs
+        assert taken[0].properties.get("counter") == 0
+        assert taken[0].properties.get("_original_elements") is None
 
 
 def test_dataloader(mock_sycamore_docsetreader, mock_opensearch_num_docs):

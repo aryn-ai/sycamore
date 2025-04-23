@@ -75,6 +75,12 @@ class SycamoreOperator(PhysicalOperator):
         return self.get_node_args()
 
 
+def remove_extra_fields(doc):  # these are fields we don't want to pass to query operations
+    if "_original_elements" in doc.properties:
+        del doc.properties["_original_elements"]
+    return doc
+
+
 class SycamoreQueryDatabase(SycamoreOperator):
     """
     Note: Currently only supports an OpenSearch scan load implementation.
@@ -102,7 +108,7 @@ class SycamoreQueryDatabase(SycamoreOperator):
             os_query = {}
         result = self.context.read.opensearch(
             index_name=self.logical_node.index, query=os_query, reconstruct_document=True
-        )
+        ).map(remove_extra_fields)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
@@ -182,7 +188,7 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
             os_query["query"]["knn"]["embedding"]["filter"] = self.logical_node.opensearch_filter
         result = self.context.read.opensearch(
             index_name=self.logical_node.index, query=os_query, reconstruct_document=True
-        )
+        ).map(remove_extra_fields)
         if self.rerank:
             result = result.rerank(query=self.logical_node.query_phrase)
         return result

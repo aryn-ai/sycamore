@@ -1,12 +1,13 @@
 import io
 from collections import OrderedDict
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from pydantic import BaseModel
 
 import sycamore
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore import DocSet
+from sycamore.data import MetadataDocument
 
 
 class NodeExecution(BaseModel):
@@ -109,3 +110,31 @@ class SycamoreQueryResult(BaseModel):
             return list(retval.keys())
 
         return get_source_docs(context, self.plan.result_node)
+
+    def get_metadata(self) -> Union[dict[int, list[MetadataDocument]], list[MetadataDocument]]:
+        if self.execution is None:
+            raise ValueError("No execution data available.")
+
+        result_node = self.plan.result_node
+        to_check = [result_node]
+        final_nodes_with_docsets = []
+        while len(to_check) > 0:
+            n_id = to_check.pop()
+            n = self.plan.nodes[n_id]
+            if n.output_type is DocSet:
+                final_nodes_with_docsets.append(n_id)
+            else:
+                to_check.extend(n.inputs)
+
+        # This context should never actually execute anything
+        ctx = sycamore.init(exec_mode=sycamore.ExecMode.UNKNOWN)
+        ret = {}
+        for n_id in final_nodes_with_docsets:
+            trace = self.execution[n_id].trace_dir
+            assert trace is not None, f"Node {n_id} with output type docset has no trace!"
+            mds = ctx.read.materialize(path=trace).get_materializes()[0].load_metadata()
+            ret[n_id] = mds
+
+        if len(final_nodes_with_docsets) == 1:
+            return ret[final_nodes_with_docsets[0]]
+        return ret

@@ -38,6 +38,7 @@ from sycamore.materialize_config import MaterializeSourceMode
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
     from sycamore.grouped_data import GroupedData
+    from sycamore.materialize import Materialize
 
 logger = logging.getLogger(__name__)
 
@@ -1578,6 +1579,18 @@ class DocSet:
         from sycamore.materialize import clear_materialize
 
         clear_materialize(self.plan, path=path, clear_non_local=clear_non_local)
+
+    def get_materializes(self, *, fifo_order: bool = True) -> list["Materialize"]:
+        """
+        Returns a list of all Materialize nodes in the plan of the docset.
+
+        Args:
+            fifo_order: if True, return the first materialize first. If False,
+                returns them in lifo order (last materialize first)
+        """
+        from sycamore.materialize import get_materializes
+
+        return get_materializes(self.plan, fifo_order=fifo_order)
 
     def execute(self, **kwargs) -> None:
         """

@@ -176,7 +176,7 @@ def find_empty_columns(elems: list[Element]) -> list[tuple[float, float]]:
 def bbox_sort_page(elems: list[Element]) -> None:
     if len(elems) < 2:
         return
-    elems = sorted(elems, key=elem_left_right)  # sort a copt just left-to-right
+    elems = sorted(elems, key=elem_left_right)  # sort a copy just left-to-right
     empty_columns, _ = find_empty_columns(elems)
 
     elems.sort(key=elem_top_left)  # sort top-to-bottom, left-to-right

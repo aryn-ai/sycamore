@@ -131,16 +131,49 @@ def bbox_sort_based_on_tags(elems: list[Element]) -> None:
         bbox_sort_two_columns(elems, lidx, len(elems))
 
 
+def check_entirely_two_columns(elems: list[Element]) -> tuple[bool, list[Element], list[Element]]:
+    """
+    Check if the elements are entirely two columns. If so, return True and the left and right column elements.
+    """
+    left_col = []
+    right_col = []
+    for elem in elems:
+        if elem.type == "Page-footer" or elem.type == "Page-header":
+            continue
+        x1, _, x2, _ = elem.data["bbox"]
+        if x1 < 0.6 and x2 < 0.6:
+            left_col.append(elem)
+        elif x1 > 0.4 and x2 > 0.4:
+            right_col.append(elem)
+        else:
+            return False, [], []
+    return True, left_col, right_col
+
+
+def generate_elem_prefer_left(left_col: list[Element]):
+    def elem_prefer_left(elem: Element) -> tuple:
+        bbox = elem.data.get("bbox")
+        if bbox:
+            return (elem not in left_col, bbox[1], bbox[0])
+        return (False, 0.0, 0.0)
+    return elem_prefer_left
+
+
 def bbox_sort_page(elems: list[Element]) -> None:
     if len(elems) < 2:
         return
     elems.sort(key=elem_top_left)  # sort top-to-bottom, left-to-right
-    for elem in elems:  # tag left/right/full based on width/position
-        elem.data["_coltag"] = col_tag(elem)
-    tag_two_columns(elems)
-    bbox_sort_based_on_tags(elems)
-    for elem in elems:
-        elem.data.pop("_coltag", None)  # clean up tags
+    is_entirely_two_columns, left_col, _ = check_entirely_two_columns(elems)
+    if is_entirely_two_columns:
+        # if the entire page is two columns, sort the left column first
+        elems.sort(key=generate_elem_prefer_left(left_col))
+    else:
+        for elem in elems:  # tag left/right/full based on width/position
+            elem.data["_coltag"] = col_tag(elem)
+        tag_two_columns(elems)
+        bbox_sort_based_on_tags(elems)
+        for elem in elems:
+            elem.data.pop("_coltag", None)  # clean up tags
 
 
 def bbox_sorted_elements(elements: list[Element], update_element_indexs: bool = True) -> list[Element]:

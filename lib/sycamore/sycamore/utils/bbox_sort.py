@@ -27,6 +27,14 @@ def elem_left_top(elem: Element) -> tuple:
     return (0.0, 0.0)
 
 
+def elem_left_right(elem: Element) -> tuple:
+    bbox = elem.data.get("bbox")
+    if bbox:
+        x1, _, x2, _ = bbox
+        return (x1, x2)
+    return (0.0, 0.0)
+
+
 def collect_pages(elems: list[Element]) -> list[list[Element]]:
     """
     Collect elements into page-number buckets.  Basically like the first
@@ -131,9 +139,46 @@ def bbox_sort_based_on_tags(elems: list[Element]) -> None:
         bbox_sort_two_columns(elems, lidx, len(elems))
 
 
+def find_empty_columns(elems: list[Element]) -> list[tuple[float, float]]:
+    """
+    Find empty columns in the page. Assume elements are sorted by (x1, x2) ascending.
+    """
+    occupied_start = 1.0
+    occupied_end = 0.0
+    empty_columns: list[tuple[float, float]] = []
+    occupied_columns: list[tuple[float, float]] = []
+
+    for elem in elems:
+        bbox = elem.data["bbox"]
+        if not bbox:
+            continue
+        x1, _, x2, _ = bbox
+        assert x1 <= x2
+        if x1 > occupied_end:
+            # gap detected and ended
+            empty_columns.append((occupied_end, x1))
+            occupied_columns.append((occupied_start, occupied_end))
+            occupied_start = x1
+            occupied_end = x2
+        else:
+            # expand occupied region
+            assert x1 >= occupied_start
+            occupied_end = x2
+    if len(occupied_columns) > 0:
+        occupied_columns.pop(0)
+    if occupied_start <= occupied_end:
+        occupied_columns.append((occupied_start, occupied_end))
+    if occupied_end != 1.0:
+        empty_columns.append((occupied_end, 1.0))
+    return empty_columns, occupied_columns
+
+
 def bbox_sort_page(elems: list[Element]) -> None:
     if len(elems) < 2:
         return
+    elems = sorted(elems, key=elem_left_right)  # sort a copt just left-to-right
+    empty_columns, _ = find_empty_columns(elems)
+
     elems.sort(key=elem_top_left)  # sort top-to-bottom, left-to-right
     for elem in elems:  # tag left/right/full based on width/position
         elem.data["_coltag"] = col_tag(elem)

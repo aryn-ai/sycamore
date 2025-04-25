@@ -529,13 +529,15 @@ class TestGetMetadata(unittest.TestCase):
                 .materialize(path=tmpdir + "/b")
                 .materialize(path=tmpdir + "/b2")
             )
-            materializes = ds.get_materializes(fifo_order=True)
+            materializes = ds.plan.get_plan_nodes(Materialize)
             assert len(materializes) == 3
             assert materializes[0]._orig_path == tmpdir + "/a"
             assert materializes[1]._orig_path == tmpdir + "/b"
             assert materializes[2]._orig_path == tmpdir + "/b2"
 
     def test_get_mat_lifo(self):
+        from sycamore.plan_nodes import NodeTraverse
+
         ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
         with tempfile.TemporaryDirectory() as tmpdir:
             ds = (
@@ -545,7 +547,7 @@ class TestGetMetadata(unittest.TestCase):
                 .materialize(path=tmpdir + "/b")
                 .materialize(path=tmpdir + "/b2")
             )
-            materializes = ds.get_materializes(fifo_order=False)
+            materializes = ds.plan.get_plan_nodes(Materialize, order=NodeTraverse.BEFORE)
             assert len(materializes) == 3
             assert materializes[2]._orig_path == tmpdir + "/a"
             assert materializes[1]._orig_path == tmpdir + "/b"
@@ -564,7 +566,7 @@ class TestGetMetadata(unittest.TestCase):
                 .materialize(path=tmpdir + "/b2")
             )
             ds.execute()
-            materializes = ds.get_materializes()
+            materializes = ds.plan.get_plan_nodes(Materialize)
             assert len(materializes) == 3
             assert len(materializes[0].load_metadata()) == 2
             assert len(materializes[1].load_metadata()) == 3

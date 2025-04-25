@@ -114,6 +114,24 @@ def complex_plan() -> LogicalPlan:
     )
 
 
+def forked_plan() -> LogicalPlan:
+    return LogicalPlan(
+        query="Dummy query",
+        result_node=5,
+        nodes={
+            0: QueryDatabase(
+                node_id=0,
+                description="Get all the airplane incidents",
+                index="ntsb",
+                query={"match_all": {}},
+            ),
+            2: Count(node_id=2, description="Test count 1", field=None, inputs=[0]),
+            4: Count(node_id=4, description="Test count 2", field=None, inputs=[0]),
+            5: Math(node_id=5, description="Sum counts", operation="add", inputs=[2, 4]),
+        },
+    )
+
+
 def test_get_source_docs(fake_docset_with_scores):
     """Test that get_source_docs returns the correct set of documents."""
 
@@ -191,7 +209,9 @@ def test_get_metadata_simpleplan(fake_docset_with_metadata, tmpdir):
     )
     metadata = result.get_metadata()
     assert len(metadata) == 1
-    assert metadata[0].metadata["key"] == "value"
+    metadata_list = metadata[0]
+    assert len(metadata_list) == 1
+    assert metadata_list[0].metadata["key"] == "value"
 
 
 def test_get_metadata_complexplan(fake_docset_with_metadata, tmpdir):
@@ -218,3 +238,23 @@ def test_get_metadata_complexplan(fake_docset_with_metadata, tmpdir):
     assert md1[0].metadata["key"] == "value"
     assert len(md2) == 1
     assert md2[0].metadata["key"] == "value"
+
+
+def test_get_metadata_forked(fake_docset_with_metadata, tmpdir):
+    fake_docset_with_metadata.materialize(path=tmpdir).execute()
+    plan = forked_plan()
+
+    execution = {
+        0: NodeExecution(node_id=0, trace_dir=tmpdir),
+        2: NodeExecution(node_id=2, trace_dir=None),
+        4: NodeExecution(node_id=4, trace_dir=None),
+        5: NodeExecution(node_id=5, trace_dir=None),
+    }
+    result = SycamoreQueryResult(
+        query_id="test_get_metadata_simple", plan=plan, result="Test get metadata", execution=execution
+    )
+    metadata = result.get_metadata()
+    assert len(metadata) == 1
+    metadata_list = metadata[0]
+    assert len(metadata_list) == 1
+    assert metadata_list[0].metadata["key"] == "value"

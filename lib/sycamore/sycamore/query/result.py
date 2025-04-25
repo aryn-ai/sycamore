@@ -1,6 +1,6 @@
 import io
 from collections import OrderedDict
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel
 
@@ -111,30 +111,30 @@ class SycamoreQueryResult(BaseModel):
 
         return get_source_docs(context, self.plan.result_node)
 
-    def get_metadata(self) -> Union[dict[int, list[MetadataDocument]], list[MetadataDocument]]:
+    def get_metadata(self) -> dict[int, list[MetadataDocument]]:
+        from sycamore.materialize import Materialize
+
         if self.execution is None:
             raise ValueError("No execution data available.")
 
         result_node = self.plan.result_node
-        to_check = [result_node]
-        final_nodes_with_docsets = []
+        to_check = {result_node}
+        final_nodes_with_docsets = set()
         while len(to_check) > 0:
             n_id = to_check.pop()
             n = self.plan.nodes[n_id]
             if n.output_type is DocSet:
-                final_nodes_with_docsets.append(n_id)
+                final_nodes_with_docsets.add(n_id)
             else:
-                to_check.extend(n.inputs)
+                to_check |= set(n.inputs) - final_nodes_with_docsets
 
         # This context should never actually execute anything
         ctx = sycamore.init(exec_mode=sycamore.ExecMode.UNKNOWN)
         ret = {}
         for n_id in final_nodes_with_docsets:
             trace = self.execution[n_id].trace_dir
-            assert trace is not None, f"Node {n_id} with output type docset has no trace!"
-            mds = ctx.read.materialize(path=trace).get_materializes()[0].load_metadata()
+            assert trace is not None, f"Node {n_id} with output type docset has no trace dir!"
+            mds = ctx.read.materialize(path=trace).plan.get_plan_nodes(Materialize)[0].load_metadata()
             ret[n_id] = mds
 
-        if len(final_nodes_with_docsets) == 1:
-            return ret[final_nodes_with_docsets[0]]
         return ret

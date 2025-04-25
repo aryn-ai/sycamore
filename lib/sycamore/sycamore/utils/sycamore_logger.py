@@ -31,13 +31,13 @@ def get_logger():
     return logger
 
 
-class LoggerFilter(logging.Filter):
+class RateLimitLogger(logging.Filter):
     def __init__(self, seconds=1):
         """
         A filter limit the rate of log messages.
 
         logger = logging.getLogger(__name__)
-        logger.setFilter(LoggerFilter())
+        logger.setFilter(RateLimitLogger())
 
 
         Args:

@@ -519,10 +519,10 @@ class Materialize(UnaryNode):
         logger.info(f"Using {self._orig_path} as cached source of data")
         if not self._fshelper.file_exists(self._success_path()):
             logging.warning(f"materialize.success not found in {self._orig_path}. Returning partial data")
-        from sycamore.utils.sycamore_logger import LoggerFilter
+        from sycamore.utils.sycamore_logger import RateLimitLogger
 
         limited_logger = logging.getLogger(__name__ + ".limited_local_source")
-        limited_logger.addFilter(LoggerFilter())
+        limited_logger.addFilter(RateLimitLogger())
         ret = []
         count = 0
         for fi in self._fshelper.list_files(self._root):
@@ -543,10 +543,10 @@ class Materialize(UnaryNode):
         self._verify_has_files()
         if not self._fshelper.file_exists(self._success_path()):
             logging.warning(f"materialize.success not found in {self._orig_path}. Returning partial data")
-        from sycamore.utils.sycamore_logger import LoggerFilter
+        from sycamore.utils.sycamore_logger import RateLimitLogger
 
-        limited_logger = logging.getLogger(__name__ + ".limited_local_source")
-        limited_logger.addFilter(LoggerFilter())
+        limited_logger = logging.getLogger(__name__ + ".load_metadata")
+        limited_logger.addFilter(RateLimitLogger())
         ret = []
         count = 0
         for fi in self._fshelper.list_files(self._root):
@@ -557,12 +557,13 @@ class Materialize(UnaryNode):
                 limited_logger.info(f"  reading file {count} from {str(n)}")
                 count += 1
                 f = self._fs.open_input_stream(str(n))
-                doc = Document.deserialize(f.read())
-                if not isinstance(doc, MetadataDocument):
-                    logger.warning(f"  found non-metadata document at {str(n)}, skipping it")
-                else:
-                    ret.append(doc)
-                f.close()
+                try:
+                    doc = Document.deserialize(f.read())
+                finally:
+                    f.close()
+                assert isinstance(doc, MetadataDocument), f"md-*.pickle file has wrong type {doc}"
+                ret.append(doc)
+
         logger.info(f"  read {count} total files")
 
         return ret
@@ -793,19 +794,3 @@ def clear_materialize(plan: Node, *, path: Optional[Union[Path, str]], clear_non
         n._fshelper.safe_cleanup(n._root)
 
     plan.traverse(visit=clean_dir)
-
-
-def get_materializes(plan: Node, *, fifo_order: bool = True) -> list[Materialize]:
-    mnodes = []
-
-    def collect_m(node: Node) -> Node:
-        if isinstance(node, Materialize):
-            mnodes.append(node)
-        return node
-
-    if fifo_order:
-        plan.traverse_up(collect_m)
-    else:
-        plan.traverse_down(collect_m)
-
-    return mnodes

@@ -155,6 +155,10 @@ def modified_context(context: Context, param_name: str, **overrides) -> Context:
     within params[param_name] changed to values from the overrides kwargs.
     Use param_name 'default' if unsure.  Avoids deep-copying anything.
     """
+    if (default := context.params.get("default")) is None:
+        raise ValueError("context params lacks default namespace")
+    for key in overrides.keys():
+        assert key in default, f"key {key} has no default value to override"
     rv = replace(context)  # shallow copy
     if overrides:
         params = rv.params.copy()

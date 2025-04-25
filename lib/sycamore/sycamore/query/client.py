@@ -22,7 +22,7 @@ from sycamore.schema import Schema
 
 import sycamore
 from sycamore import Context, ExecMode
-from sycamore.context import OperationTypes, modified_context
+from sycamore.context import OperationTypes, get_val_from_context, modified_context
 from sycamore.data import nanoid36
 from sycamore.llms import LLM, get_llm, MODELS
 from sycamore.llms.openai import OpenAI, OpenAIModels
@@ -111,8 +111,8 @@ class SycamoreQueryClient:
         If you override the context, you cannot override the llm_cache_dir, os_client_args, or llm; you need
         to pass those in via the context paramaters, i.e. sycamore.init(params={...})
 
-        To override os_client_args, set params["opensearch"]["os_client_args"]. You are likely to also need
-        params["opensearch"]["text_embedder"] = SycamoreQueryClient.default_text_embedder() or another
+        To override os_client_args, set params["default"]["os_client_args"]. You are likely to also need
+        params["default"]["text_embedder"] = SycamoreQueryClient.default_text_embedder() or another
         embedder of your choice.
 
         To override the LLM or cache path, you need to override the llm, for example:
@@ -157,7 +157,8 @@ class SycamoreQueryClient:
         self.context = context or self._get_default_context(llm_cache_dir, os_client_args, sycamore_exec_mode, llm)
 
         assert self.context.params, "Could not find required params in Context"
-        self.os_client_args = self.context.params.get("opensearch", {}).get("os_client_args", os_client_args)
+        osca = get_val_from_context(self.context, "os_client_args", ["opensearch"])
+        self.os_client_args = osca if osca else os_client_args
         self._os_client = OpenSearchClientWithLogging(**self.os_client_args)
         self._os_query_executor = OpenSearchQueryExecutor(self.os_client_args)
 
@@ -287,8 +288,8 @@ class SycamoreQueryClient:
                 raise ValueError(f"Invalid LLM type: {type(llm)}")
 
         context_params = {
-            "default": {"llm": llm_instance or OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(llm_cache_dir))},
-            "opensearch": {
+            "default": {
+                "llm": llm_instance or OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(llm_cache_dir)),
                 "os_client_args": os_client_args,
                 "text_embedder": SycamoreQueryClient.default_text_embedder(),
             },

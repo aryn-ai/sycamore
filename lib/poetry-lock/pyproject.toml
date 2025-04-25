@@ -41,6 +41,8 @@ tornado = "^6.4.2"
 pillow = "^11.1.0"
 # black = ">=24.3.0"
 
+httpcore = ">=1.0.9"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

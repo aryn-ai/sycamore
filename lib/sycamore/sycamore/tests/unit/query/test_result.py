@@ -75,7 +75,7 @@ def simple_plan() -> LogicalPlan:
             1: Count(
                 node_id=1,
                 description="Count the number of incidents",
-                field=None,
+                distinct_field=None,
                 inputs=[0],
             ),
         },
@@ -100,7 +100,7 @@ def complex_plan() -> LogicalPlan:
                 field="test_field_1",
                 question="test_question",
             ),
-            2: Count(node_id=2, description="Test count 1", field=None, inputs=[1]),
+            2: Count(node_id=2, description="Test count 1", distinct_field=None, inputs=[1]),
             3: LlmFilter(
                 node_id=3,
                 description="Filter by test_field_2",
@@ -108,7 +108,7 @@ def complex_plan() -> LogicalPlan:
                 field="test_field_2",
                 question="test_question",
             ),
-            4: Count(node_id=4, description="Test count 2", field=None, inputs=[3]),
+            4: Count(node_id=4, description="Test count 2", distinct_field=None, inputs=[3]),
             5: Math(node_id=5, description="Sum counts", operation="add", inputs=[2, 4]),
         },
     )
@@ -125,8 +125,8 @@ def forked_plan() -> LogicalPlan:
                 index="ntsb",
                 query={"match_all": {}},
             ),
-            2: Count(node_id=2, description="Test count 1", field=None, inputs=[0]),
-            4: Count(node_id=4, description="Test count 2", field=None, inputs=[0]),
+            2: Count(node_id=2, description="Test count 1", distinct_field=None, inputs=[0]),
+            4: Count(node_id=4, description="Test count 2", distinct_field=None, inputs=[0]),
             5: Math(node_id=5, description="Sum counts", operation="add", inputs=[2, 4]),
         },
     )

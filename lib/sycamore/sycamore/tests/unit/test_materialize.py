@@ -518,6 +518,61 @@ class TestClearMaterialize(unittest.TestCase):
             assert not Path(f"{tmpdir}/b2/materialize.success").exists()
 
 
+class TestGetMetadata(unittest.TestCase):
+    def test_get_mat_fifo(self):
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ds = (
+                ctx.read.document(make_docs(3))
+                .map(noop_fn)
+                .materialize(path=tmpdir + "/a")
+                .materialize(path=tmpdir + "/b")
+                .materialize(path=tmpdir + "/b2")
+            )
+            materializes = ds.plan.get_plan_nodes(Materialize)
+            assert len(materializes) == 3
+            assert materializes[0]._orig_path == tmpdir + "/a"
+            assert materializes[1]._orig_path == tmpdir + "/b"
+            assert materializes[2]._orig_path == tmpdir + "/b2"
+
+    def test_get_mat_lifo(self):
+        from sycamore.plan_nodes import NodeTraverse
+
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ds = (
+                ctx.read.document(make_docs(3))
+                .map(noop_fn)
+                .materialize(path=tmpdir + "/a")
+                .materialize(path=tmpdir + "/b")
+                .materialize(path=tmpdir + "/b2")
+            )
+            materializes = ds.plan.get_plan_nodes(Materialize, order=NodeTraverse.BEFORE)
+            assert len(materializes) == 3
+            assert materializes[2]._orig_path == tmpdir + "/a"
+            assert materializes[1]._orig_path == tmpdir + "/b"
+            assert materializes[0]._orig_path == tmpdir + "/b2"
+
+    def test_get_metadata(self):
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ds = (
+                ctx.read.document(make_docs(3))
+                .map(noop_fn)
+                .materialize(path=tmpdir + "/a")
+                .map(noop_fn)
+                .materialize(path=tmpdir + "/b")
+                .map(noop_fn)
+                .materialize(path=tmpdir + "/b2")
+            )
+            ds.execute()
+            materializes = ds.plan.get_plan_nodes(Materialize)
+            assert len(materializes) == 3
+            assert len(materializes[0].load_metadata()) == 2
+            assert len(materializes[1].load_metadata()) == 3
+            assert len(materializes[2].load_metadata()) == 4
+
+
 class TestErrorChecking(unittest.TestCase):
     def test_duplicate_root(self):
         ctx = sycamore.init(exec_mode=ExecMode.LOCAL)

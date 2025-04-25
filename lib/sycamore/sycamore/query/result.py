@@ -7,6 +7,7 @@ from pydantic import BaseModel
 import sycamore
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore import DocSet
+from sycamore.data import MetadataDocument
 
 
 class NodeExecution(BaseModel):
@@ -109,3 +110,31 @@ class SycamoreQueryResult(BaseModel):
             return list(retval.keys())
 
         return get_source_docs(context, self.plan.result_node)
+
+    def get_metadata(self) -> dict[int, list[MetadataDocument]]:
+        from sycamore.materialize import Materialize
+
+        if self.execution is None:
+            raise ValueError("No execution data available.")
+
+        result_node = self.plan.result_node
+        to_check = {result_node}
+        final_nodes_with_docsets = set()
+        while len(to_check) > 0:
+            n_id = to_check.pop()
+            n = self.plan.nodes[n_id]
+            if n.output_type is DocSet:
+                final_nodes_with_docsets.add(n_id)
+            else:
+                to_check |= set(n.inputs) - final_nodes_with_docsets
+
+        # This context should never actually execute anything
+        ctx = sycamore.init(exec_mode=sycamore.ExecMode.UNKNOWN)
+        ret = {}
+        for n_id in final_nodes_with_docsets:
+            trace = self.execution[n_id].trace_dir
+            assert trace is not None, f"Node {n_id} with output type docset has no trace dir!"
+            mds = ctx.read.materialize(path=trace).plan.get_plan_nodes(Materialize)[0].load_metadata()
+            ret[n_id] = mds
+
+        return ret

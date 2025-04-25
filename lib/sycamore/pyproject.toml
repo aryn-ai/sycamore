@@ -46,6 +46,8 @@ pydantic = "^2.8.2"
 
 typing-extensions = "^4.12.2"
 
+httpcore = ">=1.0.9"
+
 aryn-sdk = "*"
 
 #Evaluation dependencies

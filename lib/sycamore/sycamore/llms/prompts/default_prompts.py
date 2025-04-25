@@ -458,8 +458,7 @@ LlmFilterMessagesJinjaPrompt = JinjaPrompt(
         + "{% endif %}"
         + textwrap.dedent(
             """\
-            The response should be a value from [0,1,2,3,4,5]. 0 is a confident 'no' and 5 is a confident 'yes'.
-            Before writing the confidence score, provide justification."""
+            The response should be a value from [0,1,2,3,4,5]. 0 is a confident 'no' and 5 is a confident 'yes'."""
         )
     ),
 )

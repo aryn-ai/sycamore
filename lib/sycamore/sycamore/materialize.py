@@ -519,10 +519,10 @@ class Materialize(UnaryNode):
         logger.info(f"Using {self._orig_path} as cached source of data")
         if not self._fshelper.file_exists(self._success_path()):
             logging.warning(f"materialize.success not found in {self._orig_path}. Returning partial data")
-        from sycamore.utils.sycamore_logger import LoggerFilter
+        from sycamore.utils.sycamore_logger import RateLimitLogger
 
         limited_logger = logging.getLogger(__name__ + ".limited_local_source")
-        limited_logger.addFilter(LoggerFilter())
+        limited_logger.addFilter(RateLimitLogger())
         ret = []
         count = 0
         for fi in self._fshelper.list_files(self._root):
@@ -535,6 +535,35 @@ class Materialize(UnaryNode):
                 f = self._fs.open_input_stream(str(n))
                 ret.append(Document.deserialize(f.read()))
                 f.close()
+        logger.info(f"  read {count} total files")
+
+        return ret
+
+    def load_metadata(self) -> list[MetadataDocument]:
+        self._verify_has_files()
+        if not self._fshelper.file_exists(self._success_path()):
+            logging.warning(f"materialize.success not found in {self._orig_path}. Returning partial data")
+        from sycamore.utils.sycamore_logger import RateLimitLogger
+
+        limited_logger = logging.getLogger(__name__ + ".load_metadata")
+        limited_logger.addFilter(RateLimitLogger())
+        ret = []
+        count = 0
+        for fi in self._fshelper.list_files(self._root):
+            if self._path_filter is not None and not self._path_filter(fi.path):
+                continue
+            n = Path(fi.path)
+            if n.name.startswith("md-") and n.suffix == ".pickle":
+                limited_logger.info(f"  reading file {count} from {str(n)}")
+                count += 1
+                f = self._fs.open_input_stream(str(n))
+                try:
+                    doc = Document.deserialize(f.read())
+                finally:
+                    f.close()
+                assert isinstance(doc, MetadataDocument), f"md-*.pickle file has wrong type {doc}"
+                ret.append(doc)
+
         logger.info(f"  read {count} total files")
 
         return ret

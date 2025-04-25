@@ -1,10 +1,16 @@
 import sys
 from abc import ABC, abstractmethod
-from typing import Callable, Optional, TYPE_CHECKING
+from typing import Callable, Optional, TYPE_CHECKING, TypeVar
+from enum import Enum
 
 if TYPE_CHECKING:
     from ray.data import Dataset
     from sycamore.context import Context
+
+
+class NodeTraverseOrder(Enum):
+    BEFORE = 1
+    AFTER = 2
 
 
 class NodeTraverse:
@@ -18,6 +24,9 @@ class NodeTraverse:
       function returns nothing.
     - once is called one time at the very start, and enables multi-pass transforms.
     """
+
+    BEFORE = NodeTraverseOrder.BEFORE
+    AFTER = NodeTraverseOrder.AFTER
 
     def __init__(
         self,
@@ -50,6 +59,9 @@ class NodeTraverse:
         if self.after_fn is None:
             return node
         return self.after_fn(node)
+
+
+_NODE_T = TypeVar("_NODE_T")
 
 
 class Node(ABC):
@@ -137,6 +149,33 @@ class Node(ABC):
 
     def clone(self) -> "Node":
         raise Exception("Unimplemented")
+
+    def get_plan_nodes(
+        self, node_type: type[_NODE_T], *, order: NodeTraverseOrder = NodeTraverse.AFTER
+    ) -> list[_NODE_T]:
+        """
+        Returns a list of all nodes of a certain type in the plan.
+
+        Args:
+            node_type: The type of node to return. e.g. set to `Materialize` to get
+                all the `Materialize` nodes.
+            order: Order to do the traversal. AFTER = fifo, BEFORE = lifo
+        """
+        mnodes: list[_NODE_T] = []
+
+        def collect_m(node: Node) -> Node:
+            if isinstance(node, node_type):
+                mnodes.append(node)
+            return node
+
+        if order == NodeTraverseOrder.AFTER:
+            self.traverse_up(collect_m)
+        elif order == NodeTraverseOrder.BEFORE:
+            self.traverse_down(collect_m)
+        else:
+            raise ValueError(f"Unrecognized NodeTraverseOrder: {order}. How'd you manage that?")
+
+        return mnodes
 
 
 class LeafNode(Node):

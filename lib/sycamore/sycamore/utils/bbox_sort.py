@@ -49,7 +49,7 @@ def collect_pages(elems: list[Element]) -> list[list[Element]]:
     return rv
 
 
-def col_tag(elem: Element) -> Optional[str]:
+def col_tag(elem: Element, center: float = 0.5, tolerance: float = 0.0) -> Optional[str]:
     bbox = elem.data.get("bbox")
     if bbox:
         left = bbox[0]
@@ -59,9 +59,9 @@ def col_tag(elem: Element) -> Optional[str]:
             return "full"
         elif (width < 0.1) or (width >= 0.45):
             return None
-        if right < 0.5:
+        if right < center + tolerance:
             return "left"
-        elif left > 0.5:
+        elif left > center - tolerance:
             return "right"
     return None
 
@@ -78,9 +78,10 @@ def find_overlap(top: float, bot: float, elems: list[Element]) -> list[Element]:
     for elem in elems:
         bbox = elem.data["bbox"]
         etop = bbox[1]
+        ebot = bbox[3]
         if etop > bot:
             break
-        if (etop < bot) and (bbox[3] > top):
+        if (etop < bot) and (ebot > top):
             rv.append(elem)
             tag = elem.data["_coltag"]
             if tag == "left":
@@ -131,12 +132,12 @@ def bbox_sort_based_on_tags(elems: list[Element]) -> None:
         bbox_sort_two_columns(elems, lidx, len(elems))
 
 
-def bbox_sort_page(elems: list[Element]) -> None:
+def bbox_sort_page(elems: list[Element], center: float = 0.5, tolerance: float = 0.0) -> None:
     if len(elems) < 2:
         return
     elems.sort(key=elem_top_left)  # sort top-to-bottom, left-to-right
     for elem in elems:  # tag left/right/full based on width/position
-        elem.data["_coltag"] = col_tag(elem)
+        elem.data["_coltag"] = col_tag(elem, center, tolerance)
     tag_two_columns(elems)
     bbox_sort_based_on_tags(elems)
     for elem in elems:

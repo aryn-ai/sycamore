@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import datetime
 from enum import Enum
+import logging
 from typing import Any, Optional, Union
 import os
 import io
@@ -11,6 +12,9 @@ from sycamore.utils.cache import Cache
 from sycamore.utils.import_utils import requires_modules
 
 DEFAULT_MAX_TOKENS = 1024
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -120,6 +124,11 @@ class Gemini(LLM):
         in_tokens = int(md.prompt_token_count) if md and md.prompt_token_count else 0
         out_tokens = int(md.candidates_token_count) if md and md.candidates_token_count else 0
         output = " ".join(part.text if part else "" for part in response.candidates[0].content.parts)
+        from google.genai.types import FinishReason
+
+        reason = response.candidates[0].finish_reason
+        if reason != FinishReason.STOP:
+            logger.warn(f"Gemini model stopped for unexpected reason {reason}. Full response:\n{response}")
         ret = {
             "output": output,
             "wall_latency": wall_latency,

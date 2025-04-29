@@ -324,6 +324,7 @@ class Materialize(UnaryNode):
             self._doc_to_binary = path.get("tobin", Document.serialize)
             assert callable(self._doc_to_name)
             self._clean_root = path.get("clean", True)
+            self._path_filter = path.get("filter", None)
         else:
             assert False, f"unsupported type ({type(path)}) for path argument, expected str, Path, or dict"
 
@@ -794,3 +795,12 @@ def clear_materialize(plan: Node, *, path: Optional[Union[Path, str]], clear_non
         n._fshelper.safe_cleanup(n._root)
 
     plan.traverse(visit=clean_dir)
+
+
+def doc_id_filter(doc_ids: list[str]) -> Callable[[str], bool]:
+    doc_id_set = set(doc_ids)
+
+    def inner_filter(p: str) -> bool:
+        return p in doc_id_set
+
+    return inner_filter

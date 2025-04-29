@@ -179,6 +179,8 @@ def init_viewpdf(
         doc_to_url: A function that takes a Document and returns a URL.
         doc_to_display_name: A function that takes a Document and returns a display name.
     """
+    # Explanation: __this is a reference to this module. This function effectively adds
+    # the provided functions to the module - view_pdf can then access them as defaults.
     global __this
 
     assert doc_to_url is not None or doc_to_display_name is not None

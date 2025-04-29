@@ -81,3 +81,4 @@ context = sycamore.init(exec_mode=sycamore.EXEC_LOCAL)
         index_settings=index_settings,
     )
 )
+

@@ -193,14 +193,11 @@ def init_viewpdf(
 def local_files(
     root_dir: PathLike = Path.home(),
     port: int = 8086,
-) -> subprocess.Popen:
+) -> Optional[subprocess.Popen]:
     """
     Initializes view_pdf for use with local files. Since jupyter doesn't like to open
     `file://` urls, we run a file server in a subprocess to serve them via http. This
     function calls `init_viewpdf`, so future calls to `view_pdf` work as expected.
-
-    nb: Calling this function multiple times will fail to start the file server in the
-    subsequent calls due to port conflict, unless you change the port each call.
 
     Args:
         root_dir: The root directory to serve files from. This must be a parent directory
@@ -208,8 +205,10 @@ def local_files(
         port: The port to serve files on. Default is 8086
 
     Returns:
-        The subprocess running the file server.
+        The subprocess running the file server. If the server is already running (you've
+        already called local_files() in this process), returns nothing.
     """
+    import socket
 
     def doc_to_url(doc: Document) -> str:
         path = doc.properties["path"]
@@ -223,5 +222,17 @@ def local_files(
         return Path(doc.properties["path"]).name
 
     init_viewpdf(doc_to_url, doc_to_name)
-    server = subprocess.Popen(["python", "-m", "http.server", str(port)], cwd=root_dir)
-    return server
+    server_is_running = True
+    s = None
+    try:
+        s = socket.create_connection(("localhost", port), timeout=0.01)
+    except Exception:
+        server_is_running = False
+    finally:
+        if s is not None:
+            s.close()
+
+    if not server_is_running:
+        server = subprocess.Popen(["python", "-m", "http.server", str(port)], cwd=root_dir)
+        return server
+    return None

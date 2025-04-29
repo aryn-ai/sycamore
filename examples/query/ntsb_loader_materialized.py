@@ -20,7 +20,7 @@ args = argparser.parse_args()
 SOURCE_DATA_PATH = "s3://aryn-public/ntsb/"
 
 # The OpenSearch index name to populate.
-INDEX = "const_ntsb"
+INDEX = "demoindex1"
 
 if args.oshost is not None:
     opensearch_host = args.oshost

@@ -277,6 +277,7 @@ def get_doc_data(data, doc_id):
     return None
 
 def sort_and_score_knn_direct(lf_result, keyword, index, os_client, os_client_args, context, k, text_embedder, inverse=False):
+    bucket_size = 5
     console = Console()
     console.rule("1. KNN Sort")
     start_time = time.time()
@@ -287,49 +288,30 @@ def sort_and_score_knn_direct(lf_result, keyword, index, os_client, os_client_ar
     response = os_client.search(index=index, body=os_query)
     all_docs =[]
     all_elems = []
-    print(response["hits"]["hits"][0])
     for hit in response["hits"]["hits"]:
-        #print(hit)
-        # if hit['_source']['properties']['element_id']:
-        #     if hit['_source']['properties']['element_id'] not in all_elems:
-        #         all_elems.append(hit['_source']['properties']['element_id']+hit['_source']['doc_id'])
-        #     else:
-        #         all_elems.append(hit['_source']['doc_id'])
         if hit['_source']['parent_id'] not in all_docs:
             all_docs.append(hit['_source']['parent_id'])
     all_docs_scores = [(hit['_source']['parent_id'], hit['_score']) for hit in response["hits"]["hits"]]
     end_time = time.time()
     execution_time = end_time - start_time
-    print(f'All docs: {len(all_docs)} deduped {len(set(all_docs))}')
-    print(f'All docs scores: {all_docs_scores[:10]}')
-    # print(f'All elems: {len(all_elems)}')
-    print(f'lf_result: {len(lf_result)}')
-    print(lf_result[0])
+    print(f'All docs based on knn_query: {len(all_docs)} deduped {len(set(all_docs))}')
+    print(f'Pickled results: {len(lf_result)}')
   
-
-    (e_match, e_nomatch, no_batches, elems_processed) = extract_match_nomatch(lf_result)
+    # Filter lf_results to only docs that are in the KNN results
+    lf_result_filtered = [doc for doc in lf_result if doc['doc_id'] in all_docs]
+    (e_match, e_nomatch, no_batches, elems_processed) = extract_match_nomatch(lf_result_filtered)
 
     lf_doc_ids = [doc['doc_id'] for doc in lf_result]
-    # lf_elem_ids = [get_match_elem_ids(doc) for doc in lf_result]
-    # print(f'lf_doc_ids: {len(lf_doc_ids)}, lf_elem_ids: {len(lf_elem_ids)} set(lf_elem_ids): {len(set(lf_elem_ids))}')
-
     results = [1 if d in lf_doc_ids else 0 for d in all_docs]
 
-    # common_elems= set(all_elems).intersection(lf_elem_ids)
-    # print(f'knn got {len(set(all_elems))} elements, {len(lf_elem_ids)} in lf_result, {len(common_elems)} in common')
-    #print(all_elems[:10])
-    #print(f'Results: {results}')
-    sums = chunked_sums(results, 50)
+    sums = chunked_sums(results, bucket_size)
     zrl = zero_run_lengths(results)
 
     console.rule("2. Clustering")
     X, _ = make_blobs(n_samples=100, centers=3, n_features=2, random_state=42)
 
     kmeans = KMeans(n_clusters=5)
-    max_match = int(len(e_match)*k/10000)
-    print(f'max_match: {max_match}')
-    #labels = kmeans.fit_predict(e_match[:max_match])
-    labels = kmeans.fit_predict(random.sample(e_match, max_match))
+    labels = kmeans.fit_predict(e_match)
     centroids = kmeans.cluster_centers_
     docs_like_centroids_scores = []
     all_new_elems = []
@@ -343,11 +325,6 @@ def sort_and_score_knn_direct(lf_result, keyword, index, os_client, os_client_ar
         docs_like_c_vects = []
 
         for hit in response["hits"]["hits"]:
-            # if hit['_source']['properties']['element_id']:
-            #     if hit['_source']['properties']['element_id'] not in all_new_elems:
-            #         all_new_elems.append(hit['_source']['properties']['element_id']+hit['_source']['doc_id'])
-            #     else:
-            #         all_new_elems.append(hit['_source']['properties']['doc_id'])
             if hit['_source']['parent_id'] not in docs_like_c:
                 docs_like_c.append(hit['_source']['parent_id'])
                 docs_like_c_vects.append([hit['_source']['parent_id'], hit['_source']['embedding']])
@@ -355,44 +332,39 @@ def sort_and_score_knn_direct(lf_result, keyword, index, os_client, os_client_ar
         #print(f'Docs like c: {docs_like_c[0]}')
         docs_like_centroids_scores.extend(docs_like_c_scores)
     sorted_docs_like_centroids_scores = sorted(docs_like_centroids_scores, key=lambda x: x[1], reverse=True)
-
-    # new_common_elems= set(all_new_elems).intersection(lf_elem_ids)
-    #print(all_new_elems[:10])
-    # print(set.difference(set(lf_elem_ids), set(all_new_elems)))
-    # print(f'clustering got {len(set(all_new_elems))} elements, {len(lf_elem_ids)} in lf_result, {len(new_common_elems)} in common')
-    docs_like_centroids_deduped = []
+    docs_like_centroids_deduped=[]
     for doc_id, score in sorted_docs_like_centroids_scores:
         if doc_id not in docs_like_centroids_deduped:
             docs_like_centroids_deduped.append(doc_id)
-    #print(f'Docs like centroids: {docs_like_centroids[0]}')
-    #docs_like_centroids_deduped = set(docs_like_centroids)
 
     prior_docs = set(all_docs)
     new_docs = set(docs_like_centroids_deduped).difference(prior_docs)
     print(f'Got {len(new_docs)} new docs')
 
     new_docs_sorted = [d for d in docs_like_centroids_deduped if d in new_docs]
-    console.rule("3. Classify")
-    # Combine and create labels
-    X = np.array(e_match + e_nomatch)
-    y = np.array([1] * len(e_match) + [0] * len(e_nomatch))
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    clf.fit(X, y)
+    # console.rule("3. Classify")
+    # # Combine and create labels
+    # X = np.array(e_match + e_nomatch)
+    # y = np.array([1] * len(e_match) + [0] * len(e_nomatch))
+    # clf = RandomForestClassifier(n_estimators=100, random_state=42)
+    # clf.fit(X, y)
 
-    # filtered_docs = [d for d in new_docs if clf.predict([get_matching_elem_vect(get_doc_data(lf_result, d))])[0] == 1]
-    filtered_docs_1 = [d for d in docs_like_c_vects if clf.predict(np.array(d[1]).reshape(1, -1))[0] == 1]
-    filtered_docs_0 = [d for d in docs_like_c_vects if clf.predict(np.array(d[1]).reshape(1, -1))[0] == 0]
-    print(f'Filtered docs 1: {len(filtered_docs_1)}, Filtered docs 0: {len(filtered_docs_0)}')
+    # # filtered_docs = [d for d in new_docs if clf.predict([get_matching_elem_vect(get_doc_data(lf_result, d))])[0] == 1]
+    # filtered_docs_1 = [d for d in docs_like_c_vects if clf.predict(np.array(d[1]).reshape(1, -1))[0] == 1]
+    # filtered_docs_0 = [d for d in docs_like_c_vects if clf.predict(np.array(d[1]).reshape(1, -1))[0] == 0]
+    # print(f'Filtered docs 1: {len(filtered_docs_1)}, Filtered docs 0: {len(filtered_docs_0)}')
     
     # think a bit more about this - don't count twice teh docs already processed
     more_results = [1 if d in lf_doc_ids else 0 for d in new_docs_sorted]
     results.extend(more_results)
 
-    more_sums = chunked_sums(results, 50)
+    print(f'Docs after centroid based retrieval results {len(results)}')
+
+    more_sums = chunked_sums(results, bucket_size)
     more_zrl = zero_run_lengths(results)
     #print(f'Results: {results}')
 
-    return (sums, zrl,more_sums, more_zrl, execution_time)
+    return (sums, zrl, more_sums, more_zrl, execution_time)
 
 
 def query_knn_direct(keyword, index, os_client, context, k, text_embedder, inverse=False):
@@ -543,11 +515,6 @@ def main():
         context = sycamore.init()
         keyword = args.query
         k = int(args.k)
-
-#        lp_all = create_get_all_plan(INDEX)
-#        lp_qvdb = create_qvdb_plan(INDEX, keyword)
-#        lp_search = create_search_plan(INDEX, keyword)
-#        lp_knn = create_knn_plan(INDEX, "dog", context, embedder)
     
         lp_lf = create_llm_filter_plan(INDEX, keyword)
         if args.pickleout is not None:
@@ -558,21 +525,6 @@ def main():
                 rs_lf, time_lf = query(lp_lf, context)
         print(f"Llm_Filter Query returned {len(rs_lf)} results in {time_lf} seconds")
 
-#        rs_qvdb, time_qvdb = query(lp_qvdb, context)
-#        rs_all, time_all = query(lp_all, context)
-#        rs_search, time_search = query(lp_search, context)
-        #rs_knn, time_knn = query_knn_direct(keyword, INDEX, os_client, context, k, embedder)
-#        rs_knn, time_knn = query(lp_knn, context)
-
-
-#        print(rs_lf)
- #       print(f"Search Query returned {len(rs_search)} results in {time_search} seconds")
- #       print(f'Search for {keyword}\n {rs_search}')
-#        print(f"Get ALL Query returned {len(rs_all)} results in {time_all} seconds")
-#        print(f"KNN Query returned {len(rs_knn)} results in {time_knn} seconds")
-#        print(f'Search ^ KNN = {len(set(rs_search).intersection(set(rs_knn)))}')
-#        print(f'Search - KNN = {len(set(rs_search).difference(set(rs_knn)))}')
-#        print(f'KNN - Search = {len(set(rs_knn).difference(set(rs_search)))}')
         return
 
     if args.query_rank:

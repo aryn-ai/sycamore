@@ -1,5 +1,23 @@
+import argparse
+from opensearchpy import OpenSearch
+import numpy as np
+import os
+import pickle
+import random
+from rich.console import Console
+from typing import List, Dict
+from sklearn.metrics.pairwise import cosine_similarity
+import time
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from sklearn.cluster import DBSCAN
+from sklearn.cluster import KMeans
+from sklearn.datasets import make_blobs
+from sklearn.ensemble import RandomForestClassifier
+
+from data_utils import compute_distances, get_elem_vect, get_match_nomatch_elems, extract_match_nomatch, get_matching_elem_vect, get_match_elem_ids
 import sycamore
-from sycamore.connectors.opensearch.utils import get_knn_query
+from sycamore.connectors.opensearch.utils import get_knn_query, get_knn_query_vector
 from sycamore.data import Document, Element
 from sycamore.docset import DocSet
 #from sycamore.functions import HuggingFaceTokenizer
@@ -10,22 +28,17 @@ from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.utils.opensearch import guess_opensearch_host
 
-import argparse
-import random
-from opensearchpy import OpenSearch
-from typing import List, Dict
-from rich.console import Console
-import time
-
-
-def get_docs(result):
+def get_docs(result, pickle_file=None):
     console = Console()
     if isinstance(result, DocSet):
         print("Got a docset back, forcing execution")
         result = result.take_all()
         console.rule("Docset query result")
         print(f"Got {len(result)} documents back")
-        #print(result[:3])
+        #print(result[:1])
+        if pickle_file is not None:
+            with open(pickle_file, 'wb') as f:
+                pickle.dump(result, f)
         return [doc['doc_id'] for doc in result]
     else:
         console.rule("Non-docset query result")
@@ -41,21 +54,12 @@ def generate_elements(keyword_to_probability:Dict[str, float], max_elements:int)
 
     strings = []
     num = random.randint(1, max_elements)
-    base_text = """
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed auctor in enim sit amet tristique. 
-    In eu egestas ex. Maecenas porttitor gravida libero ac porttitor. Morbi elementum eleifend nisl.
-     Nullam auctor magna nec mollis ultricies. Mauris non pulvinar turpis. Pellentesque dictum 
-     tortor ac elit feugiat varius. Nulla sollicitudin, lectus non venenatis finibus, nulla ex 
-     tempor urna, id ornare est nisl et lacus. Pellentesque commodo turpis in nibh aliquet viverra. 
-     Curabitur varius, elit nec finibus scelerisque, nibh eros congue dui, et ultrices justo magna 
-     eu sem. Sed ultricies posuere posuere. Ut euismod neque at diam interdum, sed rhoncus quam 
-     iaculis. Morbi sit amet tempus orci, a dictum metus. Donec a imperdiet sem. Vestibulum tincidunt 
-     gravida turpis vitae aliquet.
-    """
+    base_text = " Lorem ipsum dolor sit amet. " 
     for i in range(num):
         text = base_text
         # choose keywords to include based on the probability of each keyword
         selected_keywords = " ".join([k for k in keyword_to_probability if random.random() < keyword_to_probability[k]])
+        print(f"Selected keywords: {selected_keywords}")
         strings.append(make_element_from_text(text+selected_keywords))
     return strings
 
@@ -95,7 +99,7 @@ def generate_docset(keyword_to_probability:Dict[str, float], numdocs:int, maxele
     return docset
 
 
-def create_search_plan(index, keyword):
+def create_search_plan(index, query):
     return LogicalPlan(
         query=keyword,
         result_node=0,
@@ -105,7 +109,7 @@ def create_search_plan(index, keyword):
                 node_id=0,
                 description="Get all documents",
                 query={'bool': {
-                    'must': [{'match_phrase': {'text_representation': keyword}}]}
+                    'must': [{'match_phrase': {'text_representation': query}}]}
                 },
                 inputs=[],
                 index=index,
@@ -113,13 +117,13 @@ def create_search_plan(index, keyword):
         },
     )
 
-def create_qvdb_plan(index, keyword):
+def create_qvdb_plan(index, query):
     return LogicalPlan(
         query=keyword,
         result_node=0,
         nodes={
             0: QueryVectorDatabase(
-                description="Get docs involving "+keyword,
+                description="Get docs involving "+query,
                 index=index,
                 query_phrase=keyword,
                 node_id=0,
@@ -127,9 +131,9 @@ def create_qvdb_plan(index, keyword):
         },
     )
 
-def create_llm_filter_plan(index, keyword):
+def create_llm_filter_plan(index, query):
     return LogicalPlan(
-        query="cats",
+        query=query,
         result_node=1,
         nodes={
             0: QueryDatabase(
@@ -141,18 +145,34 @@ def create_llm_filter_plan(index, keyword):
                 index=index,
             ),
             1: LlmFilter(
-                description="Filter documents involving "+keyword,
+                description="Filter documents involving "+query,
                 field='text_representation',
-                question='Does this document mention the word '+keyword+'?',
+                question=query,
                 node_id=1,
                 inputs=[0]
             ),
         },
     )
 
-def create_knn_plan(index, keyword, context, embedder):
+def create_get_all_plan(index):
     return LogicalPlan(
-        query=keyword,
+        query="all",
+        result_node=0,
+        nodes={
+            0: QueryDatabase(
+                node_type='QueryDatabase',
+                node_id=0,
+                description="Get all documents",
+                query={"match_all": {}},
+                inputs=[],
+                index=index,
+            ),
+        },
+    )
+
+def create_knn_plan(index, query, context, embedder):
+    return LogicalPlan(
+        query=query,
         result_node=0,
         nodes={
             0: QueryVectorDatabase(
@@ -161,26 +181,53 @@ def create_knn_plan(index, keyword, context, embedder):
                 description="Get all documents",
                 #query=get_knn_query(query_phrase=keyword, k=1000, context=context, text_embedder=embedder),
                 inputs=[],
-                query_phrase=keyword,
+                query_phrase=query,
                 index=index,
                 k=1000,
             ),
         },
     )
 
-def query(lp, context):
+def prune_after_score_drop(rs, frac):
+        if len(rs) == 0:
+            return rs
+
+        last_score = rs[0][1]
+        for i in range(1, len(rs)):
+            if rs[i][1] < last_score * frac:
+                return rs[0:i]
+            last_score = rs[i][1]
+
+        return rs
+
+def query(lp, context, pickle_file=None):
     start_time = time.time()
     # Existing code for the query function
     llm = OpenAI(OpenAIModels.GPT_4O.value)
-
     client = SycamoreQueryClient(llm=llm)
-    result = get_docs(client.run_plan(lp).result)
+    result = get_docs(client.run_plan(lp).result, pickle_file)
     #    print(f"query generated {len(result)} results")
     #    print(result)
     # Existing code for the query function
     end_time = time.time()
     execution_time = end_time - start_time
     return(result, execution_time)
+
+def query_keyword(os_client, keyword, index):
+    query = {
+        "query": {
+            "match": {
+                "text_representation": keyword
+            }
+        },
+        "size": 10000
+    }
+
+    response = os_client.search(index=index, body=query)
+
+    chunks = [hit['_source']['doc_id'] for hit in response["hits"]["hits"]]
+    docs = [hit['_source']['parent_id'] for hit in response["hits"]["hits"]]
+    return((len(chunks), len(set(docs))))
 
 def query_knn(keyword, index, context, text_embedder, os_client_args):
     start_time = time.time()
@@ -192,6 +239,224 @@ def query_knn(keyword, index, context, text_embedder, os_client_args):
     execution_time = end_time - start_time
     return (result, execution_time)
 
+def query_knn_vector(vector, index, context, text_embedder, os_client_args, k=10000):
+    start_time = time.time()
+    os_query = get_knn_query_vector(query_vector=vector, context=context, k=k)
+    #print(f'os_query: {os_query}')
+    docset = context.read.opensearch(index_name=index, query=os_query, os_client_args=os_client_args, reconstruct_document=True)
+    result = get_docs(docset)
+    end_time = time.time()
+    execution_time = end_time - start_time
+    return (result, execution_time)
+
+def chunked_sums(arr, N):
+    return [sum(arr[0:i+N]) for i in range(0, len(arr), N)]
+
+def zero_run_lengths(arr):
+    result = []
+    count = 0
+    for val in arr:
+        if val == 0:
+            count += 1
+        else:
+            count = 0
+        result.append(count)
+    return result
+
+
+def get_doc_data(data, doc_id):
+    """
+    Get the data for a specific document ID from the list of documents.
+    """
+    print(f"Getting data for doc_id: {doc_id}")
+    for doc in data:
+        print(f"Checking ")
+        print(doc['doc_id'])
+        if doc['doc_id'] == doc_id:
+            return doc
+    return None
+
+def sort_and_score_knn_direct(lf_result, keyword, index, os_client, os_client_args, context, k, text_embedder, inverse=False):
+    console = Console()
+    console.rule("1. KNN Sort")
+    start_time = time.time()
+    os_query = get_knn_query(query_phrase=keyword, context=context, k=k, text_embedder=text_embedder)
+    os_query['size']=k
+    #print(f'KNN os_query: {os_query}')
+    # Search the index
+    response = os_client.search(index=index, body=os_query)
+    all_docs =[]
+    all_elems = []
+    print(response["hits"]["hits"][0])
+    for hit in response["hits"]["hits"]:
+        #print(hit)
+        # if hit['_source']['properties']['element_id']:
+        #     if hit['_source']['properties']['element_id'] not in all_elems:
+        #         all_elems.append(hit['_source']['properties']['element_id']+hit['_source']['doc_id'])
+        #     else:
+        #         all_elems.append(hit['_source']['doc_id'])
+        if hit['_source']['parent_id'] not in all_docs:
+            all_docs.append(hit['_source']['parent_id'])
+    all_docs_scores = [(hit['_source']['parent_id'], hit['_score']) for hit in response["hits"]["hits"]]
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f'All docs: {len(all_docs)} deduped {len(set(all_docs))}')
+    print(f'All docs scores: {all_docs_scores[:10]}')
+    # print(f'All elems: {len(all_elems)}')
+    print(f'lf_result: {len(lf_result)}')
+    print(lf_result[0])
+  
+
+    (e_match, e_nomatch, no_batches, elems_processed) = extract_match_nomatch(lf_result)
+
+    lf_doc_ids = [doc['doc_id'] for doc in lf_result]
+    # lf_elem_ids = [get_match_elem_ids(doc) for doc in lf_result]
+    # print(f'lf_doc_ids: {len(lf_doc_ids)}, lf_elem_ids: {len(lf_elem_ids)} set(lf_elem_ids): {len(set(lf_elem_ids))}')
+
+    results = [1 if d in lf_doc_ids else 0 for d in all_docs]
+
+    # common_elems= set(all_elems).intersection(lf_elem_ids)
+    # print(f'knn got {len(set(all_elems))} elements, {len(lf_elem_ids)} in lf_result, {len(common_elems)} in common')
+    #print(all_elems[:10])
+    #print(f'Results: {results}')
+    sums = chunked_sums(results, 50)
+    zrl = zero_run_lengths(results)
+
+    console.rule("2. Clustering")
+    X, _ = make_blobs(n_samples=100, centers=3, n_features=2, random_state=42)
+
+    kmeans = KMeans(n_clusters=5)
+    max_match = int(len(e_match)*k/10000)
+    print(f'max_match: {max_match}')
+    #labels = kmeans.fit_predict(e_match[:max_match])
+    labels = kmeans.fit_predict(random.sample(e_match, max_match))
+    centroids = kmeans.cluster_centers_
+    docs_like_centroids_scores = []
+    all_new_elems = []
+    for c in centroids:
+        os_vect_query = get_knn_query_vector(query_vector=c, k=k)
+        os_vect_query['size']=k
+        #print(f'KNN os_query: {os_query}')
+        # Search the index
+        response = os_client.search(index=index, body=os_vect_query)
+        docs_like_c =[]
+        docs_like_c_vects = []
+
+        for hit in response["hits"]["hits"]:
+            # if hit['_source']['properties']['element_id']:
+            #     if hit['_source']['properties']['element_id'] not in all_new_elems:
+            #         all_new_elems.append(hit['_source']['properties']['element_id']+hit['_source']['doc_id'])
+            #     else:
+            #         all_new_elems.append(hit['_source']['properties']['doc_id'])
+            if hit['_source']['parent_id'] not in docs_like_c:
+                docs_like_c.append(hit['_source']['parent_id'])
+                docs_like_c_vects.append([hit['_source']['parent_id'], hit['_source']['embedding']])
+                docs_like_c_scores = [(hit['_source']['parent_id'], hit['_score']) for hit in response["hits"]["hits"]]
+        #print(f'Docs like c: {docs_like_c[0]}')
+        docs_like_centroids_scores.extend(docs_like_c_scores)
+    sorted_docs_like_centroids_scores = sorted(docs_like_centroids_scores, key=lambda x: x[1], reverse=True)
+
+    # new_common_elems= set(all_new_elems).intersection(lf_elem_ids)
+    #print(all_new_elems[:10])
+    # print(set.difference(set(lf_elem_ids), set(all_new_elems)))
+    # print(f'clustering got {len(set(all_new_elems))} elements, {len(lf_elem_ids)} in lf_result, {len(new_common_elems)} in common')
+    docs_like_centroids_deduped = []
+    for doc_id, score in sorted_docs_like_centroids_scores:
+        if doc_id not in docs_like_centroids_deduped:
+            docs_like_centroids_deduped.append(doc_id)
+    #print(f'Docs like centroids: {docs_like_centroids[0]}')
+    #docs_like_centroids_deduped = set(docs_like_centroids)
+
+    prior_docs = set(all_docs)
+    new_docs = set(docs_like_centroids_deduped).difference(prior_docs)
+    print(f'Got {len(new_docs)} new docs')
+
+    new_docs_sorted = [d for d in docs_like_centroids_deduped if d in new_docs]
+    console.rule("3. Classify")
+    # Combine and create labels
+    X = np.array(e_match + e_nomatch)
+    y = np.array([1] * len(e_match) + [0] * len(e_nomatch))
+    clf = RandomForestClassifier(n_estimators=100, random_state=42)
+    clf.fit(X, y)
+
+    # filtered_docs = [d for d in new_docs if clf.predict([get_matching_elem_vect(get_doc_data(lf_result, d))])[0] == 1]
+    filtered_docs_1 = [d for d in docs_like_c_vects if clf.predict(np.array(d[1]).reshape(1, -1))[0] == 1]
+    filtered_docs_0 = [d for d in docs_like_c_vects if clf.predict(np.array(d[1]).reshape(1, -1))[0] == 0]
+    print(f'Filtered docs 1: {len(filtered_docs_1)}, Filtered docs 0: {len(filtered_docs_0)}')
+    
+    # think a bit more about this - don't count twice teh docs already processed
+    more_results = [1 if d in lf_doc_ids else 0 for d in new_docs_sorted]
+    results.extend(more_results)
+
+    more_sums = chunked_sums(results, 50)
+    more_zrl = zero_run_lengths(results)
+    #print(f'Results: {results}')
+
+    return (sums, zrl,more_sums, more_zrl, execution_time)
+
+
+def query_knn_direct(keyword, index, os_client, context, k, text_embedder, inverse=False):
+    import numpy as np
+    console = Console()
+    console.rule()
+    console.rule("KNN Query")
+    start_time = time.time()
+    os_query = get_knn_query(query_phrase=keyword, context=context, k=k, text_embedder=text_embedder)
+    os_query['size']=k
+    #print(f'KNN os_query: {os_query}')
+    if inverse:
+        embedding_np = np.array(os_query['query']['knn']['embedding']['vector'])
+        inverted = 1 - embedding_np
+        os_query['query']['knn']['embedding']['vector'] = inverted.tolist()
+        print(f'KNN os_query: {os_query}')
+    # Search the index
+    response = os_client.search(index=index, body=os_query)
+
+    # Print results
+    all_results = [hit for hit in response["hits"]["hits"]]
+    all_with_keyword = [r for r in all_results  if keyword in r['_source']['text_representation'].split(' ')]
+    all_without_keyword = [r for r in all_results  if keyword not in r['_source']['text_representation'].split(' ')]
+    print(f'Got {len(all_results)} hits')
+    print(f'With keyword: {len(all_with_keyword)}')
+    if len(all_with_keyword)>0:
+        print(all_with_keyword[0])
+    print(f'Without keyword: {len(all_without_keyword)}')
+    if len(all_without_keyword)>0:
+        print(all_without_keyword[0])
+ #   embedding1 = all_with_keyword[0]['_source']['embedding']
+ #   embedding2 = all_without_keyword[0]['_source']['embedding']
+ #   similarity = cosine_similarity([embedding1], [embedding2])[0][0]
+ #   print(f"Cosine similarity: {similarity:.4f}")
+
+    #Difference vector
+    #difference_vector = embedding1 - embedding2
+    #print(f"Difference vector (first 5 values): {difference_vector[:5]}")
+
+    all_docs_scores = [(hit['_source']['parent_id'], hit['_score']) for hit in response["hits"]["hits"]]
+
+    all_results_sorted = sorted(all_docs_scores, key=lambda x: x[1], reverse=True)
+    pruned_results = prune_after_score_drop(all_results_sorted, 0.001)
+    all_doc_ids = [doc_id for doc_id, score in all_results_sorted]
+    print(f'KNN Results: count {len(all_results_sorted)}, First {all_results_sorted[0]}, last {all_results_sorted[-1]}')
+    print(f'KNN Pruned: count {len(pruned_results)}, First {pruned_results[0]}, last{pruned_results[-1]}')
+    print(f'KNN Docs {len(all_doc_ids)}')
+    print(f'KNN Dedupped {len(set(all_doc_ids))}')
+    print(f'Max : {max(all_results_sorted, key=lambda x: x[1])}')
+    print(f'Min : {min(all_results_sorted, key=lambda x: x[1])}')
+    result = [doc_id for doc_id, score in pruned_results]
+    end_time = time.time()
+    execution_time = end_time - start_time
+    return (result, execution_time)
+
+
+def print_index_stats(INDEX, os_client, keywords_to_probability):
+
+    chunks = os_client.count(index=INDEX)
+    print("Element count:", chunks["count"])
+    for k,p in keywords_to_probability.items():
+        print(f"{k} elements/docs: {query_keyword(os_client, k, INDEX)}")
+
+
 def main():
     argparser = argparse.ArgumentParser(prog="synth_data_llm_filter")
     argparser.add_argument("--oshost", default=None, help="OpenSearch host. Defaults to guessing based on whether it is in a container.")
@@ -199,7 +464,12 @@ def main():
     argparser.add_argument("--numdocs", default=10, help="Number of documents to generate")
     argparser.add_argument("--maxelems", default=5, help="Maximum number of elements in each document")
     argparser.add_argument("--index", default=None, help="The OpenSearch index name to populate")
-    argparser.add_argument("--query", action="store_true", help="Perform a query")
+    argparser.add_argument("--query", default=None, help="Perform a query")
+    argparser.add_argument("--query_rank", default=None, help="Perform a query")
+    argparser.add_argument("--k", default=None, help="k in KNN")
+    argparser.add_argument("--stats", action="store_true")
+    argparser.add_argument("--pickleout", default=None, help="If present, output is dumped there")
+    argparser.add_argument("--picklein", default=None, help="If present, input is read from there")
 
     args = argparser.parse_args()
 
@@ -257,29 +527,74 @@ def main():
     maxelems = int(args.maxelems)
 
     keyword_to_probability = {
-    'cat': 0.1,
-    'dog': 0.2,
+    'banana': 0.015,
+    'cat': 0.01,
+    'dog': 0.02,
     }
+
+    console = Console()
+    console.rule("Using index "+INDEX)
+
+    if args.stats:
+        print_index_stats(INDEX, os_client, keyword_to_probability)
+        return
 
     if args.query:
         context = sycamore.init()
-        lp_lf = create_llm_filter_plan(INDEX, "dog")
-#        lp_qvdb = create_qvdb_plan(INDEX, "dog")
-        lp_search = create_search_plan(INDEX, "cat")
+        keyword = args.query
+        k = int(args.k)
+
+#        lp_all = create_get_all_plan(INDEX)
+#        lp_qvdb = create_qvdb_plan(INDEX, keyword)
+#        lp_search = create_search_plan(INDEX, keyword)
 #        lp_knn = create_knn_plan(INDEX, "dog", context, embedder)
     
-#        rs_lf, time_lf = query(lp_lf, context)
+        lp_lf = create_llm_filter_plan(INDEX, keyword)
+        if args.pickleout is not None:
+            pickle_file = args.pickleout
+            if os.path.exists(os.path.dirname(pickle_file)):
+                rs_lf, time_lf = query(lp_lf, context, pickle_file=pickle_file)
+            else:
+                rs_lf, time_lf = query(lp_lf, context)
+        print(f"Llm_Filter Query returned {len(rs_lf)} results in {time_lf} seconds")
+
 #        rs_qvdb, time_qvdb = query(lp_qvdb, context)
+#        rs_all, time_all = query(lp_all, context)
 #        rs_search, time_search = query(lp_search, context)
-        rs_knn, time_knn = query_knn("cat", INDEX, context, embedder, os_client_args)
+        #rs_knn, time_knn = query_knn_direct(keyword, INDEX, os_client, context, k, embedder)
 #        rs_knn, time_knn = query(lp_knn, context)
 
-#        print(f"Llm_Filter Query returned {len(rs_lf)} results in {time_lf} seconds")
-#        print(f"Search Query returned {len(_search)} results in {time_search} seconds")
-        print(f"KNN Query returned {len(rs_knn)} results in {time_knn} seconds")
-#        print(f'Search x KNN Overlap = {len(set(rs_search).intersection(set(rs_knn)))}')
-#        print(f'Search - KNN Overlap = {len(set(rs_search).difference(set(rs_knn)))}')
-#        print(f'KNN - Search Overlap = {len(set(rs_knn).difference(set(rs_search)))}')
+
+#        print(rs_lf)
+ #       print(f"Search Query returned {len(rs_search)} results in {time_search} seconds")
+ #       print(f'Search for {keyword}\n {rs_search}')
+#        print(f"Get ALL Query returned {len(rs_all)} results in {time_all} seconds")
+#        print(f"KNN Query returned {len(rs_knn)} results in {time_knn} seconds")
+#        print(f'Search ^ KNN = {len(set(rs_search).intersection(set(rs_knn)))}')
+#        print(f'Search - KNN = {len(set(rs_search).difference(set(rs_knn)))}')
+#        print(f'KNN - Search = {len(set(rs_knn).difference(set(rs_search)))}')
+        return
+
+    if args.query_rank:
+        context = sycamore.init()
+        keyword = args.query_rank
+        k = int(args.k)
+        #lp_lf = create_llm_filter_plan(INDEX, keyword)
+
+        # Read stored llm_filter results
+        if args.picklein is None:
+            print('Need to provide a pickle file with the results of the llm_filter')
+            return
+
+        # Load the pickle file
+        with open(args.picklein, 'rb') as f:
+            data = pickle.load(f)  # should be a list of dicts
+        doc_ids = [data['doc_id'] for data in data]
+        print(f"Loading Llm_Filter Query resutls from {args.picklein}\n - Loaded total \n {len(doc_ids)}, disitinct {len(set(doc_ids))} results")
+
+        (chunked_sums, zero_subseq, chunked_sums_after_cluster, zero_subseq_after_cluster, time) = sort_and_score_knn_direct(data, keyword, INDEX, os_client, os_client_args, context, k, embedder)
+        print (f"Sort and score KNN returned:\n {chunked_sums} in {time} seconds")
+        print (f"Sort and score KNN after cluster:\n {chunked_sums_after_cluster}\n in {time} seconds")
         return
 
     docset = generate_docset(keyword_to_probability, numdocs, maxelems)
@@ -301,6 +616,7 @@ def main():
                         )
     )
 
+    print_index_stats(INDEX, os_client, keyword_to_probability)
 
 if __name__ == "__main__":
-    exit(main())
+    exit(main()) 

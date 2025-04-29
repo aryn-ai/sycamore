@@ -43,7 +43,8 @@ class TestSummarize:
         doc = text_summarizer.summarize(doc)
 
         assert doc.elements[0].properties == {}
-        assert doc.elements[1].properties == {"summary": "this is the summary"}
+
+        assert doc.elements[1].properties == {"summary" : {"summary": "this is the summary"}}
 
 
 class TestMultiStepSummarize:

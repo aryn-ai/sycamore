@@ -1,13 +1,10 @@
 from os import PathLike
-import sys
-from typing import Optional, Callable, Any
-import subprocess
+from typing import Optional, Any
 from pathlib import Path
+from abc import ABC, abstractmethod
 
 from sycamore.data.document import Document
 from sycamore.docset import DocSet
-
-__this = sys.modules[__name__]
 
 
 def slow_pprint(
@@ -75,164 +72,191 @@ def reimport(module_name: str) -> None:
         print(f"Error reloading module '{module_name}': {e}")
 
 
-def view_pdf(
-    docset: DocSet,
-    doc_to_url: Optional[Callable[[Document], str]] = None,
-    doc_to_display_name: Optional[Callable[[Document], str]] = None,
-    max_inline: int = 1,
-    height: int = 1000,
-    props: list[str] = [],
-) -> None:
+class PDFViewer(ABC):
     """
-    View the pdfs in a docset using jupyter's display functionality. If there are
-    more documents in the docset than max_inline, shows a list with links to open
-    the pdfs in browser tabs. Otherwise, display them inline in iframes.
-
-    Args:
-        docset: the docset whose pdfs to show
-        doc_to_url: Function to generate a url from which to download the pdf. Must be
-            set either here or in `init_viewpdf`.
-        doc_to_display_name: Function to generate a display name for each document.
-            Must be set either here or in `init_viewpdf`
-        max_inline: The maximum number of documents to show inline in iframes. Default
-            is 1. If there are more documents than max_inline, view_pdf displays a list
-            of links to open the pdfs in new browser tabs.
-        height: The height of the iframe elements that will be rendered
-        props: A list of properties to show for each document. Default is no properties.
+    Base class for viewing PDF files in a jupyter notebook.
     """
-    from sycamore.utils.nested import dotted_lookup
-    from IPython.display import HTML, display
 
-    if doc_to_url is None:
-        assert hasattr(
-            __this, "_doc_to_url"
-        ), "doc_to_url must either be provided as an arg to view_pdf or init_viewpdf"
-        doc_to_url = __this._doc_to_url
-    if doc_to_display_name is None:
-        assert hasattr(
-            __this, "_doc_to_display_name"
-        ), "doc_to_display_name must either be provided as an arg to view_pdf or init_viewpdf"
-        doc_to_display_name = __this._doc_to_display_name
-    assert doc_to_url is not None, "Type narrowing. This ought to be unreachable"
-    assert doc_to_display_name is not None, "Type narrowing. This ought to be unreachable"
+    @abstractmethod
+    def doc_to_url(self, doc: Document) -> str:
+        pass
 
-    # Add url and display name props, and get the minimal data to show
-    docset = docset.with_property("_vpdf_url", doc_to_url).with_property("_vpdf_name", doc_to_display_name)
-    props.extend(["_vpdf_url", "_vpdf_name"])
-    info = []
-    for doc in docset.take_stream():
-        info.append({p: dotted_lookup(doc.properties, p) for p in props})
-    info.sort(key=lambda i: i["_vpdf_name"])
+    @abstractmethod
+    def doc_to_display_name(self, doc: Document) -> str:
+        pass
 
-    html_frags = _view_pdf_html(info, max_inline, height, props)
-    # Multiple iframes didn't seem to work so we do them one at a time
-    for frag in html_frags:
-        display(HTML(frag))
+    def __call__(
+        self,
+        docset: DocSet,
+        max_inline: int = 1,
+        height: int = 1000,
+        props: list[str] = [],
+    ) -> None:
+        """Passthrough to ``view_pdf``"""
+        self.view_pdf(docset, max_inline, height, props)
 
+    def view_pdf(
+        self,
+        docset: DocSet,
+        max_inline: int = 1,
+        height: int = 1000,
+        props: list[str] = [],
+    ) -> None:
+        """
+        View the pdfs in a docset using jupyter's display functionality. If there are
+        more documents in the docset than max_inline, shows a list with links to open
+        the pdfs in browser tabs. Otherwise, display them inline in iframes.
 
-def _view_pdf_html(info: list[dict[str, Any]], max_inline: int, height: int, props: list[str]) -> list[str]:
-    # Build html to display - if more than max_inline docs,
-    # make a list with links, otherwise, inline them as iframes
-    def html_prop_list(inf: dict) -> list[str]:
-        if len(inf) == 0:
-            return []
-        ans = []
-        ans.append("<ul>")
-        for k, v in inf.items():
-            ans.append(f"<li>{k}: {v}</li>")
-        ans.append("</ul>")
-        return ans
+        Args:
+            docset: the docset whose pdfs to show
+            doc_to_url: Function to generate a url from which to download the pdf. Must be
+                set either here or in `init_viewpdf`.
+            doc_to_display_name: Function to generate a display name for each document.
+                Must be set either here or in `init_viewpdf`
+            max_inline: The maximum number of documents to show inline in iframes. Default
+                is 1. If there are more documents than max_inline, view_pdf displays a list
+                of links to open the pdfs in new browser tabs.
+            height: The height of the iframe elements that will be rendered
+            props: A list of properties to show for each document. Default is no properties.
+        """
+        from sycamore.utils.nested import dotted_lookup
+        from IPython.display import HTML, display
 
-    html_frags = []
-    if len(info) <= max_inline:
-        html_frags.append(f"<h1>{len(info)} documents. Displaying inline</h1>")
-        f = []
-        for inf in info:
-            f.append(f"<h2>{inf.pop('_vpdf_name')}</h2>")
-            url = inf.pop("_vpdf_url")
-            f.extend(html_prop_list(inf))
-            f.append(f'<iframe src="{url}" width="90%" height="{height}" />')
-            html_frags.append("\n".join(f))
+        # Add url and display name props, and get the minimal data to show
+        docset = docset.with_property("_vpdf_url", self.doc_to_url).with_property(
+            "_vpdf_name", self.doc_to_display_name
+        )
+        props.extend(["_vpdf_url", "_vpdf_name"])
+        info = []
+        for doc in docset.take_stream():
+            info.append({p: dotted_lookup(doc.properties, p) for p in props})
+        info.sort(key=lambda i: i["_vpdf_name"])
+
+        html_frags = self._view_pdf_html(info, max_inline, height, props)
+        # Multiple iframes didn't seem to work so we do them one at a time
+        for frag in html_frags:
+            display(HTML(frag))
+
+    def _view_pdf_html(self, info: list[dict[str, Any]], max_inline: int, height: int, props: list[str]) -> list[str]:
+        # Build html to display - if more than max_inline docs,
+        # make a list with links, otherwise, inline them as iframes
+        def html_prop_list(inf: dict) -> list[str]:
+            if len(inf) == 0:
+                return []
+            ans = []
+            ans.append("<ul>")
+            for k, v in inf.items():
+                ans.append(f"<li>{k}: {v}</li>")
+            ans.append("</ul>")
+            return ans
+
+        html_frags = []
+        if len(info) <= max_inline:
+            html_frags.append(f"<h1>{len(info)} documents. Displaying inline</h1>")
             f = []
-    else:
-        html_frags.append(f"<h1>{len(info)} documents. Links will open a new tab</h1><ul>")
-        for inf in info:
-            name = inf.pop("_vpdf_name")
-            url = inf.pop("_vpdf_url")
-            html_frags.append(f'<li> <a href="{url}" target="_blank">{name}</a>')
-            html_frags.extend(html_prop_list(inf))
-        html_frags.append("</ul>")
-        html_frags = ["\n".join(html_frags)]
+            for inf in info:
+                f.append(f"<h2>{inf.pop('_vpdf_name')}</h2>")
+                url = inf.pop("_vpdf_url")
+                f.extend(html_prop_list(inf))
+                f.append(f'<iframe src="{url}" width="90%" height="{height}" />')
+                html_frags.append("\n".join(f))
+                f = []
+        else:
+            html_frags.append(f"<h1>{len(info)} documents. Links will open a new tab</h1><ul>")
+            for inf in info:
+                name = inf.pop("_vpdf_name")
+                url = inf.pop("_vpdf_url")
+                html_frags.append(f'<li> <a href="{url}" target="_blank">{name}</a>')
+                html_frags.extend(html_prop_list(inf))
+            html_frags.append("</ul>")
+            html_frags = ["\n".join(html_frags)]
 
-    return html_frags
+        return html_frags
 
 
-def init_viewpdf(
-    doc_to_url: Optional[Callable[[Document], str]] = None,
-    doc_to_display_name: Optional[Callable[[Document], str]] = None,
-):
+class LocalFileViewer(PDFViewer):
     """
-    Initializes global default doc_to_url and doc_to_display_name functions for
-    later use in `view_pdf`
+    Implementation of PDFViewer for local files. Jupyter sandboxes the filesystem,
+    so `file:///path/to/file` links do not work - accordingly, we start a simple
+    http server and generate http urls to hit it.
 
     Args:
-        doc_to_url: A function that takes a Document and returns a URL.
-        doc_to_display_name: A function that takes a Document and returns a display name.
+        root_dir: The root directory to serve files from. Default is the user's home
+            directory. Must be a parent of any files you want to view.
+        port: port to start the file server on. If unspecified, we will pick one at random.
+            If specified and the port is in use, we assume that the thing at that port
+            will serve files.
+        suppress_used_port_warning: Do not emit a warning when providing a port that is already
+            in use. This is used when ser/de-ing this object due to ray. Users should never care.
     """
-    # Explanation: __this is a reference to this module. This function effectively adds
-    # the provided functions to the module - view_pdf can then access them as defaults.
-    global __this
 
-    assert doc_to_url is not None or doc_to_display_name is not None
-    if doc_to_url is not None:
-        __this._doc_to_url = doc_to_url  # type: ignore
-    if doc_to_display_name is not None:
-        __this._doc_to_display_name = doc_to_display_name  # type: ignore
+    def __init__(
+        self, root_dir: PathLike = Path.home(), port: Optional[int] = None, *, suppress_used_port_warning: bool = False
+    ):
+        import socket
+        import random
+        import logging
+        import subprocess
 
+        self._root = root_dir
+        self._server_owner = False
+        if port is not None:
+            self._port = port
+            try:
+                s = socket.create_server(("localhost", port))
+                s.close()
+                self._server_owner = True
+            except Exception:
+                if not suppress_used_port_warning:
+                    logging.warning(
+                        f"Port {port} is already in use. Will assume that it is an already-running LocalFileViewer server."
+                    )
+        else:
+            max_tries = 10
+            tried: set[int] = set()
+            while len(tried) < max_tries:
+                port = random.randrange(1025, 65536)
+                if port in tried:
+                    continue
+                try:
+                    s = socket.create_server(("localhost", port))
+                    self._port = port
+                    s.close()
+                    self._server_owner = True
+                    break
+                except Exception:
+                    tried.add(port)
+            if not self._server_owner:
+                raise RuntimeError(
+                    f"Failed to find an open port after {max_tries} tries. Checked: {tried}. Go enter the lottery."
+                )
 
-def local_files(
-    root_dir: PathLike = Path.home(),
-    port: int = 8086,
-) -> Optional[subprocess.Popen]:
-    """
-    Initializes view_pdf for use with local files. Since jupyter doesn't like to open
-    `file://` urls, we run a file server in a subprocess to serve them via http. This
-    function calls `init_viewpdf`, so future calls to `view_pdf` work as expected.
+        self._subprocess = None
+        if self._server_owner:
+            logging.warning(f"Running file server on localhost port {self._port}")
+            self._subprocess = subprocess.Popen(
+                ["python", "-m", "http.server", "-b", "127.0.0.1", str(self._port)], cwd=self._root
+            )
 
-    Args:
-        root_dir: The root directory to serve files from. This must be a parent directory
-            of every file that might want to be viewed. Default is the user's home directory.
-        port: The port to serve files on. Default is 8086
+    def __del__(self):
+        # On GC, kill my subprocess.
+        if self._subprocess is not None:
+            self._subprocess.kill()
 
-    Returns:
-        The subprocess running the file server. If the server is already running (you've
-        already called local_files() in this process), returns nothing.
-    """
-    import socket
+    def __reduce__(self):
+        def deser(kwargs):
+            return LocalFileViewer(**kwargs)
 
-    def doc_to_url(doc: Document) -> str:
+        kwargs = {"root_dir": self._root, "port": self._port, "suppress_used_port_warning": True}
+        return deser, (kwargs,)
+
+    def doc_to_url(self, doc: Document) -> str:
         path = doc.properties["path"]
-        rd_str = str(root_dir)
+        rd_str = str(self._root)
         assert str(path).startswith(
             rd_str
         ), f"Document with path {path} does not live within {rd_str}, so cannot serve it"
-        return f"http://localhost:{port}/{path[len(rd_str) + 1:]}"
+        return f"http://localhost:{self._port}/{path[len(rd_str) + 1:]}"
 
-    def doc_to_name(doc: Document) -> str:
+    def doc_to_display_name(self, doc: Document) -> str:
         return Path(doc.properties["path"]).name
-
-    init_viewpdf(doc_to_url, doc_to_name)
-    server_is_running = True
-    s = None
-    try:
-        s = socket.create_connection(("localhost", port), timeout=0.01)
-    except Exception:
-        server_is_running = False
-    finally:
-        if s is not None:
-            s.close()
-
-    if not server_is_running:
-        server = subprocess.Popen(["python", "-m", "http.server", str(port)], cwd=root_dir)
-        return server
-    return None

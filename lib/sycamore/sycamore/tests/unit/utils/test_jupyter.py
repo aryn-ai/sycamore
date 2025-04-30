@@ -1,17 +1,29 @@
-import sycamore.utils.jupyter as suj
-from sycamore.data import Document
+from sycamore.utils.jupyter import LocalFileViewer
+import socket
+import pytest
+import time
+import gc
 
 
-def test_init_viewpdf():
-    def foo(doc: Document) -> str:
-        return "foo"
+def test_localfileviewer_no_leaks():
+    port = 2647
+    viewpdf = LocalFileViewer(port=port)
 
-    def bar(doc: Document) -> str:
-        return "bar"
+    # Wait for subprocess server to start
+    time.sleep(0.1)
+    with pytest.raises(Exception):
+        socket.create_server(("localhost", port)).close()
 
-    suj.init_viewpdf(foo, bar)
-    assert suj._doc_to_url is foo  # type: ignore
-    assert suj._doc_to_display_name is bar  # type: ignore
+    newport = 2648
+    viewpdf = LocalFileViewer(port=newport)
+    # gc the original viewpdf
+    gc.collect()
+    socket.create_server(("localhost", port)).close()
 
-    delattr(suj, "_doc_to_url")
-    delattr(suj, "_doc_to_display_name")
+    time.sleep(0.1)
+    with pytest.raises(Exception):
+        socket.create_server(("localhost", newport)).close()
+
+    del viewpdf
+    gc.collect()
+    socket.create_server(("localhost", newport)).close()

@@ -20,6 +20,7 @@ from sycamore.materialize import (
     name_from_docid,
     docid_from_path,
     doc_only_to_binary,
+    doc_id_filter,
 )
 from sycamore.tests.unit.inmempyarrowfs import InMemPyArrowFileSystem
 
@@ -432,6 +433,17 @@ class TestAllViaPyarrowFS(unittest.TestCase):
             pipeline.take_all()
 
         assert fsh.file_exists(path["root"] + "/DocScan.0/subdir/fake.pickle")
+
+    def test_filter(self):
+        fs = InMemPyArrowFileSystem()
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        docs = make_docs(5)
+        path = {"root": "/no/such/path", "fs": fs, "filter": doc_id_filter([d.doc_id for d in docs[:2]])}
+        ctx.read.document(docs).materialize(path=path).execute()
+        docs_out = ctx.read.materialize(path).take_all()
+        assert len(docs_out) == 2
+        assert docs_out[0].doc_id == "doc_0"
+        assert docs_out[1].doc_id == "doc_1"
 
 
 class TestClearMaterialize(unittest.TestCase):

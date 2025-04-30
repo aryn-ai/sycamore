@@ -801,6 +801,16 @@ def doc_id_filter(doc_ids: list[str]) -> Callable[[str], bool]:
     doc_id_set = set(doc_ids)
 
     def inner_filter(p: str) -> bool:
-        return p in doc_id_set
+        print(p)
+        return MaterializeReadReliability._path_to_id(Path(p)) in doc_id_set
 
     return inner_filter
+
+
+# TODO: Implement as follows
+# Class with all the doc_id to path functions and inverse functions
+# (docid -> materializename, materializename -> docid, filepath -> docid)
+# Bundle em
+# Add a flag for 'is it stable' (or random. might wanna be an enum)
+# Change Materialize / MRR to use the class (correctly) if passed the class instead of functions
+#

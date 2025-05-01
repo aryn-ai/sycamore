@@ -193,49 +193,48 @@ class LocalFileViewer(PDFViewer):
     def __init__(
         self, root_dir: PathLike = Path.home(), port: Optional[int] = None, *, suppress_used_port_warning: bool = False
     ):
-        import socket
-        import random
         import logging
         import subprocess
 
         self._root = root_dir
-        self._server_owner = False
+
+        self._subprocess = None
+        should_start_server = self._set_port(port, suppress_used_port_warning)
+        if should_start_server:
+            logging.warning(f"Running file server on localhost port {self._port}")
+            self._subprocess = subprocess.Popen(
+                ["python", "-m", "http.server", "-b", "127.0.0.1", str(self._port)], cwd=self._root
+            )
+
+    def _set_port(self, port: Optional[int], suppress_used_port_warning: bool) -> bool:
+        import socket
+        import random
+        import logging
+
         if port is not None:
             self._port = port
             try:
                 s = socket.create_server(("localhost", port))
                 s.close()
-                self._server_owner = True
+                return True
             except Exception:
                 if not suppress_used_port_warning:
                     logging.warning(
                         f"Port {port} is already in use. Will assume that it is an already-running LocalFileViewer server."
                     )
+                return False
         else:
             max_tries = 10
-            tried: set[int] = set()
-            while len(tried) < max_tries:
-                port = random.randrange(1025, 65536)
-                if port in tried:
-                    continue
+            to_check = random.sample(range(1025, 65536), max_tries)
+            for port in to_check:
                 try:
-                    s = socket.create_server(("localhost", port))
+                    socket.create_server(("localhost", port)).close()
                     self._port = port
-                    s.close()
-                    self._server_owner = True
-                    break
+                    return True
                 except Exception:
-                    tried.add(port)
-            if not self._server_owner:
-                raise RuntimeError(
-                    f"Failed to find an open port after {max_tries} tries. Checked: {tried}. Go enter the lottery."
-                )
-
-        self._subprocess = None
-        if self._server_owner:
-            logging.warning(f"Running file server on localhost port {self._port}")
-            self._subprocess = subprocess.Popen(
-                ["python", "-m", "http.server", "-b", "127.0.0.1", str(self._port)], cwd=self._root
+                    pass
+            raise RuntimeError(
+                f"Failed to find an open port after {max_tries} tries. Checked: {to_check}. Go enter the lottery."
             )
 
     def __del__(self):

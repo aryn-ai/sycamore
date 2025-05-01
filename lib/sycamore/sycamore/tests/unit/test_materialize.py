@@ -17,11 +17,12 @@ from sycamore.materialize import (
     AutoMaterialize,
     Materialize,
     MaterializeReadReliability,
-    name_from_docid,
-    docid_from_path,
-    doc_only_to_binary,
+    # name_from_docid,
+    # docid_from_path,
+    # doc_only_to_binary,
     doc_id_filter,
 )
+from sycamore.materialize_config import RandomNameGroup, MRRNameGroup
 from sycamore.tests.unit.inmempyarrowfs import InMemPyArrowFileSystem
 
 
@@ -59,6 +60,9 @@ def make_docs(num):
 
 def noop_fn(d):
     return d
+
+
+logger = logging.getLogger(__name__)
 
 
 class TestMaterializeWrite(unittest.TestCase):
@@ -117,13 +121,15 @@ class TestMaterializeWrite(unittest.TestCase):
             self.check_files(tmpdir, ext=".test")
 
             def doc_to_name2(doc, bin):
-                return Materialize.doc_to_name(doc, bin) + ".test2"
+                return RandomNameGroup.doc_to_materialize_name(doc, bin) + ".test2"
+                # return Materialize.doc_to_name(doc, bin) + ".test2"
 
             ds.materialize(path={"root": tmpdir, "name": doc_to_name2}).execute()
             self.check_files(tmpdir, ext=".test2")
 
             def doc_to_name3(doc, bin):
-                return Materialize.doc_to_name(doc, bin) + ".test3"
+                return RandomNameGroup.doc_to_materialize_name(doc, bin) + ".test3"
+                # return Materialize.doc_to_name(doc, bin) + ".test3"
 
             ds.materialize(path={"root": tmpdir, "name": doc_to_name3, "clean": False}).execute()
             # did not clean, both of these should pass
@@ -251,7 +257,8 @@ class TestAutoMaterialize(unittest.TestCase):
 
     def test_overrides(self):
         def doc_to_name4(doc, bin):
-            return Materialize.doc_to_name(doc, bin) + ".test4"
+            return RandomNameGroup.doc_to_materialize_name(doc, bin) + ".test4"
+            # return Materialize.doc_to_name(doc, bin) + ".test4"
 
         docs = make_docs(3)
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -630,11 +637,19 @@ class TestMaterializeReadReliability(unittest.TestCase):
             tempfile.TemporaryDirectory() as tmpdir3,
         ):
             docs = make_docs(10)
+            # ds = (
+            #     ctx.read.document(docs)
+            #     .map(docid_from_path)
+            #     .materialize(
+            #         path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
+            #         source_mode=sycamore.MATERIALIZE_RECOMPUTE,
+            #     )
+            # )
             ds = (
                 ctx.read.document(docs)
-                .map(docid_from_path)
+                .with_property("_irrelevant", MRRNameGroup.make_docid)
                 .materialize(
-                    path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
+                    path={"root": tmpdir1, "name": MRRNameGroup.doc_to_materialize_name},
                     source_mode=sycamore.MATERIALIZE_RECOMPUTE,
                 )
             )
@@ -684,11 +699,19 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
             docs = make_docs(10)
+            # ds = (
+            #     ctx.read.document(docs)
+            #     .map(docid_from_path)
+            #     .materialize(
+            #         path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
+            #         source_mode=sycamore.MATERIALIZE_RECOMPUTE,
+            #     )
+            # )
             ds = (
                 ctx.read.document(docs)
-                .map(docid_from_path)
+                .with_property("_irrelevant", MRRNameGroup.make_docid)
                 .materialize(
-                    path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
+                    path={"root": tmpdir1, "name": MRRNameGroup.doc_to_materialize_name},
                     source_mode=sycamore.MATERIALIZE_RECOMPUTE,
                 )
             )
@@ -730,11 +753,19 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
             docs = make_docs(10)
+            # ds = (
+            #     ctx.read.document(docs)
+            #     .map(docid_from_path)
+            #     .materialize(
+            #         path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
+            #         source_mode=sycamore.MATERIALIZE_RECOMPUTE,
+            #     )
+            # )
             ds = (
                 ctx.read.document(docs)
-                .map(docid_from_path)
+                .with_property("_irrelevant", MRRNameGroup.make_docid)
                 .materialize(
-                    path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
+                    path={"root": tmpdir1, "name": MRRNameGroup.doc_to_materialize_name},
                     source_mode=sycamore.MATERIALIZE_RECOMPUTE,
                 )
             )
@@ -751,6 +782,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
             # Create a function that fails for specific documents
             def failing_map(doc):
+                logger.info(doc)
                 failure_counter.x += 1
                 if failure_counter.x >= 9:  # Perpetual fail after 9th document
                     raise ValueError("Simulated failure")

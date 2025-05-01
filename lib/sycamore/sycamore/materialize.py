@@ -5,7 +5,7 @@ from typing import Any, Optional, Tuple, Union, TYPE_CHECKING, cast, Callable
 from sycamore.context import Context
 from sycamore.data import Document, MetadataDocument
 from sycamore.data.docid import docid_to_typed_nanoid, path_to_sha256_docid
-from sycamore.materialize_config import MaterializeSourceMode
+from sycamore.materialize_config import MaterializeSourceMode, RandomNameGroup, MRRNameGroup, MaterializeNameGroup
 from sycamore.plan_nodes import Node, UnaryNode, NodeTraverse
 from sycamore.transforms.base import rename
 
@@ -76,6 +76,7 @@ class MaterializeReadReliability(NodeTraverse):
         self.max_retries = max_retries
         self.cycle_error: Optional[Union[str, Exception]] = ""
         self.iteration = 0
+        self._name_group = MRRNameGroup
 
     def reinit(self, out_mat_path, max_batch, max_retries):
 
@@ -171,8 +172,9 @@ class MaterializeReadReliability(NodeTraverse):
                         node, Materialize
                     ), "The last node should be a materialize node to ensure reliability"
                     logger.info("Overriding doc_to_name, doc_to_binary, clean_root for reliability pipeline")
-                    node._doc_to_name = name_from_docid
-                    node._doc_to_binary = doc_only_to_binary
+                    # node._doc_to_name = name_from_docid
+                    node._doc_to_name = self._name_group.doc_to_materialize_name
+                    # node._doc_to_binary = doc_only_to_binary
                     node._clean_root = False
                     node._source_mode = MaterializeSourceMode.RECOMPUTE
             elif isinstance(node, BinaryScan):
@@ -211,21 +213,24 @@ class MaterializeReadReliability(NodeTraverse):
 
     @staticmethod
     def _path_to_id(p: Path) -> Optional[str]:
-        if p.suffix != ".pickle":
-            return None
-        if not p.name.startswith("doc-path-sha256-"):
-            logger.info("Got pickle file which is not in 'doc-path-sha256-' format with reliability pipeline")
-            return None
-        return str(p.stem[4:])
+        return MRRNameGroup.materialize_name_to_docid_safe(str(p))
+        # if p.suffix != ".pickle":
+        #     return None
+        # if not p.name.startswith("doc-path-sha256-"):
+        #     logger.info("Got pickle file which is not in 'doc-path-sha256-' format with reliability pipeline")
+        #     return None
+        # return str(p.stem[4:])
 
     def filter(self, p: str, read_binary: bool = False) -> bool:
         """Filter files for processing, respecting batch size"""
         if self.current_batch >= self.max_batch:
             return False
         if not read_binary:
-            id = self._path_to_id(Path(p))
+            # id = self._path_to_id(Path(p))
+            id = self._name_group.materialize_name_to_docid_safe(p)
         else:
-            id = path_to_sha256_docid(str(p))
+            # id = path_to_sha256_docid(str(p))
+            id = self._name_group.docpath_to_docid(str(p))
         if id is None:
             logger.debug(f"Got path {p} not in proper format")
             return False
@@ -233,7 +238,8 @@ class MaterializeReadReliability(NodeTraverse):
         if id in self.seen:
             return False
 
-        self.current_batch += 1
+        if not self._name_group.is_metadata_materialize_name(p):
+            self.current_batch += 1
         return True
 
     def reset_batch(self) -> None:
@@ -256,33 +262,33 @@ class MaterializeReadReliability(NodeTraverse):
             print(f"No errors in previous batch. \nProcessed {len(self.seen)} docs at present.")
 
 
-def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
-    if d.doc_id:
-        assert (
-            len(d.doc_id) == 76
-        ), """This method expects docids to be 76 characters long and used with reliability.
-              Make sure to have docids set using docid_from_path method,
-            """
-        assert d.doc_id.startswith("path-sha256-")
-        if isinstance(d, MetadataDocument):
-            return f"md-{d.doc_id}.pickle"
-        else:
-            return f"doc-{d.doc_id}.pickle"
-    assert False
+# def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
+#     if d.doc_id:
+#         assert (
+#             len(d.doc_id) == 76
+#         ), """This method expects docids to be 76 characters long and used with reliability.
+#               Make sure to have docids set using docid_from_path method,
+#             """
+#         assert d.doc_id.startswith("path-sha256-")
+#         if isinstance(d, MetadataDocument):
+#             return f"md-{d.doc_id}.pickle"
+#         else:
+#             return f"doc-{d.doc_id}.pickle"
+#     assert False
 
 
-def docid_from_path(d: Document) -> Document:
+# def docid_from_path(d: Document) -> Document:
 
-    if "path" in d.properties:
-        d.doc_id = path_to_sha256_docid(d.properties["path"])
-        return d
-    assert False
+#     if "path" in d.properties:
+#         d.doc_id = path_to_sha256_docid(d.properties["path"])
+#         return d
+#     assert False
 
 
-def doc_only_to_binary(d: Document) -> Optional[bytes]:
-    if isinstance(d, MetadataDocument):
-        return None
-    return d.serialize()
+# def doc_only_to_binary(d: Document) -> Optional[bytes]:
+#     if isinstance(d, MetadataDocument):
+#         return None
+#     return d.serialize()
 
 
 def _success_path(base_path: Path) -> Path:
@@ -304,12 +310,14 @@ class Materialize(UnaryNode):
         self._root = None
         self._path_filter = None
         self._tolerate_input_errors = tolerate_input_errors
+        self._name_group = RandomNameGroup
         if path is None:
             pass
         elif isinstance(path, str) or isinstance(path, Path):
             (self._fs, self._root) = self.infer_fs(str(path))
             self._fshelper = _PyArrowFsHelper(self._fs)
-            self._doc_to_name = self.doc_to_name
+            # self._doc_to_name = self.doc_to_name
+            self._doc_to_name = self._name_group.doc_to_materialize_name
             self._doc_to_binary = Document.serialize
             self._clean_root = True
         elif isinstance(path, dict):
@@ -320,7 +328,7 @@ class Materialize(UnaryNode):
             else:
                 (self._fs, self._root) = self.infer_fs(str(path["root"]))
             self._fshelper = _PyArrowFsHelper(self._fs)
-            self._doc_to_name = path.get("name", self.doc_to_name)
+            self._doc_to_name = path.get("name", self._name_group.doc_to_materialize_name)
             self._doc_to_binary = path.get("tobin", Document.serialize)
             assert callable(self._doc_to_name)
             self._clean_root = path.get("clean", True)
@@ -527,6 +535,9 @@ class Materialize(UnaryNode):
         ret = []
         count = 0
         for fi in self._fshelper.list_files(self._root):
+            logger.info(fi)
+            if fi.size == 0:
+                continue
             if self._path_filter is not None and not self._path_filter(fi.path):
                 continue
             n = Path(fi.path)
@@ -612,21 +623,21 @@ class Materialize(UnaryNode):
         with self._fs.open_output_stream(str(path)) as out:
             out.write(bin)
 
-    @staticmethod
-    def doc_to_name(doc: Document, bin: bytes) -> str:
-        from hashlib import sha256
+    # @staticmethod
+    # def doc_to_name(doc: Document, bin: bytes) -> str:
+    #     from hashlib import sha256
 
-        hash_id = sha256(bin).hexdigest()
-        doc_id = doc.doc_id or doc.data.get("lineage_id", None)
-        if doc_id is None:
-            logger.warn(f"found document with no doc_id or lineage_id, assigned content based id {hash_id}")
-            doc_id = hash_id
+    #     hash_id = sha256(bin).hexdigest()
+    #     doc_id = doc.doc_id or doc.data.get("lineage_id", None)
+    #     if doc_id is None:
+    #         logger.warn(f"found document with no doc_id or lineage_id, assigned content based id {hash_id}")
+    #         doc_id = hash_id
 
-        if isinstance(doc, MetadataDocument):
-            return f"md-{docid_to_typed_nanoid(doc_id)}.{hash_id}.pickle"
+    #     if isinstance(doc, MetadataDocument):
+    #         return f"md-{docid_to_typed_nanoid(doc_id)}.{hash_id}.pickle"
 
-        assert isinstance(doc, Document)
-        return f"doc-{docid_to_typed_nanoid(doc_id)}.{hash_id}.pickle"
+    #     assert isinstance(doc, Document)
+    #     return f"doc-{docid_to_typed_nanoid(doc_id)}.{hash_id}.pickle"
 
 
 class RayPathParser:
@@ -797,12 +808,27 @@ def clear_materialize(plan: Node, *, path: Optional[Union[Path, str]], clear_non
     plan.traverse(visit=clean_dir)
 
 
-def doc_id_filter(doc_ids: list[str]) -> Callable[[str], bool]:
+def doc_id_filter(
+    doc_ids: list[str], name_group: type[MaterializeNameGroup] = RandomNameGroup
+) -> Callable[[str], bool]:
     doc_id_set = set(doc_ids)
 
     def inner_filter(p: str) -> bool:
-        print(p)
-        return MaterializeReadReliability._path_to_id(Path(p)) in doc_id_set
+        logger.info(p)
+        did = name_group.materialize_name_to_docid_safe(p)
+        if did is None:
+            return False
+        if name_group is RandomNameGroup:
+            candidates = [
+                did,
+                did[len("aryn:") :],
+                did[len("d-") :],
+                did[len("aryn:d-") :],
+            ]
+        else:
+            candidates = [did]
+        logger.info(candidates)
+        return any(c in doc_id_set for c in candidates)
 
     return inner_filter
 

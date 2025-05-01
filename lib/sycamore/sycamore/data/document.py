@@ -258,7 +258,8 @@ class MetadataDocument(Document):
         if "lineage_links" in self.metadata:
             assert len(self.metadata["lineage_links"]["from_ids"]) > 0
 
-        self.data["doc_id"] = mkdocid()
+        if "doc_id" not in self.data:
+            self.data["doc_id"] = mkdocid()
         del self.data["lineage_id"]
         del self.data["elements"]
         del self.data["properties"]

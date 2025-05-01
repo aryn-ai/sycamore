@@ -669,8 +669,8 @@ class SycamoreKMeanClustering(SycamoreOperator):
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
 
     def execute(self) -> Any:
-        assert self.inputs and len(self.inputs) == 1, "GroupByCount requires 1 input node"
-        assert isinstance(self.inputs[0], DocSet), "GroupByCount requires a DocSet input"
+        assert self.inputs and len(self.inputs) == 1, "SycamoreKMeanClustering requires 1 input node"
+        assert isinstance(self.inputs[0], DocSet), "SycamoreKMeanClustering requires a DocSet input"
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
         assert isinstance(logical_node, KMeanClustering)
@@ -680,7 +680,9 @@ class SycamoreKMeanClustering(SycamoreOperator):
 
         embedder = get_val_from_context(context=self.context, val_key="text_embedder", param_names=["opensearch"])
         embedder = copy.copy(embedder)
-        assert embedder and isinstance(embedder, Embedder), "GroupByCount requires an Embedder in the context"
+        assert embedder and isinstance(
+            embedder, Embedder
+        ), "SycamoreKMeanClustering requires an Embedder in the context"
         embedder.embed_name = (entity_name, embed_name)
 
         cluster_field_name = logical_node.new_field
@@ -733,10 +735,22 @@ class SycamoreGroupBy(SycamoreOperator):
         assert isinstance(logical_node, GroupBy)
 
         entity_name = self.recurse_get(logical_node)
+        if entity_name is None:
+            # no embedding, use plain groupby, check if it's nested field
+            if "." in logical_node.field:
+                name = logical_node.field.split(".")[-1]
 
-        cluster_field_name = logical_node.field
+                def promote(doc):
+                    doc[name] = doc.field_to_value(logical_node.field)
+                    return doc
 
-        result = self.inputs[0].groupby(cluster_field_name, entity_name)
+                self.inputs[0].map(promote).groupby(name)
+            else:
+                self.inputs[0].groupby(logical_node.field)
+        else:
+            cluster_field_name = logical_node.field
+
+            result = self.inputs[0].groupby(cluster_field_name, entity_name)
 
         return result
 

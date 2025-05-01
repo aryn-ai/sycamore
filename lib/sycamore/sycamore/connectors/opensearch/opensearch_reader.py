@@ -3,11 +3,13 @@ import logging
 from copy import deepcopy
 
 import pandas as pd
+from ray.tune.examples.pbt_dcgan_mnist.common import batch_size
 
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.data import Document, Element
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
+from sycamore.utils.deprecate import deprecated
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
 from typing import Optional, Any, List, TYPE_CHECKING
@@ -34,6 +36,7 @@ class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
     kwargs: dict = field(default_factory=lambda: {})
     reconstruct_document: bool = False
     doc_reconstructor: Optional[DocumentReconstructor] = None
+    filter: Optional[dict[str, Any]] = None
 
 
 class OpenSearchReaderClient(BaseDBReader.Client):
@@ -63,8 +66,15 @@ class OpenSearchReaderClient(BaseDBReader.Client):
             query_params.kwargs["_source_includes"] = ["doc_id", "parent_id", "properties"]
         if query_params.doc_reconstructor is not None:
             query_params.kwargs["_source_includes"] = query_params.doc_reconstructor.get_required_source_fields()
-        # No pagination needed for knn queries
+        knn_query = False
         if "query" in query_params.query and "knn" in query_params.query["query"]:
+            knn_query = True
+
+        if query_params.filter:
+            query_params.query = add_filter_to_query(query_params.query, query_params.filter)
+
+        # No pagination needed for knn queries
+        if knn_query:
             response = self._client.search(
                 index=query_params.index_name, body=query_params.query, **query_params.kwargs
             )
@@ -245,6 +255,17 @@ def get_doc_count_for_slice(os_client, slice_query: dict[str, Any]) -> int:
     return res["hits"]["total"]["value"]
 
 
+def add_filter_to_query(query: dict[str, Any], filter: dict[str, Any]) -> dict[str, Any]:
+    actual_query = query["query"]
+    filter_query = {
+        "bool": {
+            "must": [actual_query],
+            "filter": {"terms": filter},
+        }
+    }
+    return filter_query
+
+
 class OpenSearchReader(BaseDBReader):
     Client = OpenSearchReaderClient
     Record = OpenSearchReaderQueryResponse
@@ -256,6 +277,7 @@ class OpenSearchReader(BaseDBReader):
         client_params: OpenSearchReaderClientParams,
         query_params: BaseDBReader.QueryParams,
         use_pit: bool = True,
+        filter: Optional[dict[str, Any]] = None,
         **kwargs,
     ):
         assert isinstance(
@@ -273,6 +295,10 @@ class OpenSearchReader(BaseDBReader):
         self.use_pit = use_pit
         self.pit_id = None
         logger.info(f"OpenSearchReader using PIT: {self.use_pit}")
+        self.filter = filter
+        if self.filter is not None:
+            if len(self.filter) != 1:
+                raise ValueError("Filter must contain exactly one key value pair")
 
     @timetrace("OpenSearchReader")
     def _to_parent_doc(self, doc: dict[str, Any]) -> list[dict[str, Any]]:
@@ -292,6 +318,9 @@ class OpenSearchReader(BaseDBReader):
 
             os_client = client._client
             slice_query = json.loads(doc["doc"])
+
+            if self.filter:
+                slice_query = add_filter_to_query(slice_query, self.filter)
 
             assert (
                 get_doc_count_for_slice(os_client, slice_query) < 10000
@@ -406,6 +435,7 @@ class OpenSearchReader(BaseDBReader):
 
         return pd.DataFrame({"parent_id": list(parent_ids)})
 
+    @deprecated
     def reconstruct(self, doc: dict[str, Any]) -> dict[str, Any]:
         client = self.Client.from_client_params(self._client_params)
 
@@ -446,7 +476,23 @@ class OpenSearchReader(BaseDBReader):
         )
         records = OpenSearchReaderQueryResponse(res["docs"], os_client)
         docs = records.to_docs(query_params=self._query_params)
-        return pd.DataFrame({"doc": [doc.serialize() for doc in docs]})
+        serialized_docs = []
+        for doc in docs:
+            if self.filter:
+                k, v = next(iter(self.filter.items()))
+                property_values = doc.properties.get(k)
+                if property_values is None or len(property_values) == 0:
+                    raise RuntimeError(f"Filtering failed for filter: {k}")
+                if not set(property_values).intersection(v):
+                    raise RuntimeError(f"Filtering failed for filter: {k}: actual = {property_values} vs expected = {v}")
+
+                # OK to set this multiple times
+                # Prevent a code bug that does not perform filtering
+                self.filtering_performed = True
+
+            serialized_docs.append(doc.serialize())
+
+        return pd.DataFrame({"doc": serialized_docs})
 
     def execute(self, **kwargs) -> "Dataset":
         assert isinstance(
@@ -513,10 +559,9 @@ class OpenSearchReader(BaseDBReader):
 
         from ray.data import from_items
 
-        # logger.info(f"Sample docs: {docs[:5]}")
         ds = from_items(items=[doc["_source"] for doc in docs])
         if self._query_params.reconstruct_document or self._query_params.doc_reconstructor is not None:
-            return ds.groupby("parent_id").map_groups(self.map_reduce_parent_id).map(self.reconstruct)
+            return ds.groupby("parent_id").map_groups(self.map_reduce_parent_id).map_batches(self.reconstruct_batch, batch_size=50, batch_format="pandas")
         else:
             return (
                 ds.groupby("slice")
@@ -606,4 +651,8 @@ class OpenSearchReader(BaseDBReader):
             os_client = client._client
             os_client.delete_pit({"pit_id": [self.pit_id]})
             client.close()
+
+        if self.filter:
+            assert self.filtering_performed, f"Filtering not performed for filter: {self.filter}"
+
         super().finalize()

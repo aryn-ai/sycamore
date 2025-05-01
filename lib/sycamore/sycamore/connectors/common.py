@@ -76,7 +76,7 @@ def compare_docs(doc1: Document, doc2: Document):
         elif isinstance(filtered_doc1[key], dict) and isinstance(filtered_doc2.get(key), dict):
             assert check_dictionary_compatibility(filtered_doc1[key], filtered_doc2.get(key))
         else:
-            assert filtered_doc1[key] == filtered_doc2.get(key)
+            assert filtered_doc1[key] == filtered_doc2.get(key), f"{key} mismatch: {filtered_doc1[key]} != {filtered_doc2.get(key)}"
     return True
 
 

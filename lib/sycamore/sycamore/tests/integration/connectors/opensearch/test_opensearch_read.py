@@ -230,6 +230,9 @@ class TestOpenSearchRead:
             remove_reconstruct_doc_property(doc)
 
         from_materialized = [doc_reconstructor(doc.doc_id) for doc in retrieved_sorted]
+        print(f"From materialized: {from_materialized[0]}")
+        # print(f"Retrieved sorted: {retrieved_sorted[0]}")
+        print(os_client.get(setup_index, id=retrieved_sorted[0].doc_id))
         compare_connector_docs(from_materialized, retrieved_sorted)
 
         # Clean up

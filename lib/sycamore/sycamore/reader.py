@@ -1,4 +1,5 @@
-from typing import Optional, Union, Callable, Dict
+import logging
+from typing import Optional, Union, Callable, Dict, Any
 from pathlib import Path
 
 from pandas import DataFrame
@@ -228,6 +229,7 @@ class DocSetReader:
         query: Optional[Dict] = None,
         reconstruct_document: bool = False,
         doc_reconstructor: Optional[DocumentReconstructor] = None,
+        result_filter: Optional[Dict] = None,
         query_kwargs=None,
         **kwargs,
     ) -> DocSet:
@@ -295,18 +297,65 @@ class DocSetReader:
         )
 
         client_params = OpenSearchReaderClientParams(os_client_args=os_client_args)
-        if query is None:
+        if not query:
             query = {"query": {"match_all": {}}}
+
+        if result_filter is not None:
+            _, v = next(iter(result_filter.items()))
+            if not isinstance(v, list):
+                raise ValueError(
+                    f"Filter values must be a list of strings. Got {type(v)} instead. Please provide a list of values."
+                )
+
+        filter = None
+
+        # Allow the OpenSearchReader to use the result filter if it does not conflict
+        # with an existing filter present in the passed-in query.
+        if result_filter is not None:
+            if "knn" in query["query"]:
+                if "filter" not in query["query"]["knn"]:
+                    filter = result_filter
+            elif not ("bool" in query["query"] and "must" in query["query"]["bool"]):
+                filter = result_filter
 
         query_params = OpenSearchReaderQueryParams(
             index_name=index_name,
             query=query,
             reconstruct_document=reconstruct_document,
             doc_reconstructor=doc_reconstructor,
+            filter=filter,
             kwargs=query_kwargs,
         )
 
         osr = OpenSearchReader(client_params=client_params, query_params=query_params, **kwargs)
+        if result_filter:
+
+            def check_or_apply_filter(docs: list[Document], apply=False) -> list[Document]:
+                logging.info("Checking if filtering was successful")
+
+                def nested_get(d: dict, keys: list) -> Any:
+                    for key in keys:
+                        d = d.get(key)
+                        if d is None:
+                            return None
+                    return d
+
+                k, v = next(iter(result_filter.items()))
+                filtered = []
+                for doc in docs:
+                    values = set(nested_get(doc.data, k.split(".")))
+                    logging.info(f"Filter {v} vs Found in doc: {values}")
+                    if values.intersection(v):
+                        filtered.append(doc)
+                    else:
+                        if not apply:
+                            raise RuntimeError(f"Filtering failed for filter: {filter} in document: {doc}")
+
+                return filtered
+
+            ds = DocSet(self._context, osr)
+            check_or_apply = True if filter is not None else False
+            return ds.map_batch(check_or_apply_filter, (check_or_apply,))
         return DocSet(self._context, osr)
 
     @requires_modules("duckdb", extra="duckdb")

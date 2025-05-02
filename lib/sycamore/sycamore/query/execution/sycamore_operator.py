@@ -109,7 +109,10 @@ class SycamoreQueryDatabase(SycamoreOperator):
         else:
             os_query = {}
         result = self.context.read.opensearch(
-            index_name=self.logical_node.index, query=os_query, reconstruct_document=True
+            index_name=self.logical_node.index,
+            query=os_query,
+            reconstruct_document=True,
+            result_filter=self.logical_node.result_filter,
         ).map(remove_original_elements)
         return result
 
@@ -189,7 +192,10 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
         if self.logical_node.opensearch_filter:
             os_query["query"]["knn"]["embedding"]["filter"] = self.logical_node.opensearch_filter
         result = self.context.read.opensearch(
-            index_name=self.logical_node.index, query=os_query, reconstruct_document=True
+            index_name=self.logical_node.index,
+            query=os_query,
+            reconstruct_document=True,
+            result_filter=self.logical_node.result_filter,
         ).map(remove_original_elements)
         if self.rerank:
             result = result.rerank(query=self.logical_node.query_phrase)

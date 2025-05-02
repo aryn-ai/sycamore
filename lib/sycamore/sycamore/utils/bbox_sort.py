@@ -10,6 +10,7 @@ from typing import Optional
 
 from sycamore.data import Document, Element
 from sycamore.data.document import DocumentPropertyTypes
+from sycamore.utils.margin import margin_transform_page, revert_margin_transform_page
 
 
 def elem_top_left(elem: Element) -> tuple:
@@ -142,6 +143,14 @@ def bbox_sort_page(elems: list[Element], center: float = 0.5, tolerance: float =
     bbox_sort_based_on_tags(elems)
     for elem in elems:
         elem.data.pop("_coltag", None)  # clean up tags
+
+
+def bbox_margin_sort_page(elems: list[Element]):
+    if len(elems) < 2:
+        return
+    margin_transform_page(elems, leave_original_tags=True)
+    bbox_sort_page(elems)
+    revert_margin_transform_page(elems)
 
 
 def bbox_sorted_elements(elements: list[Element], update_element_indexs: bool = True) -> list[Element]:

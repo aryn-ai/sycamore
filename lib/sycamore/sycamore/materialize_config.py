@@ -28,6 +28,11 @@ class MaterializeNameStability(Enum):
 
 
 class MaterializeNameGroup(ABC):
+    """
+    Base class for groups of functions to convert between Documents, DocIds,
+    names of materialize pickle files, and file paths. It should be possible
+    to reliably and symmetrically translate between these things.
+    """
 
     @classmethod
     @abstractmethod
@@ -67,6 +72,12 @@ class MaterializeNameGroup(ABC):
 
 
 class MRRNameGroup(MaterializeNameGroup):
+    """
+    MaterializeNameGroup used by MaterializeReadReliability (MRR) to make sure
+    document filepaths always give the same docid. MetadataDocument docids fall
+    back to RandomNameGroup (sycamore default)
+    """
+
     @classmethod
     def materialize_name_to_docid(cls, mname: str) -> str:
         p = Path(mname)
@@ -108,6 +119,10 @@ class MRRNameGroup(MaterializeNameGroup):
 
 
 class RandomNameGroup(MaterializeNameGroup):
+    """
+    Default MaterializeNameGroup used by sycamore. DocIds are randomly generated.
+    """
+
     @classmethod
     def materialize_name_to_docid(cls, mname: str) -> str:
         p = Path(mname)

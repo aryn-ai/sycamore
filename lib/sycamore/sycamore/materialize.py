@@ -5,7 +5,6 @@ import inspect
 
 from sycamore.context import Context
 from sycamore.data import Document, MetadataDocument
-from sycamore.data.docid import docid_to_typed_nanoid, path_to_sha256_docid
 from sycamore.materialize_config import MaterializeSourceMode, RandomNameGroup, MRRNameGroup, MaterializeNameGroup
 from sycamore.plan_nodes import Node, UnaryNode, NodeTraverse
 from sycamore.transforms.base import rename
@@ -242,7 +241,6 @@ class MaterializeReadReliability(NodeTraverse):
 
     def filter(self, p: str, read_binary: bool = False) -> bool:
         """Filter files for processing, respecting batch size"""
-        print(f"HMLP: {p}")
         if self.current_batch >= self.max_batch:
             print(" - False: over batch size")
             return False
@@ -285,35 +283,6 @@ class MaterializeReadReliability(NodeTraverse):
             self.cycle_error = ""
         else:
             print(f"No errors in previous batch. \nProcessed {len(self.seen)} docs at present.")
-
-
-# def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
-#     if d.doc_id:
-#         assert (
-#             len(d.doc_id) == 76
-#         ), """This method expects docids to be 76 characters long and used with reliability.
-#               Make sure to have docids set using docid_from_path method,
-#             """
-#         assert d.doc_id.startswith("path-sha256-")
-#         if isinstance(d, MetadataDocument):
-#             return f"md-{d.doc_id}.pickle"
-#         else:
-#             return f"doc-{d.doc_id}.pickle"
-#     assert False
-
-
-# def docid_from_path(d: Document) -> Document:
-
-#     if "path" in d.properties:
-#         d.doc_id = path_to_sha256_docid(d.properties["path"])
-#         return d
-#     assert False
-
-
-# def doc_only_to_binary(d: Document) -> Optional[bytes]:
-#     if isinstance(d, MetadataDocument):
-#         return None
-#     return d.serialize()
 
 
 def _success_path(base_path: Path) -> Path:
@@ -644,7 +613,6 @@ class Materialize(UnaryNode):
         assert isinstance(bin, bytes), f"tobin function returned {type(bin)} not bytes"
         assert self._root is not None
         name = self._doc_to_name(doc, bin)
-        print(f"HML_DTN: {self._doc_to_name} -> {name}")
         assert isinstance(name, str) or isinstance(
             name, Path
         ), f"doc_to_name function turned docid {doc.doc_id} into {name} -- should be string or Path"
@@ -663,22 +631,6 @@ class Materialize(UnaryNode):
             return
         with self._fs.open_output_stream(str(path)) as out:
             out.write(bin)
-
-    # @staticmethod
-    # def doc_to_name(doc: Document, bin: bytes) -> str:
-    #     from hashlib import sha256
-
-    #     hash_id = sha256(bin).hexdigest()
-    #     doc_id = doc.doc_id or doc.data.get("lineage_id", None)
-    #     if doc_id is None:
-    #         logger.warn(f"found document with no doc_id or lineage_id, assigned content based id {hash_id}")
-    #         doc_id = hash_id
-
-    #     if isinstance(doc, MetadataDocument):
-    #         return f"md-{docid_to_typed_nanoid(doc_id)}.{hash_id}.pickle"
-
-    #     assert isinstance(doc, Document)
-    #     return f"doc-{docid_to_typed_nanoid(doc_id)}.{hash_id}.pickle"
 
 
 class RayPathParser:
@@ -851,6 +803,20 @@ def clear_materialize(plan: Node, *, path: Optional[Union[Path, str]], clear_non
 
 # This is a class so Materialize can change the name group post initialize
 class DocIdFilter:
+    """
+    Filter docids in a materialize step. Useful for debugging. Use like so:
+
+     .. code-block::python
+
+        doc_ids = ["list", "of", "docids"]
+        ds = ctx.read.materialize(path={"root": "materializedir", "filter": DocIdFilter(doc_ids)})
+
+    Args:
+        doc_ids: The list of doc ids to read from materialize
+        name_group: The naming scheme for materialize filenames and doc_ids. If using
+            defaults in materialize, this defaults to the correct thing.
+    """
+
     def __init__(self, doc_ids: list[str], name_group: type[MaterializeNameGroup] = RandomNameGroup):
         self.doc_id_set = set(doc_ids)
         self.name_group = name_group
@@ -874,12 +840,3 @@ class DocIdFilter:
 
     def __call__(self, p: str) -> bool:
         return self.filter(p)
-
-
-# TODO: Implement as follows
-# Class with all the doc_id to path functions and inverse functions
-# (docid -> materializename, materializename -> docid, filepath -> docid)
-# Bundle em
-# Add a flag for 'is it stable' (or random. might wanna be an enum)
-# Change Materialize / MRR to use the class (correctly) if passed the class instead of functions
-# Plumb MaterializeNameGroups through materialize. Clean up comments and stuff.

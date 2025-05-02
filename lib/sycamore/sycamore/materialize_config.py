@@ -70,7 +70,6 @@ class MRRNameGroup(MaterializeNameGroup):
     @classmethod
     def materialize_name_to_docid(cls, mname: str) -> str:
         p = Path(mname)
-        print(f"HML_MNAME: {p.name}")
         assert p.suffix == ".pickle", f"Expected .pickle file, got {p.suffix}"
         if cls.is_metadata_materialize_name(p.name):
             return RandomNameGroup.materialize_name_to_docid(mname)
@@ -89,7 +88,6 @@ class MRRNameGroup(MaterializeNameGroup):
     @classmethod
     def doc_to_materialize_name(cls, doc: Document, bin: bytes) -> str:
         did = doc.doc_id
-        print(did)
         if isinstance(doc, MetadataDocument):
             return RandomNameGroup.doc_to_materialize_name(doc, bin)
         assert did is not None, "MRR naming requires a sycamore doc_id, which is missing"

@@ -637,14 +637,6 @@ class TestMaterializeReadReliability(unittest.TestCase):
             tempfile.TemporaryDirectory() as tmpdir3,
         ):
             docs = make_docs(10)
-            # ds = (
-            #     ctx.read.document(docs)
-            #     .map(docid_from_path)
-            #     .materialize(
-            #         path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
-            #         source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-            #     )
-            # )
             ds = (
                 ctx.read.document(docs)
                 .with_property("_irrelevant", MRRNameGroup.make_docid)
@@ -672,12 +664,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
             )
             ds1 = ctx.read.materialize(path=tmpdir2)
             e2 = ds1.take_all()
-            import os
 
-            print("HML>>>" + "=" * 80)
-            print(os.listdir(tmpdir1))
-            print(os.listdir(tmpdir2))
-            print("HML>>>" + "=" * 80)
             assert e2 is not None
             assert ids(e2) == ids(e1)
 
@@ -705,14 +692,6 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
             docs = make_docs(10)
-            # ds = (
-            #     ctx.read.document(docs)
-            #     .map(docid_from_path)
-            #     .materialize(
-            #         path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
-            #         source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-            #     )
-            # )
             ds = (
                 ctx.read.document(docs)
                 .with_property("_irrelevant", MRRNameGroup.make_docid)
@@ -759,14 +738,6 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
             docs = make_docs(10)
-            # ds = (
-            #     ctx.read.document(docs)
-            #     .map(docid_from_path)
-            #     .materialize(
-            #         path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
-            #         source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-            #     )
-            # )
             ds = (
                 ctx.read.document(docs)
                 .with_property("_irrelevant", MRRNameGroup.make_docid)
@@ -803,12 +774,6 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
             ds1.execute()
 
-            import os
-
-            print("HML>>>" + "=" * 80)
-            print(os.listdir(tmpdir1))
-            print(os.listdir(tmpdir2))
-            print("HML>>>" + "=" * 80)
             # Verify results after retries
             final_ds = ctx.read.materialize(path=tmpdir2)
             e2 = final_ds.take_all()

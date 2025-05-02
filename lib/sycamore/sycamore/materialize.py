@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union, TYPE_CHECKING, cast, Callable
+from typing import Any, Optional, Tuple, Union, TYPE_CHECKING, cast
 import inspect
 
 from sycamore.context import Context
@@ -290,7 +290,7 @@ class Materialize(UnaryNode):
         self._root = None
         self._path_filter = None
         self._tolerate_input_errors = tolerate_input_errors
-        self._name_group = RandomNameGroup
+        self._name_group: type[MaterializeNameGroup] = RandomNameGroup
         if path is None:
             pass
         elif isinstance(path, str) or isinstance(path, Path):
@@ -418,7 +418,7 @@ class Materialize(UnaryNode):
                 from ray.data import read_binary_files
                 from ray.data.datasource import PathPartitionFilter, PathPartitionParser
 
-                partition_filter: Optional[Callable[[dict[str, str]], bool]] = None
+                partition_filter = None
                 if self._path_filter is not None:
                     partition_filter = PathPartitionFilter(
                         cast(PathPartitionParser, RayPathParser()), self._path_filter

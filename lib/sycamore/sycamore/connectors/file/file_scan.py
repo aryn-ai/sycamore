@@ -206,11 +206,9 @@ class BinaryScan(FileScan):
         if self._metadata_provider:
             document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
         if self._path_filter is not None:
-            # from sycamore.materialize import docid_from_path
             from sycamore.materialize_config import MRRNameGroup
 
             MRRNameGroup.make_docid(document)
-            # document = docid_from_path(document)
         return {"doc": document.serialize()}
 
     def _file_mime_type(self):
@@ -281,11 +279,9 @@ class BinaryScan(FileScan):
         if self._metadata_provider:
             document.properties.update(self._metadata_provider.get_metadata(info.path))
         if self._path_filter is not None:
-            # from sycamore.materialize import docid_from_path
             from sycamore.materialize_config import MRRNameGroup
 
             MRRNameGroup.make_docid(document)
-            # document = docid_from_path(document)
         return [document]
 
     def format(self):

@@ -17,9 +17,6 @@ from sycamore.materialize import (
     AutoMaterialize,
     Materialize,
     MaterializeReadReliability,
-    # name_from_docid,
-    # docid_from_path,
-    # doc_only_to_binary,
     DocIdFilter,
 )
 from sycamore.materialize_config import RandomNameGroup, MRRNameGroup
@@ -122,14 +119,12 @@ class TestMaterializeWrite(unittest.TestCase):
 
             def doc_to_name2(doc, bin):
                 return RandomNameGroup.doc_to_materialize_name(doc, bin) + ".test2"
-                # return Materialize.doc_to_name(doc, bin) + ".test2"
 
             ds.materialize(path={"root": tmpdir, "name": doc_to_name2}).execute()
             self.check_files(tmpdir, ext=".test2")
 
             def doc_to_name3(doc, bin):
                 return RandomNameGroup.doc_to_materialize_name(doc, bin) + ".test3"
-                # return Materialize.doc_to_name(doc, bin) + ".test3"
 
             ds.materialize(path={"root": tmpdir, "name": doc_to_name3, "clean": False}).execute()
             # did not clean, both of these should pass
@@ -258,7 +253,6 @@ class TestAutoMaterialize(unittest.TestCase):
     def test_overrides(self):
         def doc_to_name4(doc, bin):
             return RandomNameGroup.doc_to_materialize_name(doc, bin) + ".test4"
-            # return Materialize.doc_to_name(doc, bin) + ".test4"
 
         docs = make_docs(3)
         with tempfile.TemporaryDirectory() as tmpdir:

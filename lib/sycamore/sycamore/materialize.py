@@ -172,10 +172,8 @@ class MaterializeReadReliability(NodeTraverse):
                         node, Materialize
                     ), "The last node should be a materialize node to ensure reliability"
                     logger.info("Overriding doc_to_name, doc_to_binary, clean_root for reliability pipeline")
-                    # node._doc_to_name = name_from_docid
                     node._doc_to_name = self._name_group.doc_to_materialize_name
                     node._name_group = self._name_group
-                    # node._doc_to_binary = doc_only_to_binary
                     node._clean_root = False
                     node._source_mode = MaterializeSourceMode.RECOMPUTE
             elif isinstance(node, BinaryScan):
@@ -229,26 +227,14 @@ class MaterializeReadReliability(NodeTraverse):
         else:
             self.retries_count = 0
 
-    # @staticmethod
-    # def _path_to_id(p: Path) -> Optional[str]:
-    #     return MRRNameGroup.materialize_name_to_docid_safe(str(p))
-    #     # if p.suffix != ".pickle":
-    #     #     return None
-    #     # if not p.name.startswith("doc-path-sha256-"):
-    #     #     logger.info("Got pickle file which is not in 'doc-path-sha256-' format with reliability pipeline")
-    #     #     return None
-    #     # return str(p.stem[4:])
-
     def filter(self, p: str, read_binary: bool = False) -> bool:
         """Filter files for processing, respecting batch size"""
         if self.current_batch >= self.max_batch:
             print(" - False: over batch size")
             return False
         if not read_binary:
-            # id = self._path_to_id(Path(p))
             id = self._name_group.materialize_name_to_docid_safe(p)
         else:
-            # id = path_to_sha256_docid(str(p))
             id = self._name_group.docpath_to_docid(str(p))
         if id is None:
             logger.debug(f"Got path {p} not in proper format")
@@ -310,7 +296,6 @@ class Materialize(UnaryNode):
         elif isinstance(path, str) or isinstance(path, Path):
             (self._fs, self._root) = self.infer_fs(str(path))
             self._fshelper = _PyArrowFsHelper(self._fs)
-            # self._doc_to_name = self.doc_to_name
             self._doc_to_name = self._name_group.doc_to_materialize_name
             self._doc_to_binary = Document.serialize
             self._clean_root = True
@@ -336,7 +321,6 @@ class Materialize(UnaryNode):
                 assert namer is None, f"Found unexpected value for name field: {namer}"
                 self._doc_to_name = self._name_group.doc_to_materialize_name
             assert callable(self._doc_to_name)
-            # self._doc_to_name = path.get("name", self._name_group.doc_to_materialize_name)
             self._doc_to_binary = path.get("tobin", Document.serialize)
             self._clean_root = path.get("clean", True)
             self._path_filter = path.get("filter", None)
@@ -619,7 +603,7 @@ class Materialize(UnaryNode):
         path = self._root / name
 
         if self._clean_root and self._fshelper.file_exists(path):
-            if self._doc_to_name != self.doc_to_name:
+            if self._doc_to_name != RandomNameGroup.doc_to_materialize_name:
                 # default doc_to_name includes a content based hash, so "duplicate" entries
                 # should only be possible if ray executes the save operation multiple times on
                 # the same content.

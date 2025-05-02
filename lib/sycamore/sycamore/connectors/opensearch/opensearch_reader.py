@@ -8,7 +8,6 @@ from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.data import Document, Element
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
-from sycamore.utils.deprecate import deprecated
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
 from typing import Optional, Any, List, TYPE_CHECKING, Union

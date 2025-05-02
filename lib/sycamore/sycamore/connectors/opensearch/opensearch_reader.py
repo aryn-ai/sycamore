@@ -11,7 +11,7 @@ from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.utils.deprecate import deprecated
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
-from typing import Optional, Any, List, TYPE_CHECKING
+from typing import Optional, Any, List, TYPE_CHECKING, Union
 
 from sycamore.utils.ray_utils import handle_serialization_exception
 from sycamore.utils.time_trace import TimeTrace, timetrace
@@ -450,7 +450,6 @@ class OpenSearchReader(BaseDBReader):
 
         return pd.DataFrame({"parent_id": list(parent_ids)})
 
-    @deprecated
     def reconstruct(self, doc: dict[str, Any]) -> dict[str, Any]:
         client = self.Client.from_client_params(self._client_params)
 
@@ -497,11 +496,19 @@ class OpenSearchReader(BaseDBReader):
         logger.info(f"Got {len(docs)} documents from OpenSearch")
 
         def nested_get(d: dict, keys: list) -> Any:
-            for key in keys:
-                d = d.get(key)
-                if d is None:
+            assert len(keys) > 0, "Keys must be non-empty"
+
+            cur: Union[Optional[dict], list] = d.get(keys[0])
+            if len(keys) == 1:
+                return cur
+
+            for i in range(1, len(keys)):
+                if cur is None:
                     return None
-            return d
+                if not isinstance(cur, dict):
+                    raise ValueError(f"Mismatch between {d} and {keys}")
+                cur = cur.get(keys[i])
+            return cur
 
         serialized_docs = []
         for doc in docs:

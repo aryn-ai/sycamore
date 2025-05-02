@@ -334,11 +334,19 @@ class DocSetReader:
                 logging.info("Checking if filtering was successful")
 
                 def nested_get(d: dict, keys: list) -> Any:
-                    for key in keys:
-                        d = d.get(key)
-                        if d is None:
+                    assert len(keys) > 0, "Keys must be non-empty"
+
+                    cur: Union[Optional[dict], list] = d.get(keys[0])
+                    if len(keys) == 1:
+                        return cur
+
+                    for i in range(1, len(keys)):
+                        if cur is None:
                             return None
-                    return d
+                        if not isinstance(cur, dict):
+                            raise ValueError(f"Mismatch between {d} and {keys}")
+                        cur = cur.get(keys[i])
+                    return cur
 
                 k, v = next(iter(result_filter.items()))
                 filtered = []

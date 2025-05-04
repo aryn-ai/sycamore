@@ -34,9 +34,10 @@ def test_margin_transform_page(
     elements = [Element({"bbox": bbox}) for bbox in original_bboxes]
     margin_transform_page(elements, leave_original_tags=True)
     for element, expected_bbox, original_bbox in zip(elements, expected_final_coordinates, original_bboxes):
-        bbox = tuple(element.bbox.to_list())
-        if bbox != expected_bbox:
-            raise AssertionError(f"When inspecting .bbox, expected {expected_bbox}, got {bbox}")
-        saved_bbox = element.data[margin_tag]
-        if saved_bbox != original_bbox:
-            raise AssertionError(f"When inspecting saved tag, expected {original_bbox}, got {saved_bbox}")
+        if eb := element.bbox is not None:
+            bbox = tuple(eb.to_list())
+            if bbox != expected_bbox:
+                raise AssertionError(f"When inspecting .bbox, expected {expected_bbox}, got {bbox}")
+            saved_bbox = element.data[margin_tag]
+            if saved_bbox != original_bbox:
+                raise AssertionError(f"When inspecting saved tag, expected {original_bbox}, got {saved_bbox}")

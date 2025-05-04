@@ -58,7 +58,7 @@ def col_tag(elem: Element, center: float = 0.5, tolerance: float = 0.0) -> Optio
         width = right - left
         if width > 0.6 or elem.type == "Page-footer":
             return "full"
-        elif (width < 0.1) or (width >= 0.45):
+        elif (width < 0.1) or (width >= 0.5):
             return None
         if right < center + tolerance:
             return "left"

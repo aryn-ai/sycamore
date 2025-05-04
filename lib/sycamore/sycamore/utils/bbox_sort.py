@@ -50,7 +50,7 @@ def collect_pages(elems: list[Element]) -> list[list[Element]]:
     return rv
 
 
-def col_tag(elem: Element, center: float = 0.5, tolerance: float = 0.0) -> Optional[str]:
+def col_tag(elem: Element) -> Optional[str]:
     bbox = elem.data.get("bbox")
     if bbox:
         left = bbox[0]
@@ -60,9 +60,9 @@ def col_tag(elem: Element, center: float = 0.5, tolerance: float = 0.0) -> Optio
             return "full"
         elif (width < 0.1) or (width >= 0.5):
             return None
-        if right < center + tolerance:
+        if right < 0.5:
             return "left"
-        elif left > center - tolerance:
+        elif left > 0.5:
             return "right"
     return None
 
@@ -133,12 +133,12 @@ def bbox_sort_based_on_tags(elems: list[Element]) -> None:
         bbox_sort_two_columns(elems, lidx, len(elems))
 
 
-def bbox_sort_page(elems: list[Element], center: float = 0.5, tolerance: float = 0.0) -> None:
+def bbox_sort_page(elems: list[Element]) -> None:
     if len(elems) < 2:
         return
     elems.sort(key=elem_top_left)  # sort top-to-bottom, left-to-right
     for elem in elems:  # tag left/right/full based on width/position
-        elem.data["_coltag"] = col_tag(elem, center, tolerance)
+        elem.data["_coltag"] = col_tag(elem)
     tag_two_columns(elems)
     bbox_sort_based_on_tags(elems)
     for elem in elems:

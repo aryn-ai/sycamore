@@ -1,7 +1,6 @@
-import logging
 import numpy as np
 
-from sycamore.data import Element
+from sycamore.data import Element, BoundingBox
 
 margin_tag = "_pre_margin_transform_bbox"
 
@@ -10,11 +9,10 @@ def margin_transform_page(elems: list[Element], leave_original_tags: bool = Fals
     margins = find_reasonable_margin_page(elems)
     left, _, right, _ = margins
     width = right - left
-    logging.info(f"Margin sort page: left={left}, right={right}, width={width}")
     # fmt: off
-    transform = np.array([[1/width,   0, -left],
-                          [0,         1, 0],
-                          [0,         0, 1]])
+    transform = np.array([[1/width, 0, -left/width],
+                          [0,       1, 0],
+                          [0,       0, 1]])
     # fmt: on
     for elem in elems:
         bbox = elem.data.get("bbox")
@@ -30,7 +28,7 @@ def margin_transform_page(elems: list[Element], leave_original_tags: bool = Fals
             new_coords = np.dot(transform, old_coords)
             new_x1, new_x2 = new_coords[0]
             new_y1, new_y2 = new_coords[1]
-            elem.data["bbox"] = [new_x1, new_y1, new_x2, new_y2]
+            elem.bbox = BoundingBox(new_x1, new_y1, new_x2, new_y2)
 
 
 def revert_margin_transform_page(elems: list[Element]) -> None:

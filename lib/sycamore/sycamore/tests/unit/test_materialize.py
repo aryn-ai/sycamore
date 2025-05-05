@@ -17,10 +17,9 @@ from sycamore.materialize import (
     AutoMaterialize,
     Materialize,
     MaterializeReadReliability,
-    name_from_docid,
-    docid_from_path,
-    doc_only_to_binary,
+    DocIdFilter,
 )
+from sycamore.materialize_config import RandomNameGroup, MRRNameGroup
 from sycamore.tests.unit.inmempyarrowfs import InMemPyArrowFileSystem
 
 
@@ -116,13 +115,13 @@ class TestMaterializeWrite(unittest.TestCase):
             self.check_files(tmpdir, ext=".test")
 
             def doc_to_name2(doc, bin):
-                return Materialize.doc_to_name(doc, bin) + ".test2"
+                return RandomNameGroup.doc_to_materialize_name(doc, bin) + ".test2"
 
             ds.materialize(path={"root": tmpdir, "name": doc_to_name2}).execute()
             self.check_files(tmpdir, ext=".test2")
 
             def doc_to_name3(doc, bin):
-                return Materialize.doc_to_name(doc, bin) + ".test3"
+                return RandomNameGroup.doc_to_materialize_name(doc, bin) + ".test3"
 
             ds.materialize(path={"root": tmpdir, "name": doc_to_name3, "clean": False}).execute()
             # did not clean, both of these should pass
@@ -250,7 +249,7 @@ class TestAutoMaterialize(unittest.TestCase):
 
     def test_overrides(self):
         def doc_to_name4(doc, bin):
-            return Materialize.doc_to_name(doc, bin) + ".test4"
+            return RandomNameGroup.doc_to_materialize_name(doc, bin) + ".test4"
 
         docs = make_docs(3)
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -432,6 +431,17 @@ class TestAllViaPyarrowFS(unittest.TestCase):
             pipeline.take_all()
 
         assert fsh.file_exists(path["root"] + "/DocScan.0/subdir/fake.pickle")
+
+    def test_filter(self):
+        fs = InMemPyArrowFileSystem()
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        docs = make_docs(5)
+        path = {"root": "/no/such/path", "fs": fs, "filter": DocIdFilter([d.doc_id for d in docs[:2]])}
+        ctx.read.document(docs).materialize(path=path).execute()
+        docs_out = ctx.read.materialize(path).take_all()
+        assert len(docs_out) == 2
+        assert docs_out[0].doc_id == "doc_0"
+        assert docs_out[1].doc_id == "doc_1"
 
 
 class TestClearMaterialize(unittest.TestCase):
@@ -620,9 +630,9 @@ class TestMaterializeReadReliability(unittest.TestCase):
             docs = make_docs(10)
             ds = (
                 ctx.read.document(docs)
-                .map(docid_from_path)
+                .with_property("_irrelevant", MRRNameGroup.make_docid)
                 .materialize(
-                    path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
+                    path={"root": tmpdir1, "name": MRRNameGroup},
                     source_mode=sycamore.MATERIALIZE_RECOMPUTE,
                 )
             )
@@ -645,6 +655,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
             )
             ds1 = ctx.read.materialize(path=tmpdir2)
             e2 = ds1.take_all()
+
             assert e2 is not None
             assert ids(e2) == ids(e1)
 
@@ -674,9 +685,9 @@ class TestMaterializeReadReliability(unittest.TestCase):
             docs = make_docs(10)
             ds = (
                 ctx.read.document(docs)
-                .map(docid_from_path)
+                .with_property("_irrelevant", MRRNameGroup.make_docid)
                 .materialize(
-                    path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
+                    path={"root": tmpdir1, "name": MRRNameGroup.doc_to_materialize_name},
                     source_mode=sycamore.MATERIALIZE_RECOMPUTE,
                 )
             )
@@ -708,7 +719,9 @@ class TestMaterializeReadReliability(unittest.TestCase):
             # Verify results after retries
             final_ds = ctx.read.materialize(path=tmpdir2)
             e2 = final_ds.take_all()
+            e2_with_meta = final_ds.take_all(include_metadata=True)
 
+            assert len(e2_with_meta) > len(e2)
             assert e2 is not None
             assert ids(e2) == ids(e1)  # All documents should be processed
             assert retry_counter.x == 8  # 4 success +3 extra retries for 3 failures + 1 for mrr.reset()
@@ -720,12 +733,17 @@ class TestMaterializeReadReliability(unittest.TestCase):
             docs = make_docs(10)
             ds = (
                 ctx.read.document(docs)
-                .map(docid_from_path)
+                .with_property("_irrelevant", MRRNameGroup.make_docid)
                 .materialize(
-                    path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
+                    path=tmpdir1,
                     source_mode=sycamore.MATERIALIZE_RECOMPUTE,
                 )
             )
+            # This is equivalent to setting "name": MRRNameGroup in the path dict
+            mat_1 = ds.plan.get_plan_nodes(Materialize)[0]
+            mat_1._name_group = MRRNameGroup
+            mat_1._doc_to_name = MRRNameGroup.doc_to_materialize_name
+
             e1 = ds.take_all()
             assert e1 is not None
 
@@ -756,6 +774,53 @@ class TestMaterializeReadReliability(unittest.TestCase):
                 assert ids(e2) == ids(e1)  # Only 6 documents processed
             assert len(e2) == 6
             assert retry_counter.x == 23  # 2 successful, 21 unsuccessful
+
+    def test_materialize_read_reliability_filtered(self):
+        ctx = sycamore.init(exec_mode=self.exec_mode)
+        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
+            docs = make_docs(10)
+            ds = (
+                ctx.read.document(docs)
+                .with_property("_irrelevant", MRRNameGroup.make_docid)
+                .materialize(
+                    path={"root": tmpdir1, "name": MRRNameGroup},
+                    source_mode=sycamore.MATERIALIZE_RECOMPUTE,
+                )
+            )
+            e1 = ds.take_all()
+            assert e1 is not None
+
+            retry_counter = NumCalls()
+            failure_counter = NumCalls()
+
+            mrr = MaterializeReadReliability(max_batch=3)
+
+            mrr = mock_mrr_reset_fn(mrr, retry_counter)
+            ctx.rewrite_rules.append(mrr)
+
+            # Create a function that fails for specific documents
+            def failing_map(doc):
+                failure_counter.x += 1
+                if failure_counter.x >= 9:  # Perpetual fail after 9th document
+                    raise ValueError("Simulated failure")
+                return doc
+
+            ds1 = (
+                ctx.read.materialize(path={"root": tmpdir1, "filter": DocIdFilter(ids(e1)[:3])})
+                .map(failing_map)
+                .materialize(path=tmpdir2)
+            )
+
+            ds1.execute()
+
+            # Verify results after retries
+            final_ds = ctx.read.materialize(path=tmpdir2)
+            e2 = final_ds.take_all()
+            assert e2 is not None
+            assert len(e2) == 3
+            with pytest.raises(AssertionError):
+                assert ids(e2) == ids(e1)  # Only 3 documents processed
+            assert retry_counter.x == 2  # 2 successful, 0 unsuccessful
 
     def test_mrr_path_handling(self):
         from unittest.mock import patch

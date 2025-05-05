@@ -6,18 +6,23 @@ TODO:
 - handle bbox not (always) present
 """
 
-from typing import Optional
+from typing import Callable, Optional
+
+import numpy as np
 
 from sycamore.data import Document, Element
 from sycamore.data.document import DocumentPropertyTypes
-from sycamore.utils.margin import margin_transform_page, revert_margin_transform_page
+from sycamore.utils.margin import clear_cached_bboxes, find_transform_page, get_bbox_prefer_cached
 
 
-def elem_top_left(elem: Element) -> tuple:
-    bbox = elem.data.get("bbox")
-    if bbox:
-        return (bbox[1], bbox[0])
-    return (0.0, 0.0)
+def generate_elem_top_left(transform: np.ndarray) -> Callable[[Element], tuple[float, float]]:
+    def elem_top_left(elem: Element) -> tuple:
+        cached_bbox = get_bbox_prefer_cached(elem, transform)
+        if cached_bbox:
+            bbox = cached_bbox.to_list()
+            return (bbox[1], bbox[0])
+        return (0.0, 0.0)
+    return elem_top_left
 
 
 def elem_left_top(elem: Element) -> tuple:
@@ -50,9 +55,10 @@ def collect_pages(elems: list[Element]) -> list[list[Element]]:
     return rv
 
 
-def col_tag(elem: Element) -> Optional[str]:
-    bbox = elem.data.get("bbox")
-    if bbox:
+def col_tag(elem: Element, transform: Optional[np.ndarray] = None) -> Optional[str]:
+    cached_bbox = get_bbox_prefer_cached(elem, transform)
+    if cached_bbox:
+        bbox = cached_bbox.to_list()
         left = bbox[0]
         right = bbox[2]
         width = right - left
@@ -133,24 +139,24 @@ def bbox_sort_based_on_tags(elems: list[Element]) -> None:
         bbox_sort_two_columns(elems, lidx, len(elems))
 
 
-def bbox_sort_page(elems: list[Element]) -> None:
+def bbox_sort_page(elems: list[Element], transform: Optional[np.ndarray] = None) -> None:
     if len(elems) < 2:
         return
-    elems.sort(key=elem_top_left)  # sort top-to-bottom, left-to-right
+    if transform is None:
+        transform = np.eye(3)
+    elems.sort(key=generate_elem_top_left(transform))  # sort top-to-bottom, left-to-right
     for elem in elems:  # tag left/right/full based on width/position
-        elem.data["_coltag"] = col_tag(elem)
+        elem.data["_coltag"] = col_tag(elem, transform)
     tag_two_columns(elems)
     bbox_sort_based_on_tags(elems)
     for elem in elems:
         elem.data.pop("_coltag", None)  # clean up tags
+    clear_cached_bboxes(elems)
 
 
-def bbox_margin_sort_page(elems: list[Element]):
-    if len(elems) < 2:
-        return
-    margin_transform_page(elems, leave_original_tags=True)
-    bbox_sort_page(elems)
-    revert_margin_transform_page(elems)
+def bbox_margin_sort_page(elements: list[Element]) -> None:
+    transform = find_transform_page(elements)
+    bbox_sort_page(elements, transform)
 
 
 def bbox_sorted_elements(elements: list[Element], update_element_indexs: bool = True) -> list[Element]:

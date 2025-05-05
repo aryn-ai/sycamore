@@ -12,6 +12,7 @@ from sycamore.materialize_config import MaterializeSourceMode
 from sycamore.query.logical_plan import LogicalPlan, Node
 from sycamore.query.operators.aggregate import AggregateCount
 from sycamore.query.operators.clustering import KMeanClustering
+from sycamore.query.operators.unroll import Unroll
 from sycamore.query.result import SycamoreQueryResult, NodeExecution
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
@@ -42,6 +43,7 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreDataLoader,
     SycamoreAggregateCount,
     SycamoreKMeanClustering,
+    SycamoreUnroll,
 )
 
 log = structlog.get_logger(__name__)
@@ -235,6 +237,14 @@ class SycamoreExecutor:
             )
         if isinstance(logical_node, AggregateCount):
             return SycamoreAggregateCount(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, Unroll):
+            return SycamoreUnroll(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,

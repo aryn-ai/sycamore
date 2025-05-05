@@ -126,7 +126,7 @@ class TestSycamoreQuery:
             description="Find the most common cause of accidents",
             inputs=[2],
             llm_summary=True,
-            llm_summary_instruction="The cause accident for this group",
+            llm_summary_instruction="The cause of accident for this group",
         )
         plan.result_node = 3
         result = client.run_plan(plan, codegen_mode=False)

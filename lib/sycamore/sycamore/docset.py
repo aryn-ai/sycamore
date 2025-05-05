@@ -422,6 +422,12 @@ class DocSet:
         explode = Explode(self.plan, **resource_args)
         return DocSet(self.context, explode)
 
+    def unroll(self, field: str, **resource_args) -> "DocSet":
+        from sycamore.transforms.explode import UnRoll
+
+        unroll = UnRoll(self.plan, field, **resource_args)
+        return DocSet(self.context, unroll)
+
     def embed(self, embedder: Embedder, **kwargs) -> "DocSet":
         """
         Applies the Embed transform on the Docset.

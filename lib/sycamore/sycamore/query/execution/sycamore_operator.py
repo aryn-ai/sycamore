@@ -25,6 +25,7 @@ from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.sort import Sort
 
 from sycamore.query.execution.operations import summarize_data
+from sycamore.query.operators.unroll import Unroll
 from sycamore.transforms import Embedder
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 
@@ -801,7 +802,7 @@ class SycamoreAggregateCount(SycamoreOperator):
                 system="You are a helpful summarizer",
                 user="""You are given a list of values corresponding to the database field {{ field }}.
                 These values belong to one group formed by a clustering algorithm.
-                Given the instruction "{{ instruction }}" and the values {{ doc.field_to_value(field) }}, find this group is
+                Given the instruction "{{ instruction }}" and the values {{ doc.field_to_value(field) }}, find what this group is
                 clustering on in less than 5 words.
                 """,
                 field="properties.key",
@@ -813,6 +814,34 @@ class SycamoreAggregateCount(SycamoreOperator):
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         raise Exception("GroupByCount not implemented for codegen")
+
+
+class SycamoreUnroll(SycamoreOperator):
+
+    def __init__(
+        self,
+        context: Context,
+        logical_node: Unroll,
+        query_id: str,
+        inputs: Optional[List[Any]] = None,
+        trace_dir: Optional[str] = None,
+    ) -> None:
+        super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
+
+    def execute(self) -> Any:
+        assert self.inputs and len(self.inputs) == 1, "Unroll requires 1 input node"
+        assert isinstance(self.inputs[0], DocSet), "Unroll requires a DocSet input"
+        # load into local vars for Ray serialization magic
+        logical_node = self.logical_node
+        assert isinstance(logical_node, Unroll)
+
+        field = logical_node.field
+        result = self.inputs[0].unroll(field=field)
+
+        return result
+
+    def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
+        raise Exception("Unroll not implemented for codegen")
 
 
 class SycamoreFieldIn(SycamoreOperator):

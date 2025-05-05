@@ -231,6 +231,15 @@ class Document(UserDict):
         }
         return json.dumps(d, indent=2)
 
+    def set_value_to_field(self, field: str, value: Any):
+        names = field.split(".")
+        doc = self
+        while len(names) > 1:
+            doc = doc[names[0]]
+            names = names[1:]
+
+        doc[names[0]] = value
+
     def field_to_value(self, field: str) -> Any:
         """
         Extracts the value for a particular document field.

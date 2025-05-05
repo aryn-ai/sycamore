@@ -59,9 +59,6 @@ def noop_fn(d):
     return d
 
 
-logger = logging.getLogger(__name__)
-
-
 class TestMaterializeWrite(unittest.TestCase):
     def test_tonoop(self):
         ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
@@ -722,7 +719,9 @@ class TestMaterializeReadReliability(unittest.TestCase):
             # Verify results after retries
             final_ds = ctx.read.materialize(path=tmpdir2)
             e2 = final_ds.take_all()
+            e2_with_meta = final_ds.take_all(include_metadata=True)
 
+            assert len(e2_with_meta) > len(e2)
             assert e2 is not None
             assert ids(e2) == ids(e1)  # All documents should be processed
             assert retry_counter.x == 8  # 4 success +3 extra retries for 3 failures + 1 for mrr.reset()
@@ -758,7 +757,6 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
             # Create a function that fails for specific documents
             def failing_map(doc):
-                # logger.info(doc)
                 failure_counter.x += 1
                 if failure_counter.x >= 9:  # Perpetual fail after 9th document
                     raise ValueError("Simulated failure")
@@ -802,7 +800,6 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
             # Create a function that fails for specific documents
             def failing_map(doc):
-                logger.info(doc)
                 failure_counter.x += 1
                 if failure_counter.x >= 9:  # Perpetual fail after 9th document
                     raise ValueError("Simulated failure")

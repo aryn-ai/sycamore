@@ -528,7 +528,6 @@ class Materialize(UnaryNode):
         ret = []
         count = 0
         for fi in self._fshelper.list_files(self._root):
-            # logger.info(fi)
             if fi.size == 0:
                 continue
             if self._path_filter is not None and not self._path_filter(fi.path):

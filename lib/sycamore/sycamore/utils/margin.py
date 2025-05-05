@@ -6,15 +6,17 @@ margin_tag = "_pre_margin_transform_bbox"
 
 
 def margin_transform_page(elems: list[Element], leave_original_tags: bool = False) -> None:
-    margins = find_reasonable_margin_page(elems)
-    left, top, right, bottom = margins
+    is_reasonable, left, top, right, bottom = find_margins_and_check_are_reasonable(elems)
     width = right - left
     height = bottom - top
-    # fmt: off
-    transform = np.array([[1/width, 0,        -left/width],
-                          [0,       1/height, -top/height],
-                          [0,       0,        1]])
-    # fmt: on
+    if is_reasonable:
+        # fmt: off
+        transform = np.array([[1/width, 0,        -left/width],
+                            [0,         1/height, -top/height],
+                            [0,         0,        1]])
+        # fmt: on
+    else:
+        transform = np.eye(3)
     for elem in elems:
         bbox = elem.data.get("bbox")
         if bbox:
@@ -39,11 +41,18 @@ def revert_margin_transform_page(elems: list[Element]) -> None:
             del elem.data[margin_tag]
 
 
-def find_reasonable_margin_page(elements: list[Element]) -> tuple[float, float, float, float]:
+def find_margins_and_check_are_reasonable(elements: list[Element]) -> tuple[bool, float, float, float, float]:
+    is_reasonable = True
     left, top, right, bottom = find_margin_page(elements)
-    left = min(left, 0.4)
-    right = max(right, 0.6)
-    return left, top, right, bottom
+    if left > 0.4:
+        is_reasonable = False
+    if right < 0.6:
+        is_reasonable = False
+    if top > 0.4:
+        is_reasonable = False
+    if bottom < 0.6:
+        is_reasonable = False
+    return is_reasonable, left, top, right, bottom
 
 
 def find_margin_page(elements: list[Element]) -> tuple[float, float, float, float]:

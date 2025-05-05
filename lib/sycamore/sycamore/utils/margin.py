@@ -7,12 +7,13 @@ margin_tag = "_pre_margin_transform_bbox"
 
 def margin_transform_page(elems: list[Element], leave_original_tags: bool = False) -> None:
     margins = find_reasonable_margin_page(elems)
-    left, _, right, _ = margins
+    left, top, right, bottom = margins
     width = right - left
+    height = bottom - top
     # fmt: off
-    transform = np.array([[1/width, 0, -left/width],
-                          [0,       1, 0],
-                          [0,       0, 1]])
+    transform = np.array([[1/width, 0,        -left/width],
+                          [0,       1/height, -top/height],
+                          [0,       0,        1]])
     # fmt: on
     for elem in elems:
         bbox = elem.data.get("bbox")
@@ -52,9 +53,9 @@ def find_margin_page(elements: list[Element]) -> tuple[float, float, float, floa
     :return: tuple of (left, top, right, bottom)
     """
     left = float("inf")
-    top = float("-inf")
+    top = float("inf")
     right = float("-inf")
-    bottom = float("inf")
+    bottom = float("-inf")
     set_at_least_once = False
 
     for elem in elements:
@@ -63,9 +64,9 @@ def find_margin_page(elements: list[Element]) -> tuple[float, float, float, floa
         bbox = elem.data.get("bbox")
         if bbox:
             left = min(left, bbox[0])
-            top = max(top, bbox[1])
+            top = min(top, bbox[1])
             right = max(right, bbox[2])
-            bottom = min(bottom, bbox[3])
+            bottom = max(bottom, bbox[3])
             set_at_least_once = True
 
     if not set_at_least_once:

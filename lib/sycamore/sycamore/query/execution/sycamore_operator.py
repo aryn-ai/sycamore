@@ -540,7 +540,7 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         fmt = logical_node.new_field_type
 
         prompt_obj = EntityExtractorMessagesPrompt(question=question, field=field, format=fmt, discrete=True)
-        prompt_obj.system += (
+        prompt_obj.system = (prompt_obj.system or "") + (
             "If there are multiple entities, write each on a new line. "
             "For example, if the entities are 'entity1' and 'entity2', the output should be:\n"
             "entity1\n"

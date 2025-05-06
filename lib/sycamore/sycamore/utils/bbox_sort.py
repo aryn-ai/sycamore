@@ -22,6 +22,7 @@ def generate_elem_top_left(transform: np.ndarray) -> Callable[[Element], tuple[f
             bbox = cached_bbox.to_list()
             return (bbox[1], bbox[0])
         return (0.0, 0.0)
+
     return elem_top_left
 
 

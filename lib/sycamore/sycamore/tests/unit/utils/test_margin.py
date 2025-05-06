@@ -13,7 +13,7 @@ from sycamore.utils.margin import find_transform_page, cached_bbox_tag, get_bbox
         ),
         (
             [(0.1, 0.1, 0.9, 0.9)],
-            [(0.0, 0., 1.0, 1.0)],
+            [(0.0, 0.0, 1.0, 1.0)],
         ),
         ([], []),
         (
@@ -27,7 +27,7 @@ from sycamore.utils.margin import find_transform_page, cached_bbox_tag, get_bbox
         (
             [(0.1, 0.1, 0.2, 0.2)],
             [(0.1, 0.1, 0.2, 0.2)],
-        )
+        ),
     ],
     ids=["identity", ".1 margin", "no elements", "list", "different widths", "revert to identity"],
 )

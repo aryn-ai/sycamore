@@ -55,7 +55,7 @@ def collect_pages(elems: list[Element]) -> list[list[Element]]:
     return rv
 
 
-def col_tag(elem: Element, transform: Optional[np.ndarray] = None) -> Optional[str]:
+def col_tag(elem: Element, transform: Optional[np.ndarray] = None, max_width: float = 0.45) -> Optional[str]:
     cached_bbox = get_bbox_prefer_cached(elem, transform)
     if cached_bbox:
         bbox = cached_bbox.to_list()
@@ -64,7 +64,7 @@ def col_tag(elem: Element, transform: Optional[np.ndarray] = None) -> Optional[s
         width = right - left
         if width > 0.6 or elem.type == "Page-footer":
             return "full"
-        elif (width < 0.1) or (width >= 0.5):
+        elif (width < 0.1) or (width >= max_width):
             return None
         if right < 0.5:
             return "left"
@@ -139,14 +139,14 @@ def bbox_sort_based_on_tags(elems: list[Element]) -> None:
         bbox_sort_two_columns(elems, lidx, len(elems))
 
 
-def bbox_sort_page(elems: list[Element], transform: Optional[np.ndarray] = None) -> None:
+def bbox_sort_page(elems: list[Element], transform: Optional[np.ndarray] = None, max_width: float = 0.45) -> None:
     if len(elems) < 2:
         return
     if transform is None:
         transform = np.eye(3)
     elems.sort(key=generate_elem_top_left(transform))  # sort top-to-bottom, left-to-right
     for elem in elems:  # tag left/right/full based on width/position
-        elem.data["_coltag"] = col_tag(elem, transform)
+        elem.data["_coltag"] = col_tag(elem, transform, max_width)
     tag_two_columns(elems)
     bbox_sort_based_on_tags(elems)
     for elem in elems:
@@ -155,8 +155,11 @@ def bbox_sort_page(elems: list[Element], transform: Optional[np.ndarray] = None)
 
 
 def bbox_margin_sort_page(elements: list[Element]) -> None:
-    transform = find_transform_page(elements)
-    bbox_sort_page(elements, transform)
+    is_reasonable, transform = find_transform_page(elements)
+    max_width = 0.45
+    if is_reasonable:
+        max_width = 0.5
+    bbox_sort_page(elements, transform, max_width)
 
 
 def bbox_sorted_elements(elements: list[Element], update_element_indexs: bool = True) -> list[Element]:

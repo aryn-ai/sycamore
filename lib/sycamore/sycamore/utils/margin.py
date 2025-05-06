@@ -10,18 +10,18 @@ g_logger = get_logger()
 cached_bbox_tag = "_bbox_accounting_for_margins"
 
 
-def find_transform_page(elems: list[Element]) -> np.ndarray:
+def find_transform_page(elems: list[Element]) -> tuple[bool, np.ndarray]:
     is_reasonable, left, top, right, bottom = find_margins_and_check_are_reasonable(elems)
     width = right - left
     height = bottom - top
     if is_reasonable:
         # fmt: off
-        return np.array([[1/width, 0,          -left/width],
-                         [0,         1/height, -top/height],
-                         [0,         0,        1]])
+        return is_reasonable, np.array([[1/width, 0,          -left/width],
+                                        [0,         1/height, -top/height],
+                                        [0,         0,        1]])
         # fmt: on
     else:
-        return np.eye(3)
+        return is_reasonable, np.eye(3)
 
 
 def get_bbox_prefer_cached(elem: Element, transform: Optional[np.ndarray]) -> BoundingBox:

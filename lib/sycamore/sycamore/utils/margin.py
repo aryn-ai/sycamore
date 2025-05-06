@@ -24,7 +24,7 @@ def find_transform_page(elems: list[Element]) -> tuple[bool, np.ndarray]:
         return is_reasonable, np.eye(3)
 
 
-def get_bbox_prefer_cached(elem: Element, transform: Optional[np.ndarray]) -> BoundingBox:
+def get_bbox_prefer_cached(elem: Element, transform: Optional[np.ndarray]) -> Optional[BoundingBox]:
     if (cached := elem.data.get(cached_bbox_tag)) is not None:
         return cached
     elif (bbox := elem.bbox) is not None:

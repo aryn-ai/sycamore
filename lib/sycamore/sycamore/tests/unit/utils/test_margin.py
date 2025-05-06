@@ -1,3 +1,4 @@
+from typing import Optional
 import pytest
 
 from sycamore.data import Element
@@ -37,7 +38,12 @@ def test_margin_transform_page(
 ) -> None:
     elements = [Element({"bbox": bbox}) for bbox in original_bboxes]
     _, transform = find_transform_page(elements)
-    final_bboxes = [tuple(get_bbox_prefer_cached(element, transform).to_list()) for element in elements]
+    final_bboxes: list[Optional[tuple[float, ...]]] = []
+    for element in elements:
+        if bbox := get_bbox_prefer_cached(element, transform):
+            final_bboxes.append(tuple(bbox.to_list()))
+        else:
+            final_bboxes.append(None)
     for element, actual_bbox, expected_bbox in zip(elements, final_bboxes, expected_final_coordinates):
         assert actual_bbox == expected_bbox
         assert actual_bbox == tuple(element.data[cached_bbox_tag].to_list())

@@ -39,8 +39,5 @@ def test_margin_transform_page(
     _, transform = find_transform_page(elements)
     final_bboxes = [tuple(get_bbox_prefer_cached(element, transform).to_list()) for element in elements]
     for element, actual_bbox, expected_bbox in zip(elements, final_bboxes, expected_final_coordinates):
-        if (eb := element.bbox) is not None:
-            bbox = tuple(eb.to_list())
-            assert actual_bbox == expected_bbox
-            saved_bbox = element.data[cached_bbox_tag]
-            assert actual_bbox == tuple(element.data[cached_bbox_tag].to_list())
+        assert actual_bbox == expected_bbox
+        assert actual_bbox == tuple(element.data[cached_bbox_tag].to_list())

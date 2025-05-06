@@ -19,7 +19,11 @@ from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase, DataLoader
+from sycamore.query.operators.query_database import (
+    QueryDatabase,
+    QueryVectorDatabase,
+    DataLoader,
+)
 from sycamore.query.operators.top_k import TopK, GroupBy
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.sort import Sort
@@ -29,7 +33,11 @@ from sycamore.transforms import Embedder
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 
 from sycamore import DocSet, Context, MATERIALIZE_USE_STORED
-from sycamore.query.execution.physical_operator import PhysicalOperator, get_var_name, get_str_for_dict
+from sycamore.query.execution.physical_operator import (
+    PhysicalOperator,
+    get_var_name,
+    get_str_for_dict,
+)
 
 
 class SycamoreOperator(PhysicalOperator):
@@ -77,7 +85,9 @@ class SycamoreOperator(PhysicalOperator):
         return self.get_node_args()
 
 
-def remove_original_elements(doc):  # these are fields we don't want to pass to query operations
+def remove_original_elements(
+    doc,
+):  # these are fields we don't want to pass to query operations
     if "_original_elements" in doc.properties:
         del doc.properties["_original_elements"]
     return doc
@@ -95,13 +105,23 @@ class SycamoreQueryDatabase(SycamoreOperator):
         query_id: str,
         trace_dir: Optional[str] = None,
     ) -> None:
-        super().__init__(context=context, logical_node=logical_node, query_id=query_id, trace_dir=trace_dir)
+        super().__init__(
+            context=context,
+            logical_node=logical_node,
+            query_id=query_id,
+            trace_dir=trace_dir,
+        )
 
     def execute(self) -> Any:
         assert isinstance(self.logical_node, QueryDatabase)
 
         assert (
-            get_val_from_context(context=self.context, val_key="os_client_args", param_names=["opensearch"]) is not None
+            get_val_from_context(
+                context=self.context,
+                val_key="os_client_args",
+                param_names=["opensearch"],
+            )
+            is not None
         ), "QueryDatabase:OpenSearch requires os_client_args"
 
         if self.logical_node.query:
@@ -109,7 +129,9 @@ class SycamoreQueryDatabase(SycamoreOperator):
         else:
             os_query = {}
         result = self.context.read.opensearch(
-            index_name=self.logical_node.index, query=os_query, reconstruct_document=True
+            index_name=self.logical_node.index,
+            query=os_query,
+            reconstruct_document=True,
         ).map(remove_original_elements)
         return result
 
@@ -138,7 +160,12 @@ class SycamoreDataLoader(SycamoreOperator):
         query_id: str,
         trace_dir: Optional[str] = None,
     ) -> None:
-        super().__init__(context=context, logical_node=logical_node, query_id=query_id, trace_dir=trace_dir)
+        super().__init__(
+            context=context,
+            logical_node=logical_node,
+            query_id=query_id,
+            trace_dir=trace_dir,
+        )
 
     def execute(self) -> Any:
         assert isinstance(self.logical_node, DataLoader)
@@ -173,7 +200,12 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
         trace_dir: Optional[str] = None,
         rerank: bool = False,
     ) -> None:
-        super().__init__(context=context, logical_node=logical_node, query_id=query_id, trace_dir=trace_dir)
+        super().__init__(
+            context=context,
+            logical_node=logical_node,
+            query_id=query_id,
+            trace_dir=trace_dir,
+        )
         self.rerank = rerank
 
     def execute(self) -> Any:
@@ -182,14 +214,21 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
         assert embedder and isinstance(embedder, Embedder), "QueryVectorDatabase requires an Embedder in the context"
 
         assert (
-            get_val_from_context(context=self.context, val_key="os_client_args", param_names=["opensearch"]) is not None
+            get_val_from_context(
+                context=self.context,
+                val_key="os_client_args",
+                param_names=["opensearch"],
+            )
+            is not None
         ), "QueryDatabase:OpenSearch requires os_client_args"
 
         os_query = get_knn_query(query_phrase=self.logical_node.query_phrase, context=self.context)
         if self.logical_node.opensearch_filter:
             os_query["query"]["knn"]["embedding"]["filter"] = self.logical_node.opensearch_filter
         result = self.context.read.opensearch(
-            index_name=self.logical_node.index, query=os_query, reconstruct_document=True
+            index_name=self.logical_node.index,
+            query=os_query,
+            reconstruct_document=True,
         ).map(remove_original_elements)
         if self.rerank:
             result = result.rerank(query=self.logical_node.query_phrase)
@@ -296,7 +335,9 @@ class SycamoreLlmFilter(SycamoreOperator):
         assert isinstance(self.logical_node, LlmFilter)
         assert isinstance(
             get_val_from_context(
-                context=self.context, val_key="llm", param_names=[OperationTypes.BINARY_CLASSIFIER.value]
+                context=self.context,
+                val_key="llm",
+                param_names=[OperationTypes.BINARY_CLASSIFIER.value],
             ),
             LLM,
         ), "SyamoreLlmFilter requires an 'llm' configured on the Context"
@@ -366,7 +407,8 @@ class SycamoreBasicFilter(SycamoreOperator):
             is_date = logical_node.is_date
 
             result = self.inputs[0].filter(
-                f=RangeFilter(field=str(field), start=start, end=end, date=is_date), **self.get_node_args()
+                f=RangeFilter(field=str(field), start=start, end=end, date=is_date),
+                **self.get_node_args(),
             )
         else:
             query = logical_node.query
@@ -485,7 +527,9 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
 
         assert isinstance(
             get_val_from_context(
-                context=self.context, val_key="llm", param_names=[OperationTypes.INFORMATION_EXTRACTOR.value]
+                context=self.context,
+                val_key="llm",
+                param_names=[OperationTypes.INFORMATION_EXTRACTOR.value],
             ),
             LLM,
         ), "LLMExtractEntity requires an 'llm' configured on the Context"
@@ -495,7 +539,14 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         field = logical_node.field
         fmt = logical_node.new_field_type
 
-        prompt = EntityExtractorMessagesPrompt(question=question, field=field, format=fmt, discrete=True).as_messages()
+        prompt_obj = EntityExtractorMessagesPrompt(question=question, field=field, format=fmt, discrete=True)
+        prompt_obj.system = (prompt_obj.system or "") + (
+            "If there are multiple entities, write each on a new line. "
+            "For example, if the entities are 'entity1' and 'entity2', the output should be:\n"
+            "entity1\n"
+            "entity2"
+        )
+        prompt = prompt_obj.as_messages()
 
         entity_extractor = OpenAIEntityExtractor(
             entity_name=new_field,
@@ -617,7 +668,9 @@ class SycamoreTopK(SycamoreOperator):
         if logical_node.llm_cluster:
             assert isinstance(
                 get_val_from_context(
-                    context=self.context, val_key="llm", param_names=[OperationTypes.BINARY_CLASSIFIER.value]
+                    context=self.context,
+                    val_key="llm",
+                    param_names=[OperationTypes.BINARY_CLASSIFIER.value],
                 ),
                 LLM,
             ), "TokK with llm clustering requies an 'llm' configured on the Context"
@@ -695,7 +748,11 @@ class SycamoreKMeanClustering(SycamoreOperator):
         docset = self.inputs[0].embed(embedder).materialize(path=f"{temp_dir}", source_mode=MATERIALIZE_USE_STORED)
         docset.execute()
         centroids = docset.kmeans(K=K * 2, field_name=embed_name)
-        result = docset.clustering(centroids=centroids, cluster_field_name=cluster_field_name, field_name=embed_name)
+        result = docset.clustering(
+            centroids=centroids,
+            cluster_field_name=cluster_field_name,
+            field_name=embed_name,
+        )
 
         return result
 
@@ -781,7 +838,9 @@ class SycamoreAggregateCount(SycamoreOperator):
         llm = None
         if logical_node.llm_summary:
             llm = get_val_from_context(
-                context=self.context, val_key="llm", param_names=[OperationTypes.BINARY_CLASSIFIER.value]
+                context=self.context,
+                val_key="llm",
+                param_names=[OperationTypes.BINARY_CLASSIFIER.value],
             )
             assert isinstance(llm, LLM), "GroupBy with llm summary requies an 'llm' configured on the Context"
 
@@ -822,7 +881,11 @@ class SycamoreFieldIn(SycamoreOperator):
         trace_dir: Optional[str] = None,
     ) -> None:
         super().__init__(
-            context=context, logical_node=logical_node, query_id=query_id, inputs=inputs, trace_dir=trace_dir
+            context=context,
+            logical_node=logical_node,
+            query_id=query_id,
+            inputs=inputs,
+            trace_dir=trace_dir,
         )
 
     def execute(self) -> Any:

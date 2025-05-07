@@ -701,8 +701,14 @@ class SycamoreKMeanClustering(SycamoreOperator):
         temp_dir = tempfile.mkdtemp()
 
         docset = self.inputs[0].embed(embedder).materialize(path=f"{temp_dir}", source_mode=MATERIALIZE_USE_STORED)
-        docset.execute()
-        centroids = docset.kmeans(K=K * 2, field_name=embed_name)
+        ds_size = docset.count()
+
+        if not K:
+            import math
+
+            max_K = 50
+            K = max(2, min(round(math.sqrt(ds_size)), max_K))
+        centroids = docset.kmeans(K=K, field_name=embed_name)
         result = docset.clustering(centroids=centroids, cluster_field_name=cluster_field_name, field_name=embed_name)
 
         return result

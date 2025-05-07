@@ -17,5 +17,5 @@ class KMeanClustering(Node):
     new_field: str = "centroids"
     """The centroid field used for clustering"""
 
-    K: int = 5
+    K: Optional[int] = None
     """The number of groups."""

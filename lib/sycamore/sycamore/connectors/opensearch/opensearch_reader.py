@@ -449,7 +449,7 @@ class OpenSearchReader(BaseDBReader):
             if row not in parent_ids:
                 parent_ids.add(row)
 
-        return pd.DataFrame({"parent_id": list(parent_ids)})
+        return pd.DataFrame([{"_source": {"doc_id": parent_id}} for parent_id in parent_ids])
 
     def reconstruct(self, doc: dict[str, Any]) -> dict[str, Any]:
         client = self.Client.from_client_params(self._client_params)
@@ -469,6 +469,7 @@ class OpenSearchReader(BaseDBReader):
 
         return {"doc": docs[0].serialize()}
 
+    # TODO rework this function so it does not lead to OOM when batches are too large
     def reconstruct_batch(self, df: pd.DataFrame) -> pd.DataFrame:
         client = self.Client.from_client_params(self._client_params)
 
@@ -598,7 +599,7 @@ class OpenSearchReader(BaseDBReader):
             return (
                 ds.groupby("parent_id")
                 .map_groups(self.map_reduce_parent_id)
-                .map_batches(self.reconstruct_batch, batch_size=50, batch_format="pandas")
+                .map(self.reconstruct)
             )
         else:
             return (
@@ -674,7 +675,7 @@ class OpenSearchReader(BaseDBReader):
                     ds.flat_map(self._to_parent_doc, **self.resource_args)
                     .groupby("parent_id")
                     .map_groups(self.map_reduce_parent_id)
-                    .map_batches(self.reconstruct_batch, batch_size=50, batch_format="pandas")  # 50 - 100 seems to work
+                    .map(self.reconstruct)
                 )
             else:
                 # Step 1: Construct slices (pages)

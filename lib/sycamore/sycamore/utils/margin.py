@@ -58,7 +58,7 @@ def clear_cached_bboxes(elems: list[Element]) -> None:
 
 def find_margins_and_check_are_reasonable(elements: list[Element]) -> tuple[bool, float, float, float, float]:
     is_reasonable = True
-    left, top, right, bottom = find_margin_page(elements)
+    left, top, right, bottom = find_margin_of_pages(elements)
     if left > 0.4:
         is_reasonable = False
     if right < 0.6:
@@ -70,7 +70,7 @@ def find_margins_and_check_are_reasonable(elements: list[Element]) -> tuple[bool
     return is_reasonable, left, top, right, bottom
 
 
-def find_margin_page(elements: list[Element]) -> tuple[float, float, float, float]:
+def find_margin_of_pages(elements: list[Element]) -> tuple[float, float, float, float]:
     """
     Find the margin of the page.
     :param elements: list of elements

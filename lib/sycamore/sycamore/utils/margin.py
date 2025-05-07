@@ -3,32 +3,18 @@ import numpy as np
 from sycamore.data import Element
 
 
-def find_transform_page(elems: list[Element]) -> tuple[bool, np.ndarray]:
-    is_reasonable, left, top, right, bottom = find_margins_and_check_are_reasonable(elems)
-    width = right - left
-    height = bottom - top
-    if is_reasonable:
+def find_transform_page(elems: list[Element]) -> np.ndarray:
+    margins = find_margin_of_pages(elems)
+    if margins.are_reasonable():
+        width = margins.right - margins.left
+        height = margins.bottom - margins.top
         # fmt: off
-        return is_reasonable, np.array([[1/width, 0,          -left/width],
-                                        [0,         1/height, -top/height],
-                                        [0,         0,        1]])
+        return np.array([[1/width, 0,          -margins.left/width],
+                         [0,         1/height, -margins.top/height],
+                         [0,         0,        1]])
         # fmt: on
     else:
-        return is_reasonable, np.eye(3)
-
-
-def find_margins_and_check_are_reasonable(elements: list[Element]) -> tuple[bool, float, float, float, float]:
-    is_reasonable = True
-    left, top, right, bottom = find_margin_of_pages(elements)
-    if left > 0.4:
-        is_reasonable = False
-    if right < 0.6:
-        is_reasonable = False
-    if top > 0.4:
-        is_reasonable = False
-    if bottom < 0.6:
-        is_reasonable = False
-    return is_reasonable, left, top, right, bottom
+        return np.eye(3)
 
 
 def find_margin_of_pages(elements: list[Element]) -> tuple[float, float, float, float]:
@@ -60,4 +46,28 @@ def find_margin_of_pages(elements: list[Element]) -> tuple[float, float, float, 
         right = 1.0
         bottom = 1.0
 
-    return left, top, right, bottom
+    return Margins(left, top, right, bottom)
+
+
+class Margins:
+    """Warning: `bottom` and `right` are measured from the top left corner of the page, not the bottom right."""
+
+    def __init__(self, left: float, top: float, right: float, bottom: float) -> None:
+        self.left = left
+        self.top = top
+        self.right = right
+        self.bottom = bottom
+
+    def __repr__(self) -> str:
+        return f"Margins(left={self.left}, top={self.top}, right={self.right}, bottom={self.bottom})"
+
+    def are_reasonable(self) -> bool:
+        if self.left > 0.4:
+            return False
+        if self.right < 0.6:
+            return False
+        if self.top > 0.4:
+            return False
+        if self.bottom < 0.6:
+            return False
+        return True

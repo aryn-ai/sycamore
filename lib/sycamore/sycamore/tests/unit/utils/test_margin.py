@@ -38,7 +38,7 @@ def test_margin_transform_page(
     expected_final_coordinates: list[tuple[float, float, float, float]],
 ) -> None:
     elements = [Element({"bbox": bbox}) for bbox in original_bboxes]
-    _, transform = find_transform_page(elements)
+    transform = find_transform_page(elements)
     final_bboxes: list[Optional[tuple[float, ...]]] = []
     for element in elements:
         if bbox := get_bbox_prefer_cached(element, transform):

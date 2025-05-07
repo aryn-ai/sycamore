@@ -6,7 +6,7 @@ TODO:
 - handle bbox not (always) present
 """
 
-from typing import Callable, Optional
+from typing import Optional
 
 import numpy as np
 
@@ -16,18 +16,72 @@ from sycamore.data.document import DocumentPropertyTypes
 from sycamore.utils.margin import find_transform_page
 
 
-cached_bbox_tag = "_cached_bbox"
+cached_bbox_tag = "_transformed_bbox"
 
 
-def generate_elem_top_left(transform: np.ndarray) -> Callable[[Element], tuple[float, float]]:
-    def elem_top_left(elem: Element) -> tuple:
-        cached_bbox = get_bbox_prefer_cached(elem, transform)
+def bbox_margin_sort_page(elements: list[Element]) -> None:
+    transform = find_transform_page(elements)
+    bbox_sort_page(elements, transform)
+
+
+def bbox_sort_page(elems: list[Element], transform: Optional[np.ndarray] = None) -> None:
+    """If you want to sort without accounting for margins, call this function without specifying a transform. Like so:
+    bbox_sort_page(elements)"""
+    if len(elems) < 2:
+        return
+    sorter = BBoxSorter(transform)
+    elems.sort(key=sorter.elem_top_left)  # sort top-to-bottom, left-to-right
+    for elem in elems:  # tag left/right/full based on width/position
+        elem.data["_coltag"] = sorter.col_tag(elem)
+    tag_two_columns(elems)
+    bbox_sort_based_on_tags(elems)
+    for elem in elems:
+        elem.data.pop("_coltag", None)  # clean up tags
+    clear_cached_bboxes(elems)
+
+
+class BBoxSorter:
+    def __init__(self, transform: Optional[np.ndarray]) -> None:
+        if transform is None:
+            transform = np.eye(3)
+        self.transform = transform
+        if (transform == np.eye(3)).all():
+            self.max_width = 0.45
+        else:
+            self.max_width = 0.5
+
+    def elem_top_left(self, elem: Element) -> tuple[float, float]:
+        cached_bbox = self.get_bbox_prefer_cached(elem)
         if cached_bbox:
-            bbox = cached_bbox.to_list()
-            return (bbox[1], bbox[0])
+            return (cached_bbox.y1, cached_bbox.x1)
         return (0.0, 0.0)
 
-    return elem_top_left
+    def col_tag(self, elem: Element) -> Optional[str]:
+        cached_bbox = self.get_bbox_prefer_cached(elem)
+        if cached_bbox:
+            bbox = cached_bbox.to_list()
+            left = bbox[0]
+            right = bbox[2]
+            width = right - left
+            if width > 0.6 or elem.type == "Page-footer":
+                return "full"
+            elif (width < 0.1) or (width >= self.max_width):
+                return None
+            if right < 0.5:
+                return "left"
+            elif left > 0.5:
+                return "right"
+        return None
+
+    def get_bbox_prefer_cached(self, elem: Element) -> Optional[BoundingBox]:
+        if (cached := elem.data.get(cached_bbox_tag)) is not None:
+            return cached
+        elif (bbox := elem.bbox) is not None:
+            cache = apply_transform(bbox, self.transform)
+            elem.data[cached_bbox_tag] = cache
+            return cache
+        else:
+            return None
 
 
 def elem_left_top(elem: Element) -> tuple:
@@ -58,24 +112,6 @@ def collect_pages(elems: list[Element]) -> list[list[Element]]:
         ary = pagemap[page]
         rv.append(ary)
     return rv
-
-
-def col_tag(elem: Element, transform: Optional[np.ndarray] = None, max_width: float = 0.45) -> Optional[str]:
-    cached_bbox = get_bbox_prefer_cached(elem, transform)
-    if cached_bbox:
-        bbox = cached_bbox.to_list()
-        left = bbox[0]
-        right = bbox[2]
-        width = right - left
-        if width > 0.6 or elem.type == "Page-footer":
-            return "full"
-        elif (width < 0.1) or (width >= max_width):
-            return None
-        if right < 0.5:
-            return "left"
-        elif left > 0.5:
-            return "right"
-    return None
 
 
 def find_overlap(top: float, bot: float, elems: list[Element]) -> list[Element]:
@@ -144,53 +180,18 @@ def bbox_sort_based_on_tags(elems: list[Element]) -> None:
         bbox_sort_two_columns(elems, lidx, len(elems))
 
 
-def bbox_sort_page(elems: list[Element], transform: Optional[np.ndarray] = None, max_width: float = 0.45) -> None:
-    if len(elems) < 2:
-        return
-    if transform is None:
-        transform = np.eye(3)
-    elems.sort(key=generate_elem_top_left(transform))  # sort top-to-bottom, left-to-right
-    for elem in elems:  # tag left/right/full based on width/position
-        elem.data["_coltag"] = col_tag(elem, transform, max_width)
-    tag_two_columns(elems)
-    bbox_sort_based_on_tags(elems)
-    for elem in elems:
-        elem.data.pop("_coltag", None)  # clean up tags
-    clear_cached_bboxes(elems)
-
-
-def bbox_margin_sort_page(elements: list[Element]) -> None:
-    is_reasonable, transform = find_transform_page(elements)
-    max_width = 0.45
-    if is_reasonable:
-        max_width = 0.5
-    bbox_sort_page(elements, transform, max_width)
-
-
-def bbox_sorted_elements(elements: list[Element], update_element_indexs: bool = True) -> list[Element]:
+def bbox_sorted_elements(elements: list[Element]) -> list[Element]:
     pages = collect_pages(elements)
     for elems in pages:
         bbox_sort_page(elems)
     ordered_elements = [elem for elems in pages for elem in elems]  # flatten
-    if update_element_indexs:
-        for idx, element in enumerate(ordered_elements):
-            element.element_index = idx
+    for idx, element in enumerate(ordered_elements):
+        element.element_index = idx
     return ordered_elements
 
 
-def bbox_sort_document(doc: Document, update_element_indexs: bool = True) -> None:
-    doc.elements = bbox_sorted_elements(doc.elements, update_element_indexs)
-
-
-def get_bbox_prefer_cached(elem: Element, transform: Optional[np.ndarray]) -> Optional[BoundingBox]:
-    if (cached := elem.data.get(cached_bbox_tag)) is not None:
-        return cached
-    elif (bbox := elem.bbox) is not None:
-        cache = apply_transform(bbox, transform)
-        elem.data[cached_bbox_tag] = cache
-        return cache
-    else:
-        return None
+def bbox_sort_document(doc: Document) -> None:
+    doc.elements = bbox_sorted_elements(doc.elements)
 
 
 def clear_cached_bboxes(elems: list[Element]) -> None:

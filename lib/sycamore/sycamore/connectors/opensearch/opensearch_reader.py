@@ -210,7 +210,6 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
 
             # sort elements per doc
             for doc in result:
-                logger.info(f"{doc.doc_id}: {doc.properties}")
                 doc.elements.sort(key=lambda e: e.element_index if e.element_index is not None else float("inf"))
 
         return result
@@ -271,6 +270,10 @@ def add_filter_to_query(query: dict[str, Any], filter: dict[str, Any]):
 
 
 def add_filter_to_knn_query(query: dict[str, Any], filter: dict[str, Any]):
+    assert len(query["query"]["knn"]) == 1 and "embedding" in query["query"]["knn"]
+    # We are doing a knn search on the embedding field, so the filter goes in there.
+    # see https://docs.opensearch.org/docs/latest/vector-search/filter-search-knn/efficient-knn-filtering/
+
     inner_query = query["query"]["knn"]["embedding"]
     inner_query["filter"] = {
         "bool": {
@@ -290,7 +293,6 @@ class OpenSearchReader(BaseDBReader):
         client_params: OpenSearchReaderClientParams,
         query_params: BaseDBReader.QueryParams,
         use_pit: bool = True,
-        # filter: Optional[dict[str, Any]] = None,
         **kwargs,
     ):
         assert isinstance(

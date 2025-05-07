@@ -2,7 +2,8 @@ from typing import Optional
 import pytest
 
 from sycamore.data import Element
-from sycamore.utils.margin import find_transform_page, cached_bbox_tag, get_bbox_prefer_cached
+from sycamore.utils.margin import find_transform_page
+from sycamore.utils.bbox_sort import cached_bbox_tag, get_bbox_prefer_cached
 
 
 @pytest.mark.parametrize(

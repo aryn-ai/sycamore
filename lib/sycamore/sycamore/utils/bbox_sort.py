@@ -11,8 +11,12 @@ from typing import Callable, Optional
 import numpy as np
 
 from sycamore.data import Document, Element
+from sycamore.data.bbox import BoundingBox
 from sycamore.data.document import DocumentPropertyTypes
-from sycamore.utils.margin import clear_cached_bboxes, find_transform_page, get_bbox_prefer_cached
+from sycamore.utils.margin import find_transform_page
+
+
+cached_bbox_tag = "_cached_bbox"
 
 
 def generate_elem_top_left(transform: np.ndarray) -> Callable[[Element], tuple[float, float]]:
@@ -176,3 +180,34 @@ def bbox_sorted_elements(elements: list[Element], update_element_indexs: bool = 
 
 def bbox_sort_document(doc: Document, update_element_indexs: bool = True) -> None:
     doc.elements = bbox_sorted_elements(doc.elements, update_element_indexs)
+
+
+def get_bbox_prefer_cached(elem: Element, transform: Optional[np.ndarray]) -> Optional[BoundingBox]:
+    if (cached := elem.data.get(cached_bbox_tag)) is not None:
+        return cached
+    elif (bbox := elem.bbox) is not None:
+        cache = apply_transform(bbox, transform)
+        elem.data[cached_bbox_tag] = cache
+        return cache
+    else:
+        return None
+
+
+def clear_cached_bboxes(elems: list[Element]) -> None:
+    for elem in elems:
+        elem.data.pop(cached_bbox_tag, None)
+
+
+def apply_transform(bbox: BoundingBox, transform: Optional[np.ndarray]) -> BoundingBox:
+    if transform is None:
+        return bbox
+    x1, y1, x2, y2 = bbox.to_list()
+    # fmt: off
+    old_coords = np.array([[x1, x2],
+                            [y1, y2],
+                            [1,  1]])
+    # fmt: on
+    new_coords = np.dot(transform, old_coords)
+    new_x1, new_x2 = new_coords[0]
+    new_y1, new_y2 = new_coords[1]
+    return BoundingBox(new_x1, new_y1, new_x2, new_y2)

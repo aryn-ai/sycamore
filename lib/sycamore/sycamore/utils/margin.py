@@ -1,13 +1,6 @@
-from typing import Optional
 import numpy as np
 
-from sycamore.data import Element, BoundingBox
-from sycamore.utils.sycamore_logger import get_logger, setup_logger
-
-setup_logger()
-g_logger = get_logger()
-
-cached_bbox_tag = "_bbox_accounting_for_margins"
+from sycamore.data import Element
 
 
 def find_transform_page(elems: list[Element]) -> tuple[bool, np.ndarray]:
@@ -22,38 +15,6 @@ def find_transform_page(elems: list[Element]) -> tuple[bool, np.ndarray]:
         # fmt: on
     else:
         return is_reasonable, np.eye(3)
-
-
-def get_bbox_prefer_cached(elem: Element, transform: Optional[np.ndarray]) -> Optional[BoundingBox]:
-    if (cached := elem.data.get(cached_bbox_tag)) is not None:
-        return cached
-    elif (bbox := elem.bbox) is not None:
-        cache = apply_transform(bbox, transform)
-        elem.data[cached_bbox_tag] = cache
-        return cache
-    else:
-        return None
-
-
-def apply_transform(bbox: BoundingBox, transform: Optional[np.ndarray]) -> BoundingBox:
-    g_logger.info(f"Applying transform {transform} to bbox {bbox}")
-    if transform is None:
-        return bbox
-    x1, y1, x2, y2 = bbox.to_list()
-    # fmt: off
-    old_coords = np.array([[x1, x2],
-                            [y1, y2],
-                            [1,  1]])
-    # fmt: on
-    new_coords = np.dot(transform, old_coords)
-    new_x1, new_x2 = new_coords[0]
-    new_y1, new_y2 = new_coords[1]
-    return BoundingBox(new_x1, new_y1, new_x2, new_y2)
-
-
-def clear_cached_bboxes(elems: list[Element]) -> None:
-    for elem in elems:
-        elem.data.pop(cached_bbox_tag, None)
 
 
 def find_margins_and_check_are_reasonable(elements: list[Element]) -> tuple[bool, float, float, float, float]:

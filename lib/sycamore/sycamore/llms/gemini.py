@@ -128,7 +128,7 @@ class Gemini(LLM):
 
         reason = response.candidates[0].finish_reason
         if reason != FinishReason.STOP:
-            logger.warn(f"Gemini model stopped for unexpected reason {reason}. Full response:\n{response}")
+            logger.warning(f"Gemini model stopped for unexpected reason {reason}. Full response:\n{response}")
         ret = {
             "output": output,
             "wall_latency": wall_latency,

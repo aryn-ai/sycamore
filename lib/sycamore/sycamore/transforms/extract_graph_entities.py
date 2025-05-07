@@ -72,9 +72,9 @@ class EntityExtractor(GraphEntityExtractor):
                     output_dict |= json.loads(output)
                 res[i] = output_dict
             except json.JSONDecodeError:
-                logger.warn("LLM Output failed to be decoded to JSON")
-                logger.warn("Input: " + section.data["summary"])
-                logger.warn("Output: " + res[i])
+                logger.warning("LLM Output failed to be decoded to JSON")
+                logger.warning("Input: " + section.data["summary"])
+                logger.warning("Output: " + res[i])
                 res[i] = {"entities": []}
 
             for label, entities in res[i].items():
@@ -143,7 +143,7 @@ class EntityExtractor(GraphEntityExtractor):
                     await self.llm.generate_async_old(prompt_kwargs={"messages": messages}, llm_kwargs=llm_kwargs)
                 )
             except Exception as e:
-                logger.warn(f"OPENAI CALL FAILED: {e}")
+                logger.warning(f"OPENAI CALL FAILED: {e}")
                 outputs.append("{}")
         return outputs
 

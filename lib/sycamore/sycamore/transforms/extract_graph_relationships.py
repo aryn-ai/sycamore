@@ -36,7 +36,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
     Extracts relationships between entities found in each child of a document.
 
     Args:
-        llm: OpenAI model that is compatable with structured outputs(gpt-4o-mini)
+        llm: OpenAI model that is compatible with structured outputs(gpt-4o-mini)
         relationships: list of entities in the form of pydantic schemas to be extracted
         prompt: The prompt passed to the LLM describing the criteria to extracting the relationships
         split_calls: A boolean that if true, calls the LLM for each entity instead of batching them in one call
@@ -72,7 +72,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
                     start_exists = section["properties"]["nodes"][relation["start_label"]].get(start_hash, None)
                     end_exists = section["properties"]["nodes"][relation["end_label"]].get(end_hash, None)
                     if not (start_exists and end_exists):
-                        logger.warn(
+                        logger.warning(
                             f"""
                             Entities referenced by relationship does not exist:
                             Start: {relation["start"]}
@@ -170,9 +170,9 @@ class RelationshipExtractor(GraphRelationshipExtractor):
                 try:
                     parsed_res |= json.loads(output)
                 except json.JSONDecodeError:
-                    logger.warn("LLM Output failed to be decoded to JSON")
-                    logger.warn("Input: " + summary)
-                    logger.warn("Output: " + output)
+                    logger.warning("LLM Output failed to be decoded to JSON")
+                    logger.warning("Input: " + summary)
+                    logger.warning("Output: " + output)
                     return {}
 
             for label, relations in parsed_res.items():

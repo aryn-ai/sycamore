@@ -93,14 +93,13 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
     # Convert tokens (text) into the format expected by the TableTransformer
     # postprocessing code.
     def _prepare_tokens(self, tokens: list[dict[str, Any]], crop_box, width, height) -> list[dict[str, Any]]:
+        ret = []
         for i, t in enumerate(tokens):
-            assert isinstance(t["bbox"], BoundingBox)
-            t["bbox"].to_absolute_self(width, height).translate_self(-1 * crop_box[0], -1 * crop_box[1])
-            t["bbox"] = t["bbox"].to_list()
-            t["span_num"] = i
-            t["line_num"] = 0
-            t["block_num"] = 0
-        return tokens
+            assert isinstance(t["bbox"], BoundingBox), f"{t['bbox']} should be a BoundingBox"
+            newbb = t["bbox"].to_absolute(width, height).translate(-1 * crop_box[0], -1 * crop_box[1])
+            ret.append({"text": t["text"], "bbox": newbb.to_list(), "span_num": i, "line_num": 0, "block_num": 0})
+
+        return ret
 
     def _init_structure_model(self):
         from transformers import TableTransformerForObjectDetection

@@ -38,7 +38,7 @@ class TestTableExtractors:
     def mock_table_element(mocker, width, height):
         elt = mocker.Mock(spec=TableElement)
         elt.bbox = BoundingBox(0, 0, width, height)
-        elt.tokens = [{"text": "alrngea;rjgnekl"}]
+        elt.tokens = [{"text": "alrngea;rjgnekl", "bbox": BoundingBox(0, 0, width, height)}]
         return elt
 
     def test_hybrid_routing_both_gt500(self, mocker):
@@ -72,6 +72,22 @@ class TestTableExtractors:
         with pytest.raises(Exception):
             extractor._deformable.extract(elt, im)
         extractor.extract(elt, im, model_selection="deformable_detr")
+
+    def test_repeated_prepare_tokens_ok(self, mocker):
+        tm = MockTableModel(killme=False)
+        elt = TestTableExtractors.mock_table_element(mocker, 0.5, 0.5)
+        width, height = 1000, 1000
+        padding = 10
+        crop_box = (
+            elt.bbox.x1 * width - padding,
+            elt.bbox.y1 * height - padding,
+            elt.bbox.x2 * width + padding,
+            elt.bbox.y2 * height + padding,
+        )
+
+        tks = tm._prepare_tokens(elt.tokens, crop_box, width, height)
+        tks_again = tm._prepare_tokens(elt.tokens, crop_box, width, height)
+        assert tks == tks_again
 
 
 class TestHybridSelectionStatements:

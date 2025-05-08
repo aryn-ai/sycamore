@@ -758,9 +758,9 @@ class SycamoreGroupBy(SycamoreOperator):
                     doc[name] = doc.field_to_value(logical_node.field)
                     return doc
 
-                self.inputs[0].map(promote).groupby(name)
+                result = self.inputs[0].map(promote).groupby(name)
             else:
-                self.inputs[0].groupby(logical_node.field)
+                result = self.inputs[0].groupby(logical_node.field)
         else:
             cluster_field_name = logical_node.field
 

@@ -76,9 +76,9 @@ class BBoxSorter:
         if (cached := elem.data.get(cached_bbox_tag)) is not None:
             return cached
         elif (bbox := elem.bbox) is not None:
-            cache = apply_transform(bbox, self.transform)
-            elem.data[cached_bbox_tag] = cache
-            return cache
+            result = apply_transform(bbox, self.transform)
+            elem.data[cached_bbox_tag] = result
+            return result
         else:
             return None
 

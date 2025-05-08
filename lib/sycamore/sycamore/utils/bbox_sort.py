@@ -198,9 +198,7 @@ def clear_cached_bboxes(elems: list[Element]) -> None:
         elem.data.pop(cached_bbox_tag, None)
 
 
-def apply_transform(bbox: BoundingBox, transform: Optional[np.ndarray]) -> BoundingBox:
-    if transform is None:
-        return bbox
+def apply_transform(bbox: BoundingBox, transform: np.ndarray) -> BoundingBox:
     x1, y1, x2, y2 = bbox.to_list()
     # Transform both the upper left hand corner and the lower right hand corner at the same time
     # fmt: off

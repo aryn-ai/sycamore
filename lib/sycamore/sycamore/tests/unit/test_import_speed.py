@@ -21,9 +21,11 @@ def test_sycamore_import_speed():
     #    all of the LLM logic.
 
     # elapsed time is charging for starting a python process also; just the import time is
-    # shorter. Current constant was emperically determined after optimization, if we fix the
-    # remaining LLM slowness the constant can be reduced.
-    max_elapsed = 0.01 # 0.364227 * 2
+    # shorter. Current constant was emperically determined after optimization. The max is 1.5x the
+    # slowest run seen in github after setting max_elapsed = 0.001. If we fix the remaining LLM
+    # import slowness the constant can be reduced.
+
+    max_elapsed = 0.364227 * 1.5
 
     all_elapsed = []
     # First run is sometimes slow, give it 10 tries to get under the target

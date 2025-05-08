@@ -2,8 +2,8 @@ from typing import Optional
 import pytest
 
 from sycamore.data import Element
-from sycamore.utils.margin import find_transform_page
-from sycamore.utils.bbox_sort import cached_bbox_tag, get_bbox_prefer_cached
+from sycamore.utils.margin import find_matrix_page
+from sycamore.utils.bbox_sort import apply_matrix
 
 
 @pytest.mark.parametrize(
@@ -33,18 +33,17 @@ from sycamore.utils.bbox_sort import cached_bbox_tag, get_bbox_prefer_cached
     ],
     ids=["identity", ".1 margin", "no elements", "list", "different widths", "revert to identity"],
 )
-def test_margin_transform_page(
+def test_margin_matrix_page(
     original_bboxes: list[tuple[float, float, float, float]],
     expected_final_coordinates: list[tuple[float, float, float, float]],
 ) -> None:
     elements = [Element({"bbox": bbox}) for bbox in original_bboxes]
-    transform = find_transform_page(elements)
+    transform = find_matrix_page(elements)
     final_bboxes: list[Optional[tuple[float, ...]]] = []
     for element in elements:
-        if bbox := get_bbox_prefer_cached(element, transform):
+        if bbox := apply_matrix(element.bbox, transform):
             final_bboxes.append(tuple(bbox.to_list()))
         else:
             final_bboxes.append(None)
     for element, actual_bbox, expected_bbox in zip(elements, final_bboxes, expected_final_coordinates):
         assert actual_bbox == expected_bbox
-        assert actual_bbox == tuple(element.data[cached_bbox_tag].to_list())

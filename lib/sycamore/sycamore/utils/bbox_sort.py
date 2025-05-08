@@ -13,23 +13,23 @@ import numpy as np
 from sycamore.data import Document, Element
 from sycamore.data.bbox import BoundingBox
 from sycamore.data.document import DocumentPropertyTypes
-from sycamore.utils.margin import find_transform_page
+from sycamore.utils.margin import find_matrix_page
 
 
-cached_bbox_tag = "_transformed_bbox"
+cached_bbox_tag = "_matrixed_bbox"
 
 
 def bbox_margin_sort_page(elements: list[Element]) -> None:
-    transform = find_transform_page(elements)
-    bbox_sort_page(elements, transform)
+    matrix = find_matrix_page(elements)
+    bbox_sort_page(elements, matrix)
 
 
-def bbox_sort_page(elems: list[Element], transform: Optional[np.ndarray] = None) -> None:
-    """If you want to sort without accounting for margins, call this function without specifying a transform. Like so:
+def bbox_sort_page(elems: list[Element], matrix: Optional[np.ndarray] = None) -> None:
+    """If you want to sort without accounting for margins, call this function without specifying a matrix. Like so:
     bbox_sort_page(elements)"""
     if len(elems) < 2:
         return
-    sorter = BBoxSorter(transform)
+    sorter = BBoxSorter(matrix)
     elems.sort(key=sorter.elem_top_left)  # sort top-to-bottom, left-to-right
     for elem in elems:  # tag left/right/full based on width/position
         elem.data["_coltag"] = sorter.col_tag(elem)
@@ -41,23 +41,23 @@ def bbox_sort_page(elems: list[Element], transform: Optional[np.ndarray] = None)
 
 
 class BBoxSorter:
-    def __init__(self, transform: Optional[np.ndarray]) -> None:
-        if transform is None:
-            transform = np.eye(3)
-        self.transform = transform
-        if (transform == np.eye(3)).all():
+    def __init__(self, matrix: Optional[np.ndarray]) -> None:
+        if matrix is None:
+            matrix = np.eye(3)
+        self.matrix = matrix
+        if (matrix == np.eye(3)).all():
             self.max_width = 0.45
         else:
             self.max_width = 0.5
 
     def elem_top_left(self, elem: Element) -> tuple[float, float]:
-        cached_bbox = self.get_transformed_bbox(elem)
+        cached_bbox = self.get_matrixed_bbox(elem)
         if cached_bbox:
             return (cached_bbox.y1, cached_bbox.x1)
         return (0.0, 0.0)
 
     def col_tag(self, elem: Element) -> Optional[str]:
-        cached_bbox = self.get_transformed_bbox(elem)
+        cached_bbox = self.get_matrixed_bbox(elem)
         if cached_bbox:
             left = cached_bbox.x1
             right = cached_bbox.x2
@@ -72,11 +72,11 @@ class BBoxSorter:
                 return "right"
         return None
 
-    def get_transformed_bbox(self, elem: Element) -> Optional[BoundingBox]:
+    def get_matrixed_bbox(self, elem: Element) -> Optional[BoundingBox]:
         if (cached := elem.data.get(cached_bbox_tag)) is not None:
             return cached
         elif (bbox := elem.bbox) is not None:
-            result = apply_transform(bbox, self.transform)
+            result = apply_matrix(bbox, self.matrix)
             elem.data[cached_bbox_tag] = result
             return result
         else:
@@ -198,15 +198,15 @@ def clear_cached_bboxes(elems: list[Element]) -> None:
         elem.data.pop(cached_bbox_tag, None)
 
 
-def apply_transform(bbox: BoundingBox, transform: np.ndarray) -> BoundingBox:
+def apply_matrix(bbox: BoundingBox, matrix: np.ndarray) -> BoundingBox:
     x1, y1, x2, y2 = bbox.to_list()
-    # Transform both the upper left hand corner and the lower right hand corner at the same time
+    # Matrix both the upper left hand corner and the lower right hand corner at the same time
     # fmt: off
     old_coords = np.array([[x1, x2],
                            [y1, y2],
                            [1,  1]])
     # fmt: on
-    new_coords = np.dot(transform, old_coords)
+    new_coords = np.dot(matrix, old_coords)
     new_x1, new_x2 = new_coords[0]
     new_y1, new_y2 = new_coords[1]
     return BoundingBox(new_x1, new_y1, new_x2, new_y2)

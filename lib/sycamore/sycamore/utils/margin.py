@@ -3,7 +3,7 @@ import numpy as np
 from sycamore.data import Element
 
 
-def find_transform_page(elems: list[Element]) -> np.ndarray:
+def find_matrix_page(elems: list[Element]) -> np.ndarray:
     margins = find_margin_of_pages(elems)
     if margins.are_reasonable():
         width = margins.right - margins.left

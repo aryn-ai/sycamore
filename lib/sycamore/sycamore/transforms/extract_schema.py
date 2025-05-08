@@ -18,8 +18,6 @@ from sycamore.transforms.base_llm import LLMMap
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.time_trace import timetrace
 
-import dateparser
-
 
 def element_list_formatter(elements: list[Element]) -> str:
     query = ""
@@ -187,6 +185,8 @@ class LLMPropertyExtractor(PropertyExtractor):
         return [jsonextract_node.run(d) for d in llm_map_node.run(docs)]
 
     def cast_types(self, fields: dict) -> dict:
+        import dateparser
+
         assert self._schema is not None, "Schema must be provided for property standardization."
         assert isinstance(self._schema, Schema), "Schema object must be provided for property standardization."
         result: dict = {}

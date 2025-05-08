@@ -1,8 +1,6 @@
 import logging
 from typing import Any, Callable, Iterable, Optional, Union, TYPE_CHECKING
 
-import numpy as np
-
 from sycamore.data import Document, MetadataDocument
 from sycamore.utils.lineage_utils import update_lineage
 from sycamore.data.document import split_data_metadata
@@ -12,6 +10,7 @@ from sycamore.utils.thread_local import ThreadLocal, ADD_METADATA_TO_OUTPUT
 
 if TYPE_CHECKING:
     from ray.data import Dataset, Datasink
+    import numpy
 
 
 def take_separate(dataset: "Dataset", limit: Optional[int] = None) -> tuple[list[Document], list[MetadataDocument]]:
@@ -196,7 +195,7 @@ class BaseMapTransform(UnaryNode):
         enable_auto_metadata = self._enable_auto_metadata
 
         @rename(name)
-        def ray_callable(ray_input: dict[str, np.ndarray]) -> dict[str, list]:
+        def ray_callable(ray_input: dict[str, "numpy.ndarray"]) -> dict[str, list]:
             return BaseMapTransform._process_ray(ray_input, name, lambda d: f(d, *args, **kwargs), enable_auto_metadata)
 
         return ray_callable
@@ -211,7 +210,7 @@ class BaseMapTransform(UnaryNode):
         def ray_init(self):
             pass
 
-        def ray_callable(self, ray_input: dict[str, np.ndarray]) -> dict[str, list]:
+        def ray_callable(self, ray_input: dict[str, "numpy.ndarray"]) -> dict[str, list]:
             return BaseMapTransform._process_ray(ray_input, name, lambda d: f(d, *args, **kwargs), enable_auto_metadata)
 
         return type("BaseMapTransformCallable__" + name, (), {"__init__": ray_init, "__call__": ray_callable})
@@ -228,7 +227,7 @@ class BaseMapTransform(UnaryNode):
         def ray_init(self):
             self.base = c(*c_args, **c_kwargs)
 
-        def ray_callable(self, ray_input: dict[str, np.ndarray]) -> dict[str, list]:
+        def ray_callable(self, ray_input: dict[str, "numpy.ndarray"]) -> dict[str, list]:
             return BaseMapTransform._process_ray(
                 ray_input, name, lambda d: self.base(d, *args, **kwargs), enable_auto_metadata
             )
@@ -237,7 +236,7 @@ class BaseMapTransform(UnaryNode):
 
     @staticmethod
     def _process_ray(
-        ray_input: dict[str, np.ndarray],
+        ray_input: dict[str, "numpy.ndarray"],
         name: str,
         f: Callable[[list[Document]], list[Document]],
         enable_auto_metadata: bool,

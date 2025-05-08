@@ -1,7 +1,9 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from sycamore.llms import OpenAI, OpenAIModels, Bedrock, BedrockModels, get_llm, MODELS
+from sycamore.llms import get_llm, MODELS
+from sycamore.llms.openai import OpenAI, OpenAIModels
+from sycamore.llms.bedrock import Bedrock, BedrockModels
 from sycamore.llms.llms import FakeLLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.utils.cache import DiskCache

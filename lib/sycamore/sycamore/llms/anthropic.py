@@ -1,5 +1,4 @@
 from datetime import datetime
-from enum import Enum
 import logging
 from typing import Any, Optional, Union
 import asyncio
@@ -8,6 +7,7 @@ import time
 
 from PIL import Image
 
+from sycamore.llms.config import AnthropicModels
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
@@ -17,24 +17,6 @@ from sycamore.utils.import_utils import requires_modules
 DEFAULT_MAX_TOKENS = 1000
 INITIAL_BACKOFF = 1
 BATCH_POLL_INTERVAL = 10
-
-
-class AnthropicModels(Enum):
-    """Represents available Claude models."""
-
-    CLAUDE_3_7_SONNET = "claude-3-7-sonnet-latest"
-    CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest"
-    CLAUDE_3_5_HAIKU = "claude-3-5-haiku-latest"
-    CLAUDE_3_OPUS = "claude-3-opus-latest"
-    CLAUDE_3_SONNET = "claude-3-sonnet-20240229"
-    CLAUDE_3_HAIKU = "claude-3-haiku-20240307"
-
-    @classmethod
-    def from_name(cls, name: str) -> Optional["AnthropicModels"]:
-        for m in iter(cls):
-            if m.value == name:
-                return m
-        return None
 
 
 def rewrite_system_messages(messages: Optional[list[dict]]) -> Optional[list[dict]]:

@@ -103,6 +103,7 @@ pytest-xdist = "^3.6.1"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
+import_timer = { path = "../import_timer", develop = true }
 ruff = ">=0.11.2"
 black = ">=25.1"
 pre-commit = ">=4.2.0"

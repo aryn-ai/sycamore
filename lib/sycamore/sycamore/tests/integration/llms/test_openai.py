@@ -4,7 +4,7 @@ import base64
 import pytest
 from typing import Any
 
-from sycamore.llms import OpenAI, OpenAIModels, OpenAIClientWrapper
+from sycamore.llms.openai import OpenAI, OpenAIModels, OpenAIClientWrapper
 from sycamore.llms.openai import OpenAIModel, OpenAIClientType
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage, StaticPrompt
 from sycamore.utils.cache import DiskCache

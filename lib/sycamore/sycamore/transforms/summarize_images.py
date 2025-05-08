@@ -3,7 +3,9 @@ from typing import Optional
 from PIL import Image
 
 from sycamore.data import Document, Element
-from sycamore.llms import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels, Gemini, GeminiModels
+from sycamore.llms.llms import LLM
+from sycamore.llms.openai import OpenAI, OpenAIClientWrapper, OpenAIModels
+from sycamore.llms.gemini import Gemini, GeminiModels
 from sycamore.llms.prompts.default_prompts import SummarizeImagesJinjaPrompt
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedMessage, RenderedPrompt
 from sycamore.plan_nodes import Node

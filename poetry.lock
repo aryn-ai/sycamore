@@ -3761,6 +3761,20 @@ files = [
 markers = {main = "extra == \"docs\""}
 
 [[package]]
+name = "import-timer"
+version = "0.0.1"
+description = "Import timing library"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = []
+develop = true
+
+[package.source]
+type = "directory"
+url = "lib/import_timer"
+
+[[package]]
 name = "importlib-metadata"
 version = "8.6.1"
 description = "Read metadata from Python packages"
@@ -12212,4 +12226,4 @@ docs = ["enum-tools", "furo", "myst-parser", "sphinx", "sphinx-toolbox"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<3.9.7 || >3.9.7,<3.13"
-content-hash = "2bb7a77b833f19d4a7e7f16cd9e5133383f0a653f087dd65ea14f31e23cd49aa"
+content-hash = "d7f99a6de97cecf7837861be69f559c8b723312ff4b43d9a002e5156981d3550"

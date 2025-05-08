@@ -9,26 +9,21 @@ from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.llms.llms import LLM, LLMMode
-from sycamore.llms.prompts import SycamorePrompt
+from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
     LlmClusterEntityFormGroupsMessagesPrompt,
 )
 from sycamore.plan_nodes import Node, Transform
-from sycamore.transforms.augment_text import TextAugmentor
-from sycamore.transforms.clustering import KMeans
-from sycamore.transforms.embed import Embedder
 from sycamore.transforms import DocumentStructure, Sort
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph_entities import GraphEntityExtractor
 from sycamore.transforms.extract_graph_relationships import GraphRelationshipExtractor
-from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.transforms.resolve_graph_entities import EntityResolver, ResolveEntities
 from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.llm_query import LLMTextQueryAgent
-from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.deprecate import deprecated
@@ -38,6 +33,10 @@ from sycamore.materialize_config import MaterializeSourceMode
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
     from sycamore.grouped_data import GroupedData
+    from sycamore.transforms.augment_text import TextAugmentor
+    from sycamore.transforms.embed import Embedder
+    from sycamore.transforms.extract_table import TableExtractor
+    from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -287,7 +286,7 @@ class DocSet:
         return DocSet(self.context, Limit(self.plan, limit, **kwargs))
 
     def partition(
-        self, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **kwargs
+        self, partitioner: Partitioner, table_extractor: Optional["TableExtractor"] = None, **kwargs
     ) -> "DocSet":
         """
         Applies the Partition transform on the Docset.
@@ -361,7 +360,7 @@ class DocSet:
         plan = SpreadProperties(self.plan, props, **resource_args)
         return DocSet(self.context, plan)
 
-    def augment_text(self, augmentor: TextAugmentor, **resource_args) -> "DocSet":
+    def augment_text(self, augmentor: "TextAugmentor", **resource_args) -> "DocSet":
         """
         Augments text_representation with external information.
 
@@ -428,7 +427,7 @@ class DocSet:
         unroll = UnRoll(self.plan, field, **resource_args)
         return DocSet(self.context, unroll)
 
-    def embed(self, embedder: Embedder, **kwargs) -> "DocSet":
+    def embed(self, embedder: "Embedder", **kwargs) -> "DocSet":
         """
         Applies the Embed transform on the Docset.
 
@@ -504,7 +503,7 @@ class DocSet:
         return DocSet(self.context, llm_map)
 
     @deprecated(version="0.1.31", reason="Use llm_map with SchemaZeroShotJinjaPrompt instead")
-    def extract_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
+    def extract_schema(self, schema_extractor: "SchemaExtractor", **kwargs) -> "DocSet":
         """
         Extracts a JSON schema of extractable properties from each document in this DocSet.
 
@@ -544,7 +543,7 @@ class DocSet:
         comptransform = schema_extractor.as_llm_map(self.plan, **kwargs)
         return DocSet(self.context, comptransform)
 
-    def extract_batch_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
+    def extract_batch_schema(self, schema_extractor: "SchemaExtractor", **kwargs) -> "DocSet":
         """
         Extracts a common schema from the documents in this DocSet.
 
@@ -569,7 +568,7 @@ class DocSet:
                     .extract_batch_schema(schema_extractor=schema_extractor)
         """
 
-        from sycamore.transforms import ExtractBatchSchema
+        from sycamore.transforms.extract_schema import ExtractBatchSchema
 
         schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
@@ -698,7 +697,7 @@ class DocSet:
         entities_clean = CleanTempNodes(Wrapper(entities))  # cleanup temp objects
         return DocSet(self.context, entities_clean)
 
-    def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
+    def extract_properties(self, property_extractor: "PropertyExtractor", **kwargs) -> "DocSet":
         """
         Extracts properties from each Document in this DocSet based on the `_schema` property.
 
@@ -944,6 +943,8 @@ class DocSet:
         Return a list of max K centroids
         """
 
+        from sycamore.transforms.clustering import KMeans
+
         def filter_meta(row):
             doc = Document.from_row(row)
             return not isinstance(doc, MetadataDocument)
@@ -963,6 +964,8 @@ class DocSet:
         return centroids
 
     def clustering(self, centroids, cluster_field_name, field_name=None, **resource_args) -> "DocSet":
+        from sycamore.transforms.clustering import KMeans
+
         def cluster(doc: Document) -> Document:
             if not isinstance(doc, MetadataDocument):
                 embedding = doc[field_name] if field_name else doc.embedding

@@ -1,10 +1,32 @@
 from typing import Callable, Dict
 
 from sycamore.llms.llms import LLM
-from sycamore.llms.openai import OpenAI, OpenAIClientType, OpenAIModels, OpenAIClientParameters, OpenAIClientWrapper
-from sycamore.llms.bedrock import Bedrock, BedrockModels
-from sycamore.llms.anthropic import Anthropic, AnthropicModels
-from sycamore.llms.gemini import Gemini, GeminiModels
+from sycamore.llms.config import AnthropicModels, BedrockModels, GeminiModels, OpenAIModels
+
+
+def Anthropic(name, **kwargs):
+    from sycamore.llms.anthropic import Anthropic as AnthropicReal
+
+    return AnthropicReal(name, **kwargs)
+
+
+def Bedrock(name, **kwargs):
+    from sycamore.llms.bedrock import Bedrock as BedrockReal
+
+    return BedrockReal(name, **kwargs)
+
+
+def Gemini(name, **kwargs):
+    from sycamore.llms.gemini import Gemini as GeminiReal
+
+    return GeminiReal(name, **kwargs)
+
+
+def OpenAI(name, **kwargs):
+    from sycamore.llms.openai import OpenAI as OpenAIReal
+
+    return OpenAIReal(name, **kwargs)
+
 
 # Register the model constructors.
 MODELS: Dict[str, Callable[..., LLM]] = {}
@@ -27,15 +49,17 @@ def get_llm(model_name: str) -> Callable[..., LLM]:
     return MODELS[model_name]
 
 
+# commented out bits can be removed after 2025-08-01; they are here to help people
+# find where things should be imported from
 __all__ = [
     "MODELS",
     "get_llm",
     "LLM",
     "OpenAI",
-    "OpenAIClientType",
     "OpenAIModels",
-    "OpenAIClientParameters",
-    "OpenAIClientWrapper",
+    #   "OpenAIClientType", # sycamore.llms.openai
+    #   "OpenAIClientParameters", # sycamore.llms.openai
+    #   "OpenAIClientWrapper", # sycamore.llms.openai
     "Bedrock",
     "BedrockModels",
     "Anthropic",

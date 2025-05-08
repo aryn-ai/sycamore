@@ -1,15 +1,12 @@
 from abc import abstractmethod, ABC
 import io
-from typing import Any, Literal, Optional, Union
-
-from bs4 import BeautifulSoup, Tag
+from typing import Any, Literal, Optional, Union, TYPE_CHECKING
 
 from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.data import BoundingBox, Document, Element, TableElement, Table
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
-from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.table_structure.extract import TableStructureExtractor
 from sycamore.transforms.map import Map
 from sycamore.utils.cache import Cache
@@ -18,11 +15,14 @@ from sycamore.utils import choose_device
 from sycamore.utils.aryn_config import ArynConfig
 from sycamore.utils.bbox_sort import bbox_sort_document
 
-from sycamore.transforms.detr_partitioner import (
+from sycamore.transforms.detr_partitioner_config import (
     ARYN_DETR_MODEL,
     DEFAULT_ARYN_PARTITIONER_ADDRESS,
     DEFAULT_LOCAL_THRESHOLD,
 )
+
+if TYPE_CHECKING:
+    from sycamore.transforms.extract_table import TableExtractor
 
 
 class Partitioner(ABC):
@@ -277,6 +277,8 @@ class HtmlPartitioner(Partitioner):
 
     @timetrace("beautSoup")
     def partition(self, document: Document) -> Document:
+        from bs4 import BeautifulSoup, Tag
+
         raw_html = document.binary_representation
 
         if raw_html is None:
@@ -605,7 +607,7 @@ class Partition(CompositeTransform):
     """
 
     def __init__(
-        self, child: Node, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **resource_args
+        self, child: Node, partitioner: Partitioner, table_extractor: Optional["TableExtractor"] = None, **resource_args
     ):
         ops = []
 

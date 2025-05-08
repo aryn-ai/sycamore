@@ -14,7 +14,7 @@ from sycamore.transforms.merge_elements import GreedyTextElementMerger
 from sycamore.transforms.extract_schema import (
     OpenAIPropertyExtractor,
 )
-from sycamore.llms import OpenAI, OpenAIModels
+from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 import os
 from dateutil import parser

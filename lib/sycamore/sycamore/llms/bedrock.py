@@ -1,12 +1,10 @@
-from dataclasses import dataclass
 import datetime
-from enum import Enum
-import boto3
 import json
 from typing import Any, Optional, Union
 
 from PIL import Image
 
+from sycamore.llms.config import BedrockModel, BedrockModels
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.anthropic import format_image, get_generate_kwargs
 from sycamore.llms.prompts.prompts import RenderedPrompt
@@ -14,29 +12,6 @@ from sycamore.utils.cache import Cache
 
 DEFAULT_MAX_TOKENS = 1000
 DEFAULT_ANTHROPIC_VERSION = "bedrock-2023-05-31"
-
-
-@dataclass
-class BedrockModel:
-    name: str
-    is_chat: bool = False
-
-
-class BedrockModels(Enum):
-    """Represents available Bedrock models."""
-
-    # Note that the models available on a given Bedrock account may vary.
-    CLAUDE_3_HAIKU = BedrockModel(name="anthropic.claude-3-haiku-20240307-v1:0", is_chat=True)
-    CLAUDE_3_SONNET = BedrockModel(name="anthropic.claude-3-sonnet-20240229-v1:0", is_chat=True)
-    CLAUDE_3_OPUS = BedrockModel(name="anthropic.claude-3-opus-20240229-v1:0", is_chat=True)
-    CLAUDE_3_5_SONNET = BedrockModel(name="anthropic.claude-3-5-sonnet-20240620-v1:0", is_chat=True)
-
-    @classmethod
-    def from_name(cls, name: str):
-        for m in iter(cls):
-            if m.value.name == name:
-                return m
-        return None
 
 
 class Bedrock(LLM):
@@ -52,6 +27,8 @@ class Bedrock(LLM):
         model_name: Union[BedrockModels, str],
         cache: Optional[Cache] = None,
     ):
+        import boto3
+
         self.model_name = model_name
 
         if isinstance(model_name, BedrockModels):

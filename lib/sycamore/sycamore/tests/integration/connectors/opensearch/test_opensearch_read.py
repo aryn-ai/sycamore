@@ -11,7 +11,7 @@ from sycamore import EXEC_LOCAL, ExecMode
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.data import Document
 from sycamore.data.document import DocumentPropertyTypes
-from sycamore.llms import OpenAI, OpenAIModels
+from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.tests.integration.connectors.common import compare_connector_docs
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import ArynPartitioner

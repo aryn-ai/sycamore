@@ -202,10 +202,11 @@ def apply_transform(bbox: BoundingBox, transform: Optional[np.ndarray]) -> Bound
     if transform is None:
         return bbox
     x1, y1, x2, y2 = bbox.to_list()
+    # Transform both the upper left hand corner and the lower right hand corner at the same time
     # fmt: off
     old_coords = np.array([[x1, x2],
-                            [y1, y2],
-                            [1,  1]])
+                           [y1, y2],
+                           [1,  1]])
     # fmt: on
     new_coords = np.dot(transform, old_coords)
     new_x1, new_x2 = new_coords[0]

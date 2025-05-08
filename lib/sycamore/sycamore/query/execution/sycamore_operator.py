@@ -799,8 +799,6 @@ class SycamoreAggregateCount(SycamoreOperator):
             )
             assert isinstance(llm, LLM), "GroupBy with llm summary requies an 'llm' configured on the Context"
 
-        result = self.inputs[0].collect()
-
         if llm:
             from sycamore.llms.prompts.prompts import JinjaPrompt
 
@@ -814,7 +812,9 @@ class SycamoreAggregateCount(SycamoreOperator):
                 field="properties.key",
                 instruction=logical_node.llm_summary_instruction,
             )
-            result = result.llm_map(prompt, "key", llm)
+            result = self.inputs[0].collect().llm_map(prompt, "key", llm)
+        else:
+            result = self.inputs[0].count()
 
         return result
 

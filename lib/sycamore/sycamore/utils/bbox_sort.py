@@ -41,7 +41,7 @@ def bbox_sort_page(elems: list[Element], matrix: Optional[np.ndarray] = None) ->
 
 
 class BBoxSorter:
-    def __init__(self, matrix: Optional[np.ndarray]) -> None:
+    def __init__(self, matrix: Optional[np.ndarray] = None) -> None:
         """Uses a matrix to represent a homogeneous coordinate transformation"""
         if matrix is None:
             matrix = np.eye(3)

@@ -3476,6 +3476,20 @@ files = [
 ]
 
 [[package]]
+name = "import-timer"
+version = "0.0.1"
+description = "Import timing library"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = []
+develop = true
+
+[package.source]
+type = "directory"
+url = "../import_timer"
+
+[[package]]
 name = "importlib-metadata"
 version = "8.6.1"
 description = "Read metadata from Python packages"
@@ -11666,4 +11680,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<3.13"
-content-hash = "1d0e4433e49efe22618fcbade4af72a77bab94def6b069fc856f3e42580045ba"
+content-hash = "c7f98a821072120c2ad9fcd94d0f2b7fa69dc1db1634bbf7d59e262087d52892"

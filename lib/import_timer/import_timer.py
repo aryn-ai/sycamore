@@ -20,15 +20,14 @@ import sys
 import time
 import os
 import builtins
-from typing import Dict, List
 
 original_import = builtins.__import__
 
-import_times: Dict[str, float] = {}
-parent_imports: Dict[str, str] = {}
-import_counts: Dict[str, int] = {}
-import_stack: List[str] = []
-import_depths: Dict[str, int] = {}
+import_times: dict[str, float] = {}
+parent_imports: dict[str, str] = {}
+import_counts: dict[str, int] = {}
+import_stack: list[str] = []
+import_depths: dict[str, int] = {}
 
 
 def timed_import(name, globals=None, locals=None, fromlist=(), level=0):

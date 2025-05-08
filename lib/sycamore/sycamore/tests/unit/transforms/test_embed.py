@@ -106,17 +106,6 @@ class TestEmbedding:
             },
             {"doc_id": 2, "text_representation": texts[1] if use_documents else None, "embedding": None},
         ]
-        import time
-
-        def sleepfn(d):
-            print("Sleeping...")
-            time.sleep(10)
-            return d
-
-        import sycamore
-
-        sycamore.init().read.document([Document(d) for d in dicts]).map(sleepfn).take_all()
-
         input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset

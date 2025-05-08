@@ -1,11 +1,10 @@
-from dataclasses import dataclass
 import datetime
-from enum import Enum
 import logging
 from typing import Any, Optional, Union
 import os
 import io
 
+from sycamore.llms.config import GeminiModel, GeminiModels
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
@@ -15,30 +14,6 @@ DEFAULT_MAX_TOKENS = 1024
 
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class GeminiModel:
-    name: str
-    is_chat: bool = False
-
-
-class GeminiModels(Enum):
-    """Represents available Gemini models. More info: https://googleapis.github.io/python-genai/"""
-
-    # Note that the models available on a given Gemini account may vary.
-    GEMINI_2_FLASH = GeminiModel(name="gemini-2.0-flash", is_chat=True)
-    GEMINI_2_FLASH_LITE = GeminiModel(name="gemini-2.0-flash-lite", is_chat=True)
-    GEMINI_2_FLASH_THINKING = GeminiModel(name="gemini-2.0-flash-thinking-exp", is_chat=True)
-    GEMINI_2_PRO = GeminiModel(name="gemini-2.0-pro-exp-02-05", is_chat=True)
-    GEMINI_1_5_PRO = GeminiModel(name="gemini-1.5-pro", is_chat=True)
-
-    @classmethod
-    def from_name(cls, name: str):
-        for m in iter(cls):
-            if m.value.name == name:
-                return m
-        return None
 
 
 class Gemini(LLM):

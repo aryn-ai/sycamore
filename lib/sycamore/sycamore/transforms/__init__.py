@@ -36,12 +36,6 @@ from sycamore.transforms.mark_misc import (
 )
 from sycamore.transforms.merge_elements import Merge
 
-# from sycamore.transforms.extract_schema import (
-#     ExtractSchema,
-#     ExtractBatchSchema,
-#     SchemaExtractor,
-#     PropertyExtractor,
-# )
 from sycamore.transforms.random_sample import RandomSample
 from sycamore.transforms.split_elements import SplitElements
 from sycamore.transforms.query import Query
@@ -52,6 +46,8 @@ from sycamore.transforms.groupby_count import GroupByCount
 from sycamore.transforms.dataset_scan import DatasetScan
 
 
+# commented out bits can be removed after 2025-08-01; they are here to help people
+# find where things should be imported from
 __all__ = [
     "COALESCE_WHITESPACE",
     "Explode",

@@ -1,5 +1,71 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
+
+
+class AnthropicModels(Enum):
+    """Represents available Claude models."""
+
+    CLAUDE_3_7_SONNET = "claude-3-7-sonnet-latest"
+    CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest"
+    CLAUDE_3_5_HAIKU = "claude-3-5-haiku-latest"
+    CLAUDE_3_OPUS = "claude-3-opus-latest"
+    CLAUDE_3_SONNET = "claude-3-sonnet-20240229"
+    CLAUDE_3_HAIKU = "claude-3-haiku-20240307"
+
+    @classmethod
+    def from_name(cls, name: str) -> Optional["AnthropicModels"]:
+        for m in iter(cls):
+            if m.value == name:
+                return m
+        return None
+
+
+@dataclass
+class BedrockModel:
+    name: str
+    is_chat: bool = False
+
+
+class BedrockModels(Enum):
+    """Represents available Bedrock models."""
+
+    # Note that the models available on a given Bedrock account may vary.
+    CLAUDE_3_HAIKU = BedrockModel(name="anthropic.claude-3-haiku-20240307-v1:0", is_chat=True)
+    CLAUDE_3_SONNET = BedrockModel(name="anthropic.claude-3-sonnet-20240229-v1:0", is_chat=True)
+    CLAUDE_3_OPUS = BedrockModel(name="anthropic.claude-3-opus-20240229-v1:0", is_chat=True)
+    CLAUDE_3_5_SONNET = BedrockModel(name="anthropic.claude-3-5-sonnet-20240620-v1:0", is_chat=True)
+
+    @classmethod
+    def from_name(cls, name: str):
+        for m in iter(cls):
+            if m.value.name == name:
+                return m
+        return None
+
+
+@dataclass
+class GeminiModel:
+    name: str
+    is_chat: bool = False
+
+
+class GeminiModels(Enum):
+    """Represents available Gemini models. More info: https://googleapis.github.io/python-genai/"""
+
+    # Note that the models available on a given Gemini account may vary.
+    GEMINI_2_FLASH = GeminiModel(name="gemini-2.0-flash", is_chat=True)
+    GEMINI_2_FLASH_LITE = GeminiModel(name="gemini-2.0-flash-lite", is_chat=True)
+    GEMINI_2_FLASH_THINKING = GeminiModel(name="gemini-2.0-flash-thinking-exp", is_chat=True)
+    GEMINI_2_PRO = GeminiModel(name="gemini-2.0-pro-exp-02-05", is_chat=True)
+    GEMINI_1_5_PRO = GeminiModel(name="gemini-1.5-pro", is_chat=True)
+
+    @classmethod
+    def from_name(cls, name: str):
+        for m in iter(cls):
+            if m.value.name == name:
+                return m
+        return None
 
 
 @dataclass

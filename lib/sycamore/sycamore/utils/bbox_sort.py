@@ -51,13 +51,13 @@ class BBoxSorter:
             self.max_width = 0.5
 
     def elem_top_left(self, elem: Element) -> tuple[float, float]:
-        cached_bbox = self.get_bbox_prefer_cached(elem)
+        cached_bbox = self.get_transformed_bbox(elem)
         if cached_bbox:
             return (cached_bbox.y1, cached_bbox.x1)
         return (0.0, 0.0)
 
     def col_tag(self, elem: Element) -> Optional[str]:
-        cached_bbox = self.get_bbox_prefer_cached(elem)
+        cached_bbox = self.get_transformed_bbox(elem)
         if cached_bbox:
             left = cached_bbox.x1
             right = cached_bbox.x2
@@ -72,7 +72,7 @@ class BBoxSorter:
                 return "right"
         return None
 
-    def get_bbox_prefer_cached(self, elem: Element) -> Optional[BoundingBox]:
+    def get_transformed_bbox(self, elem: Element) -> Optional[BoundingBox]:
         if (cached := elem.data.get(cached_bbox_tag)) is not None:
             return cached
         elif (bbox := elem.bbox) is not None:

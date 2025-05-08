@@ -41,9 +41,10 @@ def test_margin_matrix_page(
     transform = find_matrix_page(elements)
     final_bboxes: list[Optional[tuple[float, ...]]] = []
     for element in elements:
-        if bbox := apply_matrix(element.bbox, transform):
-            final_bboxes.append(tuple(bbox.to_list()))
-        else:
+        if element.bbox is None:
             final_bboxes.append(None)
+        else:
+            bbox = apply_matrix(element.bbox, transform)
+            final_bboxes.append(tuple(bbox.to_list()))
     for element, actual_bbox, expected_bbox in zip(elements, final_bboxes, expected_final_coordinates):
         assert actual_bbox == expected_bbox

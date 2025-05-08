@@ -3,6 +3,30 @@ import numpy as np
 from sycamore.data import Element
 
 
+class Margins:
+    """Warning: `bottom` and `right` are measured from the top left corner of the page, not the bottom right."""
+
+    def __init__(self, left: float, top: float, right: float, bottom: float) -> None:
+        self.left = left
+        self.top = top
+        self.right = right
+        self.bottom = bottom
+
+    def __repr__(self) -> str:
+        return f"Margins(left={self.left}, top={self.top}, right={self.right}, bottom={self.bottom})"
+
+    def are_reasonable(self) -> bool:
+        if self.left > 0.4:
+            return False
+        if self.right < 0.6:
+            return False
+        if self.top > 0.4:
+            return False
+        if self.bottom < 0.6:
+            return False
+        return True
+
+
 def find_matrix_page(elems: list[Element]) -> np.ndarray:
     margins = find_margin_of_pages(elems)
     if margins.are_reasonable():
@@ -17,7 +41,7 @@ def find_matrix_page(elems: list[Element]) -> np.ndarray:
         return np.eye(3)
 
 
-def find_margin_of_pages(elements: list[Element]) -> tuple[float, float, float, float]:
+def find_margin_of_pages(elements: list[Element]) -> Margins:
     """
     Find the margin of the page.
     :param elements: list of elements
@@ -47,27 +71,3 @@ def find_margin_of_pages(elements: list[Element]) -> tuple[float, float, float, 
         bottom = 1.0
 
     return Margins(left, top, right, bottom)
-
-
-class Margins:
-    """Warning: `bottom` and `right` are measured from the top left corner of the page, not the bottom right."""
-
-    def __init__(self, left: float, top: float, right: float, bottom: float) -> None:
-        self.left = left
-        self.top = top
-        self.right = right
-        self.bottom = bottom
-
-    def __repr__(self) -> str:
-        return f"Margins(left={self.left}, top={self.top}, right={self.right}, bottom={self.bottom})"
-
-    def are_reasonable(self) -> bool:
-        if self.left > 0.4:
-            return False
-        if self.right < 0.6:
-            return False
-        if self.top > 0.4:
-            return False
-        if self.bottom < 0.6:
-            return False
-        return True

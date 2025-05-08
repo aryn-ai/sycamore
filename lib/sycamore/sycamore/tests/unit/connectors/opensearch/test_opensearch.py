@@ -4,8 +4,12 @@ import random
 from opensearchpy import OpenSearch, RequestError, ConnectionError
 import pytest
 
-from sycamore.connectors.opensearch.opensearch_reader import OpenSearchReaderQueryResponse, OpenSearchReaderQueryParams, \
-    add_filter_to_query, add_filter_to_knn_query
+from sycamore.connectors.opensearch.opensearch_reader import (
+    OpenSearchReaderQueryResponse,
+    OpenSearchReaderQueryParams,
+    add_filter_to_query,
+    add_filter_to_knn_query,
+)
 
 from sycamore import Context
 from sycamore.connectors.opensearch import (
@@ -510,7 +514,7 @@ class TestOpenSearchReader:
                             "vector": [0.1, 0.2],
                             "k": 10,
                         },
-                        "field": "something_else"
+                        "field": "something_else",
                     }
                 }
             }

@@ -595,11 +595,7 @@ class OpenSearchReader(BaseDBReader):
 
         ds = from_items(items=[doc["_source"] for doc in docs])
         if self._query_params.reconstruct_document or self._query_params.doc_reconstructor is not None:
-            return (
-                ds.groupby("parent_id")
-                .map_groups(self.map_reduce_parent_id)
-                .map(self.reconstruct)
-            )
+            return ds.groupby("parent_id").map_groups(self.map_reduce_parent_id).map(self.reconstruct)
         else:
             return (
                 ds.groupby("slice")

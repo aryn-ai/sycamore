@@ -42,6 +42,7 @@ def bbox_sort_page(elems: list[Element], matrix: Optional[np.ndarray] = None) ->
 
 class BBoxSorter:
     def __init__(self, matrix: Optional[np.ndarray]) -> None:
+        """Uses a matrix to represent a homogeneous coordinate transformation"""
         if matrix is None:
             matrix = np.eye(3)
         self.matrix = matrix
@@ -51,16 +52,16 @@ class BBoxSorter:
             self.max_width = 0.5
 
     def elem_top_left(self, elem: Element) -> tuple[float, float]:
-        cached_bbox = self.get_matrixed_bbox(elem)
-        if cached_bbox:
-            return (cached_bbox.y1, cached_bbox.x1)
+        bbox = self.get_matrixed_bbox(elem)
+        if bbox:
+            return (bbox.y1, bbox.x1)
         return (0.0, 0.0)
 
     def col_tag(self, elem: Element) -> Optional[str]:
-        cached_bbox = self.get_matrixed_bbox(elem)
-        if cached_bbox:
-            left = cached_bbox.x1
-            right = cached_bbox.x2
+        bbox = self.get_matrixed_bbox(elem)
+        if bbox:
+            left = bbox.x1
+            right = bbox.x2
             width = right - left
             if width > 0.6 or elem.type == "Page-footer":
                 return "full"

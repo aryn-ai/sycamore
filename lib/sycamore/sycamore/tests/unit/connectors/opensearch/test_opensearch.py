@@ -4,7 +4,8 @@ import random
 from opensearchpy import OpenSearch, RequestError, ConnectionError
 import pytest
 
-from sycamore.connectors.opensearch.opensearch_reader import OpenSearchReaderQueryResponse, OpenSearchReaderQueryParams
+from sycamore.connectors.opensearch.opensearch_reader import OpenSearchReaderQueryResponse, OpenSearchReaderQueryParams, \
+    add_filter_to_query, add_filter_to_knn_query
 
 from sycamore import Context
 from sycamore.connectors.opensearch import (
@@ -461,3 +462,56 @@ class TestOpenSearchUtils:
     def test_get_knn_query_validation(self):
         with pytest.raises(ValueError, match="Only one of `k` or `min_score` should be populated"):
             get_knn_query(Mock(spec=Embedder), query_phrase="test", k=10, min_score=0.5)
+
+
+class TestOpenSearchReader:
+
+    def test_add_filter_to_query(self):
+        query = {"query": {"match_all": {}}}
+        filter = {"properties.colors": ["red", "blue"]}
+        add_filter_to_query(query, filter)
+
+        assert "bool" in query["query"]
+        assert "must" in query["query"]["bool"]
+        assert "filter" in query["query"]["bool"]
+        assert "terms" in query["query"]["bool"]["filter"][0]
+        assert filter == query["query"]["bool"]["filter"][0]["terms"]
+
+    def test_add_filter_to_knn_query(self):
+        query = {"query": {"knn": {"embedding": {"vector": [0.1, 0.2], "k": 10}}}}
+        filter = {"properties.colors": ["red", "blue"]}
+        add_filter_to_knn_query(query, filter)
+
+        inner_query = query["query"]["knn"]["embedding"]
+        assert "filter" in inner_query
+        assert "bool" in inner_query["filter"]
+        assert "must" in inner_query["filter"]["bool"]
+        assert "terms" in inner_query["filter"]["bool"]["must"][0]
+        assert filter == inner_query["filter"]["bool"]["must"][0]["terms"]
+
+        with pytest.raises(AssertionError):
+            query = {
+                "query": {
+                    "knn": {
+                        "something_else": {
+                            "vector": [0.1, 0.2],
+                            "k": 10,
+                        }
+                    }
+                }
+            }
+            add_filter_to_knn_query(query, filter)
+
+        with pytest.raises(AssertionError):
+            query = {
+                "query": {
+                    "knn": {
+                        "embedding": {
+                            "vector": [0.1, 0.2],
+                            "k": 10,
+                        },
+                        "field": "something_else"
+                    }
+                }
+            }
+            add_filter_to_knn_query(query, filter)

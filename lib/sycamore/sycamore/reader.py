@@ -307,30 +307,37 @@ class DocSetReader:
                     f"Filter values must be a list of strings. Got {type(v)} instead. Please provide a list of values."
                 )
 
-        filter = None
-
         # Allow the OpenSearchReader to use the result filter if it does not conflict
         # with an existing filter present in the passed-in query.
         if result_filter is not None:
             if "knn" in query["query"]:
-                if "filter" not in query["query"]["knn"]:
-                    filter = result_filter
-            elif not ("bool" in query["query"] and "must" in query["query"]["bool"]):
-                filter = result_filter
+                if "filter" in query["query"]["knn"]:
+                    raise ValueError("'query' cannot contain a filter when 'result_filter' is provided.")
+            elif (
+                # TODO improve detection of filter in query
+                # Even if we fail to catch it here
+                # we will still check if result_filter was applied correctly
+                # and raise an error if it was not.
+                "bool" in query["query"]
+                and "must" in query["query"]["bool"]
+                and "filter" in query["query"]["bool"]["must"]
+            ):
+                raise ValueError("'query' cannot contain a filter when 'result_filter' is provided.")
 
         query_params = OpenSearchReaderQueryParams(
             index_name=index_name,
             query=query,
             reconstruct_document=reconstruct_document,
             doc_reconstructor=doc_reconstructor,
-            filter=filter,
+            filter=result_filter,
             kwargs=query_kwargs,
         )
 
         osr = OpenSearchReader(client_params=client_params, query_params=query_params, **kwargs)
         if result_filter:
+            # We only reach here if 'result_filter' was pushed down to OpenSearch
 
-            def check_or_apply_filter(docs: list[Document], apply=False) -> list[Document]:
+            def check_filter(docs: list[Document]) -> list[Document]:
                 logging.info("Checking if filtering was successful")
 
                 def nested_get(d: dict, keys: list) -> Any:
@@ -356,14 +363,12 @@ class DocSetReader:
                     if values.intersection(v):
                         filtered.append(doc)
                     else:
-                        if not apply:
-                            raise RuntimeError(f"Filtering failed for filter: {filter} in document: {doc}")
+                        raise RuntimeError(f"Failed to apply filter: {filter} on document: {doc}")
 
                 return filtered
 
             ds = DocSet(self._context, osr)
-            check_or_apply = True if filter is not None else False
-            return ds.map_batch(check_or_apply_filter, (check_or_apply,))
+            return ds.map_batch(check_filter)
         return DocSet(self._context, osr)
 
     @requires_modules("duckdb", extra="duckdb")

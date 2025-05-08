@@ -266,7 +266,6 @@ def add_filter_to_query(query: dict[str, Any], filter: dict[str, Any]):
             "filter": [{"terms": filter}],
         }
     }
-    # return filter_query
 
 
 def add_filter_to_knn_query(query: dict[str, Any], filter: dict[str, Any]):

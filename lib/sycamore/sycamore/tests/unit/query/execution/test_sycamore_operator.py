@@ -165,6 +165,7 @@ def test_vector_query_database_with_rerank():
             index_name=context.params["opensearch"]["index_name"],
             query={"query": {"knn": {"embedding": {"vector": embedding, "k": 500, "filter": os_filter}}}},
             reconstruct_document=True,
+            result_filter=None,
         )
         mock_docset.rerank.assert_called_once()
 

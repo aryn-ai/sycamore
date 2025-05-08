@@ -59,9 +59,8 @@ class BBoxSorter:
     def col_tag(self, elem: Element) -> Optional[str]:
         cached_bbox = self.get_bbox_prefer_cached(elem)
         if cached_bbox:
-            bbox = cached_bbox.to_list()
-            left = bbox[0]
-            right = bbox[2]
+            left = cached_bbox.x1
+            right = cached_bbox.x2
             width = right - left
             if width > 0.6 or elem.type == "Page-footer":
                 return "full"

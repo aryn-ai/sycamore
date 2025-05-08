@@ -58,6 +58,11 @@ class QueryDatabase(Node):
     If filtering on a phrase that doesn't have exact spellings or forms, e.g. "Color" or "Colour", prefer "match".
     """
 
+    result_filter: Optional[Dict] = None
+    """
+    An additional filter that can be used to filter the results of the search.
+    """
+
     @property
     def input_types(self) -> set[type]:
         return set()
@@ -114,6 +119,11 @@ class QueryVectorDatabase(Node):
 
 
     The full range of OpenSearch Query DSL parameters for a filter query are supported.
+    """
+
+    result_filter: Optional[Dict] = None
+    """
+    An additional filter that can be used to filter the results of the vector search.
     """
 
     @property

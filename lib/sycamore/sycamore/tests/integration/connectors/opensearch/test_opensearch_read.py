@@ -14,6 +14,7 @@ from sycamore.data.document import DocumentPropertyTypes
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.tests.integration.connectors.common import compare_connector_docs
 from sycamore.tests.config import TEST_DIR
+from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.partition import ArynPartitioner
 
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
@@ -695,6 +696,247 @@ class TestOpenSearchRead:
         print(f"Retrieved {len(retrieved_docs)} documents in {t1 - t0} seconds")
         expected_docs = self.get_ids(os_client, setup_index, True, query)
         assert len(retrieved_docs) == len(expected_docs)
+
+        os_client.indices.delete(setup_index, ignore_unavailable=True)
+
+    def test_result_filter_on_property(self, setup_index, os_client):
+        context = sycamore.init(exec_mode=ExecMode.RAY)
+        query = {"query": {"match_all": {}}}
+        dicts = [
+            {
+                "doc_id": "p1",
+                "properties": {"tags": ["1", "2", "3"]},
+                "elements": [
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that meows"},
+                ],
+            },
+            {
+                "doc_id": "p2",
+                "properties": {"tags": ["1", "2", "5"]},
+                "elements": [
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that meows"},
+                ],
+            },
+            {
+                "doc_id": "p3",
+                "properties": {"tags": ["1", "6", "7"]},
+                "elements": [
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that meows"},
+                ],
+            },
+        ]
+        docs = [Document(item) for item in dicts]
+
+        original_docs = (
+            context.read.document(docs)
+            .explode()
+            .write.opensearch(
+                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                index_name=setup_index,
+                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                execute=False,
+            )
+            .take_all()
+        )
+
+        os_client.indices.refresh(setup_index)
+
+        expected_count = len(original_docs)
+        actual_count = get_doc_count(os_client, setup_index)
+        assert actual_count == expected_count, f"Expected {expected_count} documents, found {actual_count}"
+
+        filter = {"properties.tags": ["1"]}
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query=query,
+            reconstruct_document=True,
+            result_filter=filter,
+        ).take_all()
+
+        expected = {"p1", "p2", "p3"}
+        assert expected == {d.doc_id for d in retrieved_docs}
+
+        filter = {"properties.tags": ["2"]}
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query=query,
+            reconstruct_document=True,
+            result_filter=filter,
+        ).take_all()
+
+        expected = {"p1", "p2"}
+        assert expected == {d.doc_id for d in retrieved_docs}
+
+        filter = {"properties.tags": ["7"]}
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query=query,
+            reconstruct_document=True,
+            result_filter=filter,
+        ).take_all()
+
+        expected = {"p3"}
+        assert expected == {d.doc_id for d in retrieved_docs}
+
+        query_with_filter = {
+            "bool": {
+                "must": [
+                    {
+                        "match_all": {},
+                    }
+                ],
+                "filter": [
+                    {
+                        "term": {
+                            "doc_id": "p3",
+                        }
+                    }
+                ],
+            }
+        }
+        filter = {"properties.tags": ["7"]}
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query={"query": query_with_filter},
+            reconstruct_document=True,
+            result_filter=filter,
+        ).take_all()
+
+        expected = {"p3"}
+        assert expected == {d.doc_id for d in retrieved_docs}
+
+        filter = {"properties.tags": ["8"]}
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query=query,
+            reconstruct_document=True,
+            result_filter=filter,
+        ).take_all()
+
+        assert 0 == len(retrieved_docs)
+
+        os_client.indices.delete(setup_index, ignore_unavailable=True)
+
+    def test_result_filter_on_property_knn(self, setup_index, os_client):
+        context = sycamore.init(exec_mode=ExecMode.RAY)
+        query = {"query": {"match_all": {}}}
+        dicts = [
+            {
+                "doc_id": "p1",
+                "properties": {"tags": ["1", "2", "3"]},
+                "elements": [
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that meows"},
+                ],
+            },
+            {
+                "doc_id": "p2",
+                "properties": {"tags": ["1", "2", "5"]},
+                "elements": [
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that meows"},
+                ],
+            },
+            {
+                "doc_id": "p3",
+                "properties": {"tags": ["1", "6", "7"]},
+                "elements": [
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that meows"},
+                ],
+            },
+        ]
+        docs = [Document(item) for item in dicts]
+
+        model_name = "sentence-transformers/all-MiniLM-L6-v2"
+        embedder = SentenceTransformerEmbedder(batch_size=10, model_name=model_name)
+
+        original_docs = (
+            context.read.document(docs)
+            .spread_properties(["tags"])
+            .explode()
+            .embed(embedder)
+            .write.opensearch(
+                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                index_name=setup_index,
+                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                execute=False,
+            )
+            .take_all()
+        )
+
+        os_client.indices.refresh(setup_index)
+
+        expected_count = len(original_docs)
+        actual_count = get_doc_count(os_client, setup_index)
+        assert actual_count == expected_count, f"Expected {expected_count} documents, found {actual_count}"
+
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query=query,
+            reconstruct_document=True,
+        ).take_all()
+
+        vector = retrieved_docs[0].elements[0].embedding
+
+        knn_query = {
+            "query": {
+                "knn": {
+                    "embedding": {
+                        "vector": vector,
+                        "k": 100,
+                    }
+                }
+            }
+        }
+
+        # Without the filter, the vector above can be used to retrieve all documents
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query=knn_query,
+            reconstruct_document=True,
+        ).take_all()
+
+        assert len(retrieved_docs) == 3
+
+        filter = {"properties.tags": ["2"]}
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query=knn_query,
+            reconstruct_document=True,
+            result_filter=filter,
+        ).take_all()
+
+        expected = {"p1", "p2"}
+        assert expected == {d.doc_id for d in retrieved_docs}
+
+        filter = {"properties.tags": ["7"]}
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query=knn_query,
+            reconstruct_document=True,
+            result_filter=filter,
+        ).take_all()
+
+        expected = {"p3"}
+        assert expected == {d.doc_id for d in retrieved_docs}
+
+        filter = {"properties.tags": ["8"]}
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query=knn_query,
+            reconstruct_document=True,
+            result_filter=filter,
+        ).take_all()
+
+        assert 0 == len(retrieved_docs)
 
         os_client.indices.delete(setup_index, ignore_unavailable=True)
 

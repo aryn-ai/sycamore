@@ -8,7 +8,7 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument, mkdocid
 from sycamore.llms import LLM
-from sycamore.llms.prompts import GraphEntityExtractorPrompt
+from sycamore.llms.prompts.default_prompts import GraphEntityExtractorPrompt
 from PIL import Image
 from pydantic import BaseModel, create_model
 

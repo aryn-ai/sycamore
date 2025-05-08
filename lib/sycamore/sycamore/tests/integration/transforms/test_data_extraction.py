@@ -3,7 +3,8 @@ import sycamore
 from sycamore import ExecMode
 from sycamore.data import Document
 from sycamore.schema import Schema, SchemaField
-from sycamore.llms import OpenAI, OpenAIModels, Anthropic, AnthropicModels
+from sycamore.llms.openai import OpenAI, OpenAIModels
+from sycamore.llms.anthropic import Anthropic, AnthropicModels
 from sycamore.transforms.extract_schema import LLMPropertyExtractor
 
 

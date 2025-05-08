@@ -9,7 +9,7 @@ import pydantic
 from sycamore.utils.cache import Cache
 from sycamore.utils.thread_local import ThreadLocalAccess, ADD_METADATA_TO_OUTPUT
 from sycamore.data.metadata import add_metadata
-from sycamore.llms.prompts import RenderedPrompt, RenderedMessage, SimplePrompt
+from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 
 from sycamore.utils.deprecate import deprecated
 
@@ -40,6 +40,8 @@ class LLM(ABC):
     @deprecated(version="0.1.31", reason="Use generate, with a RenderedPrompt, instead")
     def generate_old(self, *, prompt_kwargs: dict[str, Any], llm_kwargs: Optional[dict] = None) -> str:
         """Generates a response from the LLM"""
+        from sycamore.llms.prompts.default_prompts import SimplePrompt
+
         if "prompt" in prompt_kwargs:
             prompt = prompt_kwargs.get("prompt")
             if isinstance(prompt, SimplePrompt):
@@ -74,6 +76,8 @@ class LLM(ABC):
 
     @deprecated(version="0.1.31", reason="Use generate_async, with a RenderedPrompt, instead")
     async def generate_async_old(self, *, prompt_kwargs: dict[str, Any], llm_kwargs: Optional[dict] = None) -> str:
+        from sycamore.llms.prompts.default_prompts import SimplePrompt
+
         if "prompt" in prompt_kwargs:
             prompt = prompt_kwargs.get("prompt")
             if isinstance(prompt, SimplePrompt):

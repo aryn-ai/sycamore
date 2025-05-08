@@ -9,9 +9,6 @@ from collections import OrderedDict, defaultdict
 from typing import Optional
 import xml.etree.ElementTree as ET
 
-import numpy as np
-import pandas as pd
-
 from sycamore.data.table import Table, TableCell
 from sycamore.data import BoundingBox
 
@@ -1199,6 +1196,9 @@ def structure_to_cells(table_structure, tokens, union_tokens):
 
 
 def cells_to_csv(cells):
+    import pandas
+    import numpy
+
     if len(cells) > 0:
         num_columns = max([max(cell["column_nums"]) for cell in cells]) + 1
         num_rows = max([max(cell["row_nums"]) for cell in cells]) + 1
@@ -1211,7 +1211,7 @@ def cells_to_csv(cells):
     else:
         max_header_row = -1
 
-    table_array = np.empty([num_rows, num_columns], dtype="object")
+    table_array = numpy.empty([num_rows, num_columns], dtype="object")
     if len(cells) > 0:
         for cell in cells:
             for row_num in cell["row_nums"]:
@@ -1225,7 +1225,7 @@ def cells_to_csv(cells):
     for col in header.transpose():
         flattened_header.append(" | ".join(OrderedDict.fromkeys(col)))
 
-    df = pd.DataFrame(table_array[max_header_row + 1 :, :], index=None, columns=flattened_header)
+    df = pandas.DataFrame(table_array[max_header_row + 1 :, :], index=None, columns=flattened_header)
 
     return df.to_csv(index=None)
 

@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 import datetime
 from enum import Enum
-import boto3
 import json
 from typing import Any, Optional, Union
 
@@ -52,6 +51,8 @@ class Bedrock(LLM):
         model_name: Union[BedrockModels, str],
         cache: Optional[Cache] = None,
     ):
+        import boto3
+
         self.model_name = model_name
 
         if isinstance(model_name, BedrockModels):

@@ -1,15 +1,16 @@
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Optional, TypeVar, Union, List, Sequence
+from typing import Any, Optional, TypeVar, Union, List, Sequence, TYPE_CHECKING
 import xml.etree.ElementTree as ET
 
-from bs4 import BeautifulSoup, Tag
 from PIL import Image, ImageDraw
-import numpy as np
-from pandas import DataFrame
 
 from sycamore.data.bbox import BoundingBox
 from sycamore.utils.import_utils import requires_modules
+
+if TYPE_CHECKING:
+    from pandas import DataFrame
+    from bs4 import Tag
 
 
 # This is part of itertools in 3.10+.
@@ -189,7 +190,7 @@ class Table:
     # the spec) because html.parser doesn't handle them. If and when this becomes an issue, we can consider
     # moving to the html5lib parser.
     @classmethod
-    def from_html(cls, html_str: Optional[str] = None, html_tag: Optional[Tag] = None) -> "Table":
+    def from_html(cls, html_str: Optional[str] = None, html_tag: Optional["Tag"] = None) -> "Table":
         """
         Constructs a Table object from a well-formated HTML table.
 
@@ -197,6 +198,8 @@ class Table:
           html_str: The html string to parse. Must be enclosed in <table></table> tags.
           html_tag: A BeatifulSoup tag corresponding to the table. One of html_str or html_tag must be set.
         """
+
+        from bs4 import BeautifulSoup, Tag
 
         # TODO: This doesn't account for rowgroup/colgroup handling, which can get quite tricky.
 
@@ -290,11 +293,15 @@ class Table:
     # we speculate that duplication may create confusion, so we default to only displaying a cells
     # content for the first row/column for which it is applicable. The exception is for header rows,
     # where we duplicate values to each columnn to ensure that every column has a fully qualified header.
-    def to_pandas(self, column_header_only: bool = False) -> Union[DataFrame, List[str]]:
+    def to_pandas(self, column_header_only: bool = False) -> Union["DataFrame", List[str]]:
         """Returns this table as a Pandas DataFrame.
 
         For example, Suppose a cell spans row 2-3 and columns 4-5.
         """
+
+        from pandas import DataFrame
+        import numpy
+
         # Find all row nums containing cells marked as headers.
         header_rows = sorted(set((row_num for cell in self.cells for row_num in cell.rows if cell.is_header)))
 
@@ -310,7 +317,7 @@ class Table:
 
         max_header_prefix_row = i
 
-        table_array = np.empty([self.num_rows, self.num_cols], dtype="object")
+        table_array = numpy.empty([self.num_rows, self.num_cols], dtype="object")
         if len(self.cells) > 0:
             for cell in self.cells:
                 # We treat header cells that are not at the beginning of the table
@@ -359,6 +366,8 @@ class Table:
         Args:
             kwargs: Keyword arguments to pass to the pandas to_csv method.
         """
+
+        from pandas import DataFrame
 
         has_header = any((row_num == 0 for cell in self.cells for row_num in cell.rows if cell.is_header))
 

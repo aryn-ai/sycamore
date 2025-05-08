@@ -3,7 +3,7 @@ import pytest
 import sycamore
 from sycamore import EXEC_RAY
 from sycamore.data import Document
-from sycamore.llms import OpenAI, OpenAIModels
+from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.llms.llms import LLMMode
 from sycamore.query.execution.operations import (
     MultiStepDocumentSummarizer,

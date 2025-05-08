@@ -1,10 +1,19 @@
 from typing import Callable, Dict
 
 from sycamore.llms.llms import LLM
-from sycamore.llms.openai import OpenAI, OpenAIClientType, OpenAIModels, OpenAIClientParameters, OpenAIClientWrapper
+from sycamore.llms.config import OpenAIModels
+
+# from sycamore.llms.openai import OpenAI, OpenAIClientType, OpenAIModels, OpenAIClientParameters, OpenAIClientWrapper
 from sycamore.llms.bedrock import Bedrock, BedrockModels
 from sycamore.llms.anthropic import Anthropic, AnthropicModels
 from sycamore.llms.gemini import Gemini, GeminiModels
+
+
+def OpenAI(name, **kwargs):
+    from sycamore.llms.openai import OpenAI as OpenAIReal
+
+    return OpenAIReal(name, **kwargs)
+
 
 # Register the model constructors.
 MODELS: Dict[str, Callable[..., LLM]] = {}
@@ -32,10 +41,10 @@ __all__ = [
     "get_llm",
     "LLM",
     "OpenAI",
-    "OpenAIClientType",
-    "OpenAIModels",
-    "OpenAIClientParameters",
-    "OpenAIClientWrapper",
+    #   "OpenAIClientType",
+    #   "OpenAIModels",
+    #   "OpenAIClientParameters",
+    #   "OpenAIClientWrapper",
     "Bedrock",
     "BedrockModels",
     "Anthropic",

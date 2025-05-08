@@ -30,14 +30,16 @@ from sycamore.utils.time_trace import LogTime, timetrace
 from sycamore.transforms.text_extraction import TextExtractor, OcrModel, get_text_extractor
 from sycamore.transforms.text_extraction.pdf_miner import PdfMinerExtractor
 
+from sycamore.transforms.detr_partitioner_config import (
+    ARYN_DETR_MODEL,
+    DEFAULT_ARYN_PARTITIONER_ADDRESS,
+    DEFAULT_LOCAL_THRESHOLD,
+)
+
 logger = logging.getLogger(__name__)
 _VERSION = "0.2024.07.24"
 
-
-ARYN_DETR_MODEL = "Aryn/deformable-detr-DocLayNet"
-DEFAULT_ARYN_PARTITIONER_ADDRESS = "https://api.aryn.cloud/v1/document/partition"
 _TEN_MINUTES = 600
-DEFAULT_LOCAL_THRESHOLD = 0.35
 
 
 class ArynPDFPartitionerException(Exception):

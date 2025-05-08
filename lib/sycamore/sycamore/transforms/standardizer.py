@@ -3,7 +3,6 @@ from datetime import datetime
 import re
 from typing import Any, List, Optional
 
-import dateparser
 from sycamore.plan_nodes import Node
 from sycamore.data import Document
 from sycamore.transforms.map import Map
@@ -211,6 +210,8 @@ class DateTimeStandardizer(Standardizer):
             ValueError: If the input string cannot be parsed into a valid date-time.
             RuntimeError: For any other unexpected errors during the processing.
         """
+        import dateparser
+
         assert raw_dateTime is not None, "raw_dateTime is None"
         try:
             raw_dateTime = DateTimeStandardizer.fix_military(raw_dateTime)

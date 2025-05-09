@@ -3,7 +3,7 @@ from typing import Any
 import base64
 import pickle
 
-from sycamore.llms import Anthropic, AnthropicModels
+from sycamore.llms.anthropic import Anthropic, AnthropicModels
 from sycamore.llms.prompts.prompts import RenderedPrompt, RenderedMessage
 from sycamore.utils.cache import DiskCache
 

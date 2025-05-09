@@ -3,7 +3,7 @@ from typing import Any
 import pickle
 import base64
 
-from sycamore.llms import Bedrock, BedrockModels
+from sycamore.llms.bedrock import Bedrock, BedrockModels
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.utils.cache import DiskCache
 

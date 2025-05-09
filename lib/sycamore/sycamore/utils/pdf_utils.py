@@ -114,7 +114,7 @@ def select_pages(page_selection: list[Union[int, list[int]]]) -> Callable[[Docum
 
     def select_pages_fn(doc: Document) -> Document:
         if doc.binary_representation is None:
-            logging.warning("No binary_representation found in doc {doc.doc_id}. Skipping page selection.")
+            logging.warning(f"No binary_representation found in doc {doc.doc_id}. Skipping page selection.")
             return doc
 
         outstream = BytesIO()

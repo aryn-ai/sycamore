@@ -1,17 +1,24 @@
 from abc import abstractmethod
+from inspect import CORO_CLOSED
+import logging
 from typing import Any, Union, Optional, Callable
 
 from PIL import Image
+from sycamore.llms.prompts.prompts import RenderedMessage
 import pdf2image
 
-from sycamore.data import BoundingBox, Element, Document, TableElement
+from sycamore.data import BoundingBox, Element, Document, Table, TableElement
 from sycamore.data.document import DocumentPropertyTypes
+from sycamore.llms import LLM
+from sycamore.llms.prompts import RenderedMessage, RenderedPrompt
+
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.transforms.table_structure import table_transformers
 from sycamore.transforms.table_structure.table_transformers import MaxResize
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
+from sycamore.utils.image_utils import crop_to_bbox
 from sycamore.utils.import_utils import requires_modules
 
 Num = Union[float, int]
@@ -449,7 +456,122 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         return metric, cmp, threshold_num
 
 
+class VLMTableStructureExtractor(TableStructureExtractor):
+    """Table structure extractor that uses a VLM model to extract the table structure."""
+
+    EXTRACT_TABLE_STRUCTURE_PROMPT = """You are given an image of a table from a document. Please convert this table into HTML. Be sure to include the table header and all rows. Use 'colspan' and 'rowspan' in the output to indicate merged cells. Return the HTML as a string. Do not include any other text in the response.
+"""
+
+    def __init__(self, llm: LLM):
+        self.llm = llm
+
+    def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+        # We need a bounding box to be able to do anything.
+        if element.bbox is None:
+            return element
+
+        width, height = doc_image.size
+
+        padding = 10
+        crop_box = (
+            element.bbox.x1 * width - padding,
+            element.bbox.y1 * height - padding,
+            element.bbox.x2 * width + padding,
+            element.bbox.y2 * height + padding,
+        )
+
+        cropped_image = doc_image.crop(crop_box).convert("RGB")
+
+        #cropped_image.save("/Users/bsowell/Downloads/tricky_table2.png", format="PNG")
+
+        message = RenderedMessage(role="user", content=self.EXTRACT_TABLE_STRUCTURE_PROMPT, images=[cropped_image])
+        prompt = RenderedPrompt(messages=[message])
+
+        # TODO: Async?
+        #, llm_kwargs={"max_output_tokens": 65536}
+        #, llm_kwargs={"max_tokens": 50000}
+        res = self.llm.generate(prompt=prompt, llm_kwargs={"max_tokens": 30000})
+        #res = self.llm.generate(prompt=prompt, llm_kwargs={"max_output_tokens": 10000})
+        logging.info(f"LLM RES: {res}")
+        #print(res)
+
+        if res.startswith("```html"):
+            res = res[7:].rstrip("`")
+
+        try:
+            table = Table.from_html(res)
+            element.table = table
+        except Exception as e:
+            logging.warning(f"Not able to parse table from HTML: {e}")
+            return element
+
+        # Convert cell bounding boxes to be relative to the original image.
+        for cell in table.cells:
+            if cell.bbox is None:
+                continue
+
+            cell.bbox.translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
+
+        return element
+
+
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor
+
+
+class VLMCorrectorTableStructureExtractor(TableStructureExtractor):
+    """Table structure extractor that uses a VLM model to correct the table structure."""
+
+    CORRECT_TABLE_STRUCTURE_PROMPT = """You are given an image of a table from a document and an initial HTML representation of the table computed from another table extraction model. The HTML representation may be incorrect. Please correct the HTML representation of the table. Be sure to include the table header and all rows. Use 'colspan' and 'rowspan' in the output to indicate merged cells. Return the HTML as a string. Do not include any other text in the response. The initial HTML is as follows\n{html}"""
+
+    def __init__(self, llm: LLM, initial_table_extractor: TableStructureExtractor):
+        self.llm = llm
+        self.initial_table_extractor = initial_table_extractor
+
+    def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+        if element.bbox is None:
+            return element
+
+        width, height = doc_image.size
+
+        padding = 10
+        crop_box = (
+            element.bbox.x1 * width - padding,
+            element.bbox.y1 * height - padding,
+            element.bbox.x2 * width + padding,
+            element.bbox.y2 * height + padding,
+        )
+
+        cropped_image = doc_image.crop(crop_box).convert("RGB")
+
+        initial_table_element = self.initial_table_extractor.extract(element, doc_image)
+
+        if initial_table_element.table is None:
+            return element
+
+        html_str = initial_table_element.table.to_html()
+
+        prompt_str = self.CORRECT_TABLE_STRUCTURE_PROMPT.format(html=html_str)
+        message = RenderedMessage(role="user", content=prompt_str, images=[cropped_image])
+        prompt = RenderedPrompt(messages=[message])
+
+
+        res = self.llm.generate(prompt=prompt)
+
+        try:
+            table = Table.from_html(res)
+            element.table = table
+        except Exception as e:
+            logging.warning(f"Not able to parse table from HTML: {e}")
+            return element
+
+        # Convert cell bounding boxes to be relative to the original image.
+        for cell in table.cells:
+            if cell.bbox is None:
+                continue
+
+            cell.bbox.translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
+
+        return element
 
 
 class ExtractTableStructure(Map):

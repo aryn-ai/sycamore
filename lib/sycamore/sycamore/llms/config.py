@@ -57,6 +57,8 @@ class GeminiModels(Enum):
     GEMINI_2_FLASH = GeminiModel(name="gemini-2.0-flash", is_chat=True)
     GEMINI_2_FLASH_LITE = GeminiModel(name="gemini-2.0-flash-lite", is_chat=True)
     GEMINI_2_FLASH_THINKING = GeminiModel(name="gemini-2.0-flash-thinking-exp", is_chat=True)
+    GEMINI_2_5_FLASH = GeminiModel(name="gemini-2.5-flash-preview-04-17", is_chat=True)
+    GEMINI_2_5_PRO = GeminiModel(name="gemini-2.5-pro-preview-05-06", is_chat=True)
     GEMINI_2_PRO = GeminiModel(name="gemini-2.0-pro-exp-02-05", is_chat=True)
     GEMINI_1_5_PRO = GeminiModel(name="gemini-1.5-pro", is_chat=True)
 

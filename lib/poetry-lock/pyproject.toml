@@ -9,7 +9,7 @@ repository = "https://github.com/aryn-ai/sycamore.git"
 [tool.poetry.dependencies]
 python = ">=3.9.2,<3.13"
 # required older version
-protobuf = "4.25.3"   # rps
+#protobuf = "4.25.3"   # rps
 fsspec = "2024.2.0"   # sycamore (via datasets)
 # Make sure tests are run in the same order.
 # the following will fail which prevents upgrading pytest to 8.1.1
@@ -18,7 +18,7 @@ pytest = "7.4.0"
 guidance = "0.1.14" # They removed AzureOpenAIChat in https://github.com/guidance-ai/guidance/commit/a75896a851edf8b3cf15534af4fed8d15f277af1
 ray = ">=2.41.0" # Latest version supported on linux/aarch64 https://github.com/ray-project/ray/issues/46104
 pandas = "2.1.1" # Hardcoded into sycamore pyproject.toml. Unclear why.
-weaviate-client = "4.6.4" # Failes typechecking with 4.7.0
+weaviate-client = "4.14.1" # Failes typechecking with 4.7.0
 
 # Required to continue supporting python 3.9; it may be possible to make these a bit more
 # current, but latest version no longer supports 3.9

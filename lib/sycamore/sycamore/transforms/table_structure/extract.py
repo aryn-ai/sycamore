@@ -459,7 +459,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
 class VLMTableStructureExtractor(TableStructureExtractor):
     """Table structure extractor that uses a VLM model to extract the table structure."""
 
-    EXTRACT_TABLE_STRUCTURE_PROMPT = """You are given an image of a table from a document. Please convert this table into HTML. Be sure to include the table header and all rows. Use 'colspan' and 'rowspan' in the output to indicate merged cells. Return the HTML as a string. Do not include any other text in the response.
+    EXTRACT_TABLE_STRUCTURE_PROMPT = """You are given an image of a table from a document. Please convert this table into HTML. Be sure to include the table header and all rows. Use 'colspan' and 'rowspan' to indicate merged cells. The colspan is used to make cells wider. The rowspan is used to make them taller. Use lines in the table to indicate cell boundaries. Return the HTML as a string. Do not include any other text in the response.
 """
 
     def __init__(self, llm: LLM):
@@ -490,8 +490,8 @@ class VLMTableStructureExtractor(TableStructureExtractor):
         # TODO: Async?
         #, llm_kwargs={"max_output_tokens": 65536}
         #, llm_kwargs={"max_tokens": 50000}
-        res = self.llm.generate(prompt=prompt, llm_kwargs={"max_tokens": 30000})
-        #res = self.llm.generate(prompt=prompt, llm_kwargs={"max_output_tokens": 10000})
+        res = self.llm.generate(prompt=prompt)
+        #res = self.llm.generate(prompt=prompt, llm_kwargs={"max_output_tokens": 30000})
         logging.info(f"LLM RES: {res}")
         #print(res)
 

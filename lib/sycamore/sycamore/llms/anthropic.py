@@ -109,6 +109,7 @@ class Anthropic(LLM):
         model_name: Union[AnthropicModels, str],
         default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
+        default_llm_kwargs: Optional[dict[str, Any]] = None,
     ):
 
         # We import this here so we can share utility code with the Bedrock
@@ -128,13 +129,13 @@ class Anthropic(LLM):
 
         self._client = AnthropicClient()
         self._async_client = AsyncAnthropicClient()
-        super().__init__(self.model.value, default_mode, cache)
+        super().__init__(self.model.value, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
     def __reduce__(self):
         def deserializer(kwargs):
             return Anthropic(**kwargs)
 
-        kwargs = {"model_name": self.model_name, "cache": self._cache, "default_mode": self._default_mode}
+        kwargs = {"model_name": self.model_name, "cache": self._cache, "default_mode": self._default_mode, "default_llm_kwargs": self._default_llm_kwargs}
         return deserializer, (kwargs,)
 
     def default_mode(self) -> LLMMode:
@@ -174,17 +175,19 @@ class Anthropic(LLM):
 
         response = self._client.messages.create(model=self.model.value, **kwargs)
         ret = self._metadata_from_response(kwargs, response, start)
-        logging.debug(f"Generated response from Anthropic model: {ret}")
+        logging.info(f"Generated response from Anthropic model: {ret}")
 
         self._llm_cache_set(prompt, llm_kwargs, ret)
         return ret
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
         return d["output"]
 
     async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         from anthropic import RateLimitError, APIConnectionError
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if isinstance(ret, dict):
@@ -215,6 +218,8 @@ class Anthropic(LLM):
         from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
         from anthropic.types.messages.batch_create_params import Request
 
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+        
         cache_hits = [self._llm_cache_get(p, llm_kwargs) for p in prompts]
 
         calls = []

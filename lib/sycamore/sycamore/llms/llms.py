@@ -1,6 +1,8 @@
 import inspect
 from abc import ABC, abstractmethod
+import copy
 from enum import Enum
+import logging
 import pickle
 import base64
 from PIL import Image
@@ -23,10 +25,11 @@ class LLMMode(Enum):
 class LLM(ABC):
     """Abstract representation of an LLM instance. and should be subclassed to implement specific LLM providers."""
 
-    def __init__(self, model_name, default_mode: LLMMode, cache: Optional[Cache] = None):
+    def __init__(self, model_name, default_mode: LLMMode, cache: Optional[Cache] = None, default_llm_kwargs: Optional[dict[str, Any]] = None):
         self._model_name = model_name
         self._cache = cache
         self._default_mode = default_mode
+        self._default_llm_kwargs = default_llm_kwargs or {}
 
     def default_mode(self) -> LLMMode:
         """Returns the default execution mode for the llm"""
@@ -184,6 +187,12 @@ class LLM(ABC):
             key,
             datastr,
         )
+
+    def _merge_llm_kwargs(self, llm_kwargs: Optional[dict[str, Any]] = None):
+        new_kwargs = copy.copy(self._default_llm_kwargs)
+        new_kwargs.update(llm_kwargs or {})
+        logging.info(f"Merging LLM kwargs: {new_kwargs}")
+        return new_kwargs
 
     def get_metadata(self, kwargs, response_text, wall_latency, in_tokens, out_tokens) -> dict:
         """Generate metadata for the LLM response."""

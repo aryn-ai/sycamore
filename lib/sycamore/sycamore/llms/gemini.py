@@ -88,6 +88,8 @@ class Gemini(LLM):
                     content.parts.append(types.Part.from_bytes(data=image_bytes, mime_type="image/png"))
             content_list.append(content)
         kwargs["config"] = None
+        if thinking_budget := config.pop("thinking_budget", None):
+            config["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
         if config:
             kwargs["config"] = types.GenerateContentConfig(**config)
         kwargs["content"] = content_list

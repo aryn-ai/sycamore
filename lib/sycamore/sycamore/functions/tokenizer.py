@@ -15,14 +15,23 @@ class Tokenizer(ABC):
 
 
 class OpenAITokenizer(Tokenizer):
-    def __init__(self, model_name: str, max_tokens: Optional[int] = None):
-        import tiktoken
-
-        self._tk = tiktoken.encoding_for_model(model_name)
+    def __init__(self, model_name: str, max_tokens: Optional[int] = None, lazy_load: bool = True):
+        self._model_name = model_name
+        self._tk = None
+        if not lazy_load:
+            self._load_tk()
         super().__init__(max_tokens)
+
+    def _load_tk(self):
+        if self._tk is None:
+            import tiktoken
+
+            self._tk = tiktoken.encoding_for_model(self._model_name)
 
     @cache
     def tokenize(self, text: str, as_ints: bool = False):
+        self._load_tk()
+        assert self._tk is not None, "Type narrowing, unreachable"
         token_ids = self._tk.encode(text)
         if as_ints:
             return token_ids

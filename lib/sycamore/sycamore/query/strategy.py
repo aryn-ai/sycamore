@@ -14,6 +14,7 @@ from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDa
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.summarize_data import SummarizeData
 from sycamore.query.operators.top_k import TopK
+from sycamore.query.planner_prompt import PlannerPrompt
 
 ALL_OPERATORS: list[type[Node]] = [
     QueryDatabase,
@@ -35,6 +36,12 @@ class LogicalPlanProcessor:
         """Given the LogicalPlan query plan, postprocess it using a set of rules that modify the plan for
         optimizing or other purposes."""
         return plan
+
+
+class PlannerPromptProcessor:
+    def __call__(self, prompt: PlannerPrompt) -> PlannerPrompt:
+        """Apply code to change the prompt used by the planner"""
+        return prompt
 
 
 class DefaultPlanValidator(LogicalPlanProcessor):
@@ -169,11 +176,15 @@ class QueryPlanStrategy:
     """
 
     def __init__(
-        self, operators: Optional[list[Type[Node]]] = None, post_processors: Optional[list[LogicalPlanProcessor]] = None
+        self,
+        operators: Optional[list[Type[Node]]] = None,
+        post_processors: Optional[list[LogicalPlanProcessor]] = None,
+        pre_processors: Optional[list[PlannerPromptProcessor]] = None,
     ) -> None:
         super().__init__()
         self.operators: list[Type[Node]] = operators or []
         self.post_processors: list[LogicalPlanProcessor] = post_processors or []
+        self.pre_processors: list[PlannerPromptProcessor] = pre_processors or []
 
 
 class DefaultQueryPlanStrategy(QueryPlanStrategy):

@@ -2,7 +2,6 @@ import copy
 from abc import abstractmethod
 from typing import Any, Optional, List, Dict, Tuple
 
-from sycamore.connectors.opensearch.utils import get_knn_query
 from sycamore.context import get_val_from_context, OperationTypes
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms import LLM
@@ -178,6 +177,8 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
         self.rerank = rerank
 
     def execute(self) -> Any:
+        from sycamore.connectors.opensearch.utils import get_knn_query
+
         assert isinstance(self.logical_node, QueryVectorDatabase)
         embedder = get_val_from_context(context=self.context, val_key="text_embedder", param_names=["opensearch"])
         assert embedder and isinstance(embedder, Embedder), "QueryVectorDatabase requires an Embedder in the context"

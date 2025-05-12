@@ -3,7 +3,7 @@ from typing import Any
 import base64
 import pickle
 
-from sycamore.llms import Gemini, GeminiModels
+from sycamore.llms.gemini import Gemini, GeminiModels
 from sycamore.llms.prompts.prompts import RenderedPrompt, RenderedMessage
 from sycamore.utils.cache import DiskCache
 

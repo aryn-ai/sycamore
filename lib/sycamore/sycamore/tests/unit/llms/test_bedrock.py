@@ -3,8 +3,7 @@ from unittest.mock import patch
 import tempfile
 
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
-from sycamore.llms import Bedrock, BedrockModels
-from sycamore.llms.bedrock import DEFAULT_ANTHROPIC_VERSION, DEFAULT_MAX_TOKENS
+from sycamore.llms.bedrock import Bedrock, BedrockModels, DEFAULT_ANTHROPIC_VERSION, DEFAULT_MAX_TOKENS
 from sycamore.utils.cache import DiskCache
 
 

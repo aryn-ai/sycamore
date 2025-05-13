@@ -4,7 +4,7 @@ from sycamore.tests.integration.connectors.common import compare_connector_docs
 import weaviate
 from weaviate.classes.config import Property, ReferenceProperty
 from weaviate.classes.query import Filter
-from weaviate.client import ConnectionParams
+from weaviate.connect.base import ConnectionParams
 from weaviate.collections.classes.config import Configure, DataType
 
 import sycamore

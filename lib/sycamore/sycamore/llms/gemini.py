@@ -85,6 +85,7 @@ class Gemini(LLM):
                     buffered = io.BytesIO()
                     image.save(buffered, format="PNG")
                     image_bytes = buffered.getvalue()
+                    assert content.parts is not None  # mypy
                     content.parts.append(types.Part.from_bytes(data=image_bytes, mime_type="image/png"))
             content_list.append(content)
         kwargs["config"] = None

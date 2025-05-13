@@ -2,7 +2,7 @@ import pytest
 
 import weaviate
 from weaviate.classes.config import Property, ReferenceProperty
-from weaviate.client import ConnectionParams
+from weaviate.connect.base import ConnectionParams
 from weaviate.collections.classes.config import Configure, DataType
 
 import sycamore

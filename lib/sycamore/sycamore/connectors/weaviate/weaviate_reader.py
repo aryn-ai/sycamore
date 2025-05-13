@@ -1,3 +1,4 @@
+from typing_extensions import reveal_type
 from sycamore.data import Document, uuid_to_docid
 from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader
@@ -10,12 +11,10 @@ from typing import Optional, Dict, Any
 
 if typing.TYPE_CHECKING:
     from weaviate import WeaviateClient
-    from weaviate.client import (
-        AdditionalConfig,
-        AuthCredentials,
-        ConnectionParams,
-        EmbeddedOptions,
-    )
+    from weaviate.auth import AuthCredentials
+    from weaviate.connect.base import ConnectionParams
+    from weaviate.config import AdditionalConfig
+    from weaviate.embedded import EmbeddedOptions
 
 
 @dataclass
@@ -66,7 +65,7 @@ class WeaviateReaderClient(BaseDBReader.Client):
             else:
                 collection = list(
                     self._client.collections.get(query_params.collection_name).iterator(include_vector=True)
-                )
+                )  # type: ignore
             results = WeaviateReaderQueryResponse(collection=collection)
             return results
 

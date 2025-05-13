@@ -129,7 +129,7 @@ duckdb = ["duckdb"]
 elasticsearch = ["elasticsearch"]
 neo4j = ["neo4j"]
 opensearch = ["opensearch-py"]
-pinecone = ["pinecone-client", "pinecone-text"]
+pinecone = ["pinecone", "pinecone-text"]
 weaviate = ["weaviate-client"]
 qdrant = ["qdrant-client"]
 

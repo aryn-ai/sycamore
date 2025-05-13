@@ -127,7 +127,7 @@ class WeaviateWriterClient(BaseDBWriter.Client):
                         batch.add_object(properties=r.properties, uuid=r.uuid)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
-        from weaviate.client import UnexpectedStatusCodeError
+        from weaviate.exceptions import UnexpectedStatusCodeError
         from weaviate.collections.classes.config import CollectionConfig
 
         assert isinstance(target_params, WeaviateWriterTargetParams)

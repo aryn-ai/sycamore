@@ -15,7 +15,7 @@ from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
 @pytest.fixture(scope="class")
 def llm():
-    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO)
+    llm = OpenAI(OpenAIModels.GPT_4_1_MINI)
 
     yield llm
 

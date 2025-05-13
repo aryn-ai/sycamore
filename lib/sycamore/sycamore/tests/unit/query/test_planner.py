@@ -43,8 +43,9 @@ def test_generate_system_prompt(mock_schema):
         llm_client=mock_llm_client,
         natural_language_response=True,
     )
-    prompt = planner.generate_system_prompt("Test query")
-    assert "The last step of each plan *MUST* be a **SummarizeData** operation" in prompt
+    prompt = planner.generate_prompt("Test query")
+    system = prompt.messages[0].content
+    assert "The last step of each plan *MUST* be a **SummarizeData** operation" in system
 
     planner = LlmPlanner(
         index,
@@ -54,8 +55,10 @@ def test_generate_system_prompt(mock_schema):
         llm_client=mock_llm_client,
         natural_language_response=False,
     )
-    prompt = planner.generate_system_prompt("Test query")
-    assert "The last step of each plan should return the raw data" in prompt
+
+    prompt = planner.generate_prompt("Test query")
+    system = prompt.messages[0].content
+    assert "The last step of each plan should return the raw data" in system
 
 
 def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, mock_schema, monkeypatch):
@@ -74,18 +77,15 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, mock_schem
             1: Count(
                 node_id=1,
                 description="Count the number of incidents",
-                field=None,
+                distinct_field=None,
                 inputs=[0],
             ),
         },
     )
     llm_plan.llm_plan = llm_plan.model_dump_json()
 
-    # Mock the generate_from_llm method to return a static JSON object
-    def mock_generate_from_llm(_self, _query):
-        return "Dummy LLM prompt", llm_plan.model_dump_json()
-
-    monkeypatch.setattr(LlmPlanner, "generate_from_llm", mock_generate_from_llm)
+    # Mock the llm to return a static JSON object
+    mock_llm_client.generate.return_value = llm_plan.model_dump_json()
 
     planner = LlmPlanner(
         index,

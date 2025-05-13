@@ -26,21 +26,21 @@ class DummyLLMClient(LLM):
 class TestStrategies(unittest.TestCase):
     def test_default(self):
         processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model", LLMMode.SYNC))
-        strategy = DefaultQueryPlanStrategy(post_processors=[processor])
+        strategy = DefaultQueryPlanStrategy(plan_processors=[processor])
 
-        assert len(strategy.post_processors) == 1
-        assert isinstance(strategy.post_processors[0], RemoveVectorSearchForAnalytics)
+        assert len(strategy.plan_processors) == 1
+        assert isinstance(strategy.plan_processors[0], RemoveVectorSearchForAnalytics)
         assert strategy.operators == ALL_OPERATORS
 
     def test_vector_search_only(self):
         processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model", LLMMode.SYNC))
 
-        strategy = VectorSearchOnlyStrategy(post_processors=[])
-        assert strategy.post_processors == []
+        strategy = VectorSearchOnlyStrategy(plan_processors=[])
+        assert strategy.plan_processors == []
         assert QueryDatabase not in strategy.operators
 
-        strategy = VectorSearchOnlyStrategy(post_processors=[processor])
-        assert strategy.post_processors == [processor]
+        strategy = VectorSearchOnlyStrategy(plan_processors=[processor])
+        assert strategy.plan_processors == [processor]
         assert QueryDatabase not in strategy.operators
 
 
@@ -50,8 +50,8 @@ class TestRemoveVectorSearchForAnalytics(unittest.TestCase):
 
     def test_operators(self):
         processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model", default_mode=LLMMode.SYNC))
-        strategy = VectorSearchOnlyStrategy(post_processors=[processor])
-        assert strategy.post_processors == [processor]
+        strategy = VectorSearchOnlyStrategy(plan_processors=[processor])
+        assert strategy.plan_processors == [processor]
         assert QueryDatabase not in strategy.operators
 
     @staticmethod

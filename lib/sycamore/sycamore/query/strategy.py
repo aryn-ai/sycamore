@@ -178,13 +178,13 @@ class QueryPlanStrategy:
     def __init__(
         self,
         operators: Optional[list[Type[Node]]] = None,
-        post_processors: Optional[list[LogicalPlanProcessor]] = None,
-        pre_processors: Optional[list[PlannerPromptProcessor]] = None,
+        plan_processors: Optional[list[LogicalPlanProcessor]] = None,
+        prompt_processors: Optional[list[PlannerPromptProcessor]] = None,
     ) -> None:
         super().__init__()
         self.operators: list[Type[Node]] = operators or []
-        self.post_processors: list[LogicalPlanProcessor] = post_processors or []
-        self.pre_processors: list[PlannerPromptProcessor] = pre_processors or []
+        self.plan_processors: list[LogicalPlanProcessor] = plan_processors or []
+        self.prompt_processors: list[PlannerPromptProcessor] = prompt_processors or []
 
 
 class DefaultQueryPlanStrategy(QueryPlanStrategy):
@@ -192,8 +192,12 @@ class DefaultQueryPlanStrategy(QueryPlanStrategy):
     Default strategy that uses all available tools and optimizes result correctness.
     """
 
-    def __init__(self, post_processors: Optional[list[LogicalPlanProcessor]] = None) -> None:
-        super().__init__(ALL_OPERATORS, post_processors)
+    def __init__(
+        self,
+        plan_processors: Optional[list[LogicalPlanProcessor]] = None,
+        prompt_processors: Optional[list[PlannerPromptProcessor]] = None,
+    ) -> None:
+        super().__init__(ALL_OPERATORS, plan_processors, prompt_processors)
 
 
 class VectorSearchOnlyStrategy(QueryPlanStrategy):
@@ -202,5 +206,11 @@ class VectorSearchOnlyStrategy(QueryPlanStrategy):
     is smaller and vector search retrievals are sufficient to provide answers.
     """
 
-    def __init__(self, post_processors: Optional[list[LogicalPlanProcessor]] = None) -> None:
-        super().__init__([op for op in ALL_OPERATORS if op not in {QueryDatabase}], post_processors or [])
+    def __init__(
+        self,
+        plan_processors: Optional[list[LogicalPlanProcessor]] = None,
+        prompt_processors: Optional[list[PlannerPromptProcessor]] = None,
+    ) -> None:
+        super().__init__(
+            [op for op in ALL_OPERATORS if op not in {QueryDatabase}], plan_processors or [], prompt_processors
+        )

@@ -83,7 +83,7 @@ class LlmPlanner(Planner):
             index=self._index,
             data_schema=self._data_schema,
         )
-        for preprocessor in self._strategy.pre_processors:
+        for preprocessor in self._strategy.prompt_processors:
             prompt = preprocessor(prompt)
         return prompt.render()
 
@@ -93,7 +93,7 @@ class LlmPlanner(Planner):
         llm_plan = self._llm_client.generate(prompt=llm_prompt, llm_kwargs={"temperature": 0})
         try:
             plan = process_json_plan(llm_plan)
-            for processor in self._strategy.post_processors:
+            for processor in self._strategy.plan_processors:
                 plan = processor(plan)
         except Exception as e:
             logging.error(f"Error processing LLM-generated query plan: {e}\nPlan is:\n{llm_plan}")

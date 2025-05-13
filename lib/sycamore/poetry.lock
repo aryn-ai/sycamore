@@ -4646,6 +4646,7 @@ description = "LZ4 Bindings for Python"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
+markers = "extra == \"pinecone\""
 files = [
     {file = "lz4-4.4.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:1ebf23ffd36b32b980f720a81990fcfdeadacafe7498fbeff7a8e058259d4e58"},
     {file = "lz4-4.4.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8fe3caea61427057a9e3697c69b2403510fdccfca4483520d02b98ffae74531e"},
@@ -6750,6 +6751,7 @@ description = "Pinecone client and SDK"
 optional = true
 python-versions = "<4.0,>=3.9"
 groups = ["main"]
+markers = "extra == \"pinecone\""
 files = [
     {file = "pinecone-6.0.2-py3-none-any.whl", hash = "sha256:a85fa36d7d1451e7b7563ccfc7e3e2dadd39b33e5d53b2882468db8514ab8847"},
     {file = "pinecone-6.0.2.tar.gz", hash = "sha256:9c2e74be8b3abe76909da9b4dae61bced49aade51f6fc39b87edb97a1f8df0e4"},
@@ -6784,6 +6786,7 @@ description = "Plugin interface for the Pinecone python client"
 optional = true
 python-versions = "<4.0,>=3.8"
 groups = ["main"]
+markers = "extra == \"pinecone\""
 files = [
     {file = "pinecone_plugin_interface-0.0.7-py3-none-any.whl", hash = "sha256:875857ad9c9fc8bbc074dbe780d187a2afd21f5bfe0f3b08601924a61ef1bba8"},
     {file = "pinecone_plugin_interface-0.0.7.tar.gz", hash = "sha256:b8e6675e41847333aa13923cc44daa3f85676d7157324682dc1640588a982846"},
@@ -7089,6 +7092,7 @@ description = "Provides the missing pieces for gRPC Gateway."
 optional = true
 python-versions = ">=3.6"
 groups = ["main"]
+markers = "extra == \"pinecone\""
 files = [
     {file = "protoc-gen-openapiv2-0.0.1.tar.gz", hash = "sha256:6f79188d842c13177c9c0558845442c340b43011bf67dfef1dfc3bc067506409"},
     {file = "protoc_gen_openapiv2-0.0.1-py3-none-any.whl", hash = "sha256:18090c8be3877c438e7da0f7eb7cace45a9a210306bca4707708dbad367857be"},
@@ -11697,11 +11701,11 @@ legacy-partitioners = ["nltk", "python-pptx", "unstructured"]
 local-inference = ["easyocr", "paddleocr", "pdfminer-six", "pytesseract", "sentence-transformers", "timm", "torch", "torchvision", "transformers"]
 neo4j = ["neo4j"]
 opensearch = ["opensearch-py"]
-pinecone = ["pinecone-text"]
+pinecone = ["pinecone", "pinecone-text"]
 qdrant = ["qdrant-client"]
 weaviate = ["weaviate-client"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<3.13"
-content-hash = "a04a510fcbde9caca91d06255868f0d910d29f5b04eb7da7b2c22e221ba41327"
+content-hash = "ae5a3f80fbdf9849ee2f40308abb57d8c34083fe32ab36944f6494afd84de4ca"

@@ -1,9 +1,9 @@
 import pytest
 
 from sycamore import DocSet
-from sycamore.query.operators.aggregate import AggregateCount
-from sycamore.query.operators.clustering import KMeanClustering
-from sycamore.query.operators.top_k import GroupBy
+from sycamore.query.operators.groupby import AggregateCount, AggregateCollect
+from sycamore.query.operators.clustering import KMeanClustering, LLMClustering
+from sycamore.query.operators.groupby import GroupBy
 from sycamore.query.strategy import QueryPlanStrategy
 
 from sycamore.query.client import SycamoreQueryClient
@@ -218,3 +218,41 @@ class TestSycamoreQuery:
         result = client.run_plan(plan, codegen_mode=codegen_mode)
         filtered_docs = result.result.take_all()
         assert len(filtered_docs) == 2
+
+    def test_vector_search_3(self):
+        client = SycamoreQueryClient(query_plan_strategy=QueryPlanStrategy())
+        schema = client.get_opensearch_schema("ntsb-accident-cause")
+        plan = client.generate_plan(
+            "What was the most common cause of accidents in the NTSB incident reports?",
+            "ntsb-accident-cause",
+            schema,
+            natural_language_response=False,
+        )
+        assert len(plan.nodes) == 2
+        assert isinstance(plan.nodes[0], QueryDatabase)
+        plan.nodes[1] = LLMClustering(
+            node_type="LLMClustering",
+            node_id=1,
+            description="Find the most common cause of accidents",
+            inputs=[0],
+            field="properties.cause",
+            llm_group_instruction="Form groups of different cause of accidents",
+        )
+        plan.nodes[2] = GroupBy(
+            node_type="GroupBy",
+            node_id=2,
+            description="Find the most common cause of accidents",
+            inputs=[1],
+        )
+        plan.nodes[3] = AggregateCollect(
+            node_type="AggregateCollect",
+            node_id=3,
+            description="Find the most common cause of accidents",
+            inputs=[2],
+            llm_summary=False,
+        )
+        plan.result_node = 3
+        result = client.run_plan(plan, codegen_mode=False)
+        assert isinstance(result.result, DocSet)
+        docs = result.result.take_all()
+        assert len(docs) > 0

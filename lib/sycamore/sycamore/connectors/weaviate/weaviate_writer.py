@@ -12,16 +12,14 @@ from sycamore.utils.import_utils import requires_modules
 
 if typing.TYPE_CHECKING:
     from weaviate import WeaviateClient
-    from weaviate.client import (
-        AdditionalConfig,
-        AuthCredentials,
-        ConnectionParams,
-        EmbeddedOptions,
-    )
+    from weaviate.auth import AuthCredentials
     from weaviate.collections.classes.config import (
         _CollectionConfigCreate,
         CollectionConfig,
     )
+    from weaviate.connect.base import ConnectionParams
+    from weaviate.config import AdditionalConfig
+    from weaviate.embedded import EmbeddedOptions
 
 
 # This is a convenience so that you can use the alias CollectionConfigCreate
@@ -127,7 +125,7 @@ class WeaviateWriterClient(BaseDBWriter.Client):
                         batch.add_object(properties=r.properties, uuid=r.uuid)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
-        from weaviate.client import UnexpectedStatusCodeError
+        from weaviate.exceptions import UnexpectedStatusCodeError
         from weaviate.collections.classes.config import CollectionConfig
 
         assert isinstance(target_params, WeaviateWriterTargetParams)

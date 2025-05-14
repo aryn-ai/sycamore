@@ -13,7 +13,7 @@ from sycamore.data.document import Document
 from sycamore.tests.config import TEST_DIR
 import weaviate
 from weaviate.classes.config import Property, ReferenceProperty
-from weaviate.client import ConnectionParams
+from weaviate.connect.base import ConnectionParams
 from weaviate.collections.classes.config import Configure, DataType
 from weaviate.exceptions import WeaviateInvalidInputError
 

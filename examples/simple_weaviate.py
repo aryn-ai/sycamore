@@ -1,7 +1,8 @@
 import sys
 
 from weaviate.classes.config import ReferenceProperty
-from weaviate.client import AdditionalConfig, ConnectionParams
+from weaviate.config import AdditionalConfig
+from weaviate.connect.base import ConnectionParams
 from weaviate.collections.classes.config import Configure
 from weaviate.config import Timeout
 

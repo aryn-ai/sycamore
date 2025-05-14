@@ -19,14 +19,8 @@ class GroupedData:
             import numpy as np
 
             result = {"count": np.array([len(batch["properties"])])}
-            if self._entity:
-                names = self._entity.split(".")
-                base = batch[names[0]][0]
-                names = names[1:]
-                while names:
-                    base = base[names[0]]
-                    names = names[1:]
-                result["key"] = np.array([base])
+            key = batch[self._grouped_key][0]
+            result["key"] = np.array([key])
             return result
 
         grouped = dataset.filter(self.filter_meta).map(Document.from_row).groupby(self._grouped_key)
@@ -54,30 +48,30 @@ class GroupedData:
         def group_udf(batch):
             import numpy as np
 
-            result = {"count": np.array([len(batch["properties"])])}
-            if self._entity:
-                names = self._entity.split(".")
-                base = batch[names[0]]
-                entities = []
-                for row in base:
-                    for name in names[1:]:
-                        row = row[name]
-                    entities.append(row)
+            result = {}
+            key = batch[self._grouped_key][0]
+            result["key"] = np.array([key])
+            names = self._entity.split(".")
+            base = batch[names[0]]
+            entities = []
+            for row in base:
+                for name in names[1:]:
+                    row = row[name]
+                entities.append(row)
 
-                result["key"] = np.array([", ".join(str(e) for e in entities if e is not None)])
+            result["values"] = np.array([", ".join(str(e) for e in entities if e is not None)])
             return result
 
         grouped = dataset.filter(self.filter_meta).map(Document.from_row).groupby(self._grouped_key)
         aggregated = grouped.map_groups(group_udf)
 
         def to_doc(row: dict):
-            count = row.pop("count")
-            key = row.pop("key") if "key" in row else None
+            values = row.pop("values")
+            key = row.pop("key")
             doc = Document(row)
             properties = doc.properties
-            properties["count"] = count
-            if key:
-                properties["key"] = key
+            properties["values"] = values
+            properties["key"] = key
             doc.properties = properties
             return doc.to_row()
 

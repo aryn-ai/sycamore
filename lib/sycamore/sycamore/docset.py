@@ -1404,6 +1404,74 @@ class DocSet:
         return docset
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
+    def llm_generate_group(self, llm: LLM, instruction: str, field: str, **kwargs):
+        # Not all documents will have a value for the given field, so we filter those out.
+
+        def filter_meta(row):
+            doc = Document.from_row(row)
+            return not isinstance(doc, MetadataDocument)
+
+        def extract_entities(row):
+            doc = Document.from_row(row)
+            value = doc.field_to_value(field)
+            return {"key": value}
+
+        values = self.plan.execute().filter(filter_meta).map(extract_entities).materialize()
+
+        count = values.count()
+        samples = values if count < 1000 else values.random_sample(1000.0 / count)
+
+        field_values = [sample["key"] for sample in samples.take_all()]
+        text = ", ".join([str(v) for v in field_values if v is not None])
+
+        messages = LlmClusterEntityFormGroupsMessagesPrompt(
+            field=field, instruction=instruction, text=text
+        ).as_messages()
+
+        prompt_kwargs = {"messages": messages}
+
+        # call to LLM
+        completion = llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
+        groups = extract_json(completion)
+        assert isinstance(groups, dict)
+        return groups["groups"]
+
+    @context_params(OperationTypes.INFORMATION_EXTRACTOR)
+    def llm_clustering(
+        self, llm: LLM, groups: list[str], field: str, new_field: str = "_autogen_ClusterAssignment", **kwargs
+    ) -> "DocSet":
+        """
+        Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
+
+        Args:
+            llm: LLM client.
+            groups: groups to cluster on
+
+        Returns:
+            A DocSet with an additional field "properties._autogen_ClusterAssignment" that contains
+            the assigned group. For example, if "properties.entity.food" has values 'banana', 'milk',
+            'yogurt', 'chocolate', 'orange', "properties._autogen_ClusterAssignment" would contain
+            values like 'fruit', 'dairy', and 'dessert'.
+        """
+
+        docset = self
+
+        # sets message
+        messagesForExtract = LlmClusterEntityAssignGroupsMessagesPrompt(field=field, groups=groups).as_messages()
+
+        entity_extractor = OpenAIEntityExtractor(
+            entity_name=new_field,
+            llm=llm,
+            use_elements=False,
+            prompt=messagesForExtract,
+            field=field,
+        )
+        docset = docset.extract_entity(entity_extractor=entity_extractor, **kwargs)
+
+        # LLM response
+        return docset
+
+    @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def llm_cluster_entity(self, llm: LLM, instruction: str, field: str, **kwargs) -> "DocSet":
         """
         Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".

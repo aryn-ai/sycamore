@@ -10,8 +10,8 @@ from sycamore import Context
 from sycamore.data import nanoid36
 from sycamore.materialize_config import MaterializeSourceMode
 from sycamore.query.logical_plan import LogicalPlan, Node
-from sycamore.query.operators.aggregate import AggregateCount
-from sycamore.query.operators.clustering import KMeanClustering
+from sycamore.query.operators.groupby import AggregateCount, AggregateCollect
+from sycamore.query.operators.clustering import KMeanClustering, LLMClustering
 from sycamore.query.operators.unroll import Unroll
 from sycamore.query.result import SycamoreQueryResult, NodeExecution
 from sycamore.query.operators.count import Count
@@ -24,7 +24,8 @@ from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDa
 from sycamore.query.execution.physical_operator import PhysicalOperator
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
-from sycamore.query.operators.top_k import TopK, GroupBy
+from sycamore.query.operators.top_k import TopK
+from sycamore.query.operators.groupby import GroupBy
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.execution.physical_operator import MathOperator
 from sycamore.query.execution.sycamore_operator import (
@@ -44,6 +45,8 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreAggregateCount,
     SycamoreKMeanClustering,
     SycamoreUnroll,
+    SycamoreLLMClustering,
+    SycamoreAggregateCollect,
 )
 
 log = structlog.get_logger(__name__)
@@ -227,6 +230,14 @@ class SycamoreExecutor:
                 inputs=inputs,
                 trace_dir=self.trace_dir,
             )
+        if isinstance(logical_node, LLMClustering):
+            return SycamoreLLMClustering(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
         if isinstance(logical_node, GroupBy):
             return SycamoreGroupBy(
                 context=self.context,
@@ -237,6 +248,14 @@ class SycamoreExecutor:
             )
         if isinstance(logical_node, AggregateCount):
             return SycamoreAggregateCount(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
+        if isinstance(logical_node, AggregateCollect):
+            return SycamoreAggregateCollect(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,

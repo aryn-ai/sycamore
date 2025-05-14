@@ -10,8 +10,8 @@ from sycamore.llms.prompts.default_prompts import (
     LlmFilterMessagesJinjaPrompt,
 )
 from sycamore.query.logical_plan import Node
-from sycamore.query.operators.aggregate import AggregateCount
-from sycamore.query.operators.clustering import KMeanClustering
+from sycamore.query.operators.groupby import AggregateCount, AggregateCollect
+from sycamore.query.operators.clustering import KMeanClustering, LLMClustering
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
@@ -19,7 +19,8 @@ from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
 from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase, DataLoader
-from sycamore.query.operators.top_k import TopK, GroupBy
+from sycamore.query.operators.top_k import TopK
+from sycamore.query.operators.groupby import GroupBy
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.sort import Sort
 
@@ -724,6 +725,48 @@ class SycamoreKMeanClustering(SycamoreOperator):
         raise Exception("GroupByCount not implemented for codegen")
 
 
+class SycamoreLLMClustering(SycamoreOperator):
+    """
+    Note: top_k clustering only operators on properties, it will not cluster on text_representation currently.
+    Return the Top-K values from a DocSet
+    """
+
+    def __init__(
+        self,
+        context: Context,
+        logical_node: LLMClustering,
+        query_id: str,
+        inputs: Optional[List[Any]] = None,
+        trace_dir: Optional[str] = None,
+    ) -> None:
+        super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
+
+    def execute(self) -> Any:
+        assert self.inputs and len(self.inputs) == 1, "SycamoreLLMClustering requires 1 input node"
+        assert isinstance(self.inputs[0], DocSet), "SycamoreLLMClustering requires a DocSet input"
+        # load into local vars for Ray serialization magic
+        logical_node = self.logical_node
+        assert isinstance(logical_node, LLMClustering)
+
+        assert isinstance(
+            get_val_from_context(
+                context=self.context, val_key="llm", param_names=[OperationTypes.INFORMATION_EXTRACTOR.value]
+            ),
+            LLM,
+        ), "LLMExtractEntity requires an 'llm' configured on the Context"
+
+        entity_name = logical_node.field
+        group_name = logical_node.new_field
+        instruction = logical_node.llm_group_instruction
+        groups = self.inputs[0].llm_generate_group(instruction=instruction, field=entity_name)
+        result = self.inputs[0].llm_clustering(field=entity_name, new_field=group_name, groups=groups)
+
+        return result
+
+    def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
+        raise Exception("GroupByCount not implemented for codegen")
+
+
 class SycamoreGroupBy(SycamoreOperator):
     """
     Note: top_k clustering only operators on properties, it will not cluster on text_representation currently.
@@ -742,7 +785,7 @@ class SycamoreGroupBy(SycamoreOperator):
 
     def recurse_get(self, root: Node):
         for node in root.input_nodes():
-            if isinstance(node, KMeanClustering):
+            if isinstance(node, LLMClustering) or isinstance(node, KMeanClustering):
                 return node.field
             else:
                 return self.recurse_get(node)
@@ -756,22 +799,16 @@ class SycamoreGroupBy(SycamoreOperator):
         assert isinstance(logical_node, GroupBy)
 
         entity_name = self.recurse_get(logical_node)
-        if entity_name is None:
-            # no embedding, use plain groupby, check if it's nested field
-            if "." in logical_node.field:
-                name = logical_node.field.split(".")[-1]
+        if "." in logical_node.field:
+            name = logical_node.field.split(".")[-1]
 
-                def promote(doc):
-                    doc[name] = doc.field_to_value(logical_node.field)
-                    return doc
+            def promote(doc):
+                doc[name] = doc.field_to_value(logical_node.field)
+                return doc
 
-                result = self.inputs[0].map(promote).groupby(name)
-            else:
-                result = self.inputs[0].groupby(logical_node.field)
+            result = self.inputs[0].map(promote).groupby(name, entity_name)
         else:
-            cluster_field_name = logical_node.field
-
-            result = self.inputs[0].groupby(cluster_field_name, entity_name)
+            result = self.inputs[0].groupby(logical_node.field, entity_name)
 
         return result
 
@@ -791,37 +828,43 @@ class SycamoreAggregateCount(SycamoreOperator):
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
 
     def execute(self) -> Any:
-        assert self.inputs and len(self.inputs) == 1, "Count requires 1 input node"
+        assert self.inputs and len(self.inputs) == 1, "AggregateCount requires 1 input node"
         from sycamore.grouped_data import GroupedData
 
-        assert isinstance(self.inputs[0], GroupedData), "GroupByCount requires a DocSet input"
+        assert isinstance(self.inputs[0], GroupedData), "AggregateCount requires a DocSet input"
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
         assert isinstance(logical_node, AggregateCount)
 
-        llm = None
-        if logical_node.llm_summary:
-            llm = get_val_from_context(
-                context=self.context, val_key="llm", param_names=[OperationTypes.BINARY_CLASSIFIER.value]
-            )
-            assert isinstance(llm, LLM), "GroupBy with llm summary requies an 'llm' configured on the Context"
+        result = self.inputs[0].count()
 
-        if llm:
-            from sycamore.llms.prompts.prompts import JinjaPrompt
+        return result
 
-            prompt = JinjaPrompt(
-                system="You are a helpful summarizer",
-                user="""You are given a list of values corresponding to the database field {{ field }}.
-                These values belong to one group formed by a clustering algorithm.
-                Given the instruction "{{ instruction }}" and the values {{ doc.field_to_value(field) }}, find what this group is
-                clustering on in less than 5 words.
-                """,
-                field="properties.key",
-                instruction=logical_node.llm_summary_instruction,
-            )
-            result = self.inputs[0].collect().llm_map(prompt, "key", llm)
-        else:
-            result = self.inputs[0].count()
+    def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
+        raise Exception("GroupByCount not implemented for codegen")
+
+
+class SycamoreAggregateCollect(SycamoreOperator):
+    def __init__(
+        self,
+        context: Context,
+        logical_node: AggregateCollect,
+        query_id: str,
+        inputs: Optional[List[Any]] = None,
+        trace_dir: Optional[str] = None,
+    ) -> None:
+        super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
+
+    def execute(self) -> Any:
+        assert self.inputs and len(self.inputs) == 1, "AggregateCollect requires 1 input node"
+        from sycamore.grouped_data import GroupedData
+
+        assert isinstance(self.inputs[0], GroupedData), "AggregateCollect requires a DocSet input"
+        # load into local vars for Ray serialization magic
+        logical_node = self.logical_node
+        assert isinstance(logical_node, AggregateCollect)
+
+        result = self.inputs[0].collect()
 
         return result
 

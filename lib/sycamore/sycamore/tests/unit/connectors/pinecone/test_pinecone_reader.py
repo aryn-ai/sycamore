@@ -45,7 +45,7 @@ def test_pinecone_reader_client_read_records(query_params, mock_pinecone_grpc):
     mock_index.fetch.return_value = FetchResponse(
         namespace="test_namespace",
         vectors={"id1": Vector(id="id1", values=[0.1, 0.2]), "id2": Vector(id="id2", values=[0.3, 0.4])},
-        usage=None
+        usage=None,
     )
 
     client = PineconeReaderClient(PineconeReaderClientParams(api_key="test_api_key"))

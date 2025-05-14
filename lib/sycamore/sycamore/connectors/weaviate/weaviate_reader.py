@@ -1,4 +1,3 @@
-from typing_extensions import reveal_type
 from sycamore.data import Document, uuid_to_docid
 from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader

@@ -1,6 +1,8 @@
 import inspect
 from abc import ABC, abstractmethod
+import copy
 from enum import Enum
+import logging
 import pickle
 import base64
 from PIL import Image
@@ -23,14 +25,31 @@ class LLMMode(Enum):
 class LLM(ABC):
     """Abstract representation of an LLM instance. and should be subclassed to implement specific LLM providers."""
 
-    def __init__(self, model_name, default_mode: LLMMode, cache: Optional[Cache] = None):
+    def __init__(
+        self,
+        model_name,
+        default_mode: LLMMode,
+        cache: Optional[Cache] = None,
+        default_llm_kwargs: Optional[dict[str, Any]] = None,
+    ):
         self._model_name = model_name
         self._cache = cache
         self._default_mode = default_mode
+        self._default_llm_kwargs = default_llm_kwargs or {}
 
     def default_mode(self) -> LLMMode:
         """Returns the default execution mode for the llm"""
         return self._default_mode
+
+    def _merge_llm_kwargs(self, llm_kwargs: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+        """Merges the default LLM kwargs with any provided LLM kwargs.
+
+        Prefers the passed in values if there is a conflict.
+        """
+        new_kwargs = copy.copy(self._default_llm_kwargs)
+        new_kwargs.update(llm_kwargs or {})
+        logging.debug(f"Merging LLM kwargs: {new_kwargs}")
+        return new_kwargs
 
     @abstractmethod
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
@@ -210,8 +229,15 @@ class LLM(ABC):
 class FakeLLM(LLM):
     """Useful for tests where the fake LLM needs to run in a ray function because mocks are not serializable"""
 
-    def __init__(self, *, return_value="trivial", cache: Optional[Cache] = None, default_mode: LLMMode = LLMMode.SYNC):
-        super().__init__("trivial", cache=cache, default_mode=default_mode)
+    def __init__(
+        self,
+        *,
+        return_value="trivial",
+        cache: Optional[Cache] = None,
+        default_mode: LLMMode = LLMMode.SYNC,
+        default_llm_kwargs: Optional[dict[str, Any]] = None,
+    ):
+        super().__init__("trivial", cache=cache, default_mode=default_mode, default_llm_kwargs=default_llm_kwargs)
         self._return_value = return_value
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:

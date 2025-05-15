@@ -238,6 +238,7 @@ class OpenAI(LLM):
         params: Optional[OpenAIClientParameters] = None,
         default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
+        default_llm_kwargs: Optional[dict[str, Any]] = None,
         **kwargs,
     ):
         if isinstance(model_name, OpenAIModels):
@@ -252,7 +253,7 @@ class OpenAI(LLM):
         if self.model.name == OpenAIModels.TEXT_DAVINCI.value.name:
             logger.warning("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
             self.model = OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value
-        super().__init__(self.model.name, default_mode, cache)
+        super().__init__(self.model.name, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
         # This is somewhat complex to provide a degree of backward compatibility.
         if client_wrapper is None:
@@ -279,6 +280,7 @@ class OpenAI(LLM):
             "model_name": self.model,
             "cache": self._cache,
             "default_mode": self._default_mode,
+            "default_llm_kwargs": self._default_llm_kwargs,
         }
 
         return openai_deserializer, (kwargs,)
@@ -352,6 +354,7 @@ class OpenAI(LLM):
         return kwargs
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         llm_kwargs = self._convert_response_format(llm_kwargs)
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if ret is not None:
@@ -411,6 +414,7 @@ class OpenAI(LLM):
             raise e
 
     async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if ret is not None:
             return ret
@@ -488,6 +492,7 @@ class OpenAI(LLM):
             raise e
 
     def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         cache_hits = [self._llm_cache_get(p, llm_kwargs) for p in prompts]
 
         calls = []

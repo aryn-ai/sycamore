@@ -26,6 +26,7 @@ class Bedrock(LLM):
         self,
         model_name: Union[BedrockModels, str],
         cache: Optional[Cache] = None,
+        default_llm_kwargs: Optional[dict[str, Any]] = None,
     ):
         import boto3
 
@@ -37,13 +38,13 @@ class Bedrock(LLM):
             self.model = BedrockModel(name=model_name)
 
         self._client = boto3.client(service_name="bedrock-runtime")
-        super().__init__(self.model.name, default_mode=LLMMode.SYNC, cache=cache)
+        super().__init__(self.model.name, default_mode=LLMMode.SYNC, cache=cache, default_llm_kwargs=default_llm_kwargs)
 
     def __reduce__(self):
         def deserializer(kwargs):
             return Bedrock(**kwargs)
 
-        kwargs = {"model_name": self.model_name, "cache": self._cache}
+        kwargs = {"model_name": self.model_name, "cache": self._cache, "default_llm_kwargs": self._default_llm_kwargs}
         return deserializer, (kwargs,)
 
     def is_chat_mode(self) -> bool:
@@ -56,6 +57,8 @@ class Bedrock(LLM):
         raise NotImplementedError("Images not supported for non-Anthropic Bedrock models.")
 
     def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if isinstance(ret, dict):
             print(f"cache return {ret}")

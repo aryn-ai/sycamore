@@ -151,3 +151,14 @@ def test_metadata():
     assert "wall_latency" in res
     assert "in_tokens" in res
     assert "out_tokens" in res
+
+
+def test_default_llm_kwargs():
+    llm = Gemini(GeminiModels.GEMINI_2_FLASH_LITE, default_llm_kwargs={"max_output_tokens": 5})
+    res = llm.generate_metadata(
+        prompt=RenderedPrompt(
+            messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+        ),
+        llm_kwargs={},
+    )
+    assert res["out_tokens"] <= 5

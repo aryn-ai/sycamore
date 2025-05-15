@@ -194,7 +194,7 @@ class Anthropic(LLM):
     async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         from anthropic import RateLimitError, APIConnectionError
 
-        self._merge_llm_kwargs(llm_kwargs)
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if isinstance(ret, dict):

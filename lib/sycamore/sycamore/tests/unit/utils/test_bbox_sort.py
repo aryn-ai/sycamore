@@ -3,7 +3,7 @@ from typing import Any, Optional
 from sycamore.data import Document, Element
 from sycamore.utils.bbox_sort import (
     collect_pages,
-    col_tag,
+    BBoxSorter,
     find_overlap,
     bbox_sorted_elements,
     bbox_sort_page,
@@ -40,14 +40,16 @@ def test_collect() -> None:
 
 
 def test_col_tag() -> None:
+    sorter = BBoxSorter()
+
     full = mkElem(0.1, 0.5, 0.9, 0.7)
     left = mkElem(0.1, 0.1, 0.45, 0.3)
     right = mkElem(0.6, 0.1, 0.9, 0.3)
     none = mkElem(0.4, 0.8, 0.6, 0.9)
-    assert col_tag(full) == "full"
-    assert col_tag(left) == "left"
-    assert col_tag(right) == "right"
-    assert col_tag(none) is None
+    assert sorter.col_tag(full) == "full"
+    assert sorter.col_tag(left) == "left"
+    assert sorter.col_tag(right) == "right"
+    assert sorter.col_tag(none) is None
 
 
 def test_overlap() -> None:
@@ -60,8 +62,9 @@ def test_overlap() -> None:
         mkElem(0.6, 10, 0.9, 13),  # 5
         mkElem(0.6, 11, 0.9, 12),  # 6
     ]
+    sorter = BBoxSorter()
     for elem in elems:
-        elem.data["_coltag"] = col_tag(elem)
+        elem.data["_coltag"] = sorter.col_tag(elem)
     assert find_overlap(5, 9, elems) == elems[1:5]
 
 

@@ -8,15 +8,80 @@ TODO:
 
 from typing import Optional
 
+import numpy as np
+
 from sycamore.data import Document, Element
+from sycamore.data.bbox import BoundingBox
 from sycamore.data.document import DocumentPropertyTypes
+from sycamore.utils.margin import find_matrix_page
 
 
-def elem_top_left(elem: Element) -> tuple:
-    bbox = elem.data.get("bbox")
-    if bbox:
-        return (bbox[1], bbox[0])
-    return (0.0, 0.0)
+cached_bbox_tag = "_matrixed_bbox"
+
+
+def bbox_margin_sort_page(elements: list[Element]) -> None:
+    matrix = find_matrix_page(elements)
+    bbox_sort_page(elements, matrix)
+
+
+def bbox_sort_page(elems: list[Element], matrix: Optional[np.ndarray] = None) -> None:
+    """If you want to sort without accounting for margins, call this function without specifying a matrix. Like so:
+    bbox_sort_page(elements)"""
+    if len(elems) < 2:
+        return
+    sorter = BBoxSorter(matrix)
+    elems.sort(key=sorter.elem_top_left)  # sort top-to-bottom, left-to-right
+    for elem in elems:  # tag left/right/full based on width/position
+        elem.data["_coltag"] = sorter.col_tag(elem)
+    tag_two_columns(elems)
+    bbox_sort_based_on_tags(elems)
+    for elem in elems:
+        elem.data.pop("_coltag", None)  # clean up tags
+    clear_cached_bboxes(elems)
+
+
+class BBoxSorter:
+    def __init__(self, matrix: Optional[np.ndarray] = None) -> None:
+        """Uses a matrix to represent a homogeneous coordinate transformation"""
+        if matrix is None:
+            matrix = np.eye(3)
+        self.matrix = matrix
+        if (matrix == np.eye(3)).all():
+            self.max_width = 0.45
+        else:
+            self.max_width = 0.5
+
+    def elem_top_left(self, elem: Element) -> tuple[float, float]:
+        bbox = self.get_matrixed_bbox(elem)
+        if bbox:
+            return (bbox.y1, bbox.x1)
+        return (0.0, 0.0)
+
+    def col_tag(self, elem: Element) -> Optional[str]:
+        bbox = self.get_matrixed_bbox(elem)
+        if bbox:
+            left = bbox.x1
+            right = bbox.x2
+            width = right - left
+            if width > 0.6 or elem.type == "Page-footer":
+                return "full"
+            elif (width < 0.1) or (width >= self.max_width):
+                return None
+            if right < 0.5:
+                return "left"
+            elif left > 0.5:
+                return "right"
+        return None
+
+    def get_matrixed_bbox(self, elem: Element) -> Optional[BoundingBox]:
+        if (cached := elem.data.get(cached_bbox_tag)) is not None:
+            return cached
+        elif (bbox := elem.bbox) is not None:
+            result = apply_matrix(bbox, self.matrix)
+            elem.data[cached_bbox_tag] = result
+            return result
+        else:
+            return None
 
 
 def elem_left_top(elem: Element) -> tuple:
@@ -49,23 +114,6 @@ def collect_pages(elems: list[Element]) -> list[list[Element]]:
     return rv
 
 
-def col_tag(elem: Element) -> Optional[str]:
-    bbox = elem.data.get("bbox")
-    if bbox:
-        left = bbox[0]
-        right = bbox[2]
-        width = right - left
-        if width > 0.6 or elem.type == "Page-footer":
-            return "full"
-        elif (width < 0.1) or (width >= 0.45):
-            return None
-        if right < 0.5:
-            return "left"
-        elif left > 0.5:
-            return "right"
-    return None
-
-
 def find_overlap(top: float, bot: float, elems: list[Element]) -> list[Element]:
     """
     Returns the elements that overlap (top, bot) in the y-axis,
@@ -78,9 +126,10 @@ def find_overlap(top: float, bot: float, elems: list[Element]) -> list[Element]:
     for elem in elems:
         bbox = elem.data["bbox"]
         etop = bbox[1]
+        ebot = bbox[3]
         if etop > bot:
             break
-        if (etop < bot) and (bbox[3] > top):
+        if (etop < bot) and (ebot > top):
             rv.append(elem)
             tag = elem.data["_coltag"]
             if tag == "left":
@@ -131,28 +180,34 @@ def bbox_sort_based_on_tags(elems: list[Element]) -> None:
         bbox_sort_two_columns(elems, lidx, len(elems))
 
 
-def bbox_sort_page(elems: list[Element]) -> None:
-    if len(elems) < 2:
-        return
-    elems.sort(key=elem_top_left)  # sort top-to-bottom, left-to-right
-    for elem in elems:  # tag left/right/full based on width/position
-        elem.data["_coltag"] = col_tag(elem)
-    tag_two_columns(elems)
-    bbox_sort_based_on_tags(elems)
-    for elem in elems:
-        elem.data.pop("_coltag", None)  # clean up tags
-
-
-def bbox_sorted_elements(elements: list[Element], update_element_indexs: bool = True) -> list[Element]:
+def bbox_sorted_elements(elements: list[Element]) -> list[Element]:
     pages = collect_pages(elements)
     for elems in pages:
         bbox_sort_page(elems)
     ordered_elements = [elem for elems in pages for elem in elems]  # flatten
-    if update_element_indexs:
-        for idx, element in enumerate(ordered_elements):
-            element.element_index = idx
+    for idx, element in enumerate(ordered_elements):
+        element.element_index = idx
     return ordered_elements
 
 
-def bbox_sort_document(doc: Document, update_element_indexs: bool = True) -> None:
-    doc.elements = bbox_sorted_elements(doc.elements, update_element_indexs)
+def bbox_sort_document(doc: Document) -> None:
+    doc.elements = bbox_sorted_elements(doc.elements)
+
+
+def clear_cached_bboxes(elems: list[Element]) -> None:
+    for elem in elems:
+        elem.data.pop(cached_bbox_tag, None)
+
+
+def apply_matrix(bbox: BoundingBox, matrix: np.ndarray) -> BoundingBox:
+    x1, y1, x2, y2 = bbox.to_list()
+    # Matrix both the upper left hand corner and the lower right hand corner at the same time
+    # fmt: off
+    old_coords = np.array([[x1, x2],
+                           [y1, y2],
+                           [1,  1]])
+    # fmt: on
+    new_coords = np.dot(matrix, old_coords)
+    new_x1, new_x2 = new_coords[0]
+    new_y1, new_y2 = new_coords[1]
+    return BoundingBox(new_x1, new_y1, new_x2, new_y2)

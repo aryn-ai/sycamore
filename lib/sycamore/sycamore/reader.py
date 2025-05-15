@@ -301,11 +301,20 @@ class DocSetReader:
             query = {"query": {"match_all": {}}}
 
         if result_filter is not None:
+            if len(result_filter) != 1:
+                raise ValueError(
+                    f"Filter must be a single key-value pair. Got {len(result_filter)} instead. Please provide a single filter."
+                )
             _, v = next(iter(result_filter.items()))
             if not isinstance(v, list):
                 raise ValueError(
                     f"Filter values must be a list of strings. Got {type(v)} instead. Please provide a list of values."
                 )
+            for elm in v:
+                if not isinstance(elm, str):
+                    raise ValueError(
+                        f"Filter values must be a list of strings. Got {type(elm)} instead. Please provide a list of values."
+                    )
 
         # Allow the OpenSearchReader to use the result filter if it does not conflict
         # with an existing filter present in the passed-in query.
@@ -320,7 +329,7 @@ class DocSetReader:
                 # and raise an error if it was not.
                 "bool" in query["query"]
                 and "must" in query["query"]["bool"]
-                and "filter" in query["query"]["bool"]["must"]
+                and "filter" in query["query"]["bool"]
             ):
                 raise ValueError("'query' cannot contain a filter when 'result_filter' is provided.")
 

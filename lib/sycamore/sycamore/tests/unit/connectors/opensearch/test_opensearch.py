@@ -480,6 +480,11 @@ class TestOpenSearchReader:
         assert "filter" in query["query"]["bool"]
         assert "terms" in query["query"]["bool"]["filter"][0]
         assert filter == query["query"]["bool"]["filter"][0]["terms"]
+        assert query == {
+            "query": {
+                "bool": {"must": [{"match_all": {}}], "filter": [{"terms": {"properties.colors": ["red", "blue"]}}]}
+            }
+        }
 
     def test_add_filter_to_knn_query(self):
         query = {"query": {"knn": {"embedding": {"vector": [0.1, 0.2], "k": 10}}}}

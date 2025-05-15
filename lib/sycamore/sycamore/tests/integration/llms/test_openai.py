@@ -4,6 +4,7 @@ import base64
 import pytest
 from typing import Any
 
+from sycamore.functions.tokenizer import OpenAITokenizer
 from sycamore.llms.openai import OpenAI, OpenAIModels, OpenAIClientWrapper
 from sycamore.llms.openai import OpenAIModel, OpenAIClientType
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage, StaticPrompt
@@ -224,6 +225,19 @@ def test_openai_defaults_guidance_instruct():
     llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT)
     res = llm.generate(prompt=TestPrompt().render_generic())
     assert len(res) > 0
+
+
+def test_default_llm_kwargs():
+    llm = OpenAI(OpenAIModels.GPT_4O_MINI, default_llm_kwargs={"max_tokens": 5})
+
+    res = llm.generate(
+        prompt=RenderedPrompt(
+            messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+        )
+    )
+
+    num_tokens = len(OpenAITokenizer(OpenAIModels.GPT_4O_MINI.value.name).tokenize(res))
+    assert num_tokens <= 5, f"Expected max_tokens to be 5, but got {num_tokens} tokens in the response: {res}"
 
 
 @pytest.fixture(scope="module")

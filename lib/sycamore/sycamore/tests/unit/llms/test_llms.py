@@ -59,6 +59,13 @@ def test_default_llm_mode():
     assert async_llm.default_mode() == LLMMode.ASYNC
 
 
+def test_merge_llm_kwargs():
+    llm = FakeLLM(default_llm_kwargs={"temperature": 0.5, "max_tokens": 100})
+    llm_kwargs = {"thinking_config": {"token_budget": 1000}, "max_tokens": 500}
+    merged_kwargs = llm._merge_llm_kwargs(llm_kwargs)
+    assert merged_kwargs == {"temperature": 0.5, "max_tokens": 500, "thinking_config": {"token_budget": 1000}}
+
+
 @patch("boto3.client")
 def test_get_llm(mock_boto3_client):
     assert isinstance(get_llm("openai." + OpenAIModels.TEXT_DAVINCI.value.name)(), OpenAI)

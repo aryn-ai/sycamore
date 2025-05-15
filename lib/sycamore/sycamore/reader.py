@@ -1,4 +1,5 @@
-from typing import Optional, Union, Callable, Dict
+import logging
+from typing import Optional, Union, Callable, Dict, Any
 from pathlib import Path
 
 from pandas import DataFrame
@@ -228,6 +229,7 @@ class DocSetReader:
         query: Optional[Dict] = None,
         reconstruct_document: bool = False,
         doc_reconstructor: Optional[DocumentReconstructor] = None,
+        result_filter: Optional[Dict] = None,
         query_kwargs=None,
         **kwargs,
     ) -> DocSet:
@@ -295,18 +297,87 @@ class DocSetReader:
         )
 
         client_params = OpenSearchReaderClientParams(os_client_args=os_client_args)
-        if query is None:
+        if not query:
             query = {"query": {"match_all": {}}}
+
+        if result_filter is not None:
+            if len(result_filter) != 1:
+                raise ValueError(
+                    f"Filter must be a single key-value pair. Got {len(result_filter)} instead. Please provide a single filter."
+                )
+            _, v = next(iter(result_filter.items()))
+            if not isinstance(v, list):
+                raise ValueError(
+                    f"Filter values must be a list of strings. Got {type(v)} instead. Please provide a list of values."
+                )
+            for elm in v:
+                if not isinstance(elm, str):
+                    raise ValueError(
+                        f"Filter values must be a list of strings. Got {type(elm)} instead. Please provide a list of values."
+                    )
+
+        # Allow the OpenSearchReader to use the result filter if it does not conflict
+        # with an existing filter present in the passed-in query.
+        if result_filter is not None:
+            if "knn" in query["query"]:
+                if "filter" in query["query"]["knn"]:
+                    raise ValueError("'query' cannot contain a filter when 'result_filter' is provided.")
+            elif (
+                # TODO improve detection of filter in query
+                # Even if we fail to catch it here
+                # we will still check if result_filter was applied correctly
+                # and raise an error if it was not.
+                "bool" in query["query"]
+                and "must" in query["query"]["bool"]
+                and "filter" in query["query"]["bool"]
+            ):
+                raise ValueError("'query' cannot contain a filter when 'result_filter' is provided.")
 
         query_params = OpenSearchReaderQueryParams(
             index_name=index_name,
             query=query,
             reconstruct_document=reconstruct_document,
             doc_reconstructor=doc_reconstructor,
+            filter=result_filter,
             kwargs=query_kwargs,
         )
 
         osr = OpenSearchReader(client_params=client_params, query_params=query_params, **kwargs)
+        if result_filter:
+            # We only reach here if 'result_filter' was pushed down to OpenSearch
+
+            def check_filter(docs: list[Document]) -> list[Document]:
+                logging.info("Checking if filtering was successful")
+
+                def nested_get(d: dict, keys: list) -> Any:
+                    assert len(keys) > 0, "Keys must be non-empty"
+
+                    cur: Union[Optional[dict], list] = d.get(keys[0])
+                    if len(keys) == 1:
+                        return cur
+
+                    for i in range(1, len(keys)):
+                        if cur is None:
+                            return None
+                        if not isinstance(cur, dict):
+                            raise ValueError(f"Mismatch between {d} and {keys}")
+                        cur = cur.get(keys[i])
+                    return cur
+
+                k, v = next(iter(result_filter.items()))
+                filtered = []
+                for doc in docs:
+                    values = set(nested_get(doc.data, k.split(".")))
+                    logging.info(f"Filter {v} vs Found in doc: {values}")
+                    if values.intersection(v):
+                        filtered.append(doc)
+                    else:
+                        raise RuntimeError(f"Failed to apply filter: {filter} on document: {doc}")
+
+                return filtered
+
+            ds = DocSet(self._context, osr)
+            return ds.map_batch(check_filter)
         return DocSet(self._context, osr)
 
     @requires_modules("duckdb", extra="duckdb")

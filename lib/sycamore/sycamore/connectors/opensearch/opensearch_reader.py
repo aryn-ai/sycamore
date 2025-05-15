@@ -10,7 +10,7 @@ from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
-from typing import Optional, Any, List, TYPE_CHECKING
+from typing import Optional, Any, List, TYPE_CHECKING, Union
 
 from sycamore.utils.ray_utils import handle_serialization_exception
 from sycamore.utils.time_trace import TimeTrace, timetrace
@@ -34,6 +34,7 @@ class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
     kwargs: dict = field(default_factory=lambda: {})
     reconstruct_document: bool = False
     doc_reconstructor: Optional[DocumentReconstructor] = None
+    filter: Optional[dict[str, Any]] = None
 
 
 class OpenSearchReaderClient(BaseDBReader.Client):
@@ -60,11 +61,22 @@ class OpenSearchReaderClient(BaseDBReader.Client):
             query_params.kwargs["size"] = 200
         result = []
         if query_params.reconstruct_document and "_source_includes" not in query_params.kwargs:
-            query_params.kwargs["_source_includes"] = ["doc_id", "parent_id", "properties"]
+            query_params.kwargs["_source_includes"] = ["doc_id", "parent_id", "properties", "type"]
         if query_params.doc_reconstructor is not None:
             query_params.kwargs["_source_includes"] = query_params.doc_reconstructor.get_required_source_fields()
-        # No pagination needed for knn queries
+        knn_query = False
         if "query" in query_params.query and "knn" in query_params.query["query"]:
+            knn_query = True
+
+        if query_params.filter:
+            if knn_query:
+                add_filter_to_knn_query(query_params.query, query_params.filter)
+            else:
+                add_filter_to_query(query_params.query, query_params.filter)
+
+        # No pagination needed for knn queries
+        if knn_query:
+            logger.info(f"Executing knn query: {query_params.query}")
             response = self._client.search(
                 index=query_params.index_name, body=query_params.query, **query_params.kwargs
             )
@@ -165,6 +177,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                                     **doc.properties,
                                     DocumentPropertyTypes.SOURCE: DocumentSource.DOCUMENT_RECONSTRUCTION_PARENT,
                                 },
+                                "type": doc.type,
                             }
                         ),
                     )
@@ -245,6 +258,29 @@ def get_doc_count_for_slice(os_client, slice_query: dict[str, Any]) -> int:
     return res["hits"]["total"]["value"]
 
 
+def add_filter_to_query(query: dict[str, Any], filter: dict[str, Any]):
+    actual_query = query["query"]
+    query["query"] = {
+        "bool": {
+            "must": [actual_query],
+            "filter": [{"terms": filter}],
+        }
+    }
+
+
+def add_filter_to_knn_query(query: dict[str, Any], filter: dict[str, Any]):
+    assert len(query["query"]["knn"]) == 1 and "embedding" in query["query"]["knn"]
+    # We are doing a knn search on the embedding field, so the filter goes in there.
+    # see https://docs.opensearch.org/docs/latest/vector-search/filter-search-knn/efficient-knn-filtering/
+
+    inner_query = query["query"]["knn"]["embedding"]
+    inner_query["filter"] = {
+        "bool": {
+            "must": [{"terms": filter}],
+        }
+    }
+
+
 class OpenSearchReader(BaseDBReader):
     Client = OpenSearchReaderClient
     Record = OpenSearchReaderQueryResponse
@@ -273,6 +309,10 @@ class OpenSearchReader(BaseDBReader):
         self.use_pit = use_pit
         self.pit_id = None
         logger.info(f"OpenSearchReader using PIT: {self.use_pit}")
+        self.filter = query_params.filter
+        if self.filter is not None:
+            if len(self.filter) != 1:
+                raise ValueError("Filter must contain exactly one key value pair")
 
     @timetrace("OpenSearchReader")
     def _to_parent_doc(self, doc: dict[str, Any]) -> list[dict[str, Any]]:
@@ -292,6 +332,10 @@ class OpenSearchReader(BaseDBReader):
 
             os_client = client._client
             slice_query = json.loads(doc["doc"])
+
+            if self.filter:
+                print(f"Adding filter to slice query {slice_query}")
+                add_filter_to_query(slice_query, self.filter)
 
             assert (
                 get_doc_count_for_slice(os_client, slice_query) < 10000
@@ -404,7 +448,7 @@ class OpenSearchReader(BaseDBReader):
             if row not in parent_ids:
                 parent_ids.add(row)
 
-        return pd.DataFrame({"parent_id": list(parent_ids)})
+        return pd.DataFrame([{"_source": {"doc_id": parent_id}} for parent_id in parent_ids])
 
     def reconstruct(self, doc: dict[str, Any]) -> dict[str, Any]:
         client = self.Client.from_client_params(self._client_params)
@@ -424,6 +468,7 @@ class OpenSearchReader(BaseDBReader):
 
         return {"doc": docs[0].serialize()}
 
+    # TODO rework this function so it does not lead to OOM when batches are too large
     def reconstruct_batch(self, df: pd.DataFrame) -> pd.DataFrame:
         client = self.Client.from_client_params(self._client_params)
 
@@ -442,11 +487,46 @@ class OpenSearchReader(BaseDBReader):
 
         mget_body = {"docs": [{"_id": doc_id} for doc_id in parent_ids]}
         res = os_client.mget(
-            index=self._query_params.index_name, body=mget_body, _source_includes=["doc_id", "parent_id", "properties"]
+            index=self._query_params.index_name,
+            body=mget_body,
+            _source_includes=["doc_id", "parent_id", "properties", "type"],
         )
         records = OpenSearchReaderQueryResponse(res["docs"], os_client)
         docs = records.to_docs(query_params=self._query_params)
-        return pd.DataFrame({"doc": [doc.serialize() for doc in docs]})
+
+        logger.info(f"Got {len(docs)} documents from OpenSearch")
+
+        def nested_get(d: dict, keys: list) -> Any:
+            assert len(keys) > 0, "Keys must be non-empty"
+
+            cur: Union[Optional[dict], list] = d.get(keys[0])
+            if len(keys) == 1:
+                return cur
+
+            for i in range(1, len(keys)):
+                if cur is None:
+                    return None
+                if not isinstance(cur, dict):
+                    raise ValueError(f"Mismatch between {d} and {keys}")
+                cur = cur.get(keys[i])
+            return cur
+
+        serialized_docs = []
+        for doc in docs:
+            if self.filter:
+                logger.info(f"Checking {self.filter} on {doc.doc_id} {doc.properties}")
+                k, v = next(iter(self.filter.items()))
+                property_values = nested_get(doc.data, k.split("."))
+                if property_values is None or len(property_values) == 0:
+                    raise RuntimeError(f"Filtering failed for filter: {k} in {doc}")
+                if not set(property_values).intersection(v):
+                    raise RuntimeError(
+                        f"Filtering failed for filter: {k}: actual = {property_values} vs expected = {v}"
+                    )
+
+            serialized_docs.append(doc.serialize())
+
+        return pd.DataFrame({"doc": serialized_docs})
 
     def execute(self, **kwargs) -> "Dataset":
         assert isinstance(
@@ -513,7 +593,6 @@ class OpenSearchReader(BaseDBReader):
 
         from ray.data import from_items
 
-        # logger.info(f"Sample docs: {docs[:5]}")
         ds = from_items(items=[doc["_source"] for doc in docs])
         if self._query_params.reconstruct_document or self._query_params.doc_reconstructor is not None:
             return ds.groupby("parent_id").map_groups(self.map_reduce_parent_id).map(self.reconstruct)
@@ -591,7 +670,7 @@ class OpenSearchReader(BaseDBReader):
                     ds.flat_map(self._to_parent_doc, **self.resource_args)
                     .groupby("parent_id")
                     .map_groups(self.map_reduce_parent_id)
-                    .map_batches(self.reconstruct_batch, batch_size=50, batch_format="pandas")  # 50 - 100 seems to work
+                    .map(self.reconstruct)
                 )
             else:
                 # Step 1: Construct slices (pages)
@@ -606,4 +685,5 @@ class OpenSearchReader(BaseDBReader):
             os_client = client._client
             os_client.delete_pit({"pit_id": [self.pit_id]})
             client.close()
+
         super().finalize()

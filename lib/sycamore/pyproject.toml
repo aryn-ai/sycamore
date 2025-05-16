@@ -47,6 +47,7 @@ pydantic = "^2.8.2"
 typing-extensions = "^4.12.2"
 
 httpcore = ">=1.0.9"
+tornado = ">=6.5.0"  # See poetry-lock/pyproject.toml
 
 aryn-sdk = "*"
 

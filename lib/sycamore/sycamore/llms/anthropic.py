@@ -95,6 +95,10 @@ def format_image(image: Image.Image) -> dict[str, Any]:
     }
 
 
+def anthropic_deserializer(kwargs):
+    return Anthropic(**kwargs)
+
+
 class Anthropic(LLM):
     """This is an LLM implementation that uses the AWS Claude API to generate text.
 
@@ -132,16 +136,13 @@ class Anthropic(LLM):
         super().__init__(self.model.value, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
     def __reduce__(self):
-        def deserializer(kwargs):
-            return Anthropic(**kwargs)
-
         kwargs = {
             "model_name": self.model_name,
             "cache": self._cache,
             "default_mode": self._default_mode,
             "default_llm_kwargs": self._default_llm_kwargs,
         }
-        return deserializer, (kwargs,)
+        return anthropic_deserializer, (kwargs,)
 
     def default_mode(self) -> LLMMode:
         if self._default_mode is not None:

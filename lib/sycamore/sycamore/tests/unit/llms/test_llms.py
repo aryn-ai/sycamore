@@ -1,9 +1,11 @@
+import io
 from pathlib import Path
 from unittest.mock import patch
 
 from sycamore.llms import get_llm, MODELS
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.llms.bedrock import Bedrock, BedrockModels
+from sycamore.llms.gemini import Gemini, GeminiModels
 from sycamore.llms.llms import FakeLLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.utils.cache import DiskCache
@@ -64,6 +66,22 @@ def test_merge_llm_kwargs():
     llm_kwargs = {"thinking_config": {"token_budget": 1000}, "max_tokens": 500}
     merged_kwargs = llm._merge_llm_kwargs(llm_kwargs)
     assert merged_kwargs == {"temperature": 0.5, "max_tokens": 500, "thinking_config": {"token_budget": 1000}}
+
+
+def test_gemini_pickle():
+    import pickle
+
+    kwargs = {"max_output_tokens": 4092}
+
+    gemini = Gemini(GeminiModels.GEMINI_2_5_FLASH_PREVIEW, default_llm_kwargs=kwargs)
+    buf = io.BytesIO()
+    pickle.dump(gemini, buf)
+
+    buf.seek(0)
+
+    g2 = pickle.loads(buf.getvalue())
+    assert isinstance(g2, Gemini)
+    assert g2._default_llm_kwargs == kwargs
 
 
 @patch("boto3.client")

@@ -1,11 +1,14 @@
 from abc import abstractmethod
+import logging
 from typing import Any, Union, Optional, Callable
 
 from PIL import Image
 import pdf2image
 
-from sycamore.data import BoundingBox, Element, Document, TableElement
+from sycamore.data import BoundingBox, Element, Document, Table, TableElement
 from sycamore.data.document import DocumentPropertyTypes
+from sycamore.llms import LLM
+from sycamore.llms.prompts import RenderedMessage, RenderedPrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.transforms.table_structure import table_transformers
@@ -15,6 +18,21 @@ from sycamore.utils import choose_device
 from sycamore.utils.import_utils import requires_modules
 
 Num = Union[float, int]
+
+
+def _crop_bbox(image: Image.Image, bbox: BoundingBox, padding: int = 10):
+    width, height = image.size
+
+    crop_box = (
+        bbox.x1 * width - padding,
+        bbox.y1 * height - padding,
+        bbox.x2 * width + padding,
+        bbox.y2 * height + padding,
+    )
+
+    cropped_image = image.crop(crop_box).convert("RGB")
+
+    return cropped_image, crop_box
 
 
 class TableStructureExtractor:
@@ -131,21 +149,11 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         from torchvision import transforms
 
         width, height = doc_image.size
+        cropped_image, crop_box = _crop_bbox(doc_image, element.bbox)
 
         if self.structure_model is None:
             self._init_structure_model()
         assert self.structure_model is not None  # For typechecking
-
-        # Crop the image to encompass just the table + some padding.
-        padding = 10
-        crop_box = (
-            element.bbox.x1 * width - padding,
-            element.bbox.y1 * height - padding,
-            element.bbox.x2 * width + padding,
-            element.bbox.y2 * height + padding,
-        )
-
-        cropped_image = doc_image.crop(crop_box).convert("RGB")
 
         # Shift the token bounding boxes to be relative to the cropped image.
         if element.tokens is not None:
@@ -447,6 +455,49 @@ class HybridTableStructureExtractor(TableStructureExtractor):
             except ValueError:
                 raise ValueError(f"Invalid comparison: '{comparison}'. Threshold ({threshold}) must be numeric")
         return metric, cmp, threshold_num
+
+
+class VLMTableStructureExtractor(TableStructureExtractor):
+    """Table structure extractor that uses a VLM model to extract the table structure."""
+
+    EXTRACT_TABLE_STRUCTURE_PROMPT = """You are given an image of a table from a document. Please convert this table into HTML. Be sure to include the table header and all rows. Use 'colspan' and 'rowspan' in the output to indicate merged cells. Return the HTML as a string. Do not include any other text in the response.
++"""
+
+    def __init__(self, llm: LLM, prompt_str: str = EXTRACT_TABLE_STRUCTURE_PROMPT):
+        self.llm = llm
+        self.prompt_str = prompt_str
+
+    def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+        # We need a bounding box to be able to do anything.
+        if element.bbox is None:
+            return element
+
+        width, height = doc_image.size
+        cropped_image, crop_box = _crop_bbox(doc_image, element.bbox)
+
+        message = RenderedMessage(role="user", content=self.prompt_str, images=[cropped_image])
+        prompt = RenderedPrompt(messages=[message])
+
+        res = self.llm.generate(prompt=prompt)
+
+        if res.startswith("```html"):
+            res = res[7:].rstrip("`")
+        res = res.strip()
+
+        try:
+            table = Table.from_html(res)
+            element.table = table
+        except Exception as e:
+            logging.warning(f"Not able to parse table from HTML: {e}")
+            return element
+
+        # Convert cell bounding boxes to be relative to the original image.
+        for cell in table.cells:
+            if cell.bbox is None:
+                continue
+            cell.bbox.translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
+
+        return element
 
 
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor

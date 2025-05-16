@@ -52,7 +52,6 @@ sycamore-ai = { path = "lib/sycamore", develop = true, extras = [
 ] }
 integration = { path = "apps/integration", develop = true }
 sycamore-poetry-lock = { path = "lib/poetry-lock", develop = true }
-aryn-sdk = { path = "lib/aryn-sdk", develop = true }
 import_timer = { path = "lib/import_timer", develop = true }
 ruff = ">=0.11.2"
 black = ">=25.1"

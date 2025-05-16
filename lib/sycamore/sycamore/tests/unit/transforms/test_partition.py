@@ -4,7 +4,7 @@ from typing import Callable
 import pytest
 from ray.data import Dataset
 
-from sycamore.data import Document, Element
+from sycamore.data import Document
 from sycamore.transforms.partition import (
     Partition,
     HtmlPartitioner,
@@ -12,7 +12,6 @@ from sycamore.transforms.partition import (
     UnstructuredPPTXPartitioner,
     SycamorePartitioner,
 )
-from sycamore.utils.xycut import xycut_sorted_elements
 from sycamore.connectors.file import BinaryScan
 from sycamore.tests.config import TEST_DIR
 

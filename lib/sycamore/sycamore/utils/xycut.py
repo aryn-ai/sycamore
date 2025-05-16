@@ -10,8 +10,8 @@ from typing import Generator
 from sycamore.data import Document, Element
 from sycamore.utils.bbox_sort import collect_pages
 
-type ElemList = list[Element]
-type BeginEndList = list[tuple[float, int, Element]]
+ElemList = list[Element]
+BeginEndList = list[tuple[float, int, Element]]
 
 XAXIS = 0
 YAXIS = 1

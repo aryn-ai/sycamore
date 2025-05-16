@@ -472,8 +472,7 @@ class VLMTableStructureExtractor(TableStructureExtractor):
         if element.bbox is None:
             return element
 
-        width, height = doc_image.size
-        cropped_image, crop_box = _crop_bbox(doc_image, element.bbox)
+        cropped_image, _ = _crop_bbox(doc_image, element.bbox)
 
         message = RenderedMessage(role="user", content=self.prompt_str, images=[cropped_image])
         prompt = RenderedPrompt(messages=[message])
@@ -490,12 +489,6 @@ class VLMTableStructureExtractor(TableStructureExtractor):
         except Exception as e:
             logging.warning(f"Not able to parse table from HTML: {e}")
             return element
-
-        # Convert cell bounding boxes to be relative to the original image.
-        for cell in table.cells:
-            if cell.bbox is None:
-                continue
-            cell.bbox.translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
 
         return element
 

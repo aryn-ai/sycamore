@@ -435,6 +435,7 @@ class ArynPartitioner(Partitioner):
             Here is an example set of output label options:
                 {"promote_title": True, "title_candidate_elements": ["Section-header", "Caption"]}
             default: None (no element is promoted to "Title")
+        sort_mode: Reading order algorithm: bbox (default) or xycut.
         kwargs: Additional keyword arguments to pass to the remote partitioner.
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract

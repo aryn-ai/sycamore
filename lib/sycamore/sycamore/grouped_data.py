@@ -51,15 +51,16 @@ class GroupedData:
             result = {}
             key = batch[self._grouped_key][0]
             result["key"] = np.array([key])
-            names = self._entity.split(".")
-            base = batch[names[0]]
-            entities = []
-            for row in base:
-                for name in names[1:]:
-                    row = row[name]
-                entities.append(row)
+            if self._entity:
+                names = self._entity.split(".")
+                base = batch[names[0]]
+                entities = []
+                for row in base:
+                    for name in names[1:]:
+                        row = row[name]
+                    entities.append(row)
 
-            result["values"] = np.array([", ".join(str(e) for e in entities if e is not None)])
+                result["values"] = np.array([", ".join(str(e) for e in entities if e is not None)])
             return result
 
         grouped = dataset.filter(self.filter_meta).map(Document.from_row).groupby(self._grouped_key)

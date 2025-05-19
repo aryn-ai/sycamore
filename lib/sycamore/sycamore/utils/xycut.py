@@ -5,7 +5,7 @@ Most useful functions are at the bottom of the file.
 """
 
 from io import StringIO
-from typing import Generator
+from typing import Generator, Optional
 
 from sycamore.data import Document, Element
 from sycamore.utils.bbox_sort import collect_pages
@@ -63,7 +63,7 @@ class NodeInner(NodeBase):
 
     def to_str_impl(self, pfx: str, sio: StringIO) -> None:
         for idx, node in enumerate(self.nodes):
-            node.to_str_impl(f"{pfx}{idx:02d}.", sio)
+            node.to_str_impl(f"{pfx}{idx}.", sio)
 
     def to_text_impl(self, sio: StringIO) -> None:
         for node in self.nodes:
@@ -111,11 +111,8 @@ class NodeLeaf(NodeBase):
     def to_str_impl(self, pfx: str, sio: StringIO) -> None:
         for idx, elist in enumerate(self.elists):
             for i, elem in enumerate(elist):
-                bbox = get_bbox(elem)
-                sio.write(f"{pfx}{i:02d}:{bbox}\n")
-                # if tr := elem.text_representation:
-                #    nonl = tr.replace("\n", " ")
-                #    sio.write(f"{pfx}{i:02d}:[{nonl}]\n")
+                s = elem_to_str(elem)
+                sio.write(f"{pfx}{i}: {s}\n")
 
     def to_text_impl(self, sio: StringIO) -> None:
         for elist in self.elists:
@@ -132,10 +129,23 @@ class NodeLeaf(NodeBase):
 ###############################################################################
 
 
-def get_bbox(elem: Element) -> tuple:
+def get_bbox(elem: Element) -> tuple[float, float, float, float]:
     if bbox := elem.data.get("bbox"):
         return bbox
     return (1.0, 1.0, 1.0, 1.0)
+
+
+def bbox_to_str(bbox: tuple[float, float, float, float]) -> str:
+    a, b, c, d = [int(1000 * x) for x in bbox]
+    return f"({a:03d},{b:03d})({c:03d},{d:03d})"
+
+
+def elem_to_str(elem: Element) -> str:
+    s = bbox_to_str(get_bbox(elem))
+    if tr := elem.text_representation:
+        nonl = tr.replace("\n", " ")[:32]
+        s += f"[{nonl}]"
+    return s
 
 
 def make_begin_end(elems: ElemList, axis: int) -> BeginEndList:
@@ -157,19 +167,24 @@ def gen_overlap(ary: BeginEndList) -> Generator[tuple, None, None]:
     """Yields tuple (coord, isopen, elem, count, width)"""
     count = 0
     cur = ary[0]
-    for ii in range(len(ary) - 1):  # end of ary will be a close
-        if cur[1]:
+    n = len(ary)
+    for ii in range(n):
+        width = -1.0
+        if cur[1] == OPEN:
             count += 1
+            next = ary[ii + 1]
         else:
             count -= 1
-        next = ary[ii + 1]
-        width = 0.0 if count else next[0] - cur[0]
+            if (ii + 1) < n:
+                next = ary[ii + 1]
+                if count == 0:
+                    width = next[0] - cur[0]
         yield (*cur, count, width)
         cur = next
 
 
 def widest_cut(order: BeginEndList) -> tuple[float, Element]:
-    rv = (0.0, order[0][2])
+    rv = (-1.0, order[0][2])
     if len(order) < 3:  # order is twice as long as elems
         return rv
     for _, _, elem, count, width in gen_overlap(order):
@@ -178,27 +193,39 @@ def widest_cut(order: BeginEndList) -> tuple[float, Element]:
     return rv
 
 
-def choose_axis(elems: ElemList) -> tuple[BeginEndList, Element]:
+def choose_axis(elems: ElemList) -> Optional[tuple[BeginEndList, Element]]:
     xorder = make_begin_end(elems, XAXIS)
     yorder = make_begin_end(elems, YAXIS)
     xw, xe = widest_cut(xorder)
     yw, ye = widest_cut(yorder)
+    if max(xw, yw) < 0.0:
+        return None
     if xw < yw:
+        # yval = get_bbox(ye)[3]
+        # s = elem_to_str(ye)
+        # print(f"Horiz cut y={yval:.3f} {s}")
         return (yorder, ye)
-    return (xorder, xe)
+    else:
+        # xval = get_bbox(xe)[2]
+        # s = elem_to_str(xe)
+        # print(f"Vert cut x={xval:.3f} {s}")
+        return (xorder, xe)
 
 
 def cleave_elems(elems: ElemList) -> NodeLeaf:
     """Binary split across widest gap."""
     node = NodeLeaf()
     if len(elems) < 2:
-        return node.extend(elems).finalize()
-    order, cut_after = choose_axis(elems)
-    for _, isopen, elem, cnt, width in gen_overlap(order):
-        if isopen:
-            node.append(elem)
-            if elem == cut_after:
-                node.advance()
+        node.extend(elems)
+    elif (choice := choose_axis(elems)) is None:
+        node.extend(elems)
+    else:
+        order, cut_after = choice
+        for _, isopen, elem, cnt, width in gen_overlap(order):
+            if not isopen:
+                node.append(elem)
+                if elem == cut_after:
+                    node.advance()
     return node.finalize()
 
 
@@ -207,6 +234,9 @@ def divide_node(node: NodeLeaf) -> NodeInner:
     inner = NodeInner()
     for elist in node.elists:
         subnode = cleave_elems(elist)
+        # print("....................")
+        # print(subnode)
+        # print("^^^^^^^^^^^^^^^^^^^^")
         if subnode.cansplit():
             inner.append(divide_node(subnode))  # recursive step
         else:
@@ -218,6 +248,9 @@ def xycut_sorted_page(elems: ElemList) -> ElemList:
     if len(elems) < 2:
         return elems
     flat = NodeLeaf().extend(elems)
+    # print("VVVVVVVVVVVVVVVVVVVV")
+    # print(flat)
+    # print("AAAAAAAAAAAAAAAAAAAA")
     tree = divide_node(flat)
     return tree.to_elems()
 

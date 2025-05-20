@@ -8547,35 +8547,11 @@ ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==23.2.1)", "requests (>=2.31.0)"
 
 [[package]]
 name = "redis-om"
-version = "0.3.3"
-description = "Object mappings, and more, for Redis."
-optional = false
-python-versions = "<4.0,>=3.8"
-groups = ["docker"]
-markers = "python_version < \"3.12\""
-files = [
-    {file = "redis_om-0.3.3-py3-none-any.whl", hash = "sha256:094fc5ae1bd0edd5e722edc1df13e97281e756356f4bc22ee39bb4a94fc8a66b"},
-    {file = "redis_om-0.3.3.tar.gz", hash = "sha256:7cafd8ca2117f12ff276acf547f2c58261ce3b5dab4fa19b8a1569dbf0d97d28"},
-]
-
-[package.dependencies]
-click = ">=8.0.1,<9.0.0"
-hiredis = ">=2.2.3,<4.0.0"
-more-itertools = ">=8.14,<11.0"
-pydantic = ">=1.10.2,<3.0.0"
-python-ulid = ">=1.0.3,<2.0.0"
-redis = ">=3.5.3,<6.0.0"
-types-redis = ">=3.5.9,<5.0.0"
-typing-extensions = ">=4.4.0,<5.0.0"
-
-[[package]]
-name = "redis-om"
 version = "0.3.5"
 description = "Object mappings, and more, for Redis."
 optional = false
 python-versions = "<4.0,>=3.8"
 groups = ["docker"]
-markers = "python_version == \"3.12\""
 files = [
     {file = "redis_om-0.3.5-py3-none-any.whl", hash = "sha256:99ab40f696028ce47c5e2eb5118a1ffc1fd193005428df89c8cf77ad35a0177a"},
     {file = "redis_om-0.3.5.tar.gz", hash = "sha256:fd152ccebc9b47604287a347628ef0d2c0051c13d5653f121193e801bb1cc4a7"},
@@ -9999,6 +9975,7 @@ pytest = "7.4.0"
 ray = ">=2.41.0"
 scipy = "1.13.1"
 scrapy = ">=2.11.2"
+setuptools = ">=78.1.1"
 tornado = ">=6.5.0"
 weaviate-client = "4.14.1"
 
@@ -11710,4 +11687,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<3.13"
-content-hash = "55ea0cb57120be071cf425adcf9c8722575444dfa4ad29a86a16fff099991bb7"
+content-hash = "ed2ee2f6bc254cc4b0bdadb927327e2d46e8912d67852c6ae11d6206c663f53a"

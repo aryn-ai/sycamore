@@ -10451,7 +10451,7 @@ ray = {version = "^2.36.0", extras = ["default"]}
 rich = "^13.7.1"
 rouge = {version = "^1.0.1", optional = true}
 sentence-transformers = {version = "^3.0.1", optional = true}
-setuptools = ">78.1.1"
+setuptools = ">=78.1.1"
 sphinx = {version = "^7.2.5", optional = true}
 structlog = "^24.2.0"
 tenacity = "^8.4.1"

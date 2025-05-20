@@ -5246,7 +5246,7 @@ pydantic = "^2.8.2"
 pypdf = "^5.1.0"
 ray = {version = "^2.36.0", extras = ["default"]}
 rich = "^13.7.1"
-setuptools = ">78.1.1"
+setuptools = ">=78.1.1"
 structlog = "^24.2.0"
 tenacity = "^8.4.1"
 tiktoken = "^0.8.0"

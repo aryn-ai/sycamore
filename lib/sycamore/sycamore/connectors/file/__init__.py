@@ -1,15 +1,7 @@
-from sycamore.connectors.file.file_scan import BinaryScan, FileScan, JsonScan, JsonDocumentScan
-from sycamore.connectors.file.materialized_scan import ArrowScan, DocScan, MaterializedScan, PandasScan
-from sycamore.connectors.file.file_writer import FileWriter
+from sycamore.connectors.file.file_scan import FileScan, FileMetadataProvider
+from sycamore.connectors.file.csv_scan import CsvScan
+from sycamore.connectors.file.tsv_scan import TsvScan
+from sycamore.connectors.file.csv_writer import CsvWriter
+from sycamore.connectors.file.tsv_writer import TsvWriter
 
-__all__ = [
-    "ArrowScan",
-    "BinaryScan",
-    "DocScan",
-    "FileScan",
-    "JsonScan",
-    "JsonDocumentScan",
-    "MaterializedScan",
-    "PandasScan",
-    "FileWriter",
-]
+__all__ = ["FileScan", "FileMetadataProvider", "CsvScan", "TsvScan", "CsvWriter", "TsvWriter"]

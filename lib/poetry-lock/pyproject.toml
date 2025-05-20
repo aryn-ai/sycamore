@@ -41,6 +41,7 @@ pillow = "^11.1.0"
 # black = ">=24.3.0"
 
 httpcore = ">=1.0.9"
+setuptools = ">=78.1.1"
 
 [build-system]
 requires = ["poetry-core"]

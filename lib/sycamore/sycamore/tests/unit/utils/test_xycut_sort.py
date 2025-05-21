@@ -1,11 +1,8 @@
 from typing import Any, Optional
 
 from sycamore.data import Document, Element
-from sycamore.utils.xycut import (
-    xycut_sorted_elements,
-    xycut_sorted_page,
-    xycut_sort_document,
-)
+from sycamore.utils.xycut import xycut_sort_page
+from sycamore.utils.element_sort import sort_elements, sort_document
 
 
 def mkElem(
@@ -27,7 +24,7 @@ def test_page_basic() -> None:
     e3 = mkElem(0.60, 0.65, 0.90, 0.85)
     e4 = mkElem(0.15, 0.10, 0.85, 0.15)
     elems = [e0, e1, e2, e3, e4]
-    elems = xycut_sorted_page(elems)
+    xycut_sort_page(elems)
     answer = [e4, e1, e2, e0, e3]
     assert elems == answer
 
@@ -51,7 +48,7 @@ def test_elements_basic() -> None:
     e9 = mkElem(0.20, 0.21, 0.90, 0.41, 2)
 
     elems = [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9]
-    elems = xycut_sorted_elements(elems)
+    sort_elements(elems, mode="xycut")
     answer = [e4, e5, e3, e6, e7, e8, e9, e1, e0, e2]
     assert elems == answer
     assert_element_index_sorted(elems)
@@ -66,7 +63,7 @@ def test_document_basic() -> None:
     e5 = mkElem(0.1, 0.1, 0.9, 0.2, 2)
     doc = Document()
     doc.elements = [e0, e1, e2, e3, e4, e5]
-    xycut_sort_document(doc)
+    sort_document(doc, mode=xycut_sort_page)
     answer = [e3, e2, e5, e4, e1, e0]
     assert doc.elements == answer
     assert_element_index_sorted(doc.elements)
@@ -84,8 +81,19 @@ def test_page_footer() -> None:
     e4 = mkElem(0.15, 0.10, 0.85, 0.15)
     e5 = mkElem(0.25, 0.95, 0.75, 1.0, type="Page-footer")
     elems = [e0, e1, e2, e3, e4, e5]
-    elems = xycut_sorted_page(elems)
+    xycut_sort_page(elems)
     answer = [e4, e1, e2, e0, e3, e5]
+    assert elems == answer
+
+
+def test_no_cut() -> None:
+    e0 = mkElem(0.40, 0.70, 0.90, 0.90)
+    e1 = mkElem(0.10, 0.40, 0.30, 0.90)
+    e2 = mkElem(0.70, 0.10, 0.90, 0.60)
+    e3 = mkElem(0.10, 0.10, 0.60, 0.30)
+    elems = [e0, e1, e2, e3]
+    xycut_sort_page(elems)
+    answer = [e3, e1, e0, e2]  # what bbox_sort gives
     assert elems == answer
 
 
@@ -139,7 +147,7 @@ def test_viekirax() -> None:
         elem = mkElem(tup[0], tup[1], tup[2], tup[3])
         elem.text_representation = str(tup[4])
         elems.append(elem)
-    elems = xycut_sorted_page(elems)
+    xycut_sort_page(elems)
     for ii, elem in enumerate(elems):
         s = str(ii)
         assert elem.text_representation == s

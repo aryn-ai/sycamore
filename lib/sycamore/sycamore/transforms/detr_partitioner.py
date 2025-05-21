@@ -19,8 +19,7 @@ from sycamore.data.document import DocumentPropertyTypes
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import choose_device
-from sycamore.utils.bbox_sort import bbox_sort_page
-from sycamore.utils.xycut import xycut_sorted_page
+from sycamore.utils.element_sort import sort_page
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.import_utils import requires_modules
@@ -225,10 +224,7 @@ class ArynPDFPartitioner:
                         promote_title(page, title_candidate_elements)
                     else:
                         promote_title(page)
-                if sort_mode and sort_mode == "xycut":
-                    page = xycut_sorted_page(page)
-                else:
-                    bbox_sort_page(page)
+                sort_page(page, mode=sort_mode)
                 elements.extend(page)
             if output_format == "markdown":
                 md = elements_to_markdown(elements)

@@ -8,8 +8,7 @@ TODO:
 
 from typing import Optional
 
-from sycamore.data import Document, Element
-from sycamore.data.document import DocumentPropertyTypes
+from sycamore.data import Element
 
 
 def elem_top_left(elem: Element) -> tuple:
@@ -25,28 +24,6 @@ def elem_left_top(elem: Element) -> tuple:
         left = int(5 * bbox[0])  # !!! quantize
         return (left, bbox[1])
     return (0.0, 0.0)
-
-
-def collect_pages(elems: list[Element]) -> list[list[Element]]:
-    """
-    Collect elements into page-number buckets.  Basically like the first
-    stage of a radix sort.
-    """
-    pagemap: dict[int, list[Element]] = {}
-    for elem in elems:
-        page = elem.properties.get(DocumentPropertyTypes.PAGE_NUMBER, 0)
-        ary = pagemap.get(page)
-        if ary:
-            ary.append(elem)
-        else:
-            pagemap[page] = [elem]
-    nums = list(pagemap.keys())
-    nums.sort()
-    rv = []
-    for page in nums:
-        ary = pagemap[page]
-        rv.append(ary)
-    return rv
 
 
 def col_tag(elem: Element) -> Optional[str]:
@@ -141,18 +118,3 @@ def bbox_sort_page(elems: list[Element]) -> None:
     bbox_sort_based_on_tags(elems)
     for elem in elems:
         elem.data.pop("_coltag", None)  # clean up tags
-
-
-def bbox_sorted_elements(elements: list[Element], update_element_indexs: bool = True) -> list[Element]:
-    pages = collect_pages(elements)
-    for elems in pages:
-        bbox_sort_page(elems)
-    ordered_elements = [elem for elems in pages for elem in elems]  # flatten
-    if update_element_indexs:
-        for idx, element in enumerate(ordered_elements):
-            element.element_index = idx
-    return ordered_elements
-
-
-def bbox_sort_document(doc: Document, update_element_indexs: bool = True) -> None:
-    doc.elements = bbox_sorted_elements(doc.elements, update_element_indexs)

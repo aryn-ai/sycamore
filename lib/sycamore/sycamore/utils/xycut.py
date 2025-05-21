@@ -1,39 +1,44 @@
 """
 Sort Elements into reading order based on bboxes using X-Y Cut.
 
-Most useful functions are at the bottom of the file.
+Best to access this through element_sort.py
 """
 
 from io import StringIO
 from typing import Generator, Optional
 
-from sycamore.data import Document, Element
-from sycamore.utils.bbox_sort import collect_pages
+from sycamore.data import Element
+from sycamore.utils.bbox_sort import bbox_sort_page  # for fallback
 
 ElemList = list[Element]
 BeginEndList = list[tuple[float, int, Element]]
 
-XAXIS = 0
-YAXIS = 1
+XAXIS = 0  # bbox[0] and bbox[2] are x
+YAXIS = 1  # bbox[1] and bbox[3] are y
 
 OPEN = 1
 CLOSE = 0  # sorts first
+
+DEBUG = False
 
 
 class NodeBase:
     """Like a B-tree of Elements."""
 
     def __str__(self) -> str:
+        """Returns a string with hierarchy, bboxes and text snippets."""
         sio = StringIO()
         self.to_str_impl("", sio)
         return sio.getvalue().rstrip()
 
     def to_text(self) -> str:
+        """Serializes the text in order."""
         sio = StringIO()
         self.to_text_impl(sio)
         return sio.getvalue().rstrip()
 
     def to_elems(self) -> ElemList:
+        """Returns list of elements in order."""
         elems: ElemList = []
         self.to_elems_impl(elems)
         return elems
@@ -103,7 +108,7 @@ class NodeLeaf(NodeBase):
     def cansplit(self) -> bool:
         try:
             elem = self.elists[0][0]
-            next = self.elists[1]  # noqa: F841
+            next = self.elists[1]  # make sure this exists # noqa: F841
             return isinstance(elem, Element)
         except (IndexError, TypeError):
             return False
@@ -112,7 +117,7 @@ class NodeLeaf(NodeBase):
         for idx, elist in enumerate(self.elists):
             for i, elem in enumerate(elist):
                 s = elem_to_str(elem)
-                sio.write(f"{pfx}{i}: {s}\n")
+                sio.write(f"{pfx}{idx},{i}: {s}\n")
 
     def to_text_impl(self, sio: StringIO) -> None:
         for elist in self.elists:
@@ -132,7 +137,7 @@ class NodeLeaf(NodeBase):
 def get_bbox(elem: Element) -> tuple[float, float, float, float]:
     if bbox := elem.data.get("bbox"):
         return bbox
-    return (1.0, 1.0, 1.0, 1.0)
+    return (1.0, 1.0, 1.0, 1.0)  # max values sort at end
 
 
 def bbox_to_str(bbox: tuple[float, float, float, float]) -> str:
@@ -150,42 +155,38 @@ def elem_to_str(elem: Element) -> str:
 
 def make_begin_end(elems: ElemList, axis: int) -> BeginEndList:
     """Returns array of (coord, isopen, elem)"""
-    ary: BeginEndList = []
+    bel: BeginEndList = []
     for elem in elems:
         bbox = get_bbox(elem)
         aa = bbox[axis]
         bb = bbox[axis + 2]
         if bb < aa:
             aa, bb = bb, aa
-        ary.append((aa, OPEN, elem))
-        ary.append((bb, CLOSE, elem))
-    ary.sort()
-    return ary
+        bel.append((aa, OPEN, elem))
+        bel.append((bb, CLOSE, elem))
+    bel.sort()
+    return bel
 
 
-def gen_overlap(ary: BeginEndList) -> Generator[tuple, None, None]:
+def gen_overlap(bel: BeginEndList) -> Generator[tuple, None, None]:
     """Yields tuple (coord, isopen, elem, count, width)"""
     count = 0
-    cur = ary[0]
-    n = len(ary)
-    for ii in range(n):
+    cur = bel[0]
+    n = len(bel)
+    for ii, cur in enumerate(bel):
         width = -1.0
         if cur[1] == OPEN:
             count += 1
-            next = ary[ii + 1]
         else:
             count -= 1
-            if (ii + 1) < n:
-                next = ary[ii + 1]
-                if count == 0:
-                    width = next[0] - cur[0]
+            if (count == 0) and ((ii + 1) < n):
+                width = bel[ii + 1][0] - cur[0]
         yield (*cur, count, width)
-        cur = next
 
 
 def widest_cut(order: BeginEndList) -> tuple[float, Element]:
     rv = (-1.0, order[0][2])
-    if len(order) < 3:  # order is twice as long as elems
+    if len(order) <= 2:  # two means one element; no cut exists
         return rv
     for _, _, elem, count, width in gen_overlap(order):
         if count == 0:
@@ -194,6 +195,7 @@ def widest_cut(order: BeginEndList) -> tuple[float, Element]:
 
 
 def choose_axis(elems: ElemList) -> Optional[tuple[BeginEndList, Element]]:
+    """Note that coordinate system is square, but pages are not."""
     xorder = make_begin_end(elems, XAXIS)
     yorder = make_begin_end(elems, YAXIS)
     xw, xe = widest_cut(xorder)
@@ -201,14 +203,16 @@ def choose_axis(elems: ElemList) -> Optional[tuple[BeginEndList, Element]]:
     if max(xw, yw) < 0.0:
         return None
     if xw < yw:
-        # yval = get_bbox(ye)[3]
-        # s = elem_to_str(ye)
-        # print(f"Horiz cut y={yval:.3f} {s}")
+        if DEBUG:
+            yval = get_bbox(ye)[3]
+            s = elem_to_str(ye)
+            print(f"Horiz cut y={yval:.3f} {s}")
         return (yorder, ye)
     else:
-        # xval = get_bbox(xe)[2]
-        # s = elem_to_str(xe)
-        # print(f"Vert cut x={xval:.3f} {s}")
+        if DEBUG:
+            xval = get_bbox(xe)[2]
+            s = elem_to_str(xe)
+            print(f"Vert cut x={xval:.3f} {s}")
         return (xorder, xe)
 
 
@@ -234,9 +238,10 @@ def divide_node(node: NodeLeaf) -> NodeInner:
     inner = NodeInner()
     for elist in node.elists:
         subnode = cleave_elems(elist)
-        # print("....................")
-        # print(subnode)
-        # print("^^^^^^^^^^^^^^^^^^^^")
+        if DEBUG:
+            print("....................")
+            print(subnode)
+            print("^^^^^^^^^^^^^^^^^^^^")
         if subnode.cansplit():
             inner.append(divide_node(subnode))  # recursive step
         else:
@@ -244,28 +249,19 @@ def divide_node(node: NodeLeaf) -> NodeInner:
     return inner
 
 
-def xycut_sorted_page(elems: ElemList) -> ElemList:
+def xycut_sort_page(elems: ElemList) -> None:
     if len(elems) < 2:
-        return elems
+        return
     flat = NodeLeaf().extend(elems)
-    # print("VVVVVVVVVVVVVVVVVVVV")
-    # print(flat)
-    # print("AAAAAAAAAAAAAAAAAAAA")
+    if DEBUG:
+        print("VVVVVVVVVVVVVVVVVVVV")
+        print(flat)
+        print("AAAAAAAAAAAAAAAAAAAA")
     tree = divide_node(flat)
-    return tree.to_elems()
-
-
-def xycut_sorted_elements(elements: ElemList, update_indices: bool = True) -> ElemList:
-    flat: ElemList = []
-    pages = collect_pages(elements)
-    for page in pages:
-        elems = xycut_sorted_page(page)
-        flat.extend(elems)
-    if update_indices:
-        for idx, elem in enumerate(flat):
-            elem.element_index = idx
-    return flat
-
-
-def xycut_sort_document(doc: Document, update_indices: bool = True) -> None:
-    doc.elements = xycut_sorted_elements(doc.elements, update_indices)
+    if (len(tree.nodes) == 1) and isinstance(tree.nodes[0], NodeLeaf) and (len(tree.nodes[0].elists) == 1):
+        # If we didn't make any cuts, fall back to old algorithm
+        if DEBUG:
+            print("Falling back to bbox_sort")
+        bbox_sort_page(elems)
+        return
+    elems[:] = tree.to_elems()  # replace contents of list

@@ -13,8 +13,7 @@ from sycamore.utils.cache import Cache
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.aryn_config import ArynConfig
-from sycamore.utils.bbox_sort import bbox_sort_document
-from sycamore.utils.xycut import xycut_sort_document
+from sycamore.utils.element_sort import sort_document
 
 from sycamore.transforms.detr_partitioner_config import (
     ARYN_DETR_MODEL,
@@ -236,10 +235,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         ]
         del elements
 
-        if self._sort_mode and self._sort_mode == "xycut":
-            xycut_sort_document(document)
-        else:
-            bbox_sort_document(document)
+        sort_document(document, mode=self._sort_mode)
         return document
 
 
@@ -557,10 +553,7 @@ class ArynPartitioner(Partitioner):
 
         document.elements = elements
 
-        if self.sort_mode and self.sort_mode == "xycut":
-            xycut_sort_document(document)
-        else:
-            bbox_sort_document(document)
+        sort_document(document, mode=self.sort_mode)
 
         return document
 

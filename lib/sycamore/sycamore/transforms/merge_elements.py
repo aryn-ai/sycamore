@@ -13,8 +13,7 @@ from sycamore.utils.time_trace import timetrace
 from sycamore.utils.merge_utils import combine_strs_min_newline
 from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.llms import LLM
-from sycamore.utils.bbox_sort import bbox_sort_document
-from sycamore.utils.xycut import xycut_sort_document
+from sycamore.utils.element_sort import sort_document
 
 
 class ElementMerger(ABC):
@@ -495,10 +494,7 @@ class TableMerger(ElementMerger):
                 new_table_elements[-1]["properties"]["table_continuation"] = False
         other_elements.extend(new_table_elements)
         document.elements = other_elements
-        if self.sort_mode and self.sort_mode == "xycut":
-            xycut_sort_document(document)
-        else:
-            bbox_sort_document(document)
+        sort_document(document, mode=self.sort_mode)
 
         return document
 

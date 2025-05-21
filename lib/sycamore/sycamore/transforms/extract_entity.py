@@ -280,20 +280,17 @@ class OpenAIEntityExtractor(EntityExtractor):
                 return d
             batch = d.properties[vars["batch_key"]][target_club_idx]
             d.properties[vars["source_idx_key"]] = batch
-            if self._entity_type is not None:
-                if self._entity_type == "int":
-                    try:
-                        d.properties[self._entity_name] = int(d.properties[self._entity_name])
-                    except ValueError:
-                        d.properties[self._entity_name] = None
-                elif self._entity_type == "float":
-                    try:
-                        d.properties[self._entity_name] = float(d.properties[self._entity_name])
-                    except ValueError:
-                        d.properties[self._entity_name] = None
-                else:
-                    if d.properties[self._entity_name] == "None":
-                        d.properties[self._entity_name] = None
+            if d.properties[self._entity_name] == "None":
+                d.properties[self._entity_name] = None
+            elif self._entity_type is not None and self._entity_type in [
+                "int",
+                "float",
+            ]:
+                try:
+                    conversion_func = {"int": int, "float": float}[self._entity_type]
+                    d.properties[self._entity_name] = conversion_func(d.properties[self._entity_name])
+                except ValueError:
+                    d.properties[self._entity_name] = None
             return d
 
         nodes: list[BaseMapTransform] = []

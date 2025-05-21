@@ -466,27 +466,24 @@ test = ["dateparser (==1.*)", "pre-commit", "pytest", "pytest-cov", "pytest-mock
 
 [[package]]
 name = "aryn-sdk"
-version = "0.2.5"
-description = "The client library for Aryn services."
+version = "0.1.17"
+description = "The client library for Aryn services"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "aryn_sdk-0.2.5-py3-none-any.whl", hash = "sha256:634bc70cdcbb3aebbf6bf13fd669fe3ecdfb4540d3c587e07934d02b2facaba7"},
-    {file = "aryn_sdk-0.2.5.tar.gz", hash = "sha256:622fbdfba57de30bc1702ce33491b0b9b98e79261dbf47f68452b1fa56641b14"},
+    {file = "aryn_sdk-0.1.17-py3-none-any.whl", hash = "sha256:749d67c01265254e2fd4bec04abc6c21a65f25c14c22519349d13d1ea8cd6db8"},
+    {file = "aryn_sdk-0.1.17.tar.gz", hash = "sha256:ba8ac534ee5d1af3e35063f38fcbd16f5738ae8280c3f0890c7c1a3a4aa9268d"},
 ]
 
 [package.dependencies]
-httpcore = ">=1.0.9"
-httpx = ">=0.25.0,<1"
-httpx-sse = ">=0.4.0,<0.5.0"
-numpy = ">=1.21.5,<2"
+numpy = ">=1.21.5"
 packaging = ">=24.1,<25.0"
 pandas = ">=2.0"
 pdf2image = ">=1.16.3,<2.0.0"
 pillow = ">=11.1.0"
-pydantic = ">=2.10.6,<3.0.0"
 pyyaml = ">=6.0.1,<7.0.0"
+requests = ">=2.32,<3.0"
 
 [[package]]
 name = "asttokens"
@@ -3341,18 +3338,6 @@ cli = ["click (==8.*)", "pygments (==2.*)", "rich (>=10,<14)"]
 http2 = ["h2 (>=3,<5)"]
 socks = ["socksio (==1.*)"]
 zstd = ["zstandard (>=0.18.0)"]
-
-[[package]]
-name = "httpx-sse"
-version = "0.4.0"
-description = "Consume Server-Sent Event (SSE) messages with HTTPX."
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "httpx-sse-0.4.0.tar.gz", hash = "sha256:1e81a3a3070ce322add1d3529ed42eb5f70817f45ed6ec915ab753f961139721"},
-    {file = "httpx_sse-0.4.0-py3-none-any.whl", hash = "sha256:f329af6eae57eaa2bdfd962b42524764af68075ea87370a2de920af5341e318f"},
-]
 
 [[package]]
 name = "huggingface-hub"
@@ -8562,14 +8547,14 @@ ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==23.2.1)", "requests (>=2.31.0)"
 
 [[package]]
 name = "redis-om"
-version = "0.3.3"
+version = "0.3.5"
 description = "Object mappings, and more, for Redis."
 optional = false
 python-versions = "<4.0,>=3.8"
 groups = ["docker"]
 files = [
-    {file = "redis_om-0.3.3-py3-none-any.whl", hash = "sha256:094fc5ae1bd0edd5e722edc1df13e97281e756356f4bc22ee39bb4a94fc8a66b"},
-    {file = "redis_om-0.3.3.tar.gz", hash = "sha256:7cafd8ca2117f12ff276acf547f2c58261ce3b5dab4fa19b8a1569dbf0d97d28"},
+    {file = "redis_om-0.3.5-py3-none-any.whl", hash = "sha256:99ab40f696028ce47c5e2eb5118a1ffc1fd193005428df89c8cf77ad35a0177a"},
+    {file = "redis_om-0.3.5.tar.gz", hash = "sha256:fd152ccebc9b47604287a347628ef0d2c0051c13d5653f121193e801bb1cc4a7"},
 ]
 
 [package.dependencies]
@@ -8579,7 +8564,7 @@ more-itertools = ">=8.14,<11.0"
 pydantic = ">=1.10.2,<3.0.0"
 python-ulid = ">=1.0.3,<2.0.0"
 redis = ">=3.5.3,<6.0.0"
-setuptools = {version = ">=70.0,<76.0", markers = "python_version >= \"3.12\""}
+setuptools = ">=70.0"
 types-redis = ">=3.5.9,<5.0.0"
 typing-extensions = ">=4.4.0,<5.0.0"
 
@@ -9339,42 +9324,19 @@ tests = ["coverage[toml] (>=5.0.2)", "pytest"]
 
 [[package]]
 name = "setuptools"
-version = "75.9.1"
+version = "80.8.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev", "docker", "notebook"]
-markers = "python_version == \"3.12\""
 files = [
-    {file = "setuptools-75.9.1-py3-none-any.whl", hash = "sha256:0a6f876d62f4d978ca1a11ab4daf728d1357731f978543ff18ecdbf9fd071f73"},
-    {file = "setuptools-75.9.1.tar.gz", hash = "sha256:b6eca2c3070cdc82f71b4cb4bb2946bc0760a210d11362278cf1ff394e6ea32c"},
+    {file = "setuptools-80.8.0-py3-none-any.whl", hash = "sha256:95a60484590d24103af13b686121328cc2736bee85de8936383111e421b9edc0"},
+    {file = "setuptools-80.8.0.tar.gz", hash = "sha256:49f7af965996f26d43c8ae34539c8d99c5042fbff34302ea151eaa9c207cd257"},
 ]
 
 [package.extras]
 check = ["pytest-checkdocs (>=2.4)", "pytest-ruff (>=0.2.1) ; sys_platform != \"cygwin\"", "ruff (>=0.8.0) ; sys_platform != \"cygwin\""]
-core = ["importlib_metadata (>=6) ; python_version < \"3.10\"", "jaraco.collections", "jaraco.functools (>=4)", "jaraco.text (>=3.7)", "more_itertools", "more_itertools (>=8.8)", "packaging", "packaging (>=24.2)", "platformdirs (>=4.2.2)", "tomli (>=2.0.1) ; python_version < \"3.11\"", "wheel (>=0.43.0)"]
-cover = ["pytest-cov"]
-doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "pygments-github-lexers (==0.0.5)", "pyproject-hooks (!=1.1)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-favicon", "sphinx-inline-tabs", "sphinx-lint", "sphinx-notfound-page (>=1,<2)", "sphinx-reredirects", "sphinxcontrib-towncrier", "towncrier (<24.7)"]
-enabler = ["pytest-enabler (>=2.2)"]
-test = ["build[virtualenv] (>=1.0.3)", "filelock (>=3.4.0)", "ini2toml[lite] (>=0.14)", "jaraco.develop (>=7.21) ; python_version >= \"3.9\" and sys_platform != \"cygwin\"", "jaraco.envs (>=2.2)", "jaraco.path (>=3.7.2)", "jaraco.test (>=5.5)", "packaging (>=24.2)", "pip (>=19.1)", "pyproject-hooks (!=1.1)", "pytest (>=6,!=8.1.*)", "pytest-home (>=0.5)", "pytest-perf ; sys_platform != \"cygwin\"", "pytest-subprocess", "pytest-timeout", "pytest-xdist (>=3)", "tomli-w (>=1.0.0)", "virtualenv (>=13.0.0)", "wheel (>=0.44.0)"]
-type = ["importlib_metadata (>=7.0.2) ; python_version < \"3.10\"", "jaraco.develop (>=7.21) ; sys_platform != \"cygwin\"", "mypy (==1.14.*)", "pytest-mypy"]
-
-[[package]]
-name = "setuptools"
-version = "76.0.0"
-description = "Easily download, build, install, upgrade, and uninstall Python packages"
-optional = false
-python-versions = ">=3.9"
-groups = ["main", "dev", "docker", "notebook"]
-markers = "python_version < \"3.12\""
-files = [
-    {file = "setuptools-76.0.0-py3-none-any.whl", hash = "sha256:199466a166ff664970d0ee145839f5582cb9bca7a0a3a2e795b6a9cb2308e9c6"},
-    {file = "setuptools-76.0.0.tar.gz", hash = "sha256:43b4ee60e10b0d0ee98ad11918e114c70701bc6051662a9a675a0496c1a158f4"},
-]
-
-[package.extras]
-check = ["pytest-checkdocs (>=2.4)", "pytest-ruff (>=0.2.1) ; sys_platform != \"cygwin\"", "ruff (>=0.8.0) ; sys_platform != \"cygwin\""]
-core = ["importlib_metadata (>=6) ; python_version < \"3.10\"", "jaraco.collections", "jaraco.functools (>=4)", "jaraco.text (>=3.7)", "more_itertools", "more_itertools (>=8.8)", "packaging", "packaging (>=24.2)", "platformdirs (>=4.2.2)", "tomli (>=2.0.1) ; python_version < \"3.11\"", "wheel (>=0.43.0)"]
+core = ["importlib_metadata (>=6) ; python_version < \"3.10\"", "jaraco.functools (>=4)", "jaraco.text (>=3.7)", "more_itertools", "more_itertools (>=8.8)", "packaging (>=24.2)", "platformdirs (>=4.2.2)", "tomli (>=2.0.1) ; python_version < \"3.11\"", "wheel (>=0.43.0)"]
 cover = ["pytest-cov"]
 doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "pygments-github-lexers (==0.0.5)", "pyproject-hooks (!=1.1)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-favicon", "sphinx-inline-tabs", "sphinx-lint", "sphinx-notfound-page (>=1,<2)", "sphinx-reredirects", "sphinxcontrib-towncrier", "towncrier (<24.7)"]
 enabler = ["pytest-enabler (>=2.2)"]
@@ -10013,6 +9975,7 @@ pytest = "7.4.0"
 ray = ">=2.41.0"
 scipy = "1.13.1"
 scrapy = ">=2.11.2"
+setuptools = ">=78.1.1"
 tornado = ">=6.5.0"
 weaviate-client = "4.14.1"
 
@@ -11724,4 +11687,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<3.13"
-content-hash = "91fc57815f04076e35b60635ebfe83e630ad5807f1859eb510e0f44e51066a0a"
+content-hash = "ed2ee2f6bc254cc4b0bdadb927327e2d46e8912d67852c6ae11d6206c663f53a"

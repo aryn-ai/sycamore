@@ -341,17 +341,18 @@ test = ["dateparser (==1.*)", "pre-commit", "pytest", "pytest-cov", "pytest-mock
 
 [[package]]
 name = "aryn-sdk"
-version = "0.2.3"
+version = "0.2.6"
 description = "The client library for Aryn services."
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "aryn_sdk-0.2.3-py3-none-any.whl", hash = "sha256:0b29b3b662e24a6aacf57492514af9f1b7ce317a4195cda87dbc52eebd3f3f05"},
-    {file = "aryn_sdk-0.2.3.tar.gz", hash = "sha256:9a484ee223bd2c7d1c7ef89ecfbdfc443ce167838bbc411dea6272b8cc394a7e"},
+    {file = "aryn_sdk-0.2.6-py3-none-any.whl", hash = "sha256:16886f7590432ab4d71f674d71fc41243f018f3abcee283b0c89ce2fee7999aa"},
+    {file = "aryn_sdk-0.2.6.tar.gz", hash = "sha256:dd788c947a2537bb449d5190f61bc7d1572cad1488880583db06aef3f2c36f10"},
 ]
 
 [package.dependencies]
+httpcore = ">=1.0.9"
 httpx = ">=0.25.0,<1"
 httpx-sse = ">=0.4.0,<0.5.0"
 numpy = ">=1.21.5,<2"
@@ -6186,7 +6187,7 @@ develop = true
 [package.dependencies]
 aiohttp = "^3.11.18"
 amazon-textract-textractor = "^1.3.2"
-aryn-sdk = "*"
+aryn-sdk = ">=0.2.6"
 async-timeout = ">4.0.0"
 beautifulsoup4 = "^4.13.1"
 boto3 = "^1.28.70"

@@ -49,7 +49,7 @@ typing-extensions = "^4.12.2"
 httpcore = ">=1.0.9"
 tornado = ">=6.5.0"  # See poetry-lock/pyproject.toml
 
-aryn-sdk = ">=0.2.5"
+aryn-sdk = ">=0.2.6"
 
 #Evaluation dependencies
 apted = { version = "^1.0.3", optional = true }

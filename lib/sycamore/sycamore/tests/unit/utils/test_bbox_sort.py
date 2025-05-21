@@ -1,14 +1,8 @@
 from typing import Any, Optional
 
 from sycamore.data import Document, Element
-from sycamore.utils.bbox_sort import (
-    collect_pages,
-    col_tag,
-    find_overlap,
-    bbox_sorted_elements,
-    bbox_sort_page,
-    bbox_sort_document,
-)
+from sycamore.utils.bbox_sort import col_tag, find_overlap, bbox_sort_page
+from sycamore.utils.element_sort import collect_pages, sort_elements, sort_document
 
 
 def mkElem(
@@ -99,7 +93,7 @@ def test_elements_basic() -> None:
     e9 = mkElem(0.20, 0.21, 0.90, 0.41, 2)
 
     elems = [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9]
-    elems = bbox_sorted_elements(elems)
+    sort_elements(elems)
     answer = [e4, e5, e3, e6, e7, e8, e9, e1, e0, e2]
     assert elems == answer
     assert_element_index_sorted(elems)
@@ -114,7 +108,7 @@ def test_document_basic() -> None:
     e5 = mkElem(0.1, 0.1, 0.9, 0.2, 2)
     doc = Document()
     doc.elements = [e0, e1, e2, e3, e4, e5]
-    bbox_sort_document(doc)
+    sort_document(doc, mode="bbox")
     answer = [e3, e2, e5, e4, e1, e0]
     assert doc.elements == answer
     assert_element_index_sorted(doc.elements)

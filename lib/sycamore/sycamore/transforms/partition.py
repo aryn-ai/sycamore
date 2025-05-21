@@ -13,7 +13,7 @@ from sycamore.utils.cache import Cache
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.aryn_config import ArynConfig
-from sycamore.utils.bbox_sort import bbox_sort_document
+from sycamore.utils.element_sort import sort_document
 
 from sycamore.transforms.detr_partitioner_config import (
     ARYN_DETR_MODEL,
@@ -164,6 +164,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         min_partition_length: Optional[int] = 500,
         include_metadata: bool = True,
         retain_coordinates: bool = False,
+        sort_mode: Optional[str] = None,
     ):
         super().__init__(device="cpu")
         self._include_page_breaks = include_page_breaks
@@ -174,6 +175,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         self._min_partition_length = min_partition_length
         self._include_metadata = include_metadata
         self._retain_coordinates = retain_coordinates
+        self._sort_mode = sort_mode
 
     @staticmethod
     def to_element(dict: dict[str, Any], element_index: Optional[int] = None, retain_coordinates=False) -> Element:
@@ -233,7 +235,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         ]
         del elements
 
-        bbox_sort_document(document)
+        sort_document(document, mode=self._sort_mode)
         return document
 
 
@@ -429,6 +431,7 @@ class ArynPartitioner(Partitioner):
             Here is an example set of output label options:
                 {"promote_title": True, "title_candidate_elements": ["Section-header", "Caption"]}
             default: None (no element is promoted to "Title")
+        sort_mode: Reading order algorithm: bbox (default) or xycut.
         kwargs: Additional keyword arguments to pass to the remote partitioner.
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
@@ -466,6 +469,7 @@ class ArynPartitioner(Partitioner):
         text_extraction_options: dict[str, Any] = {},
         source: str = "",
         output_label_options: dict[str, Any] = {},
+        sort_mode: Optional[str] = None,
         **kwargs,
     ):
         if use_partitioning_service:
@@ -508,6 +512,7 @@ class ArynPartitioner(Partitioner):
         self._text_extraction_options = text_extraction_options
         self._source = source
         self.output_label_options = output_label_options
+        self.sort_mode = sort_mode
         self._kwargs = kwargs
 
     @timetrace("SycamorePdf")
@@ -539,6 +544,7 @@ class ArynPartitioner(Partitioner):
                 text_extraction_options=self._text_extraction_options,
                 source=self._source,
                 output_label_options=self.output_label_options,
+                sort_mode=self.sort_mode,
                 **self._kwargs,
             )
         except Exception as e:
@@ -547,7 +553,7 @@ class ArynPartitioner(Partitioner):
 
         document.elements = elements
 
-        bbox_sort_document(document)
+        sort_document(document, mode=self.sort_mode)
 
         return document
 

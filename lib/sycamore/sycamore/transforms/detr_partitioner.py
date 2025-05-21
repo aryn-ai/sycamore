@@ -19,7 +19,7 @@ from sycamore.data.document import DocumentPropertyTypes
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import choose_device
-from sycamore.utils.bbox_sort import bbox_sort_page
+from sycamore.utils.element_sort import sort_page
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.import_utils import requires_modules
@@ -172,6 +172,7 @@ class ArynPDFPartitioner:
         text_extraction_options: dict[str, Any] = {},
         source: str = "",
         output_label_options: dict[str, Any] = {},
+        sort_mode: Optional[str] = None,
         **kwargs,
     ) -> list[Element]:
         if use_partitioning_service:
@@ -223,7 +224,7 @@ class ArynPDFPartitioner:
                         promote_title(page, title_candidate_elements)
                     else:
                         promote_title(page)
-                bbox_sort_page(page)
+                sort_page(page, mode=sort_mode)
                 elements.extend(page)
             if output_format == "markdown":
                 md = elements_to_markdown(elements)

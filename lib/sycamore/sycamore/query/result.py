@@ -56,8 +56,13 @@ class SycamoreQueryResult(BaseModel):
         else:
             return str(self.result)
 
-    def retrieved_docs(self) -> list[str]:
-        """Return a set of Document paths for the documents retrieved by the query."""
+    def retrieved_docs(self, identifier_field: str = "properties.path") -> list[str]:
+        """Return a set of Document identifiers for the documents retrieved by the query.
+
+        Args:
+            identifier_field: The field to use to identify each document (and what to return).
+                Default is 'properties.path'
+        """
 
         context = sycamore.init()
 
@@ -87,15 +92,15 @@ class SycamoreQueryResult(BaseModel):
                 if node_trace_dir:
                     try:
                         mds = context.read.materialize(node_trace_dir)
-                        keep = mds.filter(lambda doc: doc.properties.get("path") is not None)
+                        keep = mds.filter(lambda doc: doc.field_to_value(identifier_field) is not None)
                         results = keep.take_all()
                         if len(results) > 0:
                             for prop in sort_by_properties:
                                 results = sorted(
                                     results, key=lambda doc: doc.properties.get(prop, float("-inf")), reverse=True
                                 )
-                            unique_paths = OrderedDict((doc.properties.get("path"), None) for doc in results)
-                            return list(unique_paths.keys())
+                            unique_ids = OrderedDict((doc.field_to_value(identifier_field), None) for doc in results)
+                            return list(unique_ids.keys())
                     except ValueError:
                         # This can happen if the materialize directory is empty.
                         # Ignore and move onto the next node.

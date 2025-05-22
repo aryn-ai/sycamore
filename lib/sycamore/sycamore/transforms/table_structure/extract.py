@@ -370,6 +370,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
             if "->" not in statement:
                 if statement not in cls._model_names:
                     raise ValueError(
+                        f"Bad model selection: {selection}\n"
                         f"Invalid statement: '{statement}'. Did not find '->', so this is assumed"
                         f" to be a static statement, but the model_name was not in {cls._model_names}"
                     )
@@ -377,14 +378,20 @@ class HybridTableStructureExtractor(TableStructureExtractor):
                 break
             pieces = statement.split(sep="->")
             if len(pieces) > 2:
-                raise ValueError(f"Invalid statement: '{statement}'. Found more than 2 instances of '->'")
+                raise ValueError(
+                    f"Bad model selection: {selection}\n"
+                    f"Invalid statement: '{statement}'. Found more than 2 instances of '->'"
+                )
+
             result = pieces[1].strip()
             if result not in cls._model_names:
                 raise ValueError(
+                    f"Bad model selection: {selection}\n"
                     f"Invalid statement: '{statement}'. Result model ({result}) was not in {cls._model_names}"
                 )
             if all(c not in pieces[0] for c in cls._comparisons):
                 raise ValueError(
+                    f"Bad model selection: {selection}\n"
                     f"Invalid statement: '{statement}'. Did not find a comparison operator {cls._comparisons}"
                 )
             metric, cmp, threshold = cls.parse_comparison(pieces[0])

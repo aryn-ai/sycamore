@@ -3,12 +3,13 @@ from pypdf import PdfReader
 import pytest
 import re
 import sycamore
-from sycamore.data import Element
+from sycamore.data import Document, Element
 from sycamore.utils.pdf_utils import (
     flatten_selected_pages,
     filter_elements_by_page,
     select_pdf_pages,
     select_pages,
+    split_pdf,
     promote_title,
 )
 from sycamore.tests.config import TEST_DIR
@@ -157,6 +158,41 @@ def test_select_pages():
     assert new_doc.binary_representation is not None
     assert len(new_doc.binary_representation) < len(doc.binary_representation)
     assert all(e.properties["page_number"] in [1, 2, 4] for e in new_doc.elements)
+
+
+def _check_split_pdf(new_docs: list[Document]):
+    assert len(new_docs) == 6
+
+    for i, new_doc in enumerate(new_docs):
+        assert "_original_id" in new_doc.properties
+        assert "remapped_pages" in new_doc.properties
+        assert new_doc.properties.get("_split_index") == i
+        assert new_doc.binary_representation is not None
+
+        with PdfReader(BytesIO(new_doc.binary_representation)) as reader:
+            page_count = len(reader.pages)
+            assert page_count == 3 or (page_count == 2 and i == len(new_docs) - 1)
+
+
+def test_split_pdf():
+    path = TEST_DIR / "resources/data/pdfs/Ray.pdf"
+    context = sycamore.init(exec_mode=sycamore.EXEC_LOCAL)
+    docs = context.read.binary(paths=[str(path)], binary_format="pdf").take_all()
+    assert len(docs) == 1
+
+    doc = docs[0]
+    new_docs = split_pdf(num_pages=3)(doc)
+
+    _check_split_pdf(new_docs)
+
+
+def test_split_pdf_flatmap():
+    path = TEST_DIR / "resources/data/pdfs/Ray.pdf"
+    context = sycamore.init(exec_mode=sycamore.EXEC_LOCAL)
+    ds = context.read.binary(paths=[str(path)], binary_format="pdf").flat_map(split_pdf(num_pages=3))
+
+    new_docs = ds.take_all()
+    _check_split_pdf(new_docs)
 
 
 def test_promote_title_with_title_element():

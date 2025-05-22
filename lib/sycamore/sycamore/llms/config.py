@@ -6,6 +6,8 @@ from typing import Optional
 class AnthropicModels(Enum):
     """Represents available Claude models."""
 
+    CLAUDE_4_OPUS = "claude-opus-4-20250514"
+    CLAUDE_4_SONNET = "claude-sonnet-4-20250514"
     CLAUDE_3_7_SONNET = "claude-3-7-sonnet-latest"
     CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest"
     CLAUDE_3_5_HAIKU = "claude-3-5-haiku-latest"
@@ -34,7 +36,8 @@ class BedrockModels(Enum):
     CLAUDE_3_HAIKU = BedrockModel(name="anthropic.claude-3-haiku-20240307-v1:0", is_chat=True)
     CLAUDE_3_SONNET = BedrockModel(name="anthropic.claude-3-sonnet-20240229-v1:0", is_chat=True)
     CLAUDE_3_OPUS = BedrockModel(name="anthropic.claude-3-opus-20240229-v1:0", is_chat=True)
-    CLAUDE_3_5_SONNET = BedrockModel(name="anthropic.claude-3-5-sonnet-20240620-v1:0", is_chat=True)
+    CLAUDE_3_5_SONNET = BedrockModel(name="anthropic.claude-3-5-sonnet-20241022-v2:0", is_chat=True)
+    CLAUDE_3_7_SONNET = BedrockModel(name="anthropic.claude-3-7-sonnet-20250219-v1:0", is_chat=True)
 
     @classmethod
     def from_name(cls, name: str):
@@ -54,7 +57,8 @@ class GeminiModels(Enum):
     """Represents available Gemini models. More info: https://googleapis.github.io/python-genai/"""
 
     # Note that the models available on a given Gemini account may vary.
-    GEMINI_2_5_FLASH_PREVIEW = GeminiModel(name="gemini-2.5-flash-preview-04-17", is_chat=True)
+    GEMINI_2_5_FLASH_PREVIEW = GeminiModel(name="gemini-2.5-flash-preview-05-20", is_chat=True)
+    GEMINI_2_5_PRO_PREVIEW = GeminiModel(name="gemini-2.5-pro-preview-05-06", is_chat=True)
     GEMINI_2_FLASH = GeminiModel(name="gemini-2.0-flash", is_chat=True)
     GEMINI_2_FLASH_LITE = GeminiModel(name="gemini-2.0-flash-lite", is_chat=True)
     GEMINI_2_FLASH_THINKING = GeminiModel(name="gemini-2.0-flash-thinking-exp", is_chat=True)

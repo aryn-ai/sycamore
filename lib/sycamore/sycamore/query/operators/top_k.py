@@ -34,5 +34,5 @@ class TopK(Node):
 
     llm_cluster_instruction: Optional[str] = Field(default=None, json_schema_extra={"exclude_from_comparison": True})
     """An instruction of what the groups should be about if llm_cluster is True. E.g. if the
-    purpose of this operation is to find the top 2 most frequent cities, llm_cluster_instruction
-    could be 'Form groups of different food'"""
+    purpose of this operation is to find the top K most frequent cities, llm_cluster_instruction
+    could be 'Form groups of different cities'"""

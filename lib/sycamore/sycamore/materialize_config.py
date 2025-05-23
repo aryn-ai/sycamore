@@ -153,7 +153,7 @@ class RandomNameGroup(MaterializeNameGroup):
         hash_id = sha256(bin).hexdigest()
         doc_id = doc.doc_id or doc.data.get("lineage_id", None)
         if doc_id is None:
-            logging.warn(f"found document with no doc_id or lineage_id, assigned content based id {hash_id}")
+            logging.warning(f"found document with no doc_id or lineage_id, assigned content based id {hash_id}")
             doc_id = hash_id
 
         if isinstance(doc, MetadataDocument):

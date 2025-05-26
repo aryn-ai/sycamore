@@ -50,7 +50,6 @@ def _infer_prompts(
         fut = asyncio.run_coroutine_threadsafe(_infer_prompts_async([p for _, p in nonempty], llm), new_loop)
 
         responses = fut.result()
-        print(responses)
 
         new_loop.call_soon_threadsafe(new_loop.stop)
         t.join()

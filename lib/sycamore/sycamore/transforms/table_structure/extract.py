@@ -282,7 +282,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         padding = 10
         max_dim = max(bb.width, bb.height) + 2 * padding
 
-        nchars = sum(len(tok["text"]) for tok in element.tokens or [{"text": ""}])
+        nchars = sum((len(tok["text"]) if tok is not None else 0) for tok in element.tokens or [{"text": ""}])
 
         selection = select_fn(max_dim, nchars)
         print("=" * 80)

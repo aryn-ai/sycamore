@@ -89,6 +89,16 @@ class TestTableExtractors:
         tks_again = tm._prepare_tokens(elt.tokens, crop_box, width, height)
         assert tks == tks_again
 
+    def test_hybrid_nonetoken(self, mocker):
+        im = TestTableExtractors.mock_doc_image(mocker, 1000, 1000)
+        elt = TestTableExtractors.mock_table_element(mocker, 0.2, 0.2)
+        elt.tokens.append(None)
+
+        extractor = HybridTableStructureExtractor(deformable_model="dont initialize me")
+        extractor._tatr = MockTableModel(killme=False)
+        extractor._deformable = MockTableModel(killme=True)  # type: ignore
+        extractor.extract(elt, im, model_selection="chars > 3 -> deformable_detr; table_transformer")
+
 
 class TestHybridSelectionStatements:
     params = [(1000, 25), (25, 1000), (25, 25), (1000, 1000)]

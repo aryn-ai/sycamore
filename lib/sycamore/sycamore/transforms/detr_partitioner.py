@@ -50,6 +50,7 @@ class ArynPDFPartitionerException(Exception):
 
 def _can_retry(e: BaseException) -> bool:
     if isinstance(e, ArynPDFPartitionerException):
+        assert isinstance(e, BaseException)  # make mypy happy, unneeded with mypy 1.15 + python 3.12
         import traceback
 
         logger.warning(f"Automatically retrying because of error: {traceback.format_exception_only(e)}")

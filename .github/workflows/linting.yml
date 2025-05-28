@@ -41,6 +41,7 @@ jobs:
         run: df -h
       - name: Run mypy
         run: |
+          poetry run mypy --version
           mkdir .mypy_cache/
           poetry run mypy --install-types --non-interactive .
 

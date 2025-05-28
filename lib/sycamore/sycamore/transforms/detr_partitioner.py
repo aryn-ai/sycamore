@@ -50,6 +50,9 @@ class ArynPDFPartitionerException(Exception):
 
 def _can_retry(e: BaseException) -> bool:
     if isinstance(e, ArynPDFPartitionerException):
+        import traceback
+
+        logger.warning(f"Automatically retrying because of error: {traceback.format_exception_only(e)}")
         return e.can_retry
     else:
         return False

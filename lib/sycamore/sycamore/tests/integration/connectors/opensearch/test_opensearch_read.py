@@ -781,34 +781,6 @@ class TestOpenSearchRead:
         expected = {"p3"}
         assert expected == {d.doc_id for d in retrieved_docs}
 
-        query_with_filter = {
-            "bool": {
-                "must": [
-                    {
-                        "match_all": {},
-                    }
-                ],
-                "filter": [
-                    {
-                        "term": {
-                            "doc_id": "p3",
-                        }
-                    }
-                ],
-            }
-        }
-        filter = {"properties.tags": ["7"]}
-        retrieved_docs = context.read.opensearch(
-            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
-            index_name=setup_index,
-            query={"query": query_with_filter},
-            reconstruct_document=True,
-            result_filter=filter,
-        ).take_all()
-
-        expected = {"p3"}
-        assert expected == {d.doc_id for d in retrieved_docs}
-
         filter = {"properties.tags": ["8"]}
         retrieved_docs = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
@@ -821,6 +793,115 @@ class TestOpenSearchRead:
         assert 0 == len(retrieved_docs)
 
         os_client.indices.delete(setup_index, ignore_unavailable=True)
+
+    def test_compound_query_on_property(self, setup_index, os_client):
+        context = sycamore.init(exec_mode=ExecMode.RAY)
+        dicts = [
+            {
+                "doc_id": "p1",
+                "properties": {"tags": ["1", "2", "3"]},
+                "elements": [
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that meows"},
+                ],
+            },
+            {
+                "doc_id": "p2",
+                "properties": {"tags": ["1", "2", "5"]},
+                "elements": [
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that meows"},
+                ],
+            },
+            {
+                "doc_id": "p3",
+                "properties": {"tags": ["1", "6", "7"]},
+                "elements": [
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that meows"},
+                ],
+            },
+        ]
+        docs = [Document(item) for item in dicts]
+
+        original_docs = (
+            context.read.document(docs)
+            .explode()
+            .write.opensearch(
+                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                index_name=setup_index,
+                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                execute=False,
+            )
+            .take_all()
+        )
+
+        os_client.indices.refresh(setup_index)
+
+        expected_count = len(original_docs)
+        actual_count = get_doc_count(os_client, setup_index)
+        assert actual_count == expected_count, f"Expected {expected_count} documents, found {actual_count}"
+
+        compound_query = {
+            "bool": {
+                "must": [
+                    {
+                        "term": {
+                            "properties.tags.keyword": {
+                                "value": "1",
+                            }
+                        },
+                    },
+                    {
+                        "term": {
+                            "properties.tags.keyword": {
+                                "value": "7",
+                            }
+                        },
+                    },
+                ],
+            }
+        }
+        filter = {"properties.tags": ["7"]}
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query={"query": compound_query},
+            reconstruct_document=True,
+            result_filter=filter,
+        ).take_all()
+
+        expected = {"p3"}
+        assert expected == {d.doc_id for d in retrieved_docs}
+
+        compound_query_with_filter = {
+            "bool": {
+                "must": [
+                    {
+                        "term": {
+                            "properties.tags.keyword": {
+                                "value": "1",
+                            }
+                        },
+                    },
+                    {
+                        "term": {
+                            "properties.tags.keyword": {
+                                "value": "7",
+                            }
+                        },
+                    },
+                ],
+                "filter": [{"terms": filter}],
+            }
+        }
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            query={"query": compound_query_with_filter},
+            reconstruct_document=True,
+            result_filter=filter,
+        ).take_all()
+
+        expected = {"p3"}
+        assert expected == {d.doc_id for d in retrieved_docs}
 
     def test_result_filter_on_property_knn(self, setup_index, os_client):
         context = sycamore.init(exec_mode=ExecMode.RAY)

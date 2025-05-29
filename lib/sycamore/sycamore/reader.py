@@ -322,16 +322,6 @@ class DocSetReader:
             if "knn" in query["query"]:
                 if "filter" in query["query"]["knn"]:
                     raise ValueError("'query' cannot contain a filter when 'result_filter' is provided.")
-            elif (
-                # TODO improve detection of filter in query
-                # Even if we fail to catch it here
-                # we will still check if result_filter was applied correctly
-                # and raise an error if it was not.
-                "bool" in query["query"]
-                and "must" in query["query"]["bool"]
-                and "filter" in query["query"]["bool"]
-            ):
-                raise ValueError("'query' cannot contain a filter when 'result_filter' is provided.")
 
         query_params = OpenSearchReaderQueryParams(
             index_name=index_name,

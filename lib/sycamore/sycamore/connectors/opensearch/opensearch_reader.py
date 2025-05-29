@@ -259,6 +259,7 @@ def get_doc_count_for_slice(os_client, slice_query: dict[str, Any]) -> int:
 
 
 def add_filter_to_query(query: dict[str, Any], filter: dict[str, Any]):
+
     actual_query = query["query"]
     query["query"] = {
         "bool": {

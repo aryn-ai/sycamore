@@ -257,39 +257,16 @@ def get_doc_count_for_slice(os_client, slice_query: dict[str, Any]) -> int:
     res = os_client.search(body=slice_query, size=0, track_total_hits=True)
     return res["hits"]["total"]["value"]
 
-def is_compound_query(query: dict[str, Any]) -> bool:
-    """
-    Check if the query is a compound query (i.e., it contains a 'bool' clause).
-    """
-    if "query" not in query:
-        return False
-
-    inner_query = query["query"]
-    if len(inner_query) != 1:
-        return False
-
-    k, _ = next(iter(inner_query.items()))
-    # https://docs.opensearch.org/docs/latest/query-dsl/compound/index/
-    if k in ["bool", "boosting", "constant_score", "dis_max", "function_score", "hybrid"]:
-        return True
-
-    return False
 
 def add_filter_to_query(query: dict[str, Any], filter: dict[str, Any]):
 
-    if is_compound_query(query):
-        # We check this reader, but this is just in case.
-        assert "filter" not in query["query"]["bool"], "Filter already exists in the query"
-        query["query"]["bool"]["filter"] = [{"terms": filter}]
-    else:
-        # Leaf queries can be wrapped in a bool query with a filter clause.
-        actual_query = query["query"]
-        query["query"] = {
-            "bool": {
-                "must": [actual_query],
-                "filter": [{"terms": filter}],
-            }
+    actual_query = query["query"]
+    query["query"] = {
+        "bool": {
+            "must": [actual_query],
+            "filter": [{"terms": filter}],
         }
+    }
 
 
 def add_filter_to_knn_query(query: dict[str, Any], filter: dict[str, Any]):

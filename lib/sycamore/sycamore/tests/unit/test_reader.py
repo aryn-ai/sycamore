@@ -72,11 +72,6 @@ class TestDocSetReader:
             query = {"query": {"knn": {"embedding": {}, "filter": {}}}}
             context.read.opensearch(os_client_args={}, index_name="test", query=query, result_filter=filter)
 
-        with pytest.raises(ValueError):
-            filter = {"property1": ["1", "2"]}
-            query = {"query": {"bool": {"must": [{"match_all": {}}], "filter": {}}}}
-            context.read.opensearch(os_client_args={}, index_name="test", query=query, result_filter=filter)
-
 
 class TestFileReadReliability(unittest.TestCase):
 

@@ -781,19 +781,23 @@ class TestOpenSearchRead:
         expected = {"p3"}
         assert expected == {d.doc_id for d in retrieved_docs}
 
-        query_with_filter = {
+        compound_query = {
             "bool": {
                 "must": [
                     {
-                        "match_all": {},
-                    }
-                ],
-                "filter": [
+                        "term": {
+                            "properties.tags.keyword": {
+                                "value": "1",
+                            }
+                        },
+                    },
                     {
                         "term": {
-                            "doc_id": "p3",
-                        }
-                    }
+                            "properties.tags.keyword": {
+                                "value": "7",
+                            }
+                        },
+                    },
                 ],
             }
         }
@@ -801,7 +805,7 @@ class TestOpenSearchRead:
         retrieved_docs = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
             index_name=setup_index,
-            query={"query": query_with_filter},
+            query={"query": compound_query},
             reconstruct_document=True,
             result_filter=filter,
         ).take_all()

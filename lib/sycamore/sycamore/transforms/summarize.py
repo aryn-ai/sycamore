@@ -390,6 +390,7 @@ OneStepSummarizerPrompt = JinjaPrompt(
         You are given a series of database entries that answer the question "{{ question }}".
         Generate a concise, conversational summary of the data to answer the question.
         {%- for subdoc in doc.data.get("sub_docs", [doc]) %}
+        Entry {{ loop.index }}:
             {% for f in doc.properties[doc_fields_key] %}{% if f.startswith("_") %}{% continue %}{% endif %}
             {{ f }}: {{ subdoc.field_to_value(f) }}
             {% endfor -%}
@@ -398,6 +399,7 @@ OneStepSummarizerPrompt = JinjaPrompt(
                 {%- set start = doc.properties[startel_key] -%}
                 {%- set end = doc.properties[startel_key] + doc.properties[numel_key] -%}
                 {%- for subel in subdoc.elements[start:end] -%}
+                {#- Removed {loop.index} from here because it blows up the token count. For an element token count, the index is 0 but when we count the tokens for all the elements included, it becomes like (0,1,2...) which results in a different tokenization from how we tokenize 1 element at a time. -#}
                     {%- for f in doc.properties[elt_fields_key] %}
                     {{ f }}: {{ subel.field_to_value(f) }}
                     {%- endfor %}

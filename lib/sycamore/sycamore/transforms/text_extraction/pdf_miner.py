@@ -40,7 +40,7 @@ class PdfMinerExtractor(TextExtractor):
         from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
 
         rm = PDFResourceManager()
-        param = LAParams()
+        param = LAParams(detect_vertical=True)
         self.device = PDFPageAggregator(rm, laparams=param)
         self.interpreter = PDFPageInterpreter(rm, self.device)
         self.object_type = object_type

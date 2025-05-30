@@ -167,3 +167,25 @@ class TestArynPDFPartitioner:
         objects_text = "".join(el.text_representation for el in objects_page if el.text_representation is not None)
 
         assert lines_text == objects_text
+
+    def _check_vertical_text(self, extractor):
+        filename = str(TEST_DIR / "resources/data/pdfs/Ray_page1.pdf")
+
+        pages = PdfMinerExtractor.pdf_to_pages(file_name=filename)
+        elements = []
+        for i, p in enumerate(pages):
+            assert i == 0
+            elements.extend(extractor.extract_page(p))
+
+        count = 0
+        for el in elements:
+            # TODO: Note double space.
+            if el.text_representation.strip() == "arXiv:1712.05889v2  [cs.DC]  30 Sep 2018":
+                count += 1
+        assert count == 1, f"Expected 1 occurrence of the text, found {count}."
+
+    def test_pdfminer_vertical_text_lines(self):
+        self._check_vertical_text(get_text_extractor("pdfminer", object_type="lines"))
+
+    def test_pdfminer_vertical_text_boxes(self):
+        self._check_vertical_text(get_text_extractor("pdfminer", object_type="boxes"))

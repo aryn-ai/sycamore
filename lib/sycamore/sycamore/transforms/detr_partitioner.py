@@ -432,6 +432,7 @@ class ArynPDFPartitioner:
     def process_batch(
         self,
         batch: list[Image.Image],
+        *,
         threshold: float,
         text_extractor: TextExtractor,
         extractor_inputs: Any,
@@ -444,6 +445,7 @@ class ArynPDFPartitioner:
         extract_images: bool,
         extract_image_format: str,
         use_cache,
+        skip_empty_tables: bool = False,
     ) -> Any:
         with LogTime("infer"):
             assert self.model is not None
@@ -482,6 +484,12 @@ class ArynPDFPartitioner:
                     image = batch[i]
                     for element in page_elements:
                         if isinstance(element, TableElement):
+                            if skip_empty_tables:
+                                if not element.tokens:
+                                    continue
+                                concatenated_text = " ".join([token.get("text") for token in element.tokens])
+                                if concatenated_text.strip() == "":
+                                    continue
                             table_structure_extractor.extract(element, image, **table_extractor_options)
 
         if extract_images:

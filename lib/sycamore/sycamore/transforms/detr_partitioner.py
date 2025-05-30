@@ -445,7 +445,7 @@ class ArynPDFPartitioner:
         extract_image_format: str,
         use_cache,
         *,
-        prefer_inline_fallback_to_ocr: bool = False,
+        skip_empty_tables: bool = False,
     ) -> Any:
         with LogTime("infer"):
             assert self.model is not None
@@ -484,7 +484,7 @@ class ArynPDFPartitioner:
                     image = batch[i]
                     for element in page_elements:
                         if isinstance(element, TableElement):
-                            if prefer_inline_fallback_to_ocr:
+                            if skip_empty_tables:
                                 if element.tokens is None or len(element.tokens) == 0:
                                     continue
                                 concatenated_text = " ".join([token.get("text") for token in element.tokens])

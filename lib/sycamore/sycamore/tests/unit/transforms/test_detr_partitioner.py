@@ -167,3 +167,37 @@ class TestArynPDFPartitioner:
         objects_text = "".join(el.text_representation for el in objects_page if el.text_representation is not None)
 
         assert lines_text == objects_text
+
+    def test_pdfminer_vertical_text(self):
+        filename = str(TEST_DIR / "resources/data/pdfs/Ray_page1.pdf")
+        lines_extractor = get_text_extractor("pdfminer", object_type="lines")
+
+        pages = PdfMinerExtractor.pdf_to_pages(file_name=filename)
+        lines_elements = []
+        for i, p in enumerate(pages):
+            assert i == 0
+            lines_elements.extend(lines_extractor.extract_page(p))
+
+        objects_extractor = get_text_extractor("pdfminer", object_type="boxes")
+        pages = PdfMinerExtractor.pdf_to_pages(file_name=filename)
+
+        objects_elements = []
+        for i, p in enumerate(pages):
+            assert i == 0
+            objects_elements.extend(objects_extractor.extract_page(p))
+
+        count = 0
+        for el in lines_elements:
+            print(el.text_representation, el.bbox)
+            # TODO: Note double space.
+            if el.text_representation.strip() == "arXiv:1712.05889v2  [cs.DC]  30 Sep 2018":
+                count += 1
+        assert count == 1, f"Expected 1 occurrence of the text for the lines extractor, found {count}."
+
+        count = 0
+        for el in objects_elements:
+            print(el.text_representation, el.bbox)
+            # TODO: Note double space.
+            if el.text_representation.strip() == "arXiv:1712.05889v2  [cs.DC]  30 Sep 2018":
+                count += 1
+        assert count == 1, f"Expected 1 occurrence of the text for the boxes extractor, found {count}."

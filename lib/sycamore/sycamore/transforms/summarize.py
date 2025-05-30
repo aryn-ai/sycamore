@@ -55,7 +55,10 @@ class SummaryDocument(Document):
     def elements(self) -> list[Element]:
         """A list of elements belonging to this document. A document does not necessarily always have
         elements, for instance, before a document is chunked."""
-        return self.data.get("_elements", list(itertools.chain(*(d.elements for d in self.data["sub_docs"]))))
+        return self.data.get(
+            "_elements",
+            list(itertools.chain(*(d.elements for d in self.data["sub_docs"]))),
+        )
 
     @elements.setter
     def elements(self, elements: list[Element]):
@@ -109,7 +112,13 @@ class LLMElementTextSummarizer(Summarizer):
 
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
         filter = self._element_filter or (lambda e: True)
-        return LLMMapElements(child, TextSummarizerJinjaPrompt, output_field="summary", llm=self._llm, filter=filter)
+        return LLMMapElements(
+            child,
+            TextSummarizerJinjaPrompt,
+            output_field="summary",
+            llm=self._llm,
+            filter=filter,
+        )
 
 
 class EtCetera:
@@ -342,7 +351,11 @@ class MultiStepDocumentSummarizer(Summarizer):
         return final_elements
 
     def batch_elements(
-        self, baseline_tokens: int, elements: list[Element], etk_prompt: SycamorePrompt, document: Document
+        self,
+        baseline_tokens: int,
+        elements: list[Element],
+        etk_prompt: SycamorePrompt,
+        document: Document,
     ) -> list[list[Element]]:
         """Return a list of lengths of consecutive batches of elements keeping total
         token counts below my token limit"""
@@ -377,7 +390,6 @@ OneStepSummarizerPrompt = JinjaPrompt(
         You are given a series of database entries that answer the question "{{ question }}".
         Generate a concise, conversational summary of the data to answer the question.
         {%- for subdoc in doc.data.get("sub_docs", [doc]) %}
-        Entry {{ loop.index }}:
             {% for f in doc.properties[doc_fields_key] %}{% if f.startswith("_") %}{% continue %}{% endif %}
             {{ f }}: {{ subdoc.field_to_value(f) }}
             {% endfor -%}
@@ -386,7 +398,6 @@ OneStepSummarizerPrompt = JinjaPrompt(
                 {%- set start = doc.properties[startel_key] -%}
                 {%- set end = doc.properties[startel_key] + doc.properties[numel_key] -%}
                 {%- for subel in subdoc.elements[start:end] -%}
-                {{ loop.index }}:
                     {%- for f in doc.properties[elt_fields_key] %}
                     {{ f }}: {{ subel.field_to_value(f) }}
                     {%- endfor %}
@@ -556,7 +567,13 @@ class OneStepDocumentSummarizer(Summarizer):
         finished = False
         if etc:
             finished, curr_ntks, final_docfields = self._maximize_fields(
-                doc, data_independent_ntk, curr_ntks, doc_fields, fieldset, "doc_fields_key", prompt
+                doc,
+                data_independent_ntk,
+                curr_ntks,
+                doc_fields,
+                fieldset,
+                "doc_fields_key",
+                prompt,
             )
 
         # We added all the fields, now add as many elements as possible
@@ -577,7 +594,13 @@ class OneStepDocumentSummarizer(Summarizer):
             doc.properties[vars["elt_fields_key"]] = []
             total_ntk_with_no_fields = prompt.render_document(doc).token_count(self.tokenizer)
             finished, curr_ntks, final_eltfields = self._maximize_fields(
-                doc, total_ntk_with_no_fields, curr_ntks, elt_fields, fieldset, "elt_fields_key", prompt
+                doc,
+                total_ntk_with_no_fields,
+                curr_ntks,
+                elt_fields,
+                fieldset,
+                "elt_fields_key",
+                prompt,
             )
 
         doc.properties[vars["doc_fields_key"]] = final_docfields

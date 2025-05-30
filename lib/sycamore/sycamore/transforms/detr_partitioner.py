@@ -431,8 +431,8 @@ class ArynPDFPartitioner:
 
     def process_batch(
         self,
-        *,
         batch: list[Image.Image],
+        *,
         threshold: float,
         text_extractor: TextExtractor,
         extractor_inputs: Any,

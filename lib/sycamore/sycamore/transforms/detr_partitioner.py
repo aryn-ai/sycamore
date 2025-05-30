@@ -485,7 +485,7 @@ class ArynPDFPartitioner:
                     for element in page_elements:
                         if isinstance(element, TableElement):
                             if skip_empty_tables:
-                                if element.tokens is None or len(element.tokens) == 0:
+                                if not element.tokens:
                                     continue
                                 concatenated_text = " ".join([token.get("text") for token in element.tokens])
                                 if concatenated_text.strip() == "":

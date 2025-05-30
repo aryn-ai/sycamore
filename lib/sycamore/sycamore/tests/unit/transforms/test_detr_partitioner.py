@@ -188,7 +188,6 @@ class TestArynPDFPartitioner:
 
         count = 0
         for el in lines_elements:
-            print(el.text_representation, el.bbox)
             # TODO: Note double space.
             if el.text_representation.strip() == "arXiv:1712.05889v2  [cs.DC]  30 Sep 2018":
                 count += 1
@@ -196,7 +195,6 @@ class TestArynPDFPartitioner:
 
         count = 0
         for el in objects_elements:
-            print(el.text_representation, el.bbox)
             # TODO: Note double space.
             if el.text_representation.strip() == "arXiv:1712.05889v2  [cs.DC]  30 Sep 2018":
                 count += 1

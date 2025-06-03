@@ -2,6 +2,7 @@ import logging
 from typing import Type, Optional, Any
 
 from sycamore.llms import LLM
+from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.query.logical_plan import Node
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.basic_filter import BasicFilter
@@ -167,6 +168,119 @@ class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
         prompt_kwargs = {"messages": messages}
         chat_completion = self.llm.generate_old(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
         return chat_completion
+
+
+class AlwaysSummarize(LogicalPlanProcessor):
+    """
+    A logical plan processor that makes sure every plan ends with a
+    summarize data. If the plan already ends with a summarize data,
+    nothing happens. If the plan ends with a sort, we drop the sort as it
+    does not matter when summarizing. Then we add a summarize node to the
+    end of the plan.
+    """
+
+    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+        n = plan.nodes[plan.result_node]
+        if n.node_type == "SummarizeData":
+            return plan
+
+        if n.node_type == "Sort":
+            assert len(n.inputs) == 1, "Trailing sort had multiple or zero inputs?"
+            penultimate = n.inputs[0]
+            del plan.nodes[plan.result_node]
+            plan.result_node = penultimate
+
+        from sycamore.query.operators.summarize_data import SummarizeData
+
+        question = plan.query
+        prev_result = plan.result_node
+        plan.result_node += 1
+        plan.nodes[plan.result_node] = SummarizeData(
+            node_type="SummarizeData",
+            node_id=plan.result_node,
+            description=f"Summarize the answer to the question {question}",
+            inputs=[prev_result],
+            question=question,
+        )
+        return plan
+
+
+class OnlyRetrieval(LogicalPlanProcessor):
+    """
+    Remove nodes from the end of the plan that do not change the
+    documents that are retrieved. These nodes are:
+    - Sort
+    - SummarizeData
+    - LlmExtractEntity
+    - TopK
+    This processor is useful for efficiently computing retrieval metrics.
+    """
+
+    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+        n = plan.nodes[plan.result_node]
+        while n.node_type in ("Sort", "SummarizeData", "LlmExtractEntity", "TopK"):
+            # SummarizeData is bad, it can fail to execute the entire pipeline so we don't get
+            # a list of documents back because there is not materialize success dir
+            # LlmExtractEntity without anything after it is just slow
+            # TopK can sometimes fail if the LLM returns garbage and doesn't help with getting
+            # the list of documents -- we just have to ignore it
+            assert len(n.inputs) == 1, f"Trailing {n.node_type} node must have exactly one input"
+            penultimate = n.inputs[0]
+            del plan.nodes[plan.result_node]
+            plan.result_node = penultimate
+            n = plan.nodes[plan.result_node]
+        return plan
+
+
+class PrintPlan(LogicalPlanProcessor):
+    """
+    Print the plan nodes. Useful for debugging.
+
+    Args:
+        pre_message: An optional message to print before the plan
+        post_message: An optional message to print after the plan
+        quiet: Silence all output. Default is False
+    """
+
+    def __init__(self, pre_message: Optional[str] = None, post_message: Optional[str] = None, quiet: bool = False):
+        self._pre = pre_message
+        self._post = post_message
+        self._quiet = quiet
+
+    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+        if self._quiet:
+            return plan
+        if self._pre is not None:
+            print(self._pre)
+        from sycamore.utils.jupyter import slow_pprint
+
+        slow_pprint(plan.nodes)
+        if self._post is not None:
+            print(self._post)
+        return plan
+
+
+class LLMRewriteQuestion(PlannerPromptProcessor):
+    """
+    A prompt processor that uses an LLM to rewrite the question.
+
+    Args:
+        prompt: A SycamorePrompt that supports prompt.render_any(question=str)
+        llm: The llm to use to rewrite the question
+    """
+
+    def __init__(self, prompt: SycamorePrompt, llm: LLM):
+        # Make sure the prompt supports the render_any interface
+        _ = prompt.render_any(question="dummy")
+        self._rewrite_prompt = prompt
+        self._llm = llm
+
+    def __call__(self, prompt: PlannerPrompt) -> PlannerPrompt:
+        q = prompt.query
+        rendered = self._rewrite_prompt.render_any(question=q)
+        rewritten = self._llm.generate(prompt=rendered)
+        prompt.query = rewritten
+        return prompt
 
 
 class QueryPlanStrategy:

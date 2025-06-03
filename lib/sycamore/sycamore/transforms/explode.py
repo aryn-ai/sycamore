@@ -75,14 +75,15 @@ class UnRoll(SingleThreadUser, NonGPUUser, FlatMap):
         documents: list[Document] = []
 
         value = parent.field_to_value(field)
-        entities = value.split(delimiter) if delimiter else value.splitlines()
+        if value:
+            entities = value.split(delimiter) if delimiter else value.splitlines()
 
-        for entity in entities:
-            copied = copy.deepcopy(parent)
-            copied.properties["_original_id"] = parent.doc_id
-            copied.doc_id = mkdocid("c")
+            for entity in entities:
+                copied = copy.deepcopy(parent)
+                copied.properties["_original_id"] = parent.doc_id
+                copied.doc_id = mkdocid("c")
 
-            copied.set_value_to_field(field, entity)
-            documents.append(copied)
+                copied.set_value_to_field(field, entity)
+                documents.append(copied)
 
         return documents

@@ -196,6 +196,7 @@ class AlwaysSummarize(LogicalPlanProcessor):
         prev_result = plan.result_node
         plan.result_node += 1
         plan.nodes[plan.result_node] = SummarizeData(
+            node_type="SummarizeData",
             node_id=plan.result_node,
             description=f"Summarize the answer to the question {question}",
             inputs=[prev_result],

@@ -173,7 +173,7 @@ class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
 class AlwaysSummarize(LogicalPlanProcessor):
     """
     A logical plan processor that makes sure every plan ends with a
-    summarize or a count. If the plan already ends with a summarize or count,
+    summarize data. If the plan already ends with a summarize data,
     nothing happens. If the plan ends with a sort, we drop the sort as it
     does not matter when summarizing. Then we add a summarize node to the
     end of the plan.
@@ -181,7 +181,7 @@ class AlwaysSummarize(LogicalPlanProcessor):
 
     def __call__(self, plan: LogicalPlan) -> LogicalPlan:
         n = plan.nodes[plan.result_node]
-        if n.node_type in ("SummarizeData", "Count"):
+        if n.node_type == "SummarizeData":
             return plan
 
         if n.node_type == "Sort":

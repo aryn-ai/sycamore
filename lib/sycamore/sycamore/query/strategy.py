@@ -232,9 +232,9 @@ class OnlyRetrieval(LogicalPlanProcessor):
         return plan
 
 
-class LogPlan(LogicalPlanProcessor):
+class PrintPlan(LogicalPlanProcessor):
     """
-    Log the plan nodes. Useful for debugging.
+    Print the plan nodes. Useful for debugging.
 
     Args:
         pre_message: An optional message to print before the plan

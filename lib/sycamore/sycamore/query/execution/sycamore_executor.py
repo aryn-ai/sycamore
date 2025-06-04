@@ -1,7 +1,7 @@
 import os
 import traceback
 from io import StringIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
 from structlog.contextvars import clear_contextvars, bind_contextvars
@@ -86,7 +86,7 @@ class SycamoreExecutor:
         self.context = context
         self.trace_dir = trace_dir
         self.cache_dir = cache_dir
-        self.processed: Dict[int, Any] = dict()
+        self.processed: Dict[int, Tuple[Any, bool]] = dict()
         self.dry_run = dry_run
         self.codegen_mode = codegen_mode
 
@@ -98,41 +98,36 @@ class SycamoreExecutor:
         self.node_id_to_code: Dict[int, str] = {}
         self.imports: List[str] = []
 
-    def _has_sort_in_input_chain(self, node: Node, visited: Optional[set] = None) -> bool:
-        """Recursively checks if 'Sort' exists in the input chain of the given node."""
-        if visited is None:
-            visited = set()
-
-        if node in visited:
-            return False
-        visited.add(node)
-
-        for input_node in node.input_nodes():
-            if isinstance(input_node, Sort):
-                return True
-            if self._has_sort_in_input_chain(input_node, visited.copy()):
-                return True
-        return False
-
     def process_node(
         self,
         logical_node: Node,
         result: SycamoreQueryResult,
         is_result_node: Optional[bool] = False,
-    ) -> Any:
-        """Process the given node. Recursively processes dependencies first."""
+    ) -> Tuple[Any, bool]:
+        """Process the given node. Recursively processes dependencies first.
+        Returns the operation result and a boolean: True if this node's path is affected by a Sort.
+        """
 
         query_id = result.query_id
         bind_contextvars(logical_node=logical_node)
         if logical_node.node_id in self.processed:
             log.info("Already processed")
             return self.processed[logical_node.node_id]
+
         log.info("Executing dependencies")
         inputs: List[Any] = []
+        any_input_path_affected_by_sort: bool = False
 
-        # Determine if this node should be materialized.
-        # A node should be materialized unless it's a Sort node or has a Sort in its input chain.
-        materialize_this_node = not (isinstance(logical_node, Sort) or self._has_sort_in_input_chain(logical_node))
+        # Process inputs first to get their results and sort-affected status
+        for n in logical_node.input_nodes():
+            op_res_n, input_path_affected = self.process_node(n, result, is_result_node=False)
+            inputs.append(op_res_n)
+            if input_path_affected:
+                any_input_path_affected_by_sort = True
+
+        current_node_is_sort = isinstance(logical_node, Sort)
+        materialize_this_node = not (current_node_is_sort or any_input_path_affected_by_sort)
+
         if self.cache_dir and not self.dry_run and materialize_this_node:
             cache_dir = os.path.join(self.cache_dir, logical_node.cache_key())
             if result.execution is None:
@@ -145,10 +140,6 @@ class SycamoreExecutor:
         else:
             cache_dir = None
 
-        # Process inputs.
-        inputs = [self.process_node(n, result) for n in logical_node.input_nodes()]
-
-        # refresh context as nested execution overrides it
         bind_contextvars(logical_node=logical_node)
         log.info("Executing node")
         operation = self.make_sycamore_op(logical_node, query_id, inputs)
@@ -168,7 +159,7 @@ class SycamoreExecutor:
 
         self.processed[logical_node.node_id] = operation_result
         log.info("Executed node", result=str(operation_result))
-        return operation_result
+        return operation_result, current_node_is_sort or any_input_path_affected_by_sort
 
     def make_sycamore_op(self, logical_node: Node, query_id: str, inputs: list[Any]) -> PhysicalOperator:
         if isinstance(logical_node, QueryDatabase):
@@ -363,7 +354,7 @@ import sycamore
             result = SycamoreQueryResult(query_id=query_id, plan=plan, result=None)
 
             log.info("Executing query")
-            query_result = self.process_node(plan.nodes[plan.result_node], result, is_result_node=True)
+            query_result, _ = self.process_node(plan.nodes[plan.result_node], result, is_result_node=True)
 
             if self.dry_run:
                 code = self.get_code_string()

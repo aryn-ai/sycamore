@@ -73,6 +73,56 @@ def text_elem(text: str) -> Element:
     )
 
 
+def _supplement_text(inferred: list[Element], text: list[Element], threshold: float = 0.5) -> list[Element]:
+    """
+    Associates extracted text with inferred objects. Meant to be called pagewise. Uses complete containment (the
+    text's bbox is fully within the inferred object's bbox), IOU (intersection over union), and IOB (intersection
+    over bounding box) to determine if a text object is associated with an inferred object. We allow multiple
+    detected objects to contain the same text, we are holding on solving this.
+
+    Once all text that can be associated has been, the text representation of the inferred object is updated to
+    incorporate its associated text.
+
+    In order to handle list items properly, we treat them as a special case.
+    """
+    logger.info("running _supplement_text")
+
+    unmatched = text.copy()
+    for index_i, i in enumerate(inferred):
+        matched = []
+        for t in text:
+            if (
+                i.bbox
+                and t.bbox
+                and (i.bbox.iou(t.bbox) > threshold or t.bbox.iob(i.bbox) > threshold or i.bbox.contains(t.bbox))
+            ):
+                matched.append(t)
+                if t in unmatched:
+                    unmatched.remove(t)
+        if matched:
+            matches = []
+            full_text = []
+            font_sizes = []
+            is_list_item = i.type == "List-item"
+            num_matched = len(matched)
+            for m_index, m in enumerate(matched):
+                matches.append(m)
+                if text_to_add := m.text_representation:
+                    if (
+                        is_list_item and m_index + 1 < num_matched and text_to_add[-1] == "\n"
+                    ):  # special case for list items
+                        text_to_add = text_to_add[:-1]
+                    full_text.append(text_to_add)
+                    if font_size := m.properties.get("font_size"):
+                        font_sizes.append(font_size)
+            if isinstance(i, TableElement):
+                i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
+
+            i.data["text_representation"] = " ".join(full_text)
+            i.properties["font_size"] = sum(font_sizes) / len(font_sizes) if font_sizes else None
+    return inferred + unmatched
+
+
 class ArynPDFPartitioner:
     """
     This class contains the implementation of PDF partitioning using a Deformable DETR model.
@@ -99,56 +149,6 @@ class ArynPDFPartitioner:
             assert self.model_name_or_path is not None
             with LogTime("init_detr_model"):
                 self.model = DeformableDetr(self.model_name_or_path, self.device, self.cache)
-
-    @staticmethod
-    def _supplement_text(inferred: list[Element], text: list[Element], threshold: float = 0.5) -> list[Element]:
-        """
-        Associates extracted text with inferred objects. Meant to be called pagewise. Uses complete containment (the
-        text's bbox is fully within the inferred object's bbox), IOU (intersection over union), and IOB (intersection
-        over bounding box) to determine if a text object is associated with an inferred object. We allow multiple
-        detected objects to contain the same text, we are holding on solving this.
-
-        Once all text that can be associated has been, the text representation of the inferred object is updated to
-        incorporate its associated text.
-
-        In order to handle list items properly, we treat them as a special case.
-        """
-        logger.info("running _supplement_text")
-
-        unmatched = text.copy()
-        for index_i, i in enumerate(inferred):
-            matched = []
-            for t in text:
-                if (
-                    i.bbox
-                    and t.bbox
-                    and (i.bbox.iou(t.bbox) > threshold or t.bbox.iob(i.bbox) > threshold or i.bbox.contains(t.bbox))
-                ):
-                    matched.append(t)
-                    if t in unmatched:
-                        unmatched.remove(t)
-            if matched:
-                matches = []
-                full_text = []
-                font_sizes = []
-                is_list_item = i.type == "List-item"
-                num_matched = len(matched)
-                for m_index, m in enumerate(matched):
-                    matches.append(m)
-                    if text_to_add := m.text_representation:
-                        if (
-                            is_list_item and m_index + 1 < num_matched and text_to_add[-1] == "\n"
-                        ):  # special case for list items
-                            text_to_add = text_to_add[:-1]
-                        full_text.append(text_to_add)
-                        if font_size := m.properties.get("font_size"):
-                            font_sizes.append(font_size)
-                if isinstance(i, TableElement):
-                    i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
-
-                i.data["text_representation"] = " ".join(full_text)
-                i.properties["font_size"] = sum(font_sizes) / len(font_sizes) if font_sizes else None
-        return inferred + unmatched
 
     def partition_pdf(
         self,

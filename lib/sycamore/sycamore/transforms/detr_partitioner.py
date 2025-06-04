@@ -5,7 +5,7 @@ import tempfile
 import tracemalloc
 import inspect
 from abc import ABC, abstractmethod
-from typing import Any, BinaryIO, Literal, Union, Optional
+from typing import Any, BinaryIO, Callable, Literal, Union, Optional
 from itertools import repeat
 
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
@@ -446,6 +446,7 @@ class ArynPDFPartitioner:
         extract_image_format: str,
         use_cache,
         skip_empty_tables: bool = False,
+        supplement_text_fn: Callable[[list[Element], list[Element]], list[Element]] = _supplement_text,
     ) -> Any:
         with LogTime("infer"):
             assert self.model is not None
@@ -475,7 +476,7 @@ class ArynPDFPartitioner:
             assert len(extracted_pages) == len(deformable_layout)
             with LogTime("text_supplement"):
                 for d, p in zip(deformable_layout, extracted_pages):
-                    self._supplement_text(d, p)
+                    supplement_text_fn(d, p)
         if extract_table_structure:
             if table_structure_extractor is None:
                 table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)

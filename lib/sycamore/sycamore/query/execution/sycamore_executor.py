@@ -1,7 +1,7 @@
 import os
 import traceback
 from io import StringIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
 from structlog.contextvars import clear_contextvars, bind_contextvars
@@ -20,7 +20,11 @@ from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase, DataLoader
+from sycamore.query.operators.query_database import (
+    QueryDatabase,
+    QueryVectorDatabase,
+    DataLoader,
+)
 from sycamore.query.execution.physical_operator import PhysicalOperator
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
@@ -95,9 +99,14 @@ class SycamoreExecutor:
         self.imports: List[str] = []
 
     def process_node(
-        self, logical_node: Node, result: SycamoreQueryResult, is_result_node: Optional[bool] = False
-    ) -> Any:
-        """Process the given node. Recursively processes dependencies first."""
+        self,
+        logical_node: Node,
+        result: SycamoreQueryResult,
+        is_result_node: Optional[bool] = False,
+    ) -> Tuple[Any, bool]:
+        """Process the given node. Recursively processes dependencies first.
+        Returns the result of the operation and if downstream nodes shouldn't materialize"
+        """
 
         query_id = result.query_id
         bind_contextvars(logical_node=logical_node)
@@ -107,7 +116,17 @@ class SycamoreExecutor:
         log.info("Executing dependencies")
         inputs: List[Any] = []
 
-        if self.cache_dir and not self.dry_run:
+        disable_materialization: bool = False
+        # Process inputs first to get their results and sort-affected status
+        for n in logical_node.input_nodes():
+            op_res_n, flag = self.process_node(n, result, is_result_node=False)
+            inputs.append(op_res_n)
+            if flag:
+                disable_materialization = True
+
+        disable_materialization = isinstance(logical_node, Sort) or disable_materialization
+
+        if self.cache_dir and not self.dry_run and not disable_materialization:
             cache_dir = os.path.join(self.cache_dir, logical_node.cache_key())
             if result.execution is None:
                 result.execution = {}
@@ -119,10 +138,6 @@ class SycamoreExecutor:
         else:
             cache_dir = None
 
-        # Process inputs.
-        inputs = [self.process_node(n, result) for n in logical_node.input_nodes()]
-
-        # refresh context as nested execution overrides it
         bind_contextvars(logical_node=logical_node)
         log.info("Executing node")
         operation = self.make_sycamore_op(logical_node, query_id, inputs)
@@ -142,7 +157,7 @@ class SycamoreExecutor:
 
         self.processed[logical_node.node_id] = operation_result
         log.info("Executed node", result=str(operation_result))
-        return operation_result
+        return operation_result, disable_materialization
 
     def make_sycamore_op(self, logical_node: Node, query_id: str, inputs: list[Any]) -> PhysicalOperator:
         if isinstance(logical_node, QueryDatabase):
@@ -337,7 +352,7 @@ import sycamore
             result = SycamoreQueryResult(query_id=query_id, plan=plan, result=None)
 
             log.info("Executing query")
-            query_result = self.process_node(plan.nodes[plan.result_node], result, is_result_node=True)
+            query_result, _ = self.process_node(plan.nodes[plan.result_node], result, is_result_node=True)
 
             if self.dry_run:
                 code = self.get_code_string()

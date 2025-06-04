@@ -20,7 +20,11 @@ from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase, DataLoader
+from sycamore.query.operators.query_database import (
+    QueryDatabase,
+    QueryVectorDatabase,
+    DataLoader,
+)
 from sycamore.query.execution.physical_operator import PhysicalOperator
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
@@ -94,8 +98,27 @@ class SycamoreExecutor:
         self.node_id_to_code: Dict[int, str] = {}
         self.imports: List[str] = []
 
+    def _has_sort_in_input_chain(self, node: Node, visited: Optional[set] = None) -> bool:
+        """Recursively checks if 'Sort' exists in the input chain of the given node."""
+        if visited is None:
+            visited = set()
+
+        if node in visited:
+            return False
+        visited.add(node)
+
+        for input_node in node.input_nodes():
+            if isinstance(input_node, Sort):
+                return True
+            if self._has_sort_in_input_chain(input_node, visited.copy()):
+                return True
+        return False
+
     def process_node(
-        self, logical_node: Node, result: SycamoreQueryResult, is_result_node: Optional[bool] = False
+        self,
+        logical_node: Node,
+        result: SycamoreQueryResult,
+        is_result_node: Optional[bool] = False,
     ) -> Any:
         """Process the given node. Recursively processes dependencies first."""
 
@@ -107,7 +130,10 @@ class SycamoreExecutor:
         log.info("Executing dependencies")
         inputs: List[Any] = []
 
-        if self.cache_dir and not self.dry_run:
+        # Determine if this node should be materialized.
+        # A node should be materialized unless it's a Sort node or has a Sort in its input chain.
+        materialize_this_node = not (isinstance(logical_node, Sort) or self._has_sort_in_input_chain(logical_node))
+        if self.cache_dir and not self.dry_run and materialize_this_node:
             cache_dir = os.path.join(self.cache_dir, logical_node.cache_key())
             if result.execution is None:
                 result.execution = {}

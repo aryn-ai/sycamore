@@ -1,7 +1,7 @@
 import logging
 import typing
 from abc import abstractmethod
-from typing import List, Optional, Union, cast
+from typing import List, Optional, Union
 
 from sycamore.schema import Schema
 
@@ -88,8 +88,8 @@ class LlmPlanner(Planner):
             )
         else:
             prompt = self._prompt.fork(query=question)
-            # Typechecking.
-            prompt = cast(PlannerPrompt, prompt)
+            if prompt.data_schema is None:
+                prompt = prompt.fork(data_schema=self._data_schema)
 
         for preprocessor in self._strategy.prompt_processors:
             prompt = preprocessor(prompt)

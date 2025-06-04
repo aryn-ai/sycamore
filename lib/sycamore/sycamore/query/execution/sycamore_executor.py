@@ -105,7 +105,7 @@ class SycamoreExecutor:
         is_result_node: Optional[bool] = False,
     ) -> Tuple[Any, bool]:
         """Process the given node. Recursively processes dependencies first.
-        Returns the operation result and a boolean: True if this node's path is affected by a Sort.
+        Returns the result of the operation and if downstream nodes shouldn't materialize"
         """
 
         query_id = result.query_id
@@ -116,16 +116,16 @@ class SycamoreExecutor:
         log.info("Executing dependencies")
         inputs: List[Any] = []
 
-        any_input_path_affected_by_sort: bool = False
+        block_further_materialize: bool = False
         # Process inputs first to get their results and sort-affected status
         for n in logical_node.input_nodes():
-            op_res_n, input_path_affected = self.process_node(n, result, is_result_node=False)
+            op_res_n, flag = self.process_node(n, result, is_result_node=False)
             inputs.append(op_res_n)
-            if input_path_affected:
-                any_input_path_affected_by_sort = True
+            if flag:
+                block_further_materialize = True
 
-        current_node_is_sort = isinstance(logical_node, Sort)
-        materialize_this_node = not (current_node_is_sort or any_input_path_affected_by_sort)
+        is_current_node_sort = isinstance(logical_node, Sort)
+        materialize_this_node = not (is_current_node_sort or block_further_materialize)
 
         if self.cache_dir and not self.dry_run and materialize_this_node:
             cache_dir = os.path.join(self.cache_dir, logical_node.cache_key())
@@ -158,7 +158,7 @@ class SycamoreExecutor:
 
         self.processed[logical_node.node_id] = operation_result
         log.info("Executed node", result=str(operation_result))
-        return operation_result, current_node_is_sort or any_input_path_affected_by_sort
+        return operation_result, is_current_node_sort or block_further_materialize
 
     def make_sycamore_op(self, logical_node: Node, query_id: str, inputs: list[Any]) -> PhysicalOperator:
         if isinstance(logical_node, QueryDatabase):

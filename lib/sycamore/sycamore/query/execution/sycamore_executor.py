@@ -113,11 +113,10 @@ class SycamoreExecutor:
         if logical_node.node_id in self.processed:
             log.info("Already processed")
             return self.processed[logical_node.node_id]
-
         log.info("Executing dependencies")
         inputs: List[Any] = []
-        any_input_path_affected_by_sort: bool = False
 
+        any_input_path_affected_by_sort: bool = False
         # Process inputs first to get their results and sort-affected status
         for n in logical_node.input_nodes():
             op_res_n, input_path_affected = self.process_node(n, result, is_result_node=False)

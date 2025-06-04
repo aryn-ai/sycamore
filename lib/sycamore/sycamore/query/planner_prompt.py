@@ -358,7 +358,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
 class PlannerPrompt(SycamorePrompt):
     def __init__(
         self,
-        query: str,
+        query: Optional[str] = None,
         examples: List[PlannerExample] = [],
         natural_language_response: bool = True,
         operators: List[Type[Node]] = [],
@@ -471,6 +471,7 @@ class PlannerPrompt(SycamorePrompt):
         return prompt
 
     def render(self) -> RenderedPrompt:
+        assert self.query is not None, "Query is not set. Please set it with prompt.fork(query=...)"
         sys = self.generate_system_prompt(self.query)
         usr = self.generate_user_prompt(self.query)
         return RenderedPrompt(

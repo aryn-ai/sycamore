@@ -1,7 +1,7 @@
 import logging
 import typing
 from abc import abstractmethod
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 
 from sycamore.schema import Schema
 
@@ -60,6 +60,7 @@ class LlmPlanner(Planner):
         llm_client: Optional[LLM] = None,
         examples: Optional[List[PlannerExample]] = None,
         natural_language_response: bool = False,
+        prompt: Optional[PlannerPrompt] = None,
     ) -> None:
         super().__init__()
         self._index = index
@@ -69,30 +70,40 @@ class LlmPlanner(Planner):
         self._llm_client = llm_client or OpenAI(OpenAIModels.GPT_4O.value)
         self._examples = PLANNER_EXAMPLES if examples is None else examples
         self._natural_language_response = natural_language_response
+        self._prompt = prompt
 
         self._data_schema: Schema = (
             data_schema.to_schema() if isinstance(data_schema, OpenSearchSchema) else data_schema
         )
 
-    def generate_prompt(self, question) -> RenderedPrompt:
-        prompt = PlannerPrompt(
-            query=question,
-            examples=self._examples,
-            natural_language_response=self._natural_language_response,
-            operators=self._strategy.operators,
-            index=self._index,
-            data_schema=self._data_schema,
-        )
+    def generate_prompt(self, question: str) -> RenderedPrompt:
+        if self._prompt is None:
+            prompt = PlannerPrompt(
+                query=question,
+                examples=self._examples,
+                natural_language_response=self._natural_language_response,
+                operators=self._strategy.operators,
+                index=self._index,
+                data_schema=self._data_schema,
+            )
+        else:
+            prompt = self._prompt.fork(query=question)
+            # Typechecking.
+            prompt = cast(PlannerPrompt, prompt)
+
         for preprocessor in self._strategy.prompt_processors:
             prompt = preprocessor(prompt)
         return prompt.render()
+
+    def parse_llm_output(self, llm_output: str) -> LogicalPlan:
+        return process_json_plan(llm_output)
 
     def plan(self, question: str) -> LogicalPlan:
         """Given a question from the user, generate a logical query plan."""
         llm_prompt = self.generate_prompt(question)
         llm_plan = self._llm_client.generate(prompt=llm_prompt, llm_kwargs={"temperature": 0})
         try:
-            plan = process_json_plan(llm_plan)
+            plan = self.parse_llm_output(llm_plan)
             for processor in self._strategy.plan_processors:
                 plan = processor(plan)
         except Exception as e:

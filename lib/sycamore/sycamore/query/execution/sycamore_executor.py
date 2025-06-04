@@ -86,7 +86,7 @@ class SycamoreExecutor:
         self.context = context
         self.trace_dir = trace_dir
         self.cache_dir = cache_dir
-        self.processed: Dict[int, Tuple[Any, bool]] = dict()
+        self.processed: Dict[int, Any] = dict()
         self.dry_run = dry_run
         self.codegen_mode = codegen_mode
 

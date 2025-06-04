@@ -116,18 +116,17 @@ class SycamoreExecutor:
         log.info("Executing dependencies")
         inputs: List[Any] = []
 
-        block_further_materialize: bool = False
+        disable_materialization: bool = False
         # Process inputs first to get their results and sort-affected status
         for n in logical_node.input_nodes():
             op_res_n, flag = self.process_node(n, result, is_result_node=False)
             inputs.append(op_res_n)
             if flag:
-                block_further_materialize = True
+                disable_materialization = True
 
-        is_current_node_sort = isinstance(logical_node, Sort)
-        materialize_this_node = not (is_current_node_sort or block_further_materialize)
+        disable_materialization = isinstance(logical_node, Sort) or disable_materialization
 
-        if self.cache_dir and not self.dry_run and materialize_this_node:
+        if self.cache_dir and not self.dry_run and not disable_materialization:
             cache_dir = os.path.join(self.cache_dir, logical_node.cache_key())
             if result.execution is None:
                 result.execution = {}
@@ -158,7 +157,7 @@ class SycamoreExecutor:
 
         self.processed[logical_node.node_id] = operation_result
         log.info("Executed node", result=str(operation_result))
-        return operation_result, is_current_node_sort or block_further_materialize
+        return operation_result, disable_materialization
 
     def make_sycamore_op(self, logical_node: Node, query_id: str, inputs: list[Any]) -> PhysicalOperator:
         if isinstance(logical_node, QueryDatabase):

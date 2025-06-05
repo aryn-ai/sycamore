@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Union, Optional, Callable, TYPE_CHECKING
+from typing_extensions import Self
 import copy
 
 import pydantic
@@ -101,7 +102,7 @@ class SycamorePrompt:
             A fully rendered prompt that can be sent to an LLM for inference"""
         raise NotImplementedError(f"render_multiple_documents is not implemented for {self.__class__.__name__}")
 
-    def fork(self, **kwargs: Any) -> "SycamorePrompt":
+    def fork(self, **kwargs: Any) -> Self:
         """Create a new prompt with some fields changed.
 
         Args:

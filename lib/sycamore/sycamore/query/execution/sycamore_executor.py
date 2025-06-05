@@ -126,7 +126,7 @@ class SycamoreExecutor:
 
         disable_materialization = isinstance(logical_node, Sort) or disable_materialization
 
-        if self.cache_dir and not self.dry_run and not disable_materialization:
+        if self.cache_dir and not self.dry_run:
             cache_dir = os.path.join(self.cache_dir, logical_node.cache_key())
             if result.execution is None:
                 result.execution = {}
@@ -153,7 +153,14 @@ class SycamoreExecutor:
             operation_result = operation.execute()
             if cache_dir and hasattr(operation_result, "materialize"):
                 log.info("Caching node execution", cache_dir=cache_dir)
-                operation_result = operation_result.materialize(cache_dir, source_mode=MaterializeSourceMode.USE_STORED)
+                if disable_materialization:
+                    operation_result = operation_result.materialize(
+                        cache_dir, source_mode=MaterializeSourceMode.RECOMPUTE
+                    )
+                else:
+                    operation_result = operation_result.materialize(
+                        cache_dir, source_mode=MaterializeSourceMode.USE_STORED
+                    )
 
         self.processed[logical_node.node_id] = operation_result
         log.info("Executed node", result=str(operation_result))

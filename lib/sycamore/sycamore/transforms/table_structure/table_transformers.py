@@ -210,12 +210,30 @@ def refine_rows(rows, tokens, score_threshold):
     return rows
 
 
-def refine_columns(columns, tokens, score_threshold):
+def resolve_column_overlaps(columns):
+    """
+    Resolves overlaps between adjacent columns by setting their shared boundary
+    to the midpoint of the overlap.
+    """
+    for i in range(len(columns) - 1):
+        col_a = columns[i]
+        col_b = columns[i + 1]
+
+        col_a_right = col_a["bbox"][2]
+        col_b_left = col_b["bbox"][0]
+
+        if col_a_right > col_b_left:  # Overlap detected
+            midpoint = (col_a_right + col_b_left) / 2
+            col_a["bbox"][2] = midpoint
+            col_b["bbox"][0] = midpoint
+    return columns
+
+
+def refine_columns(columns, tokens, score_threshold, resolve_overlaps=True):
     """
     Apply operations to the detected columns, such as
     thresholding, NMS, and alignment.
     """
-
     if len(tokens) > 0:
         columns = nms_by_containment(columns, tokens, overlap_threshold=0.5)
         remove_objects_without_content(tokens, columns)
@@ -223,7 +241,9 @@ def refine_columns(columns, tokens, score_threshold):
         columns = nms(columns, match_criteria="object2_overlap", match_threshold=0.25, keep_higher=True)
     if len(columns) > 1:
         columns = sort_objects_left_to_right(columns)
-
+        if resolve_overlaps:
+            columns = resolve_column_overlaps(columns)
+        remove_objects_without_content(tokens, columns)
     return columns
 
 
@@ -364,6 +384,8 @@ def remove_objects_without_content(page_spans, objects):
     Remove any objects (these can be rows, columns, supercells, etc.) that don't
     have any text associated with them.
     """
+    if not objects:
+        return
     for obj in objects[:]:
         object_text, _ = extract_text_inside_bbox(page_spans, obj["bbox"])
         if len(object_text.strip()) == 0:

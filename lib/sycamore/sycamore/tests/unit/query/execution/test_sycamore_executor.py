@@ -16,6 +16,7 @@ from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.operators.summarize_data import SummarizeData
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
+from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.result import SycamoreQueryResult
 from structlog.contextvars import bind_contextvars
 
@@ -185,7 +186,11 @@ def test_pause_materialization_after_sort_node(mock_sycamore_docsetreader):
         query="Test query",
         result_node=4,
         nodes={
-            0: QueryDatabase(node_id=0, description="Load data", index="test_index"),
+            0: QueryDatabase(
+                node_id=0,
+                description="Load data",
+                index="test_index",
+            ),
             1: LlmExtractEntity(
                 node_id=1,
                 description="Extract entity",
@@ -202,11 +207,20 @@ def test_pause_materialization_after_sort_node(mock_sycamore_docsetreader):
                 default_value=1,
                 inputs=[1],
             ),
-            3: Count(node_id=3, description="Count number of documents", inputs=[2]),
-            4: SummarizeData(
+            3: LlmFilter(
+                node_id=3,
+                description="Filter data",
+                field="test_field",
+                question="Filter out documents where test_field is not 1",
+                inputs=[2],
+            ),
+            4: LlmExtractEntity(
                 node_id=4,
-                description="Summarize data",
-                question="Summarize this data",
+                description="Extract entity",
+                field="text_representation",
+                new_field="test_field2",
+                new_field_type="float",
+                question="Extract a float from this text",
                 inputs=[3],
             ),
         },
@@ -241,12 +255,16 @@ def test_pause_materialization_after_sort_node(mock_sycamore_docsetreader):
 
             plan.result_node = 1
             result = SycamoreQueryResult(query_id="test_query_id", plan=plan, result=None)
-            _, disable_materialization = executor.process_node(
+            res, disable_materialization = executor.process_node(
                 plan.nodes[plan.result_node], result, is_result_node=True
             )
             assert (
                 not disable_materialization
             ), "Materialization should not be disabled for result node when Sort is not present"
+            materialized_node = res.plan.get_plan_nodes(sycamore.materialize.Materialize)[-1]
+            assert (
+                materialized_node._source_mode == sycamore.MATERIALIZE_USE_STORED
+            ), "Incorrect source mode for materialization"
 
     # Plan where result node is Sort Node
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -276,10 +294,14 @@ def test_pause_materialization_after_sort_node(mock_sycamore_docsetreader):
             # First run should populate cache.
             plan.result_node = 2
             result = SycamoreQueryResult(query_id="test_query_id", plan=plan, result=None)
-            _, disable_materialization = executor.process_node(
+            res, disable_materialization = executor.process_node(
                 plan.nodes[plan.result_node], result, is_result_node=True
             )
             assert disable_materialization, "Materialization should be disabled for result node when Sort is present"
+            materialized_node = res.plan.get_plan_nodes(sycamore.materialize.Materialize)[-1]
+            assert (
+                materialized_node._source_mode == sycamore.MATERIALIZE_RECOMPUTE
+            ), "Incorrect source mode for materialization"
 
     # Plan where sort node is present in the middle of the plan
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -309,7 +331,11 @@ def test_pause_materialization_after_sort_node(mock_sycamore_docsetreader):
             # First run should populate cache.
             plan.result_node = 4
             result = SycamoreQueryResult(query_id="test_query_id", plan=plan, result=None)
-            _, disable_materialization = executor.process_node(
+            res, disable_materialization = executor.process_node(
                 plan.nodes[plan.result_node], result, is_result_node=True
             )
             assert disable_materialization, "Materialization should be disabled for result node when Sort is present"
+            materialized_node = res.plan.get_plan_nodes(sycamore.materialize.Materialize)[-1]
+            assert (
+                materialized_node._source_mode == sycamore.MATERIALIZE_RECOMPUTE
+            ), "Incorrect source mode for materialization"

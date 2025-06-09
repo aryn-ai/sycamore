@@ -1,11 +1,14 @@
 from abc import abstractmethod
+import copy
+import math
+import cmath
 import logging
 from typing import Any, Union, Optional, Callable
 
 from PIL import Image
 import pdf2image
 
-from sycamore.data import BoundingBox, Element, Document, Table, TableElement
+from sycamore.data import BoundingBox, Element, Document, Table, TableCell, TableElement
 from sycamore.data.document import DocumentPropertyTypes
 from sycamore.llms import LLM
 from sycamore.llms.prompts import RenderedMessage, RenderedPrompt
@@ -33,6 +36,86 @@ def _crop_bbox(image: Image.Image, bbox: BoundingBox, padding: int = 10):
     cropped_image = image.crop(crop_box).convert("RGB")
 
     return cropped_image, crop_box
+
+
+def rotxy(x: float, y: float, quad: int) -> tuple[float, float]:
+    """Rotate clockwise quad * 90 degrees about (0.5, 0.5)"""
+    if quad:
+        quad %= 4
+        if quad == 1:
+            return (1.0 - y, x)
+        elif quad == 2:
+            return (1.0 - x, 1.0 - y)
+        elif quad == 3:
+            return (y, 1.0 - x)
+    return (x, y)
+
+
+def rotbbox(bbox: Union[BoundingBox, tuple], quad: int) -> Union[BoundingBox, tuple]:
+    if not quad:
+        return bbox
+    if isinstance(bbox, BoundingBox):
+        x1, y1 = rotxy(bbox.x1, bbox.y1, quad)
+        x2, y2 = rotxy(bbox.x2, bbox.y2, quad)
+        return BoundingBox(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
+    elif isinstance(bbox, dict):
+        x1, y1 = rotxy(bbox["x1"], bbox["y1"], quad)
+        x2, y2 = rotxy(bbox["x2"], bbox["y2"], quad)
+        return {"x1": min(x1, x2), "y1": min(y1, y2), "x2": max(x1, x2), "y2": max(y1, y2)}
+    else:
+        x1, y1 = rotxy(bbox[0], bbox[1], quad)
+        x2, y2 = rotxy(bbox[2], bbox[3], quad)
+        return (min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
+
+
+def rotated_table(elem: TableElement, quad: int) -> TableElement:
+    """FIXME"""
+    if not quad:
+        return elem
+    rv = copy.deepcopy(elem)
+    d = rv.data
+
+    bbtup = rotbbox(d["bbox"], quad)
+    d["bbox"] = (bbtup[0], bbtup[1], bbtup[2], bbtup[3])
+
+    if toks := rv.tokens:
+        for tok in toks:
+            if bbox := tok.get("bbox"):
+                bbox = rotbbox(bbox, quad)
+                tok["bbox"] = bbox
+
+    if tbl := rv.table:
+        ary: list[TableCell] = []
+        for cell in tbl.cells:
+            cd = cell.to_dict()
+            cbb = rotbbox(cd["bbox"], quad)
+            cd["bbox"] = cbb
+            ary.append(TableCell.from_dict(cd))
+        tbl.cells = ary
+
+    return rv
+
+
+def average_vector(tokens: list[dict[str, Any]]) -> complex:
+    """Sums the vector of each token and divides by the count."""
+    vec = complex(0.0, 0.0)
+    cnt = 0
+    for tok in tokens:
+        if (v := tok.get("vector")) is not None:
+            vec += v
+            cnt += 1
+    if cnt:
+        vec /= cnt
+    return vec
+
+
+def what_rotation(vec: complex) -> int:
+    """Returns number of quadrants counterclockwise that a vector is rotated."""
+    if abs(vec) < 0.8:
+        return 0
+    rad = cmath.phase(vec)
+    quad = round(rad * 2.0 / math.pi) % 4
+    return quad
 
 
 class TableStructureExtractor:
@@ -71,8 +154,8 @@ class TableStructureExtractor:
 
         for elem in doc.elements:
             if isinstance(elem, TableElement):
-                if DocumentPropertyTypes.PAGE_NUMBER in elem.properties:
-                    page_num = elem.properties[DocumentPropertyTypes.PAGE_NUMBER] - 1
+                if (pn := elem.properties.get(DocumentPropertyTypes.PAGE_NUMBER)) is not None:
+                    page_num = pn -1
                 elif len(images) == 1:
                     page_num = 0
                 else:
@@ -146,10 +229,18 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         if element.bbox is None:
             return element
 
+        print(f"FIXME1: {element.data}", flush=True)
+        quad = what_rotation(average_vector(element.tokens))
+        print(f"FIXME2: quad={quad}")
+        element = rotated_table(element, quad)
+        doc_image = doc_image.transpose(method=Image.Transpose.ROTATE_270)
+        print(f"FIXME3: {element.data}", flush=True)
+        
         from torchvision import transforms
 
         width, height = doc_image.size
         cropped_image, crop_box = _crop_bbox(doc_image, element.bbox)
+        cropped_image.show()  # FIXME
 
         if self.structure_model is None:
             self._init_structure_model()
@@ -187,7 +278,10 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         if table is None:
             element.table = None
+            print("FIXME: table is None", flush=True)
+            raise RuntimeError("null table")
             return element
+        print(f"FIXME6: table={table.to_dict()}", flush=True)
 
         # Convert cell bounding boxes to be relative to the original image.
         for cell in table.cells:
@@ -197,6 +291,9 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
             cell.bbox.translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
 
         element.table = table
+        print(f"FIXME8: element.table={element.table.to_dict()}", flush=True)
+        element = rotated_table(element, -quad)
+        print(f"FIXME9: element.table={element.table.to_dict()}", flush=True)
         return element
 
 

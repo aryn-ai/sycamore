@@ -144,7 +144,10 @@ class ArynPDFPartitioner:
                         if font_size := m.properties.get("font_size"):
                             font_sizes.append(font_size)
                 if isinstance(i, TableElement):
-                    i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox, "vector": elem.data.get("_vector")} for elem in matches]
+                    i.tokens = [
+                        {"text": elem.text_representation, "bbox": elem.bbox, "vector": elem.data.get("_vector")}
+                        for elem in matches
+                    ]
 
                 i.data["text_representation"] = " ".join(full_text)
                 i.properties["font_size"] = sum(font_sizes) / len(font_sizes) if font_sizes else None
@@ -482,7 +485,8 @@ class ArynPDFPartitioner:
             with LogTime("extract_table_structure_batch"):
                 for i, page_elements in enumerate(deformable_layout):
                     image = batch[i]
-                    for element in page_elements:
+                    for j in range(len(page_elements)):
+                        element = page_elements[j]
                         if isinstance(element, TableElement):
                             if skip_empty_tables:
                                 if not element.tokens:
@@ -490,7 +494,9 @@ class ArynPDFPartitioner:
                                 concatenated_text = " ".join([token.get("text") for token in element.tokens])
                                 if concatenated_text.strip() == "":
                                     continue
-                            table_structure_extractor.extract(element, image, **table_extractor_options)
+                            page_elements[j] = table_structure_extractor.extract(
+                                element, image, **table_extractor_options
+                            )
 
         if extract_images:
             with LogTime("extract_images_batch"):
@@ -553,7 +559,7 @@ class ArynPDFPartitioner:
     def process_batch_extraction(
         self,
         batch: list[Image.Image],
-        deformable_layout: Any,
+        deformable_layout: list[list[Element]],
         extract_table_structure: bool,
         table_structure_extractor,
         table_extractor_options: dict,
@@ -566,9 +572,12 @@ class ArynPDFPartitioner:
                     table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
                 for i, page_elements in enumerate(deformable_layout):
                     image = batch[i]
-                    for element in page_elements:
+                    for j in range(len(page_elements)):
+                        element = page_elements[j]
                         if isinstance(element, TableElement):
-                            table_structure_extractor.extract(element, image, **table_extractor_options)
+                            page_elements[j] = table_structure_extractor.extract(
+                                element, image, **table_extractor_options
+                            )
 
         if extract_images:
             with LogTime("extract_images_batch"):

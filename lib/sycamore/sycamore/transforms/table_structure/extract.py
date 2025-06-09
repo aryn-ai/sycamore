@@ -38,57 +38,78 @@ def _crop_bbox(image: Image.Image, bbox: BoundingBox, padding: int = 10):
     return cropped_image, crop_box
 
 
-def rotxy(x: float, y: float, quad: int) -> tuple[float, float]:
-    """Rotate clockwise quad * 90 degrees about (0.5, 0.5)"""
+g_quad_to_method = {
+    1: Image.Transpose.ROTATE_90,
+    2: Image.Transpose.ROTATE_180,
+    3: Image.Transpose.ROTATE_270,
+}
+
+
+def rot_image(img: Image.Image, quad: int) -> Image.Image:
+    method = g_quad_to_method.get(quad % 4)
+    if not method:
+        return img
+    return img.transpose(method=method)
+
+
+def rot_xy(x: float, y: float, quad: int) -> tuple[float, float]:
+    """Rotate counterclockwise quad * 90 degrees about (0.5, 0.5)"""
     if quad:
         quad %= 4
         if quad == 1:
-            return (1.0 - y, x)
+            return (y, 1.0 - x)
         elif quad == 2:
             return (1.0 - x, 1.0 - y)
         elif quad == 3:
-            return (y, 1.0 - x)
+            return (1.0 - y, x)
     return (x, y)
 
 
-def rotbbox(bbox: Union[BoundingBox, tuple], quad: int) -> Union[BoundingBox, tuple]:
+def rot_bbox(bbox: BoundingBox, quad: int) -> BoundingBox:
     if not quad:
         return bbox
-    if isinstance(bbox, BoundingBox):
-        x1, y1 = rotxy(bbox.x1, bbox.y1, quad)
-        x2, y2 = rotxy(bbox.x2, bbox.y2, quad)
-        return BoundingBox(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
-    elif isinstance(bbox, dict):
-        x1, y1 = rotxy(bbox["x1"], bbox["y1"], quad)
-        x2, y2 = rotxy(bbox["x2"], bbox["y2"], quad)
-        return {"x1": min(x1, x2), "y1": min(y1, y2), "x2": max(x1, x2), "y2": max(y1, y2)}
-    else:
-        x1, y1 = rotxy(bbox[0], bbox[1], quad)
-        x2, y2 = rotxy(bbox[2], bbox[3], quad)
-        return (min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
+    x1, y1 = rot_xy(bbox.x1, bbox.y1, quad)
+    x2, y2 = rot_xy(bbox.x2, bbox.y2, quad)
+    return BoundingBox(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
+
+
+def rot_dict(bbox: dict[str, float], quad: int) -> dict[str, float]:
+    if not quad:
+        return bbox
+    x1, y1 = rot_xy(bbox["x1"], bbox["y1"], quad)
+    x2, y2 = rot_xy(bbox["x2"], bbox["y2"], quad)
+    return {"x1": min(x1, x2), "y1": min(y1, y2), "x2": max(x1, x2), "y2": max(y1, y2)}
+
+
+def rot_tuple(bbox: tuple[float, float, float, float], quad: int) -> tuple[float, float, float, float]:
+    if not quad:
+        return bbox
+    x1, y1 = rot_xy(bbox[0], bbox[1], quad)
+    x2, y2 = rot_xy(bbox[2], bbox[3], quad)
+    return (min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
 
 
 def rotated_table(elem: TableElement, quad: int) -> TableElement:
-    """FIXME"""
+    """Returns new TableElement with bboxes rotated."""
     if not quad:
         return elem
-    rv = copy.deepcopy(elem)
+    rv = copy.deepcopy(elem)  # wasteful, but safe
     d = rv.data
 
-    bbtup = rotbbox(d["bbox"], quad)
+    bbtup = rot_tuple(d["bbox"], quad)
     d["bbox"] = (bbtup[0], bbtup[1], bbtup[2], bbtup[3])
 
     if toks := rv.tokens:
         for tok in toks:
             if bbox := tok.get("bbox"):
-                bbox = rotbbox(bbox, quad)
+                bbox = rot_bbox(bbox, quad)
                 tok["bbox"] = bbox
 
     if tbl := rv.table:
         ary: list[TableCell] = []
         for cell in tbl.cells:
             cd = cell.to_dict()
-            cbb = rotbbox(cd["bbox"], quad)
+            cbb = rot_dict(cd["bbox"], quad)
             cd["bbox"] = cbb
             ary.append(TableCell.from_dict(cd))
         tbl.cells = ary
@@ -96,16 +117,17 @@ def rotated_table(elem: TableElement, quad: int) -> TableElement:
     return rv
 
 
-def average_vector(tokens: list[dict[str, Any]]) -> complex:
+def average_vector(tokens: Optional[list[dict[str, Any]]]) -> complex:
     """Sums the vector of each token and divides by the count."""
     vec = complex(0.0, 0.0)
-    cnt = 0
-    for tok in tokens:
-        if (v := tok.get("vector")) is not None:
-            vec += v
-            cnt += 1
-    if cnt:
-        vec /= cnt
+    if tokens:
+        cnt = 0
+        for tok in tokens:
+            if (v := tok.get("vector")) is not None:
+                vec += v
+                cnt += 1
+        if cnt:
+            vec /= cnt
     return vec
 
 
@@ -155,7 +177,7 @@ class TableStructureExtractor:
         for elem in doc.elements:
             if isinstance(elem, TableElement):
                 if (pn := elem.properties.get(DocumentPropertyTypes.PAGE_NUMBER)) is not None:
-                    page_num = pn -1
+                    page_num = pn - 1
                 elif len(images) == 1:
                     page_num = 0
                 else:
@@ -229,18 +251,15 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         if element.bbox is None:
             return element
 
-        print(f"FIXME1: {element.data}", flush=True)
         quad = what_rotation(average_vector(element.tokens))
-        print(f"FIXME2: quad={quad}")
-        element = rotated_table(element, quad)
-        doc_image = doc_image.transpose(method=Image.Transpose.ROTATE_270)
-        print(f"FIXME3: {element.data}", flush=True)
-        
+        element = rotated_table(element, -quad)
+        assert element.bbox
+        doc_image = rot_image(doc_image, -quad)
+
         from torchvision import transforms
 
         width, height = doc_image.size
         cropped_image, crop_box = _crop_bbox(doc_image, element.bbox)
-        cropped_image.show()  # FIXME
 
         if self.structure_model is None:
             self._init_structure_model()
@@ -278,10 +297,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         if table is None:
             element.table = None
-            print("FIXME: table is None", flush=True)
-            raise RuntimeError("null table")
             return element
-        print(f"FIXME6: table={table.to_dict()}", flush=True)
 
         # Convert cell bounding boxes to be relative to the original image.
         for cell in table.cells:
@@ -291,9 +307,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
             cell.bbox.translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
 
         element.table = table
-        print(f"FIXME8: element.table={element.table.to_dict()}", flush=True)
-        element = rotated_table(element, -quad)
-        print(f"FIXME9: element.table={element.table.to_dict()}", flush=True)
+        element = rotated_table(element, quad)
         return element
 
 

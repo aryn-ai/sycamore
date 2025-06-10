@@ -1,6 +1,11 @@
-from sycamore.transforms.table_structure.table_transformers import outputs_to_objects, objects_to_table
+from sycamore.transforms.table_structure.table_transformers import (
+    outputs_to_objects,
+    objects_to_table,
+    resolve_overlaps_func,
+)
 import torch
 import numpy as np
+import copy
 
 
 class TestTableTransformers:
@@ -152,3 +157,119 @@ class TestTableTransformers:
         table = objects_to_table(objects, tokens)
         assert table is not None
         assert all(c.bbox is not None for c in table.cells)
+
+
+class TestResolveOverlapsFunc:
+    def test_empty_list(self):
+        objects: list[dict] = []
+        resolved_objects = resolve_overlaps_func(copy.deepcopy(objects), is_row=False)
+        assert resolved_objects == []
+
+    def test_single_element_list(self):
+        objects = [{"bbox": [0, 0, 10, 10]}]
+        resolved_objects = resolve_overlaps_func(copy.deepcopy(objects), is_row=False)
+        assert resolved_objects == objects
+
+    def test_no_overlap_cols(self):
+        objects = [
+            {"bbox": [0, 0, 10, 10]},
+            {"bbox": [11, 0, 20, 10]},
+            {"bbox": [21, 0, 30, 10]},
+        ]
+        objects_copy = copy.deepcopy(objects)
+        resolved_objects = resolve_overlaps_func(objects_copy, is_row=False)
+        assert resolved_objects == objects
+
+    def test_no_overlap_rows(self):
+        objects = [
+            {"bbox": [0, 0, 10, 10]},
+            {"bbox": [0, 11, 10, 20]},
+            {"bbox": [0, 21, 10, 30]},
+        ]
+        objects_copy = copy.deepcopy(objects)
+        resolved_objects = resolve_overlaps_func(objects_copy, is_row=True)
+        assert resolved_objects == objects
+
+    def test_adjacent_overlap_cols(self):
+        objects = [
+            {"bbox": [0, 0, 10, 10]},
+            {"bbox": [9, 0, 20, 10]},
+        ]
+        resolved_objects = resolve_overlaps_func(copy.deepcopy(objects), is_row=False)
+        assert resolved_objects[0]["bbox"] == [0, 0, 9.5, 10]
+        assert resolved_objects[1]["bbox"] == [9.5, 0, 20, 10]
+
+    def test_adjacent_overlap_rows(self):
+        objects = [
+            {"bbox": [0, 0, 10, 10]},
+            {"bbox": [0, 9, 10, 20]},
+        ]
+        resolved_objects = resolve_overlaps_func(copy.deepcopy(objects), is_row=True)
+        assert resolved_objects[0]["bbox"] == [0, 0, 10, 9.5]
+        assert resolved_objects[1]["bbox"] == [0, 9.5, 10, 20]
+
+    def test_multiple_adjacent_overlaps_cols(self):
+        objects = [
+            {"bbox": [0, 0, 10, 10]},
+            {"bbox": [8, 0, 20, 10]},
+            {"bbox": [18, 0, 30, 10]},
+        ]
+        resolved_objects = resolve_overlaps_func(copy.deepcopy(objects), is_row=False)
+        assert resolved_objects[0]["bbox"] == [0, 0, 9.0, 10]
+        assert resolved_objects[1]["bbox"] == [9.0, 0, 19.0, 10]
+        assert resolved_objects[2]["bbox"] == [19.0, 0, 30, 10]
+
+    def test_non_adjacent_overlap_cols(self):
+        # obj 0 overlaps obj 2. obj 2 start should be pushed to obj 1 end.
+        objects = [
+            {"bbox": [0, 0, 12, 10]},
+            {"bbox": [11, 0, 20, 10]},
+            {"bbox": [10, 0, 30, 10]},
+        ]
+        resolved_objects = resolve_overlaps_func(copy.deepcopy(objects), is_row=False)
+        assert resolved_objects[0]["bbox"] == [0, 0, 11.5, 10]
+        assert resolved_objects[1]["bbox"] == [11.5, 0, 20, 10]
+        assert resolved_objects[2]["bbox"] == [20, 0, 30, 10]
+
+    def test_non_adjacent_overlap_rows(self):
+        objects = [
+            {"bbox": [0, 0, 10, 12]},
+            {"bbox": [0, 11, 10, 20]},
+            {"bbox": [0, 10, 10, 30]},
+        ]
+        resolved_objects = resolve_overlaps_func(copy.deepcopy(objects), is_row=True)
+        assert resolved_objects[0]["bbox"] == [0, 0, 10, 11.5]
+        assert resolved_objects[1]["bbox"] == [0, 11.5, 10, 20]
+        assert resolved_objects[2]["bbox"] == [0, 20, 10, 30]
+
+    def test_collapse_object_cols(self):
+        objects = [
+            {"bbox": [0, 0, 10, 10]},
+            {"bbox": [5, 0, 7, 10]},
+        ]
+        resolved_objects = resolve_overlaps_func(copy.deepcopy(objects), is_row=False)
+        assert resolved_objects[0]["bbox"] == [0, 0, 7.5, 10]
+        assert resolved_objects[1]["bbox"] == [7, 0, 7, 10]
+        assert resolved_objects[1]["bbox"][0] == resolved_objects[1]["bbox"][2]
+
+    def test_collapse_object_rows(self):
+        objects = [
+            {"bbox": [0, 0, 10, 10]},
+            {"bbox": [0, 5, 10, 7]},
+        ]
+        resolved_objects = resolve_overlaps_func(copy.deepcopy(objects), is_row=True)
+        assert resolved_objects[0]["bbox"] == [0, 0, 10, 7.5]
+        assert resolved_objects[1]["bbox"] == [0, 7, 10, 7]
+        assert resolved_objects[1]["bbox"][1] == resolved_objects[1]["bbox"][3]
+
+    def test_collapse_object_non_adjacent_cols(self):
+        objects = [
+            {"bbox": [0, 0, 10, 10]},
+            {"bbox": [11, 0, 15, 10]},
+            {"bbox": [9, 0, 12, 10]},
+        ]
+        resolved_objects = resolve_overlaps_func(copy.deepcopy(objects), is_row=False)
+        assert resolved_objects[0]["bbox"] == [0, 0, 10, 10]
+        assert resolved_objects[1]["bbox"] == [11, 0, 13.5, 10]
+        assert resolved_objects[2]["bbox"] == [12, 0, 12, 10]
+        assert resolved_objects[2]["bbox"][0] == resolved_objects[2]["bbox"][2]

@@ -169,7 +169,12 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
     @timetrace("tblExtr")
     @requires_modules(["torch", "torchvision"], extra="local-inference")
     def extract(
-        self, element: TableElement, doc_image: Image.Image, union_tokens=False, apply_thresholds=False
+        self,
+        element: TableElement,
+        doc_image: Image.Image,
+        union_tokens=False,
+        apply_thresholds=False,
+        resolve_overlaps=False,
     ) -> TableElement:
         """Extracts the table structure from the specified element using a TableTransformer model.
 
@@ -231,7 +236,9 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         # Convert the raw objects to our internal table representation. This involves multiple
         # phases of postprocessing.
-        table = table_transformers.objects_to_table(objects, tokens, union_tokens=union_tokens)
+        table = table_transformers.objects_to_table(
+            objects, tokens, union_tokens=union_tokens, resolve_overlaps=resolve_overlaps
+        )
 
         if table is None:
             element.table = None

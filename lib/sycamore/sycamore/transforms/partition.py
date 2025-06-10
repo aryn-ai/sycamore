@@ -531,7 +531,7 @@ class ArynPartitioner(Partitioner):
                 ocr_model=self._ocr_model,
                 extract_table_structure=self._extract_table_structure,
                 table_structure_extractor=self._table_structure_extractor,
-                table_extractor_options=self._table_extractor_options,
+                table_extraction_options=self._table_extraction_options,
                 extract_images=self._extract_images,
                 extract_image_format=self._extract_image_format,
                 batch_size=self._batch_size,

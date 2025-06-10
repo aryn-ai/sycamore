@@ -1,7 +1,4 @@
 from abc import abstractmethod
-import copy
-import math
-import cmath
 import logging
 from typing import Any, Union, Optional, Callable
 
@@ -19,6 +16,7 @@ from sycamore.transforms.table_structure.table_transformers import MaxResize
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.import_utils import requires_modules
+from sycamore.utils.rotation import VectorMean, quad_rotation, rot_bbox, rot_dict, rot_image, rot_tuple
 
 Num = Union[float, int]
 
@@ -38,106 +36,45 @@ def _crop_bbox(image: Image.Image, bbox: BoundingBox, padding: int = 10):
     return cropped_image, crop_box
 
 
-g_quad_to_method = {
-    1: Image.Transpose.ROTATE_90,
-    2: Image.Transpose.ROTATE_180,
-    3: Image.Transpose.ROTATE_270,
-}
-
-
-def rot_image(img: Image.Image, quad: int) -> Image.Image:
-    method = g_quad_to_method.get(quad % 4)
-    if not method:
-        return img
-    return img.transpose(method=method)
-
-
-def rot_xy(x: float, y: float, quad: int) -> tuple[float, float]:
-    """Rotate counterclockwise quad * 90 degrees about (0.5, 0.5)"""
-    if quad:
-        quad %= 4
-        if quad == 1:
-            return (y, 1.0 - x)
-        elif quad == 2:
-            return (1.0 - x, 1.0 - y)
-        elif quad == 3:
-            return (1.0 - y, x)
-    return (x, y)
-
-
-def rot_bbox(bbox: BoundingBox, quad: int) -> BoundingBox:
-    if not quad:
-        return bbox
-    x1, y1 = rot_xy(bbox.x1, bbox.y1, quad)
-    x2, y2 = rot_xy(bbox.x2, bbox.y2, quad)
-    return BoundingBox(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
-
-
-def rot_dict(bbox: dict[str, float], quad: int) -> dict[str, float]:
-    if not quad:
-        return bbox
-    x1, y1 = rot_xy(bbox["x1"], bbox["y1"], quad)
-    x2, y2 = rot_xy(bbox["x2"], bbox["y2"], quad)
-    return {"x1": min(x1, x2), "y1": min(y1, y2), "x2": max(x1, x2), "y2": max(y1, y2)}
-
-
-def rot_tuple(bbox: tuple[float, float, float, float], quad: int) -> tuple[float, float, float, float]:
-    if not quad:
-        return bbox
-    x1, y1 = rot_xy(bbox[0], bbox[1], quad)
-    x2, y2 = rot_xy(bbox[2], bbox[3], quad)
-    return (min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
-
-
 def rotated_table(elem: TableElement, quad: int) -> TableElement:
-    """Returns new TableElement with bboxes rotated."""
+    """Returns potentially new TableElement with bboxes rotated."""
     if not quad:
         return elem
-    rv = copy.deepcopy(elem)  # wasteful, but safe
+    rv = elem.copy()  # shallow copy
     d = rv.data
-
     bbtup = rot_tuple(d["bbox"], quad)
-    d["bbox"] = (bbtup[0], bbtup[1], bbtup[2], bbtup[3])
+    d["bbox"] = bbtup
 
-    if toks := rv.tokens:
+    if (toks := elem.tokens) is not None:
+        tary: list[dict[str, Any]] = []
         for tok in toks:
-            if bbox := tok.get("bbox"):
+            t = tok.copy()
+            if bbox := t.get("bbox"):
                 bbox = rot_bbox(bbox, quad)
-                tok["bbox"] = bbox
+                t["bbox"] = bbox
+            tary.append(t)
+        rv.tokens = tary
 
-    if tbl := rv.table:
-        ary: list[TableCell] = []
+    if tbl := elem.table:
+        cary: list[TableCell] = []
         for cell in tbl.cells:
             cd = cell.to_dict()
             cbb = rot_dict(cd["bbox"], quad)
             cd["bbox"] = cbb
-            ary.append(TableCell.from_dict(cd))
-        tbl.cells = ary
+            cary.append(TableCell.from_dict(cd))
+        assert rv.table  # for mypy
+        rv.table.cells = cary
 
     return rv
 
 
 def average_vector(tokens: Optional[list[dict[str, Any]]]) -> complex:
-    """Sums the vector of each token and divides by the count."""
-    vec = complex(0.0, 0.0)
+    vm = VectorMean()
     if tokens:
-        cnt = 0
         for tok in tokens:
             if (v := tok.get("vector")) is not None:
-                vec += v
-                cnt += 1
-        if cnt:
-            vec /= cnt
-    return vec
-
-
-def what_rotation(vec: complex) -> int:
-    """Returns number of quadrants counterclockwise that a vector is rotated."""
-    if abs(vec) < 0.8:
-        return 0
-    rad = cmath.phase(vec)
-    quad = round(rad * 2.0 / math.pi) % 4
-    return quad
+                vm.add(v)
+    return vm.get()
 
 
 class TableStructureExtractor:
@@ -251,9 +188,10 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         if element.bbox is None:
             return element
 
-        quad = what_rotation(average_vector(element.tokens))
+        quad = quad_rotation(average_vector(element.tokens))
+        logging.info(f"Table extract using rotation {quad}")
         element = rotated_table(element, -quad)
-        assert element.bbox
+        assert element.bbox  # for mypy
         doc_image = rot_image(doc_image, -quad)
 
         from torchvision import transforms

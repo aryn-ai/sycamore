@@ -206,6 +206,12 @@ class TableElement(Element):
         self.data["table"] = table
         self.data["tokens"] = tokens
 
+    def copy(self) -> "TableElement":
+        """Shallow copy of self."""
+        obj = TableElement()
+        obj.data = self.data.copy()
+        return obj
+
     @property
     def rows(self) -> Optional[list[Any]]:
         if (properties := self.data.get("properties")) is None:

@@ -450,7 +450,7 @@ class ArynPDFPartitioner:
         use_cache,
         skip_empty_tables: bool = False,
         supplement_text_fn: Callable[[list[Element], list[Element]], list[Element]] = _supplement_text,
-    ) -> Any:
+    ) -> list[list[Element]]:
         with LogTime("infer"):
             assert self.model is not None
             deformable_layout = self.model.infer(batch, threshold, use_cache)

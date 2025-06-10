@@ -159,7 +159,7 @@ class ArynPDFPartitioner:
         per_element_ocr=True,
         extract_table_structure=False,
         table_structure_extractor=None,
-        table_extractor_options: dict = {},
+        table_extraction_options: dict = {},
         extract_images=False,
         extract_image_format: str = "PPM",
         batch_size: int = 1,
@@ -204,7 +204,7 @@ class ArynPDFPartitioner:
                 per_element_ocr=per_element_ocr,
                 extract_table_structure=extract_table_structure,
                 table_structure_extractor=table_structure_extractor,
-                table_extractor_options=table_extractor_options,
+                table_extraction_options=table_extraction_options,
                 extract_images=extract_images,
                 extract_image_format=extract_image_format,
                 batch_size=batch_size,
@@ -319,7 +319,7 @@ class ArynPDFPartitioner:
         per_element_ocr: bool = True,
         extract_table_structure: bool = False,
         table_structure_extractor=None,
-        table_extractor_options: dict = {},
+        table_extraction_options: dict = {},
         extract_images: bool = False,
         extract_image_format: str = "PPM",
         batch_size: int = 1,
@@ -346,7 +346,7 @@ class ArynPDFPartitioner:
                 per_element_ocr,
                 extract_table_structure,
                 table_structure_extractor,
-                table_extractor_options,
+                table_extraction_options,
                 extract_images,
                 extract_image_format,
                 batch_size,
@@ -366,7 +366,7 @@ class ArynPDFPartitioner:
         per_element_ocr: bool = True,
         extract_table_structure=False,
         table_structure_extractor=None,
-        table_extractor_options: dict = {},
+        table_extraction_options: dict = {},
         extract_images=False,
         extract_image_format="PPM",
         batch_size: int = 1,
@@ -408,7 +408,7 @@ class ArynPDFPartitioner:
                 per_element_ocr=per_element_ocr,
                 extract_table_structure=extract_table_structure,
                 table_structure_extractor=table_structure_extractor,
-                table_extractor_options=table_extractor_options,
+                table_extraction_options=table_extraction_options,
                 extract_images=extract_images,
                 extract_image_format=extract_image_format,
                 use_cache=use_cache,
@@ -441,7 +441,7 @@ class ArynPDFPartitioner:
         per_element_ocr: bool,
         extract_table_structure: bool,
         table_structure_extractor,
-        table_extractor_options: dict,
+        table_extraction_options: dict,
         extract_images: bool,
         extract_image_format: str,
         use_cache,
@@ -491,7 +491,7 @@ class ArynPDFPartitioner:
                                 concatenated_text = " ".join([token.get("text") for token in element.tokens])
                                 if concatenated_text.strip() == "":
                                     continue
-                            table_structure_extractor.extract(element, image, **table_extractor_options)
+                            table_structure_extractor.extract(element, image, **table_extraction_options)
 
         if extract_images:
             with LogTime("extract_images_batch"):
@@ -557,7 +557,7 @@ class ArynPDFPartitioner:
         deformable_layout: Any,
         extract_table_structure: bool,
         table_structure_extractor,
-        table_extractor_options: dict,
+        table_extraction_options: dict,
         extract_images: bool,
         extract_image_format: str = "PPM",
     ) -> Any:
@@ -569,7 +569,7 @@ class ArynPDFPartitioner:
                     image = batch[i]
                     for element in page_elements:
                         if isinstance(element, TableElement):
-                            table_structure_extractor.extract(element, image, **table_extractor_options)
+                            table_structure_extractor.extract(element, image, **table_extraction_options)
 
         if extract_images:
             with LogTime("extract_images_batch"):

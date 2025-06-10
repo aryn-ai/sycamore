@@ -5,7 +5,7 @@ import structlog
 
 from sycamore import DocSet
 from sycamore.context import context_params, Context
-from sycamore.data import Document
+from sycamore.data import Document, MetadataDocument
 from sycamore.functions.tokenizer import OpenAITokenizer
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
@@ -18,6 +18,7 @@ from sycamore.transforms.summarize import (
     Summarizer,
     SummaryDocument,
     EtCetera,
+    CollectToSummaryDoc,
 )
 
 log = structlog.get_logger(__name__)
@@ -145,7 +146,10 @@ def summarize_data_docsets(
     docset_summarizer: Summarizer,
     data_description: Optional[str] = None,
 ) -> list[str]:
-    single_docs = [SummaryDocument(sub_docs=ds.take_all()) for ds in input_data]
-    agged_ds = input_data[0].context.read.document(single_docs).summarize(docset_summarizer)
-    texts = [d.properties["summary"] for d in agged_ds.take_all()]
-    return texts
+    if len(input_data) == 0:
+        return []
+
+    docset = input_data[0]
+    sum_doc = docset.aggregate(CollectToSummaryDoc()).summarize(docset_summarizer).take_all()
+    text = [sum_doc[0].properties["summary"]]
+    return text + summarize_data_docsets(llm, question, input_data[1:], docset_summarizer, data_description)

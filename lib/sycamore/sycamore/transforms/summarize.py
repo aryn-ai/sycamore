@@ -19,6 +19,7 @@ from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
 from sycamore.llms.llms import LLMMode
 from sycamore.transforms.map import Map
+from sycamore.transforms.aggregation import AggBuilder
 from sycamore.transforms.base import CompositeTransform, BaseMapTransform
 from sycamore.transforms.base_llm import LLMMapElements, LLMMap, _infer_prompts
 
@@ -633,3 +634,25 @@ class Summarize(NonCPUUser, NonGPUUser, Map):
 
     def __init__(self, child: Node, summarizer: Summarizer, **kwargs):
         super().__init__(child, f=summarizer.summarize, **kwargs)
+
+
+class CollectToSummaryDoc(AggBuilder):
+    def __init__(self):
+        super().__init__(
+            name="collect_to_summary_doc",
+            accumulate_docs=self._accumulate,
+            combine_partials=self._combine,
+            finalize=self._finalize,
+        )
+
+    def _accumulate(self, docs: list[Document]) -> SummaryDocument:
+        return SummaryDocument(sub_docs=docs)
+
+    def _combine(self, doc1: Document, doc2: Document) -> SummaryDocument:
+        assert isinstance(doc1, SummaryDocument)
+        assert isinstance(doc2, SummaryDocument)
+        doc1.sub_docs.extend(doc2.sub_docs)
+        return doc1
+
+    def _finalize(self, doc: Document) -> Document:
+        return doc

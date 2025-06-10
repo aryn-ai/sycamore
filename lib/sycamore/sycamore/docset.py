@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from sycamore.transforms.embed import Embedder
     from sycamore.transforms.extract_table import TableExtractor
     from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
+    from sycamore.transforms.aggregation import AggBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -1302,6 +1303,10 @@ class DocSet:
             )
             plan = DropIfMissingField(plan, field)
         return DocSet(self.context, Sort(plan, descending, field, default_val))
+
+    def aggregate(self, agg: AggBuilder, **kwargs) -> "DocSet":
+        aggregation = agg.build(self.plan)
+        return DocSet(self.context, aggregation)
 
     def groupby_count(self, field: str, unique_field: Optional[str] = None, **kwargs) -> "DocSet":
         """

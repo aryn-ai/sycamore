@@ -229,7 +229,12 @@ class DeformableTableStructureExtractor(TableTransformerStructureExtractor):
         return choose_device(self.device, detr=True)
 
     def extract(
-        self, element: TableElement, doc_image: Image.Image, union_tokens=False, apply_thresholds=True
+        self,
+        element: TableElement,
+        doc_image: Image.Image,
+        union_tokens=False,
+        apply_thresholds=True,
+        resolve_overlaps=False,
     ) -> TableElement:
         """Extracts the table structure from the specified element using a DeformableDETR model.
 
@@ -312,6 +317,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         doc_image: Image.Image,
         union_tokens=False,
         model_selection: str = "pixels > 500 -> deformable_detr; table_transformer",
+        resolve_overlaps=False,
     ) -> TableElement:
         """Extracts the table structure from the specified element using a either a DeformableDETR or
         TATR model, depending on the size of the table.

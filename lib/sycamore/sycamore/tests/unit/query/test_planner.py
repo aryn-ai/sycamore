@@ -5,6 +5,7 @@ from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.planner import LlmPlanner
+from sycamore.query.planner_prompt import PlannerPrompt
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
 
 
@@ -59,6 +60,35 @@ def test_generate_system_prompt(mock_schema):
     prompt = planner.generate_prompt("Test query")
     system = prompt.messages[0].content
     assert "The last step of each plan should return the raw data" in system
+
+
+def test_generate_prompt_with_custom_prompt(
+    mock_schema,
+    mock_os_config,
+    mock_os_client,
+    mock_llm_client,
+):
+    class CustomPrompt(PlannerPrompt):
+        def __init__(self, tail: str):
+            super().__init__()
+            self.tail = tail
+
+        def generate_system_prompt(self, _query: str) -> str:
+            return super().generate_system_prompt(_query) + self.tail
+
+    index = "dummy"
+    planner = LlmPlanner(
+        index,
+        data_schema=mock_schema,
+        os_config=mock_os_config,
+        os_client=mock_os_client,
+        llm_client=mock_llm_client,
+        prompt=CustomPrompt("OOGABOOGA"),
+    )
+    prompt = planner.generate_prompt("Test query")
+    system = prompt.messages[0].content
+    assert system.endswith("OOGABOOGA")
+    assert "The last step of each plan *MUST* be a **SummarizeData** operation" in system
 
 
 def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, mock_schema, monkeypatch):

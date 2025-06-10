@@ -51,7 +51,7 @@ To use Aryn DocParse, [sign-up for free here](https://www.aryn.ai/get-started) a
 
 - Documentation: https://sycamore.readthedocs.io
 - Example notebook: https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore-tutorial-intermediate-etl.ipynb
-- Slack: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
+- Slack: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-36vhennsx-mN3UsqD6PT2vxVZxpqdHsw
 - Data preparation libraries (PyPi): https://pypi.org/project/sycamore-ai/
 - Contact us: info@aryn.ai
 

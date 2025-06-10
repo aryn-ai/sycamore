@@ -183,7 +183,7 @@ class SycamoreQueryClient:
         self,
         query: str,
         index: str,
-        schema: Union[Schema, OpenSearchSchema],
+        schema: Union[Schema, OpenSearchSchema, None] = None,
         examples: Optional[List[PlannerExample]] = None,
         natural_language_response: bool = False,
     ) -> LogicalPlan:
@@ -199,6 +199,7 @@ class SycamoreQueryClient:
         """
         planner: Planner
         if self.query_planner is None:
+            schema = schema or self.get_opensearch_schema(index)
             llm_client = self.context.params.get("default", {}).get("llm")
             if not llm_client:
                 llm_client = OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(self.llm_cache_dir))
@@ -243,8 +244,7 @@ class SycamoreQueryClient:
         codegen_mode: bool = False,
     ) -> SycamoreQueryResult:
         """Run a query against the given index."""
-        schema = self.get_opensearch_schema(index)
-        plan = self.generate_plan(query, index, schema)
+        plan = self.generate_plan(query, index)
         return self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
 
     def dump_traces(self, result: SycamoreQueryResult, limit: int = 5):

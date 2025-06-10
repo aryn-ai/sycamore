@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 
 from sycamore.data import Element
-from sycamore.transforms.detr_partitioner import ArynPDFPartitioner, DeformableDetr
+from sycamore.transforms.detr_partitioner import ArynPDFPartitioner, DeformableDetr, _supplement_text
 from sycamore.data import BoundingBox
 from sycamore.tests.unit.transforms.check_partition_impl import check_partition, check_table_extraction
 from sycamore.transforms.text_extraction import get_text_extractor, PdfMinerExtractor
@@ -39,9 +39,7 @@ class TestArynPDFPartitioner:
         miner5.bbox = BoundingBox(25, 250, 100, 300)
         miner6.bbox = BoundingBox(21, 71, 99, 99)
 
-        result = ArynPDFPartitioner._supplement_text(
-            [infer1, infer2, infer3], [miner1, miner2, miner3, miner4, miner5, miner6]
-        )
+        result = _supplement_text([infer1, infer2, infer3], [miner1, miner2, miner3, miner4, miner5, miner6])
         assert result[0].text_representation == "hello, world 你好，世界 Bonjour le monde"
         assert result[1].text_representation == "你好，世界"
         assert result[2].text_representation == "Hola Mundo"

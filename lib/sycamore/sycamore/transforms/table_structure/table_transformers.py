@@ -211,16 +211,16 @@ def refine_rows(rows, tokens, score_threshold, resolve_overlaps=False):
     if len(rows) > 1:
         rows = sort_objects_top_to_bottom(rows)
         if resolve_overlaps:
-            rows = resolve_overlaps(rows, dimension=1)
-    if len(tokens) > 0:
+            rows = resolve_overlaps_func(rows, is_row=True)
+    if len(tokens) > 0 and resolve_overlaps:
         remove_objects_without_content(tokens, rows)
     return rows
 
 
-def resolve_overlaps(objects, dimension):
+def resolve_overlaps_func(objects, is_row):
     """
     Resolves overlaps between objects (rows or columns).
-    `dimension` = 0 for columns (horizontal), 1 for rows (vertical).
+    `is_row` = True for rows (vertical), False for columns (horizontal).
 
     First, handles non-adjacent overlaps: if obj_i overlaps obj_k (k > i+1),
     obj_k's start boundary is pushed to be at least obj_{i+1}'s end boundary.
@@ -231,16 +231,15 @@ def resolve_overlaps(objects, dimension):
     if n < 2:
         return objects
 
-    if dimension == 0:  # Columns (horizontal)
-        start_coord_idx, end_coord_idx = 0, 2  # x1, x2
-    elif dimension == 1:  # Rows (vertical)
+    if is_row:  # Rows (vertical)
         start_coord_idx, end_coord_idx = 1, 3  # y1, y2
-    else:
-        raise ValueError("Invalid dimension. Must be 0 (horizontal) or 1 (vertical).")
+    else:  # Columns (horizontal)
+        start_coord_idx, end_coord_idx = 0, 2  # x1, x2
 
-    # Phase 1: Handle "further away" overlaps
-    # If obj_i overlaps obj_k (where k > i+1), ensure obj_k's start boundary
-    # is at least obj_{i+1}'s end boundary.
+    # # Phase 1: Handle "further away" overlaps
+    # # If obj_i overlaps obj_k (where k > i+1), ensure objk's start boundary
+    # # is at least obj{i+1}'s end boundary.
+    # We move k ahead so that the subsequent logic can handle adjacent overlaps.
     for i in range(n - 2):  # obj_i ranges from index 0 to n-3
         obj_i_bbox = objects[i]["bbox"]
         # obj_intermediate is objects[i+1]
@@ -257,9 +256,9 @@ def resolve_overlaps(objects, dimension):
 
                 if new_obj_k_start > obj_k_bbox[start_coord_idx]:  # If this pushes obj_k
                     obj_k_bbox[start_coord_idx] = new_obj_k_start
-                    # Ensure obj_k remains valid. If not, collapse it.
-                    if obj_k_bbox[start_coord_idx] > obj_k_bbox[end_coord_idx]:
-                        obj_k_bbox[start_coord_idx] = obj_k_bbox[end_coord_idx]
+                # Ensure obj_k remains valid. If not, collapse it.
+                if obj_k_bbox[start_coord_idx] > obj_k_bbox[end_coord_idx]:
+                    obj_k_bbox[start_coord_idx] = obj_k_bbox[end_coord_idx]
 
     # Phase 2: Resolve adjacent overlaps using midpoint logic
     for i in range(n - 1):  # Iterate through adjacent pairs
@@ -301,8 +300,8 @@ def refine_columns(columns, tokens, score_threshold, resolve_overlaps=False):
     if len(columns) > 1:
         columns = sort_objects_left_to_right(columns)
         if resolve_overlaps:
-            columns = resolve_overlaps(columns, dimension=0)
-    if len(tokens) > 0:
+            columns = resolve_overlaps_func(columns, is_row=False)
+    if len(tokens) > 0 and resolve_overlaps:
         remove_objects_without_content(tokens, columns)
     return columns
 
@@ -1060,8 +1059,8 @@ def objects_to_structures(objects, tokens, class_thresholds, resolve_overlaps=Fa
                 obj["column header"] = True
 
     # Refine table structures
-    rows = refine_rows(rows, table_tokens, class_thresholds["table row"], resolve_overlaps=resolve_overlaps)
-    columns = refine_columns(columns, table_tokens, class_thresholds["table column"], resolve_overlaps=resolve_overlaps)
+    rows = refine_rows(rows, table_tokens, class_thresholds["table row"], resolve_overlaps=True)
+    columns = refine_columns(columns, table_tokens, class_thresholds["table column"], resolve_overlaps=True)
 
     # Shrink table bbox to just the total height of the rows
     # and the total width of the columns

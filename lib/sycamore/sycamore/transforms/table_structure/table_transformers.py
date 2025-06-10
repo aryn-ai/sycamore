@@ -1059,8 +1059,8 @@ def objects_to_structures(objects, tokens, class_thresholds, resolve_overlaps=Fa
                 obj["column header"] = True
 
     # Refine table structures
-    rows = refine_rows(rows, table_tokens, class_thresholds["table row"], resolve_overlaps=True)
-    columns = refine_columns(columns, table_tokens, class_thresholds["table column"], resolve_overlaps=True)
+    rows = refine_rows(rows, table_tokens, class_thresholds["table row"], resolve_overlaps=resolve_overlaps)
+    columns = refine_columns(columns, table_tokens, class_thresholds["table column"], resolve_overlaps=resolve_overlaps)
 
     # Shrink table bbox to just the total height of the rows
     # and the total width of the columns

@@ -25,12 +25,21 @@ class ChainedLLM(LLM):
         """
         super().__init__(model_name, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
-        self.chain: list[LLM] = chain
+        self._chain: list[LLM] = chain
         self.chat_mode = True
         for llm in self.chain:
             if not llm.is_chat_mode():
                 self.chat_mode = False
                 break
+
+    @property
+    def chain(self) -> list[LLM]:
+        """
+        Returns the list of LLMs in the chain.
+        Returns:
+            The list of LLMs in the chain.
+        """
+        return self._chain
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         """
@@ -45,7 +54,7 @@ class ChainedLLM(LLM):
         """
 
         # The current strategy is to try each LLM in the chain until one succeeds.
-        for llm in self.chain:
+        for llm in self._chain:
             try:
                 response = llm.generate(prompt=prompt, llm_kwargs=llm_kwargs)
                 return response

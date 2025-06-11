@@ -10,6 +10,7 @@ import pdf2image
 from sycamore.data import BoundingBox, Element, Document, Table, TableElement
 from sycamore.data.document import DocumentPropertyTypes
 from sycamore.llms import LLM
+from sycamore.llms.chained_llm import ChainedLLM
 from sycamore.llms.prompts import RenderedMessage, RenderedPrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
@@ -488,9 +489,20 @@ class VLMTableStructureExtractor(TableStructureExtractor):
         self.num_retries = num_retries
 
     def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+        if isinstance(self.llm, ChainedLLM):
+            for llm in self.llm.chain:
+                success, element = self._extract(llm, element, doc_image)
+                if success:
+                    return element
+            return element
+
+        _, element = self._extract(self.llm, element, doc_image)
+        return element
+
+    def _extract(self, llm: LLM, element: TableElement, doc_image: Image.Image) -> tuple[bool, TableElement]:
         # We need a bounding box to be able to do anything.
         if element.bbox is None:
-            return element
+            return True, element
 
         cropped_image, _ = _crop_bbox(doc_image, element.bbox)
 
@@ -500,7 +512,7 @@ class VLMTableStructureExtractor(TableStructureExtractor):
         retry_num = 0
         while retry_num <= self.num_retries:
             try:
-                res = self.llm.generate(prompt=prompt)
+                res = llm.generate(prompt=prompt)
 
                 if res.startswith("```html"):
                     res = res[7:].rstrip("`")
@@ -508,7 +520,7 @@ class VLMTableStructureExtractor(TableStructureExtractor):
 
                 table = Table.from_html(res)
                 element.table = table
-                return element
+                return True, element
 
             except Exception as e:
                 logging.warning(
@@ -521,7 +533,7 @@ class VLMTableStructureExtractor(TableStructureExtractor):
                 retry_num += 1
 
         logging.warning("Unable to extract table structure after retries. Returning element without table.")
-        return element
+        return False, element
 
 
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor

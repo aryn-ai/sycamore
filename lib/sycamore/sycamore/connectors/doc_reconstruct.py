@@ -27,9 +27,7 @@ class DocumentReconstructor:
         for data in output:
             doc_id = self.get_doc_id(data)
             if doc_id not in unique:
-                result.append(
-                    self.reconstruct_fn(self.index_name, self.get_doc_id(data))
-                )
+                result.append(self.reconstruct_fn(self.index_name, self.get_doc_id(data)))
                 unique.add(doc_id)
         return result
 

@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pytest
 from PIL import Image
 from sycamore.data.bbox import BoundingBox
@@ -6,6 +8,7 @@ from sycamore.transforms.table_structure.extract import (
     TableTransformerStructureExtractor,
     HybridTableStructureExtractor,
     DeformableTableStructureExtractor,
+    VLMTableStructureExtractor,
 )
 
 HTSE = HybridTableStructureExtractor
@@ -98,6 +101,29 @@ class TestTableExtractors:
         extractor._tatr = MockTableModel(killme=False)
         extractor._deformable = MockTableModel(killme=True)  # type: ignore
         extractor.extract(elt, im, model_selection="chars > 3 -> deformable_detr; table_transformer")
+
+    def test_vlm_retry(self, mocker):
+        mock_llm = MagicMock()
+
+        # Configure the side_effect for the 'generate' method.
+        # 1. The first time it's called, it will raise a RuntimeError.
+        # 2. The second time, it will return the specified string.
+        mock_llm.generate.side_effect = [
+            RuntimeError("LLM generation failed on the first attempt."),
+            "<table>bad html</foo>",
+            "<table><tr><th>cell1</th><th>cell2</th></tr></table>",
+        ]
+
+        im = TestTableExtractors.mock_doc_image(mocker, 1000, 1000)
+        elt = TestTableExtractors.mock_table_element(mocker, 0.2, 0.2)
+
+        extractor = VLMTableStructureExtractor(llm=mock_llm)
+        elt = extractor.extract(elt, im)
+
+        assert mock_llm.generate.call_count == 3
+        assert len(elt.table.cells) == 2
+        assert elt.table.cells[0].content == "cell1"
+        assert elt.table.cells[1].content == "cell2"
 
 
 class TestHybridSelectionStatements:

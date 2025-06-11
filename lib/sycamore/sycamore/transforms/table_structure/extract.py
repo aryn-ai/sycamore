@@ -1,5 +1,7 @@
 from abc import abstractmethod
 import logging
+import random
+import time
 from typing import Any, Union, Optional, Callable
 
 from PIL import Image
@@ -477,9 +479,13 @@ class VLMTableStructureExtractor(TableStructureExtractor):
     EXTRACT_TABLE_STRUCTURE_PROMPT = """You are given an image of a table from a document. Please convert this table into HTML. Be sure to include the table header and all rows. Use 'colspan' and 'rowspan' in the output to indicate merged cells. Return the HTML as a string. Do not include any other text in the response.
 +"""
 
-    def __init__(self, llm: LLM, prompt_str: str = EXTRACT_TABLE_STRUCTURE_PROMPT):
+    DEFAULT_RETRIES = 2
+    INITIAL_BACKOFF = 0.2
+
+    def __init__(self, llm: LLM, prompt_str: str = EXTRACT_TABLE_STRUCTURE_PROMPT, num_retries: int = DEFAULT_RETRIES):
         self.llm = llm
         self.prompt_str = prompt_str
+        self.num_retries = num_retries
 
     def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
         # We need a bounding box to be able to do anything.
@@ -491,19 +497,30 @@ class VLMTableStructureExtractor(TableStructureExtractor):
         message = RenderedMessage(role="user", content=self.prompt_str, images=[cropped_image])
         prompt = RenderedPrompt(messages=[message])
 
-        res = self.llm.generate(prompt=prompt)
+        retry_num = 0
+        while retry_num <= self.num_retries:
+            try:
+                res = self.llm.generate(prompt=prompt)
 
-        if res.startswith("```html"):
-            res = res[7:].rstrip("`")
-        res = res.strip()
+                if res.startswith("```html"):
+                    res = res[7:].rstrip("`")
+                res = res.strip()
 
-        try:
-            table = Table.from_html(res)
-            element.table = table
-        except Exception as e:
-            logging.warning(f"Not able to parse table from HTML: {e}")
-            return element
+                table = Table.from_html(res)
+                element.table = table
+                return element
 
+            except Exception as e:
+                logging.warning(
+                    f"Error extracting table structure: {e}. Retrying... ({retry_num + 1}/{self.num_retries})"
+                )
+                logging.exception(e)
+                backoff = self.INITIAL_BACKOFF * (2**retry_num)
+                jitter = random.uniform(0, 0.1 * backoff)
+                time.sleep(backoff + jitter)
+                retry_num += 1
+
+        logging.warning("Unable to extract table structure after retries. Returning element without table.")
         return element
 
 

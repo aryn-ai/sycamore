@@ -4,10 +4,7 @@ from copy import deepcopy
 
 import pandas as pd
 
-from sycamore.connectors.doc_reconstruct import (
-    DocumentReconstructor,
-    RAGDocumentReconstructor,
-)
+from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.data import Document, Element
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
@@ -134,20 +131,10 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
         assert isinstance(query_params, OpenSearchReaderQueryParams)
         result: list[Document] = []
         if query_params.doc_reconstructor is not None:
-            if isinstance(query_params.doc_reconstructor, RAGDocumentReconstructor):
-                logger.info(
-                    "Using RAGDocumentReconstructor for document reconstruction: only use elements returned by query"
-                )
-                result = query_params.doc_reconstructor.reconstruct_list(self.output)
-
-            else:
-                logger.info("Using DocID to Document reconstructor")
-                unique = set()
-                for data in self.output:
-                    doc_id = query_params.doc_reconstructor.get_doc_id(data)
-                    if doc_id not in unique:
-                        result.append(query_params.doc_reconstructor.reconstruct(data))
-                        unique.add(doc_id)
+            logger.info(
+                f"Reconstructing documents using reconstructor: {query_params.doc_reconstructor.__class__.__name__}"
+            )
+            result = query_params.doc_reconstructor.reconstruct(self.output)
         elif not query_params.reconstruct_document:
             for data in self.output:
                 doc = Document(

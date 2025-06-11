@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Optional
 
 from sycamore.data import Document, Element
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
@@ -23,11 +23,11 @@ class RAGDocumentReconstructor(DocumentReconstructor):
     def __init__(
         self,
         index_name: str,
-        reconstruct_fn: Callable[[str, str], Document] = None,
+        reconstruct_fn: Optional[Callable[[str, str], Document]] = None,
     ):
         super().__init__(index_name, reconstruct_fn)
 
-    def reconstruct(self, output: list[dict]) -> list[Document]:
+    def reconstruct_list(self, output: list[dict]) -> list[Document]:
         result: list[Document] = []
         unique_docs: dict[str, Document] = {}
 

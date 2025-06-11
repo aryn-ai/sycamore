@@ -138,7 +138,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                 logger.info(
                     "Using RAGDocumentReconstructor for document reconstruction: only use elements returned by query"
                 )
-                result = query_params.doc_reconstructor.reconstruct(self.output)
+                result = query_params.doc_reconstructor.reconstruct_list(self.output)
 
             else:
                 logger.info("Using DocID to Document reconstructor")

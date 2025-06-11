@@ -319,9 +319,12 @@ class OpenAI(LLM):
 
     def _get_generate_kwargs(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
         kwargs = {
-            "temperature": 0,
             **(llm_kwargs or {}),
         }
+
+        if not self.model.name.startswith("o"):
+            kwargs["temperature"] = 0
+
         if "SYCAMORE_OPENAI_USER" in os.environ:
             kwargs.update({"user": os.environ.get("SYCAMORE_OPENAI_USER")})
 

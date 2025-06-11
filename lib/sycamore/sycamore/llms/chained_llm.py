@@ -1,4 +1,5 @@
 import logging
+import traceback
 from typing import Optional
 
 from sycamore.llms import LLM
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class ChainedLLM(LLM):
-    """ A ChainedLLM is a special LLM that allows for chaining multiple LLMs together."""
+    """A ChainedLLM is a special LLM that allows for chaining multiple LLMs together."""
 
     def __init__(self, chain: list[LLM], model_name, default_mode: LLMMode, cache=None, default_llm_kwargs=None):
         """
@@ -25,6 +26,11 @@ class ChainedLLM(LLM):
         super().__init__(model_name, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
         self.chain: list[LLM] = chain
+        self.chat_mode = True
+        for llm in self.chain:
+            if not llm.is_chat_mode():
+                self.chat_mode = False
+                break
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         """
@@ -44,10 +50,14 @@ class ChainedLLM(LLM):
                 response = llm.generate(prompt=prompt, llm_kwargs=llm_kwargs)
                 return response
             except Exception as e:
-                logger.warning(f"Error in LLM {llm.model_name}: {e}")
+                logger.warning(f"Error in LLM {llm._model_name}: {traceback.format_exception(e)}")
 
         return ""  # If all LLMs fail, return an empty string
 
     def is_chat_mode(self) -> bool:
-        pass
-
+        """
+        Returns whether the LLM is in chat mode.
+        Returns:
+            True if all LLMs in the chain are in chat mode, False otherwise.
+        """
+        return self.chat_mode

@@ -39,6 +39,7 @@ from sycamore.query.execution.physical_operator import (
     get_var_name,
     get_str_for_dict,
 )
+from sycamore.connectors.doc_reconstruct import RAGDocumentReconstructor
 
 
 class SycamoreOperator(PhysicalOperator):
@@ -232,7 +233,10 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
         result = self.context.read.opensearch(
             index_name=self.logical_node.index,
             query=os_query,
-            reconstruct_document=True,
+            reconstruct_document=False if self.logical_node.rag_mode else True,
+            doc_reconstructor=(
+                RAGDocumentReconstructor(index_name=self.logical_node.index) if self.logical_node.rag_mode else None
+            ),
             result_filter=self.logical_node.result_filter,
         ).map(remove_original_elements)
         if self.rerank:

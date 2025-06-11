@@ -27,7 +27,9 @@ class DocumentReconstructor:
         for data in output:
             doc_id = self.get_doc_id(data)
             if doc_id not in unique:
-                result.append(self.reconstruct_fn(self.index_name, self.get_doc_id(data)))
+                result.append(
+                    self.reconstruct_fn(self.index_name, self.get_doc_id(data))
+                )
                 unique.add(doc_id)
         return result
 
@@ -49,24 +51,26 @@ class RAGDocumentReconstructor(DocumentReconstructor):
                     **element.get("_source", {}),
                 }
             )
-            if not doc.parent_id:
-                continue  # Skip elements without a parent_id
             doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
-            unique_docs[doc.parent_id] = unique_docs.get(
-                doc.parent_id,
-                Document(
-                    {
-                        "doc_id": doc.parent_id,
-                        "properties": {
-                            **doc.properties,
-                            DocumentPropertyTypes.SOURCE: DocumentSource.DOCUMENT_RECONSTRUCTION_PARENT,
-                        },
-                        "type": doc.type,
-                    }
-                ),
-            )
-            parent = unique_docs[doc.parent_id]
-            parent.elements.append(Element(doc.data))
+            assert doc.doc_id, "Retrieved invalid doc with a missing doc_id"
+            if not doc.parent_id:
+                unique_docs[doc.doc_id] = doc
+            else:
+                unique_docs[doc.parent_id] = unique_docs.get(
+                    doc.parent_id,
+                    Document(
+                        {
+                            "doc_id": doc.parent_id,
+                            "properties": {
+                                **doc.properties,
+                                DocumentPropertyTypes.SOURCE: DocumentSource.DOCUMENT_RECONSTRUCTION_PARENT,
+                            },
+                            "type": doc.type,
+                        }
+                    ),
+                )
+                parent = unique_docs[doc.parent_id]
+                parent.elements.append(Element(doc.data))
 
         result = list(unique_docs.values())
         return result

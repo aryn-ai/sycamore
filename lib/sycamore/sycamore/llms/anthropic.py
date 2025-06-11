@@ -37,7 +37,11 @@ def rewrite_system_messages(messages: Optional[list[dict]]) -> Optional[list[dic
     return [m for m in messages if m.get("role") != "system"]
 
 
-def get_generate_kwargs(prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+def get_generate_kwargs(
+    prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model_name_override: Optional[str] = None
+) -> dict:
+    # model_name_override is not directly used here for now, but available.
+    # The actual model name for API calls is set by the calling methods.
     kwargs = {
         "temperature": 0,
         **(llm_kwargs or {}),
@@ -171,44 +175,52 @@ class Anthropic(LLM):
         self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
         return ret
 
-    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model_name: Optional[str] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+        current_model_name = model_name or self.model.value
 
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        ret = self._llm_cache_get(prompt, current_model_name, llm_kwargs)
         if isinstance(ret, dict):
             return ret
 
-        kwargs = get_generate_kwargs(prompt, llm_kwargs)
+        kwargs = get_generate_kwargs(prompt, llm_kwargs, model_name_override=current_model_name)
         start = datetime.now()
 
-        response = self._client.messages.create(model=self.model.value, **kwargs)
+        response = self._client.messages.create(model=current_model_name, **kwargs)
         ret = self._metadata_from_response(kwargs, response, start)
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
-        self._llm_cache_set(prompt, llm_kwargs, ret)
+        self._llm_cache_set(prompt, current_model_name, llm_kwargs, ret)
         return ret
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
+    def generate(
+        self, *, prompt: RenderedPrompt, model_name: Optional[str] = None, llm_kwargs: Optional[dict] = None
+    ) -> str:
+        d = self.generate_metadata(prompt=prompt, model_name=model_name, llm_kwargs=llm_kwargs)
         return d["output"]
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, model_name: Optional[str] = None, llm_kwargs: Optional[dict] = None
+    ) -> str:
         from anthropic import RateLimitError, APIConnectionError
 
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+        current_model_name = model_name or self.model.value
 
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        ret = self._llm_cache_get(prompt, current_model_name, llm_kwargs)
         if isinstance(ret, dict):
-            return ret["output"]
+            return ret["output"] # Assuming cached ret is the metadata dict
 
-        kwargs = get_generate_kwargs(prompt, llm_kwargs)
+        kwargs = get_generate_kwargs(prompt, llm_kwargs, model_name_override=current_model_name)
         start = datetime.now()
         done = False
         retries = 0
         response = None
         while not done:
             try:
-                response = await self._async_client.messages.create(model=self.model.value, **kwargs)
+                response = await self._async_client.messages.create(model=current_model_name, **kwargs)
                 done = True
             except (RateLimitError, APIConnectionError):
                 backoff = INITIAL_BACKOFF * (2**retries)
@@ -216,26 +228,30 @@ class Anthropic(LLM):
                 await asyncio.sleep(backoff + jitter)
                 retries += 1
 
-        ret = self._metadata_from_response(kwargs, response, start)
-        logging.debug(f"Generated response from Anthropic model: {ret}")
+        metadata_result = self._metadata_from_response(kwargs, response, start)
+        logging.debug(f"Generated response from Anthropic model: {metadata_result}")
 
-        self._llm_cache_set(prompt, llm_kwargs, ret)
-        return ret["output"]
+        self._llm_cache_set(prompt, current_model_name, llm_kwargs, metadata_result)
+        return metadata_result["output"]
 
-    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+    def generate_batch(
+        self, *, prompts: list[RenderedPrompt], model_name: Optional[str] = None, llm_kwargs: Optional[dict] = None
+    ) -> list[str]:
         from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
         from anthropic.types.messages.batch_create_params import Request
 
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+        current_model_name = model_name or self.model.value
 
-        cache_hits = [self._llm_cache_get(p, llm_kwargs) for p in prompts]
+        cache_hits = [self._llm_cache_get(p, current_model_name, llm_kwargs) for p in prompts]
 
         calls = []
         for p, ch, i in zip(prompts, cache_hits, range(len(prompts))):
             if ch is not None:
                 continue
-            kwargs = get_generate_kwargs(p, llm_kwargs)
-            kwargs["model"] = self.model.value
+            # Pass current_model_name to get_generate_kwargs for consistency, though it might not use it directly
+            kwargs = get_generate_kwargs(p, llm_kwargs, model_name_override=current_model_name)
+            kwargs["model"] = current_model_name # Ensure the resolved model name is in MessageCreateParamsNonStreaming
             kwargs["max_tokens"] = kwargs.get("max_tokens", 1024)
             mparams = MessageCreateParamsNonStreaming(**kwargs)  # type: ignore
             rq = Request(custom_id=str(i), params=mparams)
@@ -253,9 +269,10 @@ class Anthropic(LLM):
             if rs.result.type != "succeeded":
                 raise ValueError(f"Call failed: {rs}")
             id = int(rs.custom_id)
-            in_kwargs = get_generate_kwargs(prompts[id], llm_kwargs)
+            # Pass current_model_name to get_generate_kwargs for consistency
+            in_kwargs = get_generate_kwargs(prompts[id], llm_kwargs, model_name_override=current_model_name)
             ret = self._metadata_from_response(in_kwargs, rs.result.message, starttime)
             cache_hits[id] = ret
-            self._llm_cache_set(prompts[id], llm_kwargs, ret)
+            self._llm_cache_set(prompts[id], current_model_name, llm_kwargs, ret)
 
         return [ch["output"] for ch in cache_hits]

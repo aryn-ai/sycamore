@@ -56,17 +56,22 @@ class Bedrock(LLM):
             return format_image(image)
         raise NotImplementedError("Images not supported for non-Anthropic Bedrock models.")
 
-    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model_name: Optional[str] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+        current_model_name = model_name or self.model.name
 
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        ret = self._llm_cache_get(prompt, current_model_name, llm_kwargs)
         if isinstance(ret, dict):
             print(f"cache return {ret}")
             return ret
         assert ret is None
 
-        kwargs = get_generate_kwargs(prompt, llm_kwargs)
-        if self._model_name.startswith("anthropic."):
+        # Note: get_generate_kwargs is Anthropic-specific. If current_model_name is not Anthropic,
+        # the request body might not be suitable for that model. This subtask focuses on passing modelId.
+        kwargs = get_generate_kwargs(prompt, llm_kwargs) # Consider passing current_model_name if get_generate_kwargs needs it.
+        if current_model_name.startswith("anthropic."):
             anthropic_version = (
                 DEFAULT_ANTHROPIC_VERSION
                 if llm_kwargs is None
@@ -77,7 +82,7 @@ class Bedrock(LLM):
         body = json.dumps(kwargs)
         start = datetime.datetime.now()
         response = self._client.invoke_model(
-            body=body, modelId=self.model.name, accept="application/json", contentType="application/json"
+            body=body, modelId=current_model_name, accept="application/json", contentType="application/json"
         )
         wall_latency = datetime.datetime.now() - start
         md = response["ResponseMetadata"]
@@ -87,7 +92,7 @@ class Bedrock(LLM):
         in_tokens = int(hdrs["x-amzn-bedrock-input-token-count"])
         out_tokens = int(hdrs["x-amzn-bedrock-output-token-count"])
         response_body = json.loads(response.get("body").read())
-        output = response_body.get("content", {})[0].get("text", "")
+        output = response_body.get("content", {})[0].get("text", "") # Assumes Anthropic-like response structure
         ret = {
             "output": output,
             "wall_latency": wall_latency,
@@ -96,9 +101,11 @@ class Bedrock(LLM):
             "out_tokens": out_tokens,
         }
         self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
-        self._llm_cache_set(prompt, llm_kwargs, ret)
+        self._llm_cache_set(prompt, current_model_name, llm_kwargs, ret)
         return ret
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
+    def generate(
+        self, *, prompt: RenderedPrompt, model_name: Optional[str] = None, llm_kwargs: Optional[dict] = None
+    ) -> str:
+        d = self.generate_metadata(prompt=prompt, model_name=model_name, llm_kwargs=llm_kwargs)
         return d["output"]

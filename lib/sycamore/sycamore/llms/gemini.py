@@ -67,7 +67,11 @@ class Gemini(LLM):
         """Returns True if the LLM is in chat mode, False otherwise."""
         return True
 
-    def get_generate_kwargs(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def get_generate_kwargs(
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model_name_override: Optional[str] = None
+    ) -> dict:
+        # model_name_override is not directly used here but available for future use if needed.
+        # The actual model name for API calls is determined by the calling methods (generate_metadata, generate_async).
         from google.genai import types
 
         kwargs: dict[str, Any] = {}
@@ -123,42 +127,53 @@ class Gemini(LLM):
         self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
         return ret
 
-    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model_name: Optional[str] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+        current_model_name = model_name or self.model.name
 
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        ret = self._llm_cache_get(prompt, current_model_name, llm_kwargs)
         if isinstance(ret, dict):
             return ret
         assert ret is None
 
-        kwargs = self.get_generate_kwargs(prompt, llm_kwargs)
+        kwargs = self.get_generate_kwargs(prompt, llm_kwargs, model_name_override=current_model_name)
 
         start = datetime.datetime.now()
         response = self._client.models.generate_content(
-            model=self.model.name, contents=kwargs["content"], config=kwargs["config"]
+            model=current_model_name, contents=kwargs["content"], config=kwargs["config"]
         )
         ret = self._metadata_from_response(kwargs, response, start)
-        self._llm_cache_set(prompt, llm_kwargs, ret)
+        self._llm_cache_set(prompt, current_model_name, llm_kwargs, ret)
         return ret
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
+    def generate(
+        self, *, prompt: RenderedPrompt, model_name: Optional[str] = None, llm_kwargs: Optional[dict] = None
+    ) -> str:
+        d = self.generate_metadata(prompt=prompt, model_name=model_name, llm_kwargs=llm_kwargs)
         return d["output"]
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, model_name: Optional[str] = None, llm_kwargs: Optional[dict] = None
+    ) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+        current_model_name = model_name or self.model.name
 
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        ret = self._llm_cache_get(prompt, current_model_name, llm_kwargs)
         if isinstance(ret, dict):
+            # Assuming the cached 'ret' is the dictionary from generate_metadata
             return ret["output"]
-        assert ret is None
+        assert ret is None # If not a dict, it must be None, meaning cache miss for the full metadata object
 
-        kwargs = self.get_generate_kwargs(prompt, llm_kwargs)
+        kwargs = self.get_generate_kwargs(prompt, llm_kwargs, model_name_override=current_model_name)
 
         start = datetime.datetime.now()
         response = await self._client.aio.models.generate_content(
-            model=self.model.name, contents=kwargs["content"], config=kwargs["config"]
+            model=current_model_name, contents=kwargs["content"], config=kwargs["config"]
         )
-        ret = self._metadata_from_response(kwargs, response, start)
-        self._llm_cache_set(prompt, llm_kwargs, ret)
-        return ret["output"]
+        # The result from _metadata_from_response is a dict, which is what we'd cache.
+        # For generate_async, we only return the text part.
+        metadata_result = self._metadata_from_response(kwargs, response, start)
+        self._llm_cache_set(prompt, current_model_name, llm_kwargs, metadata_result)
+        return metadata_result["output"]

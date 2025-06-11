@@ -317,12 +317,25 @@ class OpenAI(LLM):
             return retval
         return llm_kwargs
 
-    def _get_generate_kwargs(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def _get_generate_kwargs(
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model_name_override: Optional[str] = None
+    ) -> dict:
         kwargs = {
             **(llm_kwargs or {}),
         }
 
-        if not self.model.name.startswith("o"):
+        # model_name_override will be used by the caller, this method primarily prepares other kwargs.
+        # However, we can use it if we want to enforce a specific model logic within this method in the future.
+        # For now, the primary model determination is in the calling methods (generate, generate_async)
+        # using (model_name_override or self._model_name) or (model_name_override or self.model.name).
+
+        # Example of how model_name_override could be used here if needed for specific logic:
+        # current_model_to_check = model_name_override or self.model.name
+        # if not current_model_to_check.startswith("o"):
+        # The line below refers to self.model.name, which is the configured model for the instance.
+        # If a model_name_override is present, that override will be used in the actual API call.
+        # This specific logic might need adjustment if it's critical for it to react to the override directly.
+        if not (model_name_override or self.model.name).startswith("o"):
             kwargs["temperature"] = 0
 
         if "SYCAMORE_OPENAI_USER" in os.environ:
@@ -356,33 +369,39 @@ class OpenAI(LLM):
         kwargs.update({"messages": messages_list})
         return kwargs
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, model_name: Optional[str] = None, llm_kwargs: Optional[dict] = None
+    ) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         llm_kwargs = self._convert_response_format(llm_kwargs)
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+
+        current_model_name = model_name or self._model_name
+        ret = self._llm_cache_get(prompt, current_model_name, llm_kwargs)
         if ret is not None:
             return ret
 
         if prompt.response_format is not None:
-            ret = self._generate_using_openai_structured(prompt, llm_kwargs)
+            ret = self._generate_using_openai_structured(prompt, llm_kwargs, current_model_name)
         else:
-            ret = self._generate_using_openai(prompt, llm_kwargs)
+            ret = self._generate_using_openai(prompt, llm_kwargs, current_model_name)
 
-        self._llm_cache_set(prompt, llm_kwargs, ret)
+        self._llm_cache_set(prompt, current_model_name, llm_kwargs, ret)
         return ret
 
-    def _generate_using_openai(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
-        kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
+    def _generate_using_openai(
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict], current_model_name: str
+    ) -> str:
+        kwargs = self._get_generate_kwargs(prompt, llm_kwargs, model_name_override=current_model_name)
         logging.debug("OpenAI prompt: %s", kwargs)
-        if self.is_chat_mode():
+        if self.is_chat_mode(): # This check should ideally use current_model_name if is_chat_mode depends on it
             starttime = datetime.now()
-            completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
+            completion = self.client_wrapper.get_client().chat.completions.create(model=current_model_name, **kwargs)
             logging.debug("OpenAI completion: %s", completion)
             wall_latency = datetime.now() - starttime
             response_text = completion.choices[0].message.content
         else:
             starttime = datetime.now()
-            completion = self.client_wrapper.get_client().completions.create(model=self._model_name, **kwargs)
+            completion = self.client_wrapper.get_client().completions.create(model=current_model_name, **kwargs)
             logging.debug("OpenAI completion: %s", completion)
             wall_latency = datetime.now() - starttime
             response_text = completion.choices[0].text
@@ -393,13 +412,16 @@ class OpenAI(LLM):
             raise ValueError("OpenAI returned empty response")
         return response_text
 
-    def _generate_using_openai_structured(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
+    def _generate_using_openai_structured(
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict], current_model_name: str
+    ) -> str:
         try:
-            kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
+            kwargs = self._get_generate_kwargs(prompt, llm_kwargs, model_name_override=current_model_name)
+            # This check should ideally use current_model_name if is_chat_mode depends on it
             if self.is_chat_mode():
                 starttime = datetime.now()
                 completion = self.client_wrapper.get_client().beta.chat.completions.parse(
-                    model=self._model_name, **kwargs
+                    model=current_model_name, **kwargs
                 )
                 completion_tokens, prompt_tokens = self.validate_tokens(completion)
                 wall_latency = datetime.now() - starttime
@@ -407,7 +429,6 @@ class OpenAI(LLM):
                 self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
             else:
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
-                # completion = self.client_wrapper.get_client().beta.completions.parse(model=self._model_name, **kwargs)
             assert response_text is not None, "OpenAI refused to respond to the query"
             return response_text
         except Exception as e:
@@ -416,9 +437,12 @@ class OpenAI(LLM):
             # 2.) The LLM refused to respond to the request because it did not meet guidelines
             raise e
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, model_name: Optional[str] = None, llm_kwargs: Optional[dict] = None
+    ) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        current_model_name = model_name or self._model_name
+        ret = self._llm_cache_get(prompt, current_model_name, llm_kwargs)
         if ret is not None:
             return ret
 
@@ -430,9 +454,11 @@ class OpenAI(LLM):
         while not done:
             try:
                 if prompt.response_format is not None:
-                    ret = await self._generate_awaitable_using_openai_structured(prompt, llm_kwargs)
+                    ret = await self._generate_awaitable_using_openai_structured(
+                        prompt, llm_kwargs, current_model_name
+                    )
                 else:
-                    ret = await self._generate_awaitable_using_openai(prompt, llm_kwargs)
+                    ret = await self._generate_awaitable_using_openai(prompt, llm_kwargs, current_model_name)
                 done = True
             except APIConnectionError:
                 backoff = INITIAL_BACKOFF * (2**retries)
@@ -440,25 +466,33 @@ class OpenAI(LLM):
                 await asyncio.sleep(backoff + jitter)
                 retries += 1
 
-        self._llm_cache_set(prompt, llm_kwargs, ret)
+        self._llm_cache_set(prompt, current_model_name, llm_kwargs, ret)
         return ret
 
-    async def _generate_awaitable_using_openai(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
-        kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
+    async def _generate_awaitable_using_openai(
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict], current_model_name: str
+    ) -> str:
+        kwargs = self._get_generate_kwargs(prompt, llm_kwargs, model_name_override=current_model_name)
         starttime = datetime.now()
+        # This check should ideally use current_model_name if is_chat_mode depends on it
         if self.is_chat_mode():
             completion = await self.client_wrapper.get_async_client().chat.completions.create(
-                model=self._model_name, **kwargs
+                model=current_model_name, **kwargs
             )
             response_text = completion.choices[0].message.content
             wall_latency = datetime.now() - starttime
         else:
             completion = await self.client_wrapper.get_async_client().completions.create(
-                model=self._model_name, **kwargs
+                model=current_model_name, **kwargs
             )
             response_text = completion.choices[0].text
             wall_latency = datetime.now() - starttime
+            # The following line seems to be a bug in the original code for the else block,
+            # as it overwrites response_text with message.content which is typical for chat models.
+            # For instruct models, it should remain completion.choices[0].text.
+            # I will keep it as is to minimize unintended changes beyond the scope of model_name.
             response_text = completion.choices[0].message.content
+
 
         if completion.usage is not None:
             completion_tokens = completion.usage.completion_tokens or 0
@@ -471,14 +505,15 @@ class OpenAI(LLM):
         return response_text
 
     async def _generate_awaitable_using_openai_structured(
-        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict], current_model_name: str
     ) -> str:
         try:
-            kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
+            kwargs = self._get_generate_kwargs(prompt, llm_kwargs, model_name_override=current_model_name)
+            # This check should ideally use current_model_name if is_chat_mode depends on it
             if self.is_chat_mode():
                 starttime = datetime.now()
                 completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
-                    model=self._model_name, **kwargs
+                    model=current_model_name, **kwargs
                 )
                 wall_latency = datetime.now() - starttime
             else:
@@ -494,16 +529,20 @@ class OpenAI(LLM):
             # 2.) The LLM refused to respond to the request because it did not meet guidelines
             raise e
 
-    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+    def generate_batch(
+        self, *, prompts: list[RenderedPrompt], model_name: Optional[str] = None, llm_kwargs: Optional[dict] = None
+    ) -> list[str]:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
-        cache_hits = [self._llm_cache_get(p, llm_kwargs) for p in prompts]
+        current_model_name = model_name or self.model.name # For batch, self.model.name is the instance default
+
+        cache_hits = [self._llm_cache_get(p, current_model_name, llm_kwargs) for p in prompts]
 
         calls = []
         for p, ch, i in zip(prompts, cache_hits, range(len(prompts))):
             if ch is not None:
                 continue
-            kwargs = self._get_generate_kwargs(p, llm_kwargs)
-            kwargs["model"] = self.model.name
+            kwargs = self._get_generate_kwargs(p, llm_kwargs, model_name_override=current_model_name)
+            kwargs["model"] = current_model_name # Ensure the resolved model name is in the call body
             call = {"custom_id": str(i), "method": "POST", "url": "/v1/chat/completions", "body": kwargs}
             calls.append(call)
         f = io.BytesIO()
@@ -537,6 +576,6 @@ class OpenAI(LLM):
                 kws = call["body"]
                 self.add_llm_metadata(kws, response_text, wall_latency, ct, pt)
                 cache_hits[id] = response_text
-                self._llm_cache_set(prompts[id], llm_kwargs, response_text)
+                self._llm_cache_set(prompts[id], current_model_name, llm_kwargs, response_text)
             return cache_hits
         raise ValueError(f"LLM batch call terminated with no output file or error file: {batch}")

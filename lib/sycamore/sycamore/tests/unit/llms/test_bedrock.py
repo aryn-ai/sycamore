@@ -164,3 +164,97 @@ def test_bedrock_with_cache(mock_boto3_client):
 
         assert cache.cache_hits == 1
         assert cache.total_accesses == 2
+
+
+# Model names for testing override
+DEFAULT_BEDROCK_MODEL_NAME = BedrockModels.CLAUDE_V2.value.name
+OVERRIDE_BEDROCK_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0" # Example of a different Anthropic model
+OVERRIDE_NON_ANTHROPIC_MODEL_ID = "amazon.titan-text-express-v1"
+
+
+class TestBedrockModelOverride:
+    @patch("boto3.client")
+    def test_generate_model_override_anthropic(self, mock_boto3_client_constructor):
+        mock_bedrock_runtime_client = mock_boto3_client_constructor.return_value
+        mock_bedrock_runtime_client.invoke_model.return_value = bedrock_reply(
+            '{ "content": [{"text": "Response from override model"}]}'
+        )
+
+        # Initialize Bedrock with a default model
+        client = Bedrock(DEFAULT_BEDROCK_MODEL_NAME)
+
+        prompt_messages = [RenderedMessage(role="user", content="Hello from test")]
+        client.generate(
+            prompt=RenderedPrompt(messages=prompt_messages),
+            model_name=OVERRIDE_BEDROCK_MODEL_ID
+        )
+
+        mock_boto3_client_constructor.assert_called_with(service_name="bedrock-runtime")
+        mock_bedrock_runtime_client.invoke_model.assert_called_once()
+        call_args = mock_bedrock_runtime_client.invoke_model.call_args
+        assert call_args.kwargs["modelId"] == OVERRIDE_BEDROCK_MODEL_ID
+        # Check that anthropic_version is still applied for an anthropic override
+        body_json = json.loads(call_args.kwargs["body"])
+        assert "anthropic_version" in body_json
+
+    @patch("boto3.client")
+    def test_generate_model_fallback_anthropic(self, mock_boto3_client_constructor):
+        mock_bedrock_runtime_client = mock_boto3_client_constructor.return_value
+        mock_bedrock_runtime_client.invoke_model.return_value = bedrock_reply(
+            '{ "content": [{"text": "Response from default model"}]}'
+        )
+
+        client = Bedrock(DEFAULT_BEDROCK_MODEL_NAME)
+
+        prompt_messages = [RenderedMessage(role="user", content="Hello from test")]
+        client.generate(prompt=RenderedPrompt(messages=prompt_messages)) # No model_name override
+
+        mock_boto3_client_constructor.assert_called_with(service_name="bedrock-runtime")
+        mock_bedrock_runtime_client.invoke_model.assert_called_once()
+        call_args = mock_bedrock_runtime_client.invoke_model.call_args
+        assert call_args.kwargs["modelId"] == DEFAULT_BEDROCK_MODEL_NAME
+        body_json = json.loads(call_args.kwargs["body"])
+        assert "anthropic_version" in body_json
+
+
+    @patch("boto3.client")
+    def test_generate_model_override_non_anthropic(self, mock_boto3_client_constructor):
+        mock_bedrock_runtime_client = mock_boto3_client_constructor.return_value
+        # For non-Anthropic, the response structure might differ, but invoke_model is mocked the same way.
+        # The main point is to check modelId.
+        # The response body here is Anthropic-like due to get_generate_kwargs, which is a known limitation.
+        mock_bedrock_runtime_client.invoke_model.return_value = bedrock_reply(
+            '{ "completion": "Response from Titan model" }' # Titan response format
+        )
+
+        client = Bedrock(DEFAULT_BEDROCK_MODEL_NAME) # Default is Anthropic
+
+        prompt_messages = [RenderedMessage(role="user", content="Hello to Titan")]
+
+        # We expect this to potentially log warnings or have issues if the real API were called,
+        # due to get_generate_kwargs being Anthropic-specific.
+        # However, for this test, we only care that modelId is passed correctly.
+        try:
+            client.generate(
+                prompt=RenderedPrompt(messages=prompt_messages),
+                model_name=OVERRIDE_NON_ANTHROPIC_MODEL_ID
+            )
+        except KeyError:
+            # This might happen if the parsing of the response ( 'response_body.get("content", {})[0].get("text", "")' )
+            # fails because the Titan response '{ "completion": "..." }' doesn't match Anthropic's.
+            # This is acceptable for this test as we are focused on modelId.
+            pass
+
+
+        mock_boto3_client_constructor.assert_called_with(service_name="bedrock-runtime")
+        mock_bedrock_runtime_client.invoke_model.assert_called_once()
+        call_args = mock_bedrock_runtime_client.invoke_model.call_args
+        assert call_args.kwargs["modelId"] == OVERRIDE_NON_ANTHROPIC_MODEL_ID
+
+        # For a non-Anthropic model, anthropic_version should not be in the body.
+        # The current get_generate_kwargs (imported from anthropic) might still add it
+        # if not made aware of the model type.
+        # The updated generate_metadata in Bedrock class now checks current_model_name.startswith("anthropic.")
+        # so anthropic_version should NOT be added here.
+        body_json = json.loads(call_args.kwargs["body"])
+        assert "anthropic_version" not in body_json

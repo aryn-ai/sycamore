@@ -1,4 +1,5 @@
 from abc import abstractmethod
+import copy
 import logging
 from typing import Any, Union, Optional, Callable
 
@@ -40,30 +41,25 @@ def rotated_table(elem: TableElement, quad: int) -> TableElement:
     """Returns potentially new TableElement with bboxes rotated."""
     if not quad:
         return elem
-    rv = elem.copy()  # shallow copy
+    rv = copy.deepcopy(elem)  # wasteful but safe
     d = rv.data
     bbtup = rot_tuple(d["bbox"], quad)
     d["bbox"] = bbtup
 
-    if (toks := elem.tokens) is not None:
-        tary: list[dict[str, Any]] = []
+    if toks := rv.tokens:
         for tok in toks:
-            t = tok.copy()
-            if bbox := t.get("bbox"):
+            if bbox := tok.get("bbox"):
                 bbox = rot_bbox(bbox, quad)
-                t["bbox"] = bbox
-            tary.append(t)
-        rv.tokens = tary
+                tok["bbox"] = bbox
 
-    if tbl := elem.table:
-        cary: list[TableCell] = []
+    if tbl := rv.table:
+        ary: list[TableCell] = []
         for cell in tbl.cells:
             cd = cell.to_dict()
             cbb = rot_dict(cd["bbox"], quad)
             cd["bbox"] = cbb
-            cary.append(TableCell.from_dict(cd))
-        assert rv.table  # for mypy
-        rv.table.cells = cary
+            ary.append(TableCell.from_dict(cd))
+        tbl.cells = ary
 
     return rv
 
@@ -252,7 +248,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
             cell.bbox.translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
 
         element.table = table
-        element = rotated_table(element, quad)
+        element = rotated_table(element, quad)  # map bboxes back to page
         return element
 
 

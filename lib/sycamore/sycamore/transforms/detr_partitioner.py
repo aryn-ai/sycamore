@@ -73,6 +73,13 @@ def text_elem(text: str) -> Element:
     )
 
 
+def elem_to_tok(elem: Element) -> dict[str, Any]:
+    d = {"text": elem.text_representation, "bbox": elem.bbox}
+    if (vec := elem.data.get("_vector")) is not None:
+        d["vector"] = vec
+    return d
+
+
 def _supplement_text(inferred: list[Element], text: list[Element], threshold: float = 0.5) -> list[Element]:
     """
     Associates extracted text with inferred objects. Meant to be called pagewise. Uses complete containment (the
@@ -116,10 +123,7 @@ def _supplement_text(inferred: list[Element], text: list[Element], threshold: fl
                     if font_size := m.properties.get("font_size"):
                         font_sizes.append(font_size)
             if isinstance(i, TableElement):
-                i.tokens = [
-                    {"text": elem.text_representation, "bbox": elem.bbox, "vector": elem.data.get("_vector")}
-                    for elem in matches
-                ]
+                i.tokens = [elem_to_tok(elem) for elem in matches]
 
             i.data["text_representation"] = " ".join(full_text)
             i.properties["font_size"] = sum(font_sizes) / len(font_sizes) if font_sizes else None

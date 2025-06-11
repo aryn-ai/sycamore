@@ -126,6 +126,11 @@ class QueryVectorDatabase(Node):
     An additional filter that can be used to filter the results of the vector search.
     """
 
+    rag_mode: Optional[bool] = False
+    """
+    If True, the query will be treated as a retrieval-augmented generation (RAG) query.
+    """
+
     @property
     def input_types(self) -> set[type]:
         return set()

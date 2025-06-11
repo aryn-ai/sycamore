@@ -73,6 +73,13 @@ def text_elem(text: str) -> Element:
     )
 
 
+def elem_to_tok(elem: Element) -> dict[str, Any]:
+    d = {"text": elem.text_representation, "bbox": elem.bbox}
+    if (vec := elem.data.get("_vector")) is not None:
+        d["vector"] = vec
+    return d
+
+
 def _supplement_text(inferred: list[Element], text: list[Element], threshold: float = 0.5) -> list[Element]:
     """
     Associates extracted text with inferred objects. Meant to be called pagewise. Uses complete containment (the
@@ -116,7 +123,7 @@ def _supplement_text(inferred: list[Element], text: list[Element], threshold: fl
                     if font_size := m.properties.get("font_size"):
                         font_sizes.append(font_size)
             if isinstance(i, TableElement):
-                i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
+                i.tokens = [elem_to_tok(elem) for elem in matches]
 
             i.data["text_representation"] = " ".join(full_text)
             i.properties["font_size"] = sum(font_sizes) / len(font_sizes) if font_sizes else None
@@ -447,7 +454,7 @@ class ArynPDFPartitioner:
         use_cache,
         skip_empty_tables: bool = False,
         supplement_text_fn: Callable[[list[Element], list[Element]], list[Element]] = _supplement_text,
-    ) -> Any:
+    ) -> list[list[Element]]:
         with LogTime("infer"):
             assert self.model is not None
             deformable_layout = self.model.infer(batch, threshold, use_cache)
@@ -483,7 +490,8 @@ class ArynPDFPartitioner:
             with LogTime("extract_table_structure_batch"):
                 for i, page_elements in enumerate(deformable_layout):
                     image = batch[i]
-                    for element in page_elements:
+                    for j in range(len(page_elements)):
+                        element = page_elements[j]
                         if isinstance(element, TableElement):
                             if skip_empty_tables:
                                 if not element.tokens:
@@ -491,7 +499,9 @@ class ArynPDFPartitioner:
                                 concatenated_text = " ".join([token.get("text") for token in element.tokens])
                                 if concatenated_text.strip() == "":
                                     continue
-                            table_structure_extractor.extract(element, image, **table_extraction_options)
+                            page_elements[j] = table_structure_extractor.extract(
+                                element, image, **table_extraction_options
+                            )
 
         if extract_images:
             with LogTime("extract_images_batch"):
@@ -554,7 +564,7 @@ class ArynPDFPartitioner:
     def process_batch_extraction(
         self,
         batch: list[Image.Image],
-        deformable_layout: Any,
+        deformable_layout: list[list[Element]],
         extract_table_structure: bool,
         table_structure_extractor,
         table_extraction_options: dict,
@@ -567,9 +577,12 @@ class ArynPDFPartitioner:
                     table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
                 for i, page_elements in enumerate(deformable_layout):
                     image = batch[i]
-                    for element in page_elements:
+                    for j in range(len(page_elements)):
+                        element = page_elements[j]
                         if isinstance(element, TableElement):
-                            table_structure_extractor.extract(element, image, **table_extraction_options)
+                            page_elements[j] = table_structure_extractor.extract(
+                                element, image, **table_extraction_options
+                            )
 
         if extract_images:
             with LogTime("extract_images_batch"):

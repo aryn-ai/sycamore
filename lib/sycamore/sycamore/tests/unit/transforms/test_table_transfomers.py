@@ -160,7 +160,7 @@ class TestTableTransformers:
 
 
 class TestResolveOverlapsFunc:
-    def test_empty_list(self):
+    def test_empty_list(self) -> None:
         objects: list[dict] = []
         resolved_objects = resolve_overlaps_func(copy.deepcopy(objects), is_row=False)
         assert resolved_objects == []

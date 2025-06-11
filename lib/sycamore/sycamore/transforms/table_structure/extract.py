@@ -1,4 +1,5 @@
 from abc import abstractmethod
+import copy
 import logging
 import random
 import time
@@ -7,7 +8,7 @@ from typing import Any, Union, Optional, Callable
 from PIL import Image
 import pdf2image
 
-from sycamore.data import BoundingBox, Element, Document, Table, TableElement
+from sycamore.data import BoundingBox, Element, Document, Table, TableCell, TableElement
 from sycamore.data.document import DocumentPropertyTypes
 from sycamore.llms import LLM
 from sycamore.llms.prompts import RenderedMessage, RenderedPrompt
@@ -18,6 +19,7 @@ from sycamore.transforms.table_structure.table_transformers import MaxResize
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.import_utils import requires_modules
+from sycamore.utils.rotation import VectorMean, quad_rotation, rot_bbox, rot_dict, rot_image, rot_tuple
 
 Num = Union[float, int]
 
@@ -35,6 +37,42 @@ def _crop_bbox(image: Image.Image, bbox: BoundingBox, padding: int = 10):
     cropped_image = image.crop(crop_box).convert("RGB")
 
     return cropped_image, crop_box
+
+
+def rotated_table(elem: TableElement, quad: int) -> TableElement:
+    """Returns potentially new TableElement with bboxes rotated."""
+    if not quad:
+        return elem
+    rv = copy.deepcopy(elem)  # wasteful but safe
+    d = rv.data
+    bbtup = rot_tuple(d["bbox"], quad)
+    d["bbox"] = bbtup
+
+    if toks := rv.tokens:
+        for tok in toks:
+            if bbox := tok.get("bbox"):
+                bbox = rot_bbox(bbox, quad)
+                tok["bbox"] = bbox
+
+    if tbl := rv.table:
+        ary: list[TableCell] = []
+        for cell in tbl.cells:
+            cd = cell.to_dict()
+            cbb = rot_dict(cd["bbox"], quad)
+            cd["bbox"] = cbb
+            ary.append(TableCell.from_dict(cd))
+        tbl.cells = ary
+
+    return rv
+
+
+def average_vector(tokens: Optional[list[dict[str, Any]]]) -> complex:
+    vm = VectorMean()
+    if tokens:
+        for tok in tokens:
+            if (v := tok.get("vector")) is not None:
+                vm.add(v)
+    return vm.get()
 
 
 class TableStructureExtractor:
@@ -73,8 +111,8 @@ class TableStructureExtractor:
 
         for elem in doc.elements:
             if isinstance(elem, TableElement):
-                if DocumentPropertyTypes.PAGE_NUMBER in elem.properties:
-                    page_num = elem.properties[DocumentPropertyTypes.PAGE_NUMBER] - 1
+                if (pn := elem.properties.get(DocumentPropertyTypes.PAGE_NUMBER)) is not None:
+                    page_num = pn - 1
                 elif len(images) == 1:
                     page_num = 0
                 else:
@@ -153,6 +191,12 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         if element.bbox is None:
             return element
 
+        quad = quad_rotation(average_vector(element.tokens))
+        logging.info(f"Table extract using rotation {quad}")
+        element = rotated_table(element, -quad)
+        assert element.bbox  # for mypy
+        doc_image = rot_image(doc_image, -quad)
+
         from torchvision import transforms
 
         width, height = doc_image.size
@@ -206,6 +250,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
             cell.bbox.translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
 
         element.table = table
+        element = rotated_table(element, quad)  # map bboxes back to page
         return element
 
 

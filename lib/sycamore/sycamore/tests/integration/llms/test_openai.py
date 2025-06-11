@@ -240,6 +240,12 @@ def test_default_llm_kwargs():
     assert num_tokens <= 5, f"Expected max_tokens to be 5, but got {num_tokens} tokens in the response: {res}"
 
 
+def test_reasoning_model():
+    llm = OpenAI(OpenAIModels.O4_MINI)
+    res = llm.generate(prompt=TestPrompt().render_generic())
+    assert len(res) > 0
+
+
 @pytest.fixture(scope="module")
 def azure_llm():
     # Note this deployment name is different from the official model name, which has a '.'

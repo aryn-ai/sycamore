@@ -4,7 +4,10 @@ from copy import deepcopy
 
 import pandas as pd
 
-from sycamore.connectors.doc_reconstruct import DocumentReconstructor
+from sycamore.connectors.doc_reconstruct import (
+    DocumentReconstructor,
+    RAGDocumentReconstructor,
+)
 from sycamore.data import Document, Element
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
@@ -61,7 +64,12 @@ class OpenSearchReaderClient(BaseDBReader.Client):
             query_params.kwargs["size"] = 200
         result = []
         if query_params.reconstruct_document and "_source_includes" not in query_params.kwargs:
-            query_params.kwargs["_source_includes"] = ["doc_id", "parent_id", "properties", "type"]
+            query_params.kwargs["_source_includes"] = [
+                "doc_id",
+                "parent_id",
+                "properties",
+                "type",
+            ]
         if query_params.doc_reconstructor is not None:
             query_params.kwargs["_source_includes"] = query_params.doc_reconstructor.get_required_source_fields()
         knn_query = False
@@ -78,7 +86,9 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         if knn_query:
             logger.info(f"Executing knn query: {query_params.query}")
             response = self._client.search(
-                index=query_params.index_name, body=query_params.query, **query_params.kwargs
+                index=query_params.index_name,
+                body=query_params.query,
+                **query_params.kwargs,
             )
             hits = response["hits"]["hits"]
             if hits:
@@ -88,7 +98,9 @@ class OpenSearchReaderClient(BaseDBReader.Client):
             if "scroll" not in query_params.kwargs:
                 query_params.kwargs["scroll"] = "10m"
             response = self._client.search(
-                index=query_params.index_name, body=query_params.query, **query_params.kwargs
+                index=query_params.index_name,
+                body=query_params.query,
+                **query_params.kwargs,
             )
             scroll_id = response["_scroll_id"]
             try:
@@ -122,13 +134,20 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
         assert isinstance(query_params, OpenSearchReaderQueryParams)
         result: list[Document] = []
         if query_params.doc_reconstructor is not None:
-            logger.info("Using DocID to Document reconstructor")
-            unique = set()
-            for data in self.output:
-                doc_id = query_params.doc_reconstructor.get_doc_id(data)
-                if doc_id not in unique:
-                    result.append(query_params.doc_reconstructor.reconstruct(data))
-                    unique.add(doc_id)
+            if isinstance(query_params.doc_reconstructor, RAGDocumentReconstructor):
+                logger.info(
+                    "Using RAGDocumentReconstructor for document reconstruction: only use elements returned by query"
+                )
+                result = query_params.doc_reconstructor.reconstruct(self.output)
+
+            else:
+                logger.info("Using DocID to Document reconstructor")
+                unique = set()
+                for data in self.output:
+                    doc_id = query_params.doc_reconstructor.get_doc_id(data)
+                    if doc_id not in unique:
+                        result.append(query_params.doc_reconstructor.reconstruct(data))
+                        unique.add(doc_id)
         elif not query_params.reconstruct_document:
             for data in self.output:
                 doc = Document(
@@ -210,7 +229,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
 
             # sort elements per doc
             for doc in result:
-                doc.elements.sort(key=lambda e: e.element_index if e.element_index is not None else float("inf"))
+                doc.elements.sort(key=lambda e: (e.element_index if e.element_index is not None else float("inf")))
 
         return result
 
@@ -607,7 +626,8 @@ class OpenSearchReader(BaseDBReader):
     @handle_serialization_exception("_client_params", "_query_params")
     def _execute_pit(self, **kwargs) -> "Dataset":
         """Distribute the work evenly across available workers.
-        We don't want a slice with more than 10k documents as we need to use 'from' to paginate through the results."""
+        We don't want a slice with more than 10k documents as we need to use 'from' to paginate through the results.
+        """
         assert isinstance(
             self._query_params, OpenSearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {self._query_params}"

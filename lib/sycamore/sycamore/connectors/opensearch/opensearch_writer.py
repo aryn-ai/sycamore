@@ -224,47 +224,7 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
             return
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> OpenSearchWriterTargetParams:
-        def _string_values_to_python_types(obj: Any):
-            if isinstance(obj, dict):
-                for k in obj:
-                    obj[k] = _string_values_to_python_types(obj[k])
-                return obj
-            if isinstance(obj, list):
-                for i in range(len(obj)):
-                    obj[i] = _string_values_to_python_types(obj[i])
-                return obj
-            if isinstance(obj, str):
-                if obj == "true":
-                    return True
-                elif obj == "false":
-                    return False
-                elif obj.isnumeric():
-                    return int(obj)
-                try:
-                    return float(obj)
-                except ValueError:
-                    return obj
-            return obj
-
-        # TODO: Convert OpenSearchWriterTargetParams to pydantic model
-
-        assert isinstance(
-            target_params, OpenSearchWriterTargetParams
-        ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
-        index_name = target_params.index_name
-        response = self._client.indices.get(index_name)
-        mappings = _string_values_to_python_types(response.get(index_name, {}).get("mappings", {}))
-        assert isinstance(mappings, dict)
-        settings = _string_values_to_python_types(response.get(index_name, {}).get("settings", {}))
-        assert isinstance(settings, dict)
-        _doc_count = target_params._doc_count
-        assert isinstance(_doc_count, int)
-        return OpenSearchWriterTargetParams(
-            index_name=index_name,
-            mappings=mappings,
-            settings=settings,
-            _doc_count=_doc_count,
-        )
+        return get_existing_target_params(self._client, target_params)
 
     def reliability_assertor(self, target_params: BaseDBWriter.TargetParams):
         assert isinstance(
@@ -278,6 +238,52 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
         num_docs = int(indices[0]["docs.count"])
         log.info(f"{num_docs} chunks written in index {target_params.index_name}")
         assert num_docs == target_params._doc_count, f"Expected {target_params._doc_count} docs, found {num_docs}"
+
+
+def get_existing_target_params(
+    os_client: "OpenSearch", target_params: BaseDBWriter.TargetParams
+) -> OpenSearchWriterTargetParams:
+    def _string_values_to_python_types(obj: Any):
+        if isinstance(obj, dict):
+            for k in obj:
+                obj[k] = _string_values_to_python_types(obj[k])
+            return obj
+        if isinstance(obj, list):
+            for i in range(len(obj)):
+                obj[i] = _string_values_to_python_types(obj[i])
+            return obj
+        if isinstance(obj, str):
+            if obj == "true":
+                return True
+            elif obj == "false":
+                return False
+            elif obj.isnumeric():
+                return int(obj)
+            try:
+                return float(obj)
+            except ValueError:
+                return obj
+        return obj
+
+    # TODO: Convert OpenSearchWriterTargetParams to pydantic model
+
+    assert isinstance(
+        target_params, OpenSearchWriterTargetParams
+    ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
+    index_name = target_params.index_name
+    response = os_client.indices.get(index_name)
+    mappings = _string_values_to_python_types(response.get(index_name, {}).get("mappings", {}))
+    assert isinstance(mappings, dict)
+    settings = _string_values_to_python_types(response.get(index_name, {}).get("settings", {}))
+    assert isinstance(settings, dict)
+    _doc_count = target_params._doc_count
+    assert isinstance(_doc_count, int)
+    return OpenSearchWriterTargetParams(
+        index_name=index_name,
+        mappings=mappings,
+        settings=settings,
+        _doc_count=_doc_count,
+    )
 
 
 @dataclass

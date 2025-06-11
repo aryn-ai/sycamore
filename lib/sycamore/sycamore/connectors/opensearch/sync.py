@@ -133,6 +133,12 @@ ID_RE = "[-0-9a-zA-Z_=]+"  # URLsafe base64, also accepts old hex format
 
 # Todo accept sources as docset and require it end with materialize.
 class OpenSearchSync:
+    """Note: The Callable in sources is a way of taking a document and turning it into a bunch of
+    sub-documents that should be loaded into OpenSearch. For documents read through the partitioner
+    this is likely to be explode. For other types of documents, e.g. JSON, it could be a custom
+    function that relies on the JSON value.
+    """
+
     def __init__(
         self,
         sources: list[Tuple[str, Callable[[Document], list[Document]]]],
@@ -185,6 +191,7 @@ class OpenSearchSync:
                         to_be_loaded_groups[i].append(f)
 
             for i, g in enumerate(to_be_loaded_groups):
+                # See comment on class for what splitter is
                 root, splitter = self.sources[i]
                 self.load_batch(root, splitter, g)
 
@@ -281,7 +288,6 @@ class OpenSearchSync:
         return pid_to_parts
 
     def os_client(self):
-        assert False
         return OpenSearchClientWithLogging(**self.os_client_params)
 
     def load_batch(self, root, splitter, ids):

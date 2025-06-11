@@ -233,7 +233,7 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
         result = self.context.read.opensearch(
             index_name=self.logical_node.index,
             query=os_query,
-            reconstruct_document=False if self.logical_node.rag_mode else True,
+            reconstruct_document=True,
             doc_reconstructor=(
                 RAGDocumentReconstructor(index_name=self.logical_node.index) if self.logical_node.rag_mode else None
             ),

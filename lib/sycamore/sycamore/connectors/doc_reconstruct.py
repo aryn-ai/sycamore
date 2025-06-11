@@ -27,7 +27,9 @@ class DocumentReconstructor:
         for data in output:
             doc_id = self.get_doc_id(data)
             if doc_id not in unique:
-                result.append(self.reconstruct_fn(self.index_name, self.get_doc_id(data)))
+                result.append(
+                    self.reconstruct_fn(self.index_name, self.get_doc_id(data))
+                )
                 unique.add(doc_id)
         return result
 
@@ -52,7 +54,11 @@ class RAGDocumentReconstructor(DocumentReconstructor):
             doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             assert doc.doc_id, "Retrieved invalid doc with a missing doc_id"
             if not doc.parent_id:
+                if doc.doc_id in unique_docs:
+                    temp = unique_docs[doc.doc_id].elements
                 unique_docs[doc.doc_id] = doc
+                parent = unique_docs[doc.doc_id]
+                parent.elements = temp
             else:
                 unique_docs[doc.parent_id] = unique_docs.get(
                     doc.parent_id,

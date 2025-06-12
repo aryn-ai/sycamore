@@ -17,19 +17,21 @@ class Aggregation(UnaryNode):
         accumulate_docs: Callable[[list[Document]], Document],
         combine_partials: Callable[[Document, Document], Document],
         finalize: Callable[[Document], Document],
+        group_key_fn: Callable[[Document], str] = lambda d: "nogrouping",
     ):
         super().__init__(child)
         self._name = name
         self._accumulate = accumulate_docs
         self._combine = combine_partials
         self._finalize = finalize
+        self._group_key_fn = group_key_fn
 
     def _to_key_val(self, row):
         doc = Document.from_row(row)
         if isinstance(doc, MetadataDocument):
             row["key"] = f"md-{doc.doc_id}"
         else:
-            row["key"] = "nogrouping"
+            row["key"] = self._group_key_fn(doc)
         return row
 
     def execute(self, **kwargs) -> "Dataset":
@@ -77,6 +79,39 @@ class Aggregation(UnaryNode):
         ray_agg = RayAggregation(self, self._name)
         return dataset.map(self._to_key_val).groupby("key").aggregate(ray_agg)
 
+    def local_execute(self, all_docs: list[Document], do_combine: bool = False) -> list[Document]:
+        import random
+
+        metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
+        documents = [d for d in all_docs if not isinstance(d, MetadataDocument)]
+        split_docs = {}
+
+        for d in documents:
+            key = self._group_key_fn(d)
+            if (split := split_docs.get(key, None)) is not None:
+                split.append(d)
+            else:
+                split_docs[key] = [d]
+
+        ret: list[Union[Document, MetadataDocument]] = metadata  # type: ignore
+        for key, split in split_docs.items():
+            if do_combine and len(split) > 1:
+                # This path is mostly for testing. Otherwise combine is not exercised
+                # in local mode. We also combine in a random order because if
+                # we're testing we're trying to break your assumptions.
+                documents_beginning = split[: len(split) // 2]
+                documents_end = split[len(split) // 2 :]
+                partial_beginning = self._accumulate(documents_beginning)
+                partial_end = self._accumulate(documents_end)
+                if random.random() < 0.5:
+                    partial_beginning, partial_end = partial_end, partial_beginning
+                partial = self._combine(partial_beginning, partial_end)
+            else:
+                partial = self._accumulate(split)
+            final = self._finalize(partial)
+            ret.append(final)
+        return ret
+
 
 class AggBuilder:
     def __init__(
@@ -93,3 +128,6 @@ class AggBuilder:
 
     def build(self, child: Optional[Node]) -> Aggregation:
         return Aggregation(child, self._name, self._accumulate, self._combine, self._finalize)
+
+    def build_grouped(self, child: Optional[Node], group_key_fn: Callable[[Document], str]) -> Aggregation:
+        return Aggregation(child, self._name, self._accumulate, self._combine, self._finalize, group_key_fn)

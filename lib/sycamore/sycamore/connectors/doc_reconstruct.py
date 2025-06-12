@@ -52,8 +52,7 @@ class RAGDocumentReconstructor(DocumentReconstructor):
             doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             assert doc.doc_id, "Retrieved invalid doc with a missing doc_id"
             if not doc.parent_id:
-                if doc.doc_id in unique_docs:
-                    temp = unique_docs[doc.doc_id].elements
+                temp = unique_docs[doc.doc_id].elements if doc.doc_id in unique_docs else []
                 unique_docs[doc.doc_id] = doc
                 parent = unique_docs[doc.doc_id]
                 parent.elements = temp

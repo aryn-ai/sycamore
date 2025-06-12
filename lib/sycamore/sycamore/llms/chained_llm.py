@@ -62,7 +62,7 @@ class ChainedLLM(LLM):
                 response = llm.generate(prompt=prompt, llm_kwargs=llm_kwargs)
                 return response
             except Exception as e:
-                logger.warning(f"Error in LLM {llm._model_name}: {traceback.format_exception(e)}")
+                logger.exception(e)
                 last_exception = e
 
         raise last_exception
@@ -77,7 +77,7 @@ class ChainedLLM(LLM):
                 response = await llm.generate_async(prompt=prompt, llm_kwargs=llm_kwargs)
                 return response
             except Exception as e:
-                logger.warning(f"Error in LLM {llm._model_name}: {traceback.format_exception(e)}")
+                logger.exception(e)
                 last_exception = e
 
         raise last_exception
@@ -92,7 +92,7 @@ class ChainedLLM(LLM):
                 response = llm.generate_batch(prompts=prompts, llm_kwargs=llm_kwargs)
                 return response
             except Exception as e:
-                logger.warning(f"Error in LLM {llm._model_name}: {traceback.format_exception(e)}")
+                logger.exception(e)
                 last_exception = e
 
         raise last_exception

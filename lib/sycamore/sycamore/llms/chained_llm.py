@@ -1,5 +1,4 @@
 import logging
-import traceback
 from typing import Optional
 
 from sycamore.llms import LLM

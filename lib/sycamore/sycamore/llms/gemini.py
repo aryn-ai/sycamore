@@ -10,9 +10,6 @@ from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.import_utils import requires_modules
 
-DEFAULT_MAX_TOKENS = 1024
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -76,7 +73,6 @@ class Gemini(LLM):
             "candidate_count": 1,
             **(llm_kwargs or {}),
         }
-        config["max_output_tokens"] = config.get("max_output_tokens", DEFAULT_MAX_TOKENS)
         if prompt.response_format:
             config["response_mime_type"] = "application/json"
             config["response_schema"] = prompt.response_format

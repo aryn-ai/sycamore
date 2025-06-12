@@ -4789,19 +4789,19 @@ url = "../../lib/remote-processors"
 
 [[package]]
 name = "requests"
-version = "2.32.3"
+version = "2.32.4"
 description = "Python HTTP for Humans."
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
 files = [
-    {file = "requests-2.32.3-py3-none-any.whl", hash = "sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6"},
-    {file = "requests-2.32.3.tar.gz", hash = "sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760"},
+    {file = "requests-2.32.4-py3-none-any.whl", hash = "sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c"},
+    {file = "requests-2.32.4.tar.gz", hash = "sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422"},
 ]
 
 [package.dependencies]
 certifi = ">=2017.4.17"
-charset-normalizer = ">=2,<4"
+charset_normalizer = ">=2,<4"
 idna = ">=2.5,<4"
 urllib3 = ">=1.21.1,<3"
 
@@ -5263,7 +5263,7 @@ elasticsearch = ["elasticsearch (==8.14.0)"]
 eval = ["apted (>=1.0.3,<2.0.0)", "datasets (>=2.16.1,<3.0.0)", "rouge (>=1.0.1,<2.0.0)"]
 google-genai = ["google-genai (>=1.14.0,<2.0.0)"]
 legacy-partitioners = ["nltk (>=3.9.0,<4.0.0)", "python-pptx (>=0.6.22,<0.7.0)", "unstructured[pdf] (>=0.16.2,<0.17.0)"]
-local-inference = ["easyocr (>=1.7.1,<2.0.0)", "paddleocr (>=2.8.1,<3.0.0)", "pdfminer-six (==20221105)", "pytesseract (>=0.3.10,<0.4.0)", "sentence-transformers (>=3.0.1,<4.0.0)", "timm (>=0.9.12,<0.10.0)", "torch (>=2.7.0,<3.0.0)", "torchvision (>=0.22.0,<0.23.0)", "transformers (>=4.50.0,<5.0.0)"]
+local-inference = ["easyocr (>=1.7.1,<2.0.0)", "paddleocr (>=2.8.1,<3.0.0)", "pdfminer-six (==20221105)", "pytesseract (>=0.3.10,<0.4.0)", "sentence-transformers (>=3.0.1,<4.0.0)", "timm (>=0.9.12,<0.10.0)", "torch (>=2.7.1,<3.0.0)", "torchvision (>=0.22.0,<0.23.0)", "transformers (>=4.50.0,<5.0.0)"]
 neo4j = ["neo4j (>=5.21.0,<6.0.0)"]
 opensearch = ["opensearch-py (>=2.3.1,<3.0.0)"]
 pinecone = ["pinecone-text (>=0.9.0,<0.10.0)", "pinecone[grpc] (>=6.0.2,<7.0.0)"]
@@ -5300,6 +5300,7 @@ pandas = "2.1.1"
 pillow = "^11.1.0"
 pytest = "7.4.0"
 ray = ">=2.41.0"
+requests = "^2.32.4"
 scipy = "1.13.1"
 scrapy = ">=2.11.2"
 setuptools = ">=78.1.1"

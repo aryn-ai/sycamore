@@ -54,7 +54,9 @@ class ChainedLLM(LLM):
         """
 
         # The current strategy is to try each LLM in the chain until one succeeds.
-        last_exception = None
+        assert self._chain is not None and len(self._chain) > 0, "ChainedLLM must have at least one LLM in the chain."
+
+        last_exception: Exception = RuntimeError("unknown error")
         for llm in self._chain:
             try:
                 response = llm.generate(prompt=prompt, llm_kwargs=llm_kwargs)
@@ -67,7 +69,9 @@ class ChainedLLM(LLM):
 
     async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters asynchronously."""
-        last_exception = None
+        assert self._chain is not None and len(self._chain) > 0, "ChainedLLM must have at least one LLM in the chain."
+
+        last_exception: Exception = RuntimeError("unknown error")
         for llm in self._chain:
             try:
                 response = await llm.generate_async(prompt=prompt, llm_kwargs=llm_kwargs)
@@ -80,7 +84,9 @@ class ChainedLLM(LLM):
 
     def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
         """Generates a series of responses from the LLM for the given series of prompts. Order is preserved."""
-        last_exception = None
+        assert self._chain is not None and len(self._chain) > 0, "ChainedLLM must have at least one LLM in the chain."
+
+        last_exception: Exception = RuntimeError("unknown error")
         for llm in self._chain:
             try:
                 response = llm.generate_batch(prompts=prompts, llm_kwargs=llm_kwargs)

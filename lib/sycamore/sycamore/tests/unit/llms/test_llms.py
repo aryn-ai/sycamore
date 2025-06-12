@@ -1,5 +1,6 @@
 import io
 from pathlib import Path
+from typing import Optional
 from unittest.mock import patch
 
 from sycamore.llms import get_llm, MODELS
@@ -95,7 +96,7 @@ class FooLLM(LLM):
     def __init__(self, model_name, default_mode: LLMMode):
         super().__init__(model_name, default_mode)
 
-    def generate(self, prompt: RenderedPrompt, llm_kwargs: dict = None) -> str:
+    def generate(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         return "foo"
 
     def is_chat_mode(self) -> bool:
@@ -107,7 +108,7 @@ class BarLLM(LLM):
         super().__init__(model_name, default_mode)
         self.throw_error = throw_error
 
-    def generate(self, prompt: RenderedPrompt, llm_kwargs: dict = None) -> str:
+    def generate(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         if self.throw_error:
             raise RuntimeError("oops, something went wrong")
         return "bar"

@@ -2,6 +2,7 @@ from typing import Callable, Optional, TYPE_CHECKING, Union
 
 from sycamore.plan_nodes import UnaryNode, Node
 from sycamore.data import Document, MetadataDocument
+from sycamore.transforms.base import rename
 
 if TYPE_CHECKING:
     from ray.data import Dataset
@@ -18,6 +19,7 @@ class Aggregation(UnaryNode):
         combine_partials: Callable[[Document, Document], Document],
         finalize: Callable[[Document], Document],
         group_key_fn: Callable[[Document], str] = lambda d: "nogrouping",
+        zero_factory: Callable[[], Document] = Document,
     ):
         super().__init__(child)
         self._name = name
@@ -25,6 +27,7 @@ class Aggregation(UnaryNode):
         self._combine = combine_partials
         self._finalize = finalize
         self._group_key_fn = group_key_fn
+        self._zero_factory = zero_factory
 
     def _to_key_val(self, row):
         doc = Document.from_row(row)
@@ -40,12 +43,13 @@ class Aggregation(UnaryNode):
 
         dataset = self.child().execute()
 
+        @rename(f"Aggregation_{self._name}")
         class RayAggregation(AggregateFnV2):
             def __init__(
                 self,
                 syc_agg: Aggregation,
                 name: str,
-                zero_factory: Callable[[], Document] = Document,
+                zero_factory: Callable[[], Document],
             ):
                 super().__init__(self, name, zero_factory)
                 self._syc_agg = syc_agg
@@ -76,7 +80,7 @@ class Aggregation(UnaryNode):
                 final_doc = self._syc_agg._finalize(doc)
                 return {"row": final_doc.serialize()}
 
-        ray_agg = RayAggregation(self, self._name)
+        ray_agg = RayAggregation(self, self._name, self._zero_factory)
         return dataset.map(self._to_key_val).groupby("key").aggregate(ray_agg)
 
     def local_execute(self, all_docs: list[Document], do_combine: bool = False) -> list[Document]:
@@ -120,14 +124,26 @@ class AggBuilder:
         accumulate_docs: Callable[[list[Document]], Document],
         combine_partials: Callable[[Document, Document], Document],
         finalize: Callable[[Document], Document],
+        zero_factory: Callable[[], Document] = Document,
     ):
         self._name = name
         self._accumulate = accumulate_docs
         self._combine = combine_partials
         self._finalize = finalize
+        self._zero_factory = zero_factory
 
     def build(self, child: Optional[Node]) -> Aggregation:
-        return Aggregation(child, self._name, self._accumulate, self._combine, self._finalize)
+        return Aggregation(
+            child, self._name, self._accumulate, self._combine, self._finalize, zero_factory=self._zero_factory
+        )
 
     def build_grouped(self, child: Optional[Node], group_key_fn: Callable[[Document], str]) -> Aggregation:
-        return Aggregation(child, self._name, self._accumulate, self._combine, self._finalize, group_key_fn)
+        return Aggregation(
+            child,
+            self._name,
+            self._accumulate,
+            self._combine,
+            self._finalize,
+            group_key_fn=group_key_fn,
+            zero_factory=self._zero_factory,
+        )

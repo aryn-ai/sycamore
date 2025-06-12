@@ -643,6 +643,7 @@ class CollectToSummaryDoc(AggBuilder):
             accumulate_docs=self._accumulate,
             combine_partials=self._combine,
             finalize=self._finalize,
+            zero_factory=SummaryDocument,
         )
 
     def _accumulate(self, docs: list[Document]) -> SummaryDocument:

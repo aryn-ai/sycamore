@@ -54,14 +54,42 @@ class ChainedLLM(LLM):
         """
 
         # The current strategy is to try each LLM in the chain until one succeeds.
+        last_exception = None
         for llm in self._chain:
             try:
                 response = llm.generate(prompt=prompt, llm_kwargs=llm_kwargs)
                 return response
             except Exception as e:
                 logger.warning(f"Error in LLM {llm._model_name}: {traceback.format_exception(e)}")
+                last_exception = e
 
-        return ""  # If all LLMs fail, return an empty string
+        raise last_exception
+
+    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        """Generates a response from the LLM for the given prompt and LLM parameters asynchronously."""
+        last_exception = None
+        for llm in self._chain:
+            try:
+                response = await llm.generate_async(prompt=prompt, llm_kwargs=llm_kwargs)
+                return response
+            except Exception as e:
+                logger.warning(f"Error in LLM {llm._model_name}: {traceback.format_exception(e)}")
+                last_exception = e
+
+        raise last_exception
+
+    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+        """Generates a series of responses from the LLM for the given series of prompts. Order is preserved."""
+        last_exception = None
+        for llm in self._chain:
+            try:
+                response = llm.generate_batch(prompts=prompts, llm_kwargs=llm_kwargs)
+                return response
+            except Exception as e:
+                logger.warning(f"Error in LLM {llm._model_name}: {traceback.format_exception(e)}")
+                last_exception = e
+
+        raise last_exception
 
     def is_chat_mode(self) -> bool:
         """

@@ -49,7 +49,18 @@ class ArynPDFPartitionerException(Exception):
 
 
 def _can_retry(e: BaseException) -> bool:
+    def make_mypy_happy(e: BaseException):
+        import traceback
+
+        # type(e), value=e needed for compatibility before 3.10; after that, just e should work
+        logger.warning(f"Automatically retrying because of error: {traceback.format_exception_only(type(e), value=e)}")
+
     if isinstance(e, ArynPDFPartitionerException):
+        # make mypy happy, unneeded with mypy 1.15 + python 3.12
+        ex: Optional[BaseException] = None
+        assert isinstance(e, BaseException)
+        ex = e
+        make_mypy_happy(ex)
         return e.can_retry
     else:
         return False

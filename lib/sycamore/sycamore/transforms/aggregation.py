@@ -2,12 +2,9 @@ from typing import Callable, Optional, TYPE_CHECKING, Union
 
 from sycamore.plan_nodes import UnaryNode, Node
 from sycamore.data import Document, MetadataDocument
-from sycamore.transforms.base import rename
 
 if TYPE_CHECKING:
     from ray.data import Dataset
-    import pyarrow as pa
-    import pandas as pd
 
 
 class Aggregation(UnaryNode):
@@ -37,13 +34,16 @@ class Aggregation(UnaryNode):
             row["key"] = self._group_key_fn(doc)
         return row
 
+    def _unpack(self, row):
+        return row[self._name]
+
     def execute(self, **kwargs) -> "Dataset":
-        from ray.data import Dataset
         from ray.data.aggregate import AggregateFnV2
+        import pyarrow as pa
+        import pandas as pd
 
         dataset = self.child().execute()
 
-        @rename(f"Aggregation_{self._name}")
         class RayAggregation(AggregateFnV2):
             def __init__(
                 self,
@@ -51,11 +51,17 @@ class Aggregation(UnaryNode):
                 name: str,
                 zero_factory: Callable[[], Document],
             ):
-                super().__init__(self, name, zero_factory)
+                # Idk why I couldn't do super().__init__(...)
+                AggregateFnV2.__init__(self, name, zero_factory, on=None, ignore_nulls=True)
                 self._syc_agg = syc_agg
 
             def aggregate_block(self, block: Union[pa.Table, pd.DataFrame]):
-                docs = [Document.deserialize(dbytes) for dbytes in block["doc"]]
+                docs = [
+                    Document.deserialize(
+                        dbytes.as_py() if hasattr(dbytes, "as_py") else dbytes
+                    )  # ^^ if pyarrow BinaryScalar convert to python bytes
+                    for dbytes in block["doc"]
+                ]
                 if all(isinstance(d, MetadataDocument) for d in docs):
                     assert len(docs) == 1, "Found multiple metadata documents in accumulate fn somehow"
                     return {"doc": docs[0].serialize()}
@@ -65,7 +71,9 @@ class Aggregation(UnaryNode):
                 partial_result = self._syc_agg._accumulate(docs)
                 return {"doc": partial_result.serialize()}
 
-            def combine(self, row1, row2):
+            def combine(self, current_accumulator, new):
+                row1 = current_accumulator
+                row2 = new
                 doc1 = Document.from_row(row1)
                 doc2 = Document.from_row(row2)
                 assert not isinstance(doc1, MetadataDocument), "Tried to combine metadata documents"
@@ -73,22 +81,24 @@ class Aggregation(UnaryNode):
                 combined = self._syc_agg._combine(doc1, doc2)
                 return {"doc": combined.serialize()}
 
-            def finalize(self, row):
+            def _finalize(self, accumulator):
+                row = accumulator
                 doc = Document.from_row(row)
                 if isinstance(doc, MetadataDocument):
                     return row
                 final_doc = self._syc_agg._finalize(doc)
-                return {"row": final_doc.serialize()}
+                return {"doc": final_doc.serialize()}
 
         ray_agg = RayAggregation(self, self._name, self._zero_factory)
-        return dataset.map(self._to_key_val).groupby("key").aggregate(ray_agg)
+        ds = dataset.map(self._to_key_val).groupby("key").aggregate(ray_agg).map(self._unpack)
+        return ds
 
-    def local_execute(self, all_docs: list[Document], do_combine: bool = False) -> list[Document]:
+    def local_execute(self, all_docs: list[Document], do_combine: bool = True) -> list[Document]:
         import random
 
         metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
         documents = [d for d in all_docs if not isinstance(d, MetadataDocument)]
-        split_docs = {}
+        split_docs: dict[str, list] = {}
 
         for d in documents:
             key = self._group_key_fn(d)

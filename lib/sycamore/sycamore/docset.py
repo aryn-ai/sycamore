@@ -16,6 +16,7 @@ from sycamore.llms.prompts.default_prompts import (
 )
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms import DocumentStructure, Sort
+from sycamore.transforms.aggregation import AggBuilder
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph_entities import GraphEntityExtractor
 from sycamore.transforms.extract_graph_relationships import GraphRelationshipExtractor
@@ -37,7 +38,6 @@ if TYPE_CHECKING:
     from sycamore.transforms.embed import Embedder
     from sycamore.transforms.extract_table import TableExtractor
     from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
-    from sycamore.transforms.aggregation import AggBuilder
 
 logger = logging.getLogger(__name__)
 

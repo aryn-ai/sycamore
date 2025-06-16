@@ -107,7 +107,7 @@ class TableStructureExtractor:
         if doc.binary_representation is None:
             return doc
 
-        images = pdf2image.convert_from_bytes(doc.binary_representation, dpi=300)
+        images = pdf2image.convert_from_bytes(doc.binary_representation)
         new_elements: list[Element] = []
 
         for elem in doc.elements:

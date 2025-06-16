@@ -722,7 +722,8 @@ class DeformableDetr(SycamoreObjectDetection):
 
         results = []
         inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
-        outputs = self.model(**inputs)
+        with torch.no_grad():
+            outputs = self.model(**inputs)
         target_sizes = torch.tensor([image.size[::-1] for image in images])
         results.extend(
             self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)

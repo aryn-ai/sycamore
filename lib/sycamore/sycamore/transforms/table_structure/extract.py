@@ -164,6 +164,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         from transformers import TableTransformerForObjectDetection
 
         self.structure_model = TableTransformerForObjectDetection.from_pretrained(self.model).to(self._get_device())
+        self.structure_model.eval()
 
     @timetrace("tblExtr")
     @requires_modules(["torch", "torchvision"], extra="local-inference")

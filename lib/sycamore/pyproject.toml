@@ -51,6 +51,8 @@ tornado = ">=6.5.0"  # See poetry-lock/pyproject.toml
 
 aryn-sdk = ">=0.2.6"
 
+protobuf = "^5.29.5"
+
 #Evaluation dependencies
 apted = { version = "^1.0.3", optional = true }
 datasets = { version = "^2.16.1", optional = true }

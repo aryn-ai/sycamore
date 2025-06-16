@@ -107,7 +107,7 @@ class TableStructureExtractor:
         if doc.binary_representation is None:
             return doc
 
-        images = pdf2image.convert_from_bytes(doc.binary_representation)
+        images = pdf2image.convert_from_bytes(doc.binary_representation, dpi=300)
         new_elements: list[Element] = []
 
         for elem in doc.elements:
@@ -226,7 +226,8 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         with torch.no_grad():
             outputs = self.structure_model(pixel_values)
-
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         structure_id2label = self.structure_model.config.id2label
         structure_id2label[len(structure_id2label)] = "no object"
 

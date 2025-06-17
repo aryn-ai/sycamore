@@ -3,9 +3,16 @@ from typing import Any
 import base64
 import pickle
 
+import pytest
+
 from sycamore.llms.gemini import Gemini, GeminiModels
 from sycamore.llms.prompts.prompts import RenderedPrompt, RenderedMessage
 from sycamore.utils.cache import DiskCache
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
 
 
 def cacheget(cache: DiskCache, key: str):
@@ -25,6 +32,18 @@ def test_gemini_defaults():
     )
 
     res = llm.generate(prompt=prompt, llm_kwargs={})
+
+    assert len(res) > 0
+
+
+@pytest.mark.anyio
+async def test_gemini_async_defaults():
+    llm = Gemini(GeminiModels.GEMINI_2_FLASH)
+    prompt = RenderedPrompt(
+        messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+    )
+
+    res = await llm.generate_async(prompt=prompt, llm_kwargs={})
 
     assert len(res) > 0
 

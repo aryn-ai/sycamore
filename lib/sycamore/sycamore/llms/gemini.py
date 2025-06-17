@@ -177,4 +177,4 @@ class Gemini(LLM):
         timeout=120.0,
     )
     async def generate_content_async(self, model, contents, config):
-        return self._client.models.generate_content(model=model, contents=contents, config=config)
+        return await self._client.aio.models.generate_content(model=model, contents=contents, config=config)

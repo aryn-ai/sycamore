@@ -10,6 +10,7 @@ from sycamore.data.table import Table, TableCell
 from sycamore.data.element import create_element, TableElement
 from sycamore.llms import LLM
 from sycamore.llms.anthropic import Anthropic, AnthropicModels
+from sycamore.llms.chained_llm import ChainedLLM
 from sycamore.llms.gemini import Gemini, GeminiModels
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.tests.config import TEST_DIR
@@ -80,6 +81,13 @@ def test_anthropic_table_structure_extractor(basic_table_element, basic_table_im
 def test_openai_table_structure_extractor(basic_table_element, basic_table_image):
     openai = OpenAI(OpenAIModels.GPT_4O_MINI)
     _check_llm(openai, basic_table_element, basic_table_image)
+
+
+def test_chained_llm_table_structure_extractor(basic_table_element, basic_table_image):
+    openai = OpenAI(OpenAIModels.GPT_4O_MINI)
+    gemini = Gemini(GeminiModels.GEMINI_2_5_FLASH_PREVIEW, default_llm_kwargs={"max_output_tokens": 2048})
+    chained_llm = ChainedLLM([openai, gemini], model_name="chained_llm_table_extractor")
+    _check_llm(chained_llm, basic_table_element, basic_table_image)
 
 
 def test_gemini_table_structure_extractor_from_sycamore():

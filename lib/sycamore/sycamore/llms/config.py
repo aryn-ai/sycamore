@@ -57,8 +57,14 @@ class GeminiModels(Enum):
     """Represents available Gemini models. More info: https://googleapis.github.io/python-genai/"""
 
     # Note that the models available on a given Gemini account may vary.
-    GEMINI_2_5_FLASH_PREVIEW = GeminiModel(name="gemini-2.5-flash-preview-05-20", is_chat=True)
-    GEMINI_2_5_PRO_PREVIEW = GeminiModel(name="gemini-2.5-pro-preview-05-06", is_chat=True)
+    GEMINI_2_5_FLASH = GeminiModel(name="gemini-2.5-flash", is_chat=True)
+    GEMINI_2_5_FLASH_PREVIEW = GEMINI_2_5_FLASH  # Alias for the preview model
+
+    GEMINI_2_5_PRO = GeminiModel(name="gemini-2.5-pro", is_chat=True)
+    GEMINI_2_5_PRO_PREVIEW = GEMINI_2_5_PRO  # Alias for the preview model
+
+    GEMINI_2_5_FLASH_LITE_PREVIEW = GeminiModel(name="gemini-2.5-flash-lite-preview-06-17", is_chat=True)
+
     GEMINI_2_FLASH = GeminiModel(name="gemini-2.0-flash", is_chat=True)
     GEMINI_2_FLASH_LITE = GeminiModel(name="gemini-2.0-flash-lite", is_chat=True)
     GEMINI_2_FLASH_THINKING = GeminiModel(name="gemini-2.0-flash-thinking-exp", is_chat=True)

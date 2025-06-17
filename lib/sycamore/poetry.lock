@@ -10196,6 +10196,7 @@ nltk = ">3.9.0"
 onnxruntime = "1.19.0"
 pandas = "2.1.1"
 pillow = "^11.1.0"
+protobuf = "^5.29.5"
 pytest = "7.4.0"
 ray = ">=2.41.0"
 requests = "^2.32.4"
@@ -11944,4 +11945,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<3.13"
-content-hash = "ad7943e1e78373204df46a1683869e95f41ffc550f751964ef4a99085484a85e"
+content-hash = "e8af36c17594bcd2d57e7aa0a27905668cf97b5b73ef243d7c2aacf7ac1bb599"

@@ -186,7 +186,7 @@ class Table:
         return d
 
     @staticmethod
-    def extract_table_block(html_str: str) -> str | None:
+    def extract_table_block(html_str: str):
         """
         Extracts the first <table>...</table> block from the given HTML string.
         Returns the table block as a string, or None if not found.

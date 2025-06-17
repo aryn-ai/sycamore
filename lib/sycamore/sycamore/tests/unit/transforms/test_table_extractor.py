@@ -128,13 +128,16 @@ class TestTableExtractors:
         assert elt.table.cells[0].content == "cell1"
         assert elt.table.cells[1].content == "cell2"
 
-    @pytest.mark.parametrize("html_str", [
-        "<table><tr><th>cell1</th><th>cell2</th></tr></table>",
-        "```html<table><tr><th>cell1</th><th>cell2</th></tr></table>```",
-        "<html><body><table><tr><th>cell1</th><th>cell2</th></tr></table></body></html>",
-        "<table><tr><th>cell1</th><th>cell2</th></tr></table><p>Some text</p>",
-        "garbage<table><tr><th>cell1</th><th>cell2</th></tr></table>",
-    ])
+    @pytest.mark.parametrize(
+        "html_str",
+        [
+            "<table><tr><th>cell1</th><th>cell2</th></tr></table>",
+            "```html<table><tr><th>cell1</th><th>cell2</th></tr></table>```",
+            "<html><body><table><tr><th>cell1</th><th>cell2</th></tr></table></body></html>",
+            "<table><tr><th>cell1</th><th>cell2</th></tr></table><p>Some text</p>",
+            "garbage<table><tr><th>cell1</th><th>cell2</th></tr></table>",
+        ],
+    )
     def test_chained_vlm_various_html_responses(self, mocker, html_str):
         mock_llm = MagicMock()
         mock_llm.generate.return_value = html_str

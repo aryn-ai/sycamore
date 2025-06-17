@@ -573,8 +573,8 @@ class ArynPDFPartitioner:
             use_ocr,
             ocr_model,
             per_element_ocr,
-            text_extractor,
             extractor_inputs,
+            text_extractor,
             supplement_text_fn,
         )
         if extract_table_structure or extract_images:

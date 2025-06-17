@@ -4,6 +4,8 @@ from typing import Any, Optional, Union
 import os
 import io
 
+from google.api_core import retry
+
 from sycamore.llms.config import GeminiModel, GeminiModels
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import RenderedPrompt
@@ -130,9 +132,7 @@ class Gemini(LLM):
         kwargs = self.get_generate_kwargs(prompt, llm_kwargs)
 
         start = datetime.datetime.now()
-        response = self._client.models.generate_content(
-            model=self.model.name, contents=kwargs["content"], config=kwargs["config"]
-        )
+        response = self.generate_content(model=self.model.name, contents=kwargs["content"], config=kwargs["config"])
         ret = self._metadata_from_response(kwargs, response, start)
         self._llm_cache_set(prompt, llm_kwargs, ret)
         return ret
@@ -152,9 +152,29 @@ class Gemini(LLM):
         kwargs = self.get_generate_kwargs(prompt, llm_kwargs)
 
         start = datetime.datetime.now()
-        response = await self._client.aio.models.generate_content(
+        response = await self.generate_content_async(
             model=self.model.name, contents=kwargs["content"], config=kwargs["config"]
         )
         ret = self._metadata_from_response(kwargs, response, start)
         self._llm_cache_set(prompt, llm_kwargs, ret)
         return ret["output"]
+
+    @retry.Retry(
+        predicate=retry.if_transient_error,
+        initial=1.0,
+        maximum=60.0,
+        multiplier=2.0,
+        timeout=120.0,
+    )
+    def generate_content(self, model, contents, config):
+        return self._client.models.generate_content(model=model, contents=contents, config=config)
+
+    @retry.Retry(
+        predicate=retry.if_transient_error,
+        initial=1.0,
+        maximum=60.0,
+        multiplier=2.0,
+        timeout=120.0,
+    )
+    async def generate_content_async(self, model, contents, config):
+        return self._client.models.generate_content(model=model, contents=contents, config=config)

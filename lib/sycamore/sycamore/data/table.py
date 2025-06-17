@@ -185,6 +185,18 @@ class Table:
         d["num_cols"] = self.num_cols
         return d
 
+    @staticmethod
+    def extract_table_block(html_str: str) -> str | None:
+        """
+        Extracts the first <table>...</table> block from the given HTML string.
+        Returns the table block as a string, or None if not found.
+        """
+        import re
+
+        r = html_str.strip()
+        match = re.search(r"<table.*?>.*?</table>", r, re.DOTALL | re.IGNORECASE)
+        return match.group(0) if match else None
+
     # TODO: There are likely edge cases where this will break or lose information. Nested or non-contiguous
     # headers are one likely source of issues. We also don't support missing closing tags (which are allowed in
     # the spec) because html.parser doesn't handle them. If and when this becomes an issue, we can consider
@@ -207,8 +219,8 @@ class Table:
             raise ValueError("Exactly one of html_str and html_tag must be specified.")
         root: Union[Tag, BeautifulSoup]
         if html_str is not None:
-            html_str = html_str.strip()
-            if not html_str.startswith("<table") or not html_str.endswith("</table>"):
+            html_str = cls.extract_table_block(html_str)
+            if html_str is None:
                 raise ValueError("html_str must be a valid html table enclosed in <table></table> tags.")
 
             root = BeautifulSoup(html_str, "html.parser")

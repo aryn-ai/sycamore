@@ -10,6 +10,7 @@ setup_debug_logging("sycamore.llms.chained_llm")
 setup_debug_logging("sycamore.llms.gemini")
 setup_debug_logging("sycamore.llms.openai")
 
+
 def test_chained_llm_generate_defaults():
     gemini = Gemini(GeminiModels.GEMINI_2_FLASH)
     messages = [
@@ -33,6 +34,7 @@ def test_chained_llm_generate_defaults():
     res = chained_other_way.generate(prompt=prompt, llm_kwargs={})
 
     assert len(res) > 0
+
 
 def test_default_llm_kwargs():
     gemini = Gemini(GeminiModels.GEMINI_2_FLASH_LITE, default_llm_kwargs={"max_output_tokens": 5})

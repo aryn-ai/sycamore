@@ -1,5 +1,6 @@
 from sycamore import DocSet
 from sycamore.data import Document, MetadataDocument
+from sycamore.transforms.aggregation import AggBuilder
 
 
 class GroupedData:
@@ -80,3 +81,10 @@ class GroupedData:
         from sycamore.transforms import DatasetScan
 
         return DocSet(self._docset.context, DatasetScan(serialized))
+
+    def aggregate(self, agg: AggBuilder):
+        def group_key_fn(doc: Document) -> str:
+            return str(doc.field_to_value(self._grouped_key))
+
+        aggregation = agg.build_grouped(self._docset.plan, group_key_fn)
+        return DocSet(self._docset.context, aggregation)

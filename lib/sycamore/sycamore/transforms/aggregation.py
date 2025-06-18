@@ -62,31 +62,34 @@ class Aggregation(UnaryNode):
                     )  # ^^ if pyarrow BinaryScalar convert to python bytes
                     for dbytes in block["doc"]
                 ]
+                key = block["key"][0]
                 if all(isinstance(d, MetadataDocument) for d in docs):
                     assert len(docs) == 1, "Found multiple metadata documents in accumulate fn somehow"
-                    return {"doc": docs[0].serialize()}
+                    return {"doc": docs[0].serialize(), "key": key}
                 assert not any(
                     isinstance(d, MetadataDocument) for d in docs
                 ), "Found mixed accumuation between Documents and Metadata"
                 partial_result = self._syc_agg._accumulate(docs)
-                return {"doc": partial_result.serialize()}
+                return {"doc": partial_result.serialize(), "key": key}
 
             def combine(self, current_accumulator, new):
-                row1 = current_accumulator
-                row2 = new
+                assert current_accumulator["key"] == new["key"]
+                row1 = {"doc": current_accumulator["doc"]}
+                row2 = {"doc": new["doc"]}
                 doc1 = Document.from_row(row1)
                 doc2 = Document.from_row(row2)
                 assert not isinstance(doc1, MetadataDocument), "Tried to combine metadata documents"
                 assert not isinstance(doc2, MetadataDocument), "Tried to combine metadata documents"
                 combined = self._syc_agg._combine(doc1, doc2)
-                return {"doc": combined.serialize()}
+                return {"doc": combined.serialize(), "key": new["key"]}
 
             def _finalize(self, accumulator):
-                row = accumulator
+                row = {"doc": accumulator["doc"]}
                 doc = Document.from_row(row)
                 if isinstance(doc, MetadataDocument):
                     return row
                 final_doc = self._syc_agg._finalize(doc)
+                final_doc["key"] = accumulator["key"]
                 return {"doc": final_doc.serialize()}
 
         ray_agg = RayAggregation(self, self._name, self._zero_factory)

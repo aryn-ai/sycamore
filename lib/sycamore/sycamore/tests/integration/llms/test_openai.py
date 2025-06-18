@@ -36,6 +36,27 @@ def test_openai_defaults():
     assert len(res) > 0
 
 
+def test_openai_override_defaults():
+    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO)
+    prompt = RenderedPrompt(
+        messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+    )
+    res = llm.generate(prompt=prompt, llm_kwargs={"model": OpenAIModels.GPT_4O_MINI.value.name})
+
+    assert len(res) > 0
+
+    class StringResponseFormat(BaseModel):
+        result: str
+
+    prompt = RenderedPrompt(
+        messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")],
+        response_format=StringResponseFormat,
+    )
+    res = llm.generate(prompt=prompt, llm_kwargs={"model": OpenAIModels.GPT_4O_MINI.value.name})
+
+    assert len(res) > 0
+
+
 def test_openai_messages_defaults():
     llm = OpenAI(OpenAIModels.GPT_3_5_TURBO)
     messages = [

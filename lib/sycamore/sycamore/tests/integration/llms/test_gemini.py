@@ -162,3 +162,13 @@ def test_default_llm_kwargs():
         llm_kwargs={},
     )
     assert res["out_tokens"] <= 5
+
+
+def test_model_override():
+    llm = Gemini(model_name=GeminiModels.GEMINI_2_FLASH_LITE, default_llm_kwargs={"max_output_tokens": 5})
+    prompt = RenderedPrompt(
+        messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+    )
+
+    res = llm.generate(prompt=prompt, llm_kwargs={"model": GeminiModels.GEMINI_2_FLASH.value.name})
+    assert len(res) > 0

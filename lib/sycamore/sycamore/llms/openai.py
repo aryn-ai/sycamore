@@ -374,15 +374,18 @@ class OpenAI(LLM):
     def _generate_using_openai(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
         kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
         logging.debug("OpenAI prompt: %s", kwargs)
+        model = kwargs.pop("model", self._model_name)
+        if model != self._model_name:
+            logger.info(f"Overriding OpenAI model from {self._model_name} to {model}")
         if self.is_chat_mode():
             starttime = datetime.now()
-            completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
+            completion = self.client_wrapper.get_client().chat.completions.create(model=model, **kwargs)
             logging.debug("OpenAI completion: %s", completion)
             wall_latency = datetime.now() - starttime
             response_text = completion.choices[0].message.content
         else:
             starttime = datetime.now()
-            completion = self.client_wrapper.get_client().completions.create(model=self._model_name, **kwargs)
+            completion = self.client_wrapper.get_client().completions.create(model=model, **kwargs)
             logging.debug("OpenAI completion: %s", completion)
             wall_latency = datetime.now() - starttime
             response_text = completion.choices[0].text
@@ -396,11 +399,12 @@ class OpenAI(LLM):
     def _generate_using_openai_structured(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
         try:
             kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
+            model = kwargs.pop("model", self._model_name)
+            if model != self._model_name:
+                logger.info(f"Overriding OpenAI model from {self._model_name} to {model}")
             if self.is_chat_mode():
                 starttime = datetime.now()
-                completion = self.client_wrapper.get_client().beta.chat.completions.parse(
-                    model=self._model_name, **kwargs
-                )
+                completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=model, **kwargs)
                 completion_tokens, prompt_tokens = self.validate_tokens(completion)
                 wall_latency = datetime.now() - starttime
                 response_text = completion.choices[0].message.content
@@ -445,17 +449,16 @@ class OpenAI(LLM):
 
     async def _generate_awaitable_using_openai(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
         kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
+        model = kwargs.pop("model", self._model_name)
+        if model != self._model_name:
+            logger.info(f"Overriding OpenAI model from {self._model_name} to {model}")
         starttime = datetime.now()
         if self.is_chat_mode():
-            completion = await self.client_wrapper.get_async_client().chat.completions.create(
-                model=self._model_name, **kwargs
-            )
+            completion = await self.client_wrapper.get_async_client().chat.completions.create(model=model, **kwargs)
             response_text = completion.choices[0].message.content
             wall_latency = datetime.now() - starttime
         else:
-            completion = await self.client_wrapper.get_async_client().completions.create(
-                model=self._model_name, **kwargs
-            )
+            completion = await self.client_wrapper.get_async_client().completions.create(model=model, **kwargs)
             response_text = completion.choices[0].text
             wall_latency = datetime.now() - starttime
             response_text = completion.choices[0].message.content
@@ -475,10 +478,13 @@ class OpenAI(LLM):
     ) -> str:
         try:
             kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
+            model = kwargs.pop("model", self._model_name)
+            if model != self._model_name:
+                logger.info(f"Overriding OpenAI model from {self._model_name} to {model}")
             if self.is_chat_mode():
                 starttime = datetime.now()
                 completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
-                    model=self._model_name, **kwargs
+                    model=model, **kwargs
                 )
                 wall_latency = datetime.now() - starttime
             else:
@@ -503,7 +509,8 @@ class OpenAI(LLM):
             if ch is not None:
                 continue
             kwargs = self._get_generate_kwargs(p, llm_kwargs)
-            kwargs["model"] = self.model.name
+            if "model" not in kwargs:
+                kwargs["model"] = self.model.name
             call = {"custom_id": str(i), "method": "POST", "url": "/v1/chat/completions", "body": kwargs}
             calls.append(call)
         f = io.BytesIO()

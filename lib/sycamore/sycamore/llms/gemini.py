@@ -127,11 +127,14 @@ class Gemini(LLM):
             return ret
         assert ret is None
 
+        model = llm_kwargs.pop("model", self.model.name)
+        if self.model.name != model:
+            logger.info(f"Overriding Gemini model from {self.model.name} to {model}")
         kwargs = self.get_generate_kwargs(prompt, llm_kwargs)
 
         start = datetime.datetime.now()
         response = self._client.models.generate_content(
-            model=self.model.name, contents=kwargs["content"], config=kwargs["config"]
+            model=model, contents=kwargs["content"], config=kwargs["config"]
         )
         ret = self._metadata_from_response(kwargs, response, start)
         self._llm_cache_set(prompt, llm_kwargs, ret)
@@ -149,6 +152,9 @@ class Gemini(LLM):
             return ret["output"]
         assert ret is None
 
+        model = llm_kwargs.pop("model", self.model.name)
+        if self.model.name != model:
+            logger.info(f"Overriding Gemini model from {self.model.name} to {model}")
         kwargs = self.get_generate_kwargs(prompt, llm_kwargs)
 
         start = datetime.datetime.now()

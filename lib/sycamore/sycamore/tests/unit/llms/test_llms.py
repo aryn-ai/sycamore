@@ -135,6 +135,85 @@ def test_chained_llm():
     assert res == "foo"  # Should return from the first LLM in the chain
 
 
+def get_gemini_response(text: str):
+    from google.genai import types
+
+    return types.GenerateContentResponse(
+        candidates=[
+            types.Candidate(
+                content=types.Content(
+                    parts=[types.Part.from_text(text=text)],
+                    role="model",
+                )
+            )
+        ],
+    )
+
+
+@patch("google.genai.Client")
+def test_gemini_override(mock_google_client):
+    llm = Gemini(GeminiModels.GEMINI_2_5_FLASH_PREVIEW)
+    mock_google_client.return_value.models.generate_content.return_value = get_gemini_response("test response")
+    response = llm.generate(prompt=RenderedPrompt(messages=[RenderedMessage(role="user", content="Hello")]))
+    assert response == "test response"
+    assert (
+        mock_google_client.return_value.models.generate_content.call_args.kwargs["model"]
+        == GeminiModels.GEMINI_2_5_FLASH_PREVIEW.value.name
+    )
+
+    response = llm.generate(
+        prompt=RenderedPrompt(messages=[RenderedMessage(role="user", content="Hello")]),
+        llm_kwargs={"model": GeminiModels.GEMINI_2_5_FLASH.value.name},
+    )
+    assert response == "test response"
+    assert (
+        mock_google_client.return_value.models.generate_content.call_args.kwargs["model"]
+        == GeminiModels.GEMINI_2_5_FLASH.value.name
+    )
+
+
+def get_openai_response(text: str):
+    from openai.types.chat import ChatCompletion, ChatCompletionMessage
+    from openai.types.chat.chat_completion import Choice
+
+    return ChatCompletion(
+        id="id",
+        created=1234567890,
+        model="gpt-3.5-turbo",
+        object="chat.completion",
+        choices=[
+            Choice(
+                index=0,
+                finish_reason="stop",
+                message=ChatCompletionMessage(content=text, role="assistant"),
+            ),
+        ],
+    )
+
+
+@patch("sycamore.llms.openai.OpenAIClientWrapper")
+def test_openai_override(mock_openai_client):
+    llm = OpenAI(model_name=OpenAIModels.GPT_3_5_TURBO.value.name)
+    mock_openai_client.return_value.get_client.return_value.chat.completions.create.return_value = get_openai_response(
+        "foo"
+    )
+    response = llm.generate(prompt=RenderedPrompt(messages=[RenderedMessage(role="user", content="Hello")]))
+    assert response == "foo"  # Assuming FakeLLM returns "foo" for any prompt
+    assert (
+        mock_openai_client.return_value.get_client.return_value.chat.completions.create.call_args.kwargs["model"]
+        == OpenAIModels.GPT_3_5_TURBO.value.name
+    )
+    response = llm.generate(
+        prompt=RenderedPrompt(messages=[RenderedMessage(role="user", content="Hello")]),
+        llm_kwargs={"model": OpenAIModels.GPT_4O.value.name},
+    )
+    assert response == "foo"  # Assuming FakeLLM returns "foo" for any prompt
+    assert (
+        mock_openai_client.return_value.get_client.return_value.chat.completions.create.call_args.kwargs["model"]
+        == OpenAIModels.GPT_4O.value.name
+    )
+
+
 class TestCache:
     def test_nocache(self, tmp_path):
         llm = FakeLLM()

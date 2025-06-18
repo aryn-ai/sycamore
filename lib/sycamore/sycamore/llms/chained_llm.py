@@ -55,14 +55,20 @@ class ChainedLLM(LLM):
         # The current strategy is to try each LLM in the chain until one succeeds.
         assert self._chain is not None and len(self._chain) > 0, "ChainedLLM must have at least one LLM in the chain."
 
+        models: dict[int, str] = llm_kwargs.pop("models", {}) if llm_kwargs else {}
         last_exception: Exception = RuntimeError("unknown error")
+        index = 0
         for llm in self._chain:
             try:
+                if index in models:
+                    llm_kwargs = llm_kwargs or {}
+                    llm_kwargs["model"] = models.get(index)
                 response = llm.generate(prompt=prompt, llm_kwargs=llm_kwargs)
                 return response
             except Exception as e:
                 logger.exception(e)
                 last_exception = e
+            index += 1
 
         raise last_exception
 

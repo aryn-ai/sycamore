@@ -33,14 +33,14 @@ ALL_OPERATORS: list[type[Node]] = [
 
 
 class LogicalPlanProcessor:
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         """Given the LogicalPlan query plan, postprocess it using a set of rules that modify the plan for
         optimizing or other purposes."""
         return plan
 
 
 class PlannerPromptProcessor:
-    def __call__(self, prompt: PlannerPrompt) -> PlannerPrompt:
+    def __call__(self, prompt: PlannerPrompt, **kwargs) -> PlannerPrompt:
         """Apply code to change the prompt used by the planner"""
         return prompt
 
@@ -51,7 +51,7 @@ class DefaultPlanValidator(LogicalPlanProcessor):
     1. Type validation: ensure inputs to nodes are of valid types (e.g. DocSet, int, None, etc.)
     """
 
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         logging.info("Executing DefaultPlanValidator processor")
 
         # type validation
@@ -76,7 +76,7 @@ class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
         super().__init__()
         self.llm = llm
 
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         logging.info("Executing RemoveVectorSearchForAnalytics processor")
 
         # Rule: If the plan has a vector search in the beginning followed by a count or nothing or extract_entity,
@@ -179,7 +179,7 @@ class AlwaysSummarize(LogicalPlanProcessor):
     end of the plan.
     """
 
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         n = plan.nodes[plan.result_node]
         if n.node_type == "SummarizeData":
             return plan
@@ -216,7 +216,7 @@ class OnlyRetrieval(LogicalPlanProcessor):
     This processor is useful for efficiently computing retrieval metrics.
     """
 
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         n = plan.nodes[plan.result_node]
         while n.node_type in ("Sort", "SummarizeData", "LlmExtractEntity", "TopK"):
             # SummarizeData is bad, it can fail to execute the entire pipeline so we don't get
@@ -247,7 +247,7 @@ class PrintPlan(LogicalPlanProcessor):
         self._post = post_message
         self._quiet = quiet
 
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         if self._quiet:
             return plan
         if self._pre is not None:
@@ -275,7 +275,7 @@ class LLMRewriteQuestion(PlannerPromptProcessor):
         self._rewrite_prompt = prompt
         self._llm = llm
 
-    def __call__(self, prompt: PlannerPrompt) -> PlannerPrompt:
+    def __call__(self, prompt: PlannerPrompt, **kwargs) -> PlannerPrompt:
         q = prompt.query
         rendered = self._rewrite_prompt.render_any(question=q)
         rewritten = self._llm.generate(prompt=rendered)

@@ -186,6 +186,7 @@ class SycamoreQueryClient:
         schema: Union[Schema, OpenSearchSchema, None] = None,
         examples: Optional[List[PlannerExample]] = None,
         natural_language_response: bool = False,
+        **kwargs,
     ) -> LogicalPlan:
         """Generate a logical query plan for the given query, index, and schema.
 
@@ -215,7 +216,7 @@ class SycamoreQueryClient:
             )
         else:
             planner = self.query_planner
-        plan = planner.plan(query)
+        plan = planner.plan(query, **kwargs)
         return plan
 
     def run_plan(
@@ -242,9 +243,10 @@ class SycamoreQueryClient:
         index: str,
         dry_run: bool = False,
         codegen_mode: bool = False,
+        **kwargs,
     ) -> SycamoreQueryResult:
         """Run a query against the given index."""
-        plan = self.generate_plan(query, index)
+        plan = self.generate_plan(query, index, **kwargs)
         return self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
 
     def dump_traces(self, result: SycamoreQueryResult, limit: int = 5):

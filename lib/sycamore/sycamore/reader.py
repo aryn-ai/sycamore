@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pandas import DataFrame
 from pyarrow import Table
-from pyarrow.filesystem import FileSystem
+from pyarrow.fs import FileSystem
 
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.context import context_params

@@ -1,8 +1,7 @@
+import traceback
 from abc import abstractmethod
 import copy
 import logging
-import random
-import time
 from typing import Any, Union, Optional, Callable
 
 from PIL import Image
@@ -535,57 +534,48 @@ class VLMTableStructureExtractor(TableStructureExtractor):
     DEFAULT_RETRIES = 2
     INITIAL_BACKOFF = 0.2
 
-    def __init__(self, llm: LLM, prompt_str: str = EXTRACT_TABLE_STRUCTURE_PROMPT, num_retries: int = DEFAULT_RETRIES):
+    def __init__(self, llm: LLM, prompt_str: str = EXTRACT_TABLE_STRUCTURE_PROMPT):
         self.llm = llm
         self.prompt_str = prompt_str
-        self.num_retries = num_retries
 
     def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
-        if isinstance(self.llm, ChainedLLM):
-            for llm in self.llm.chain:
-                success, element = self._extract(llm, element, doc_image)
-                if success:
-                    return element
-            return element
-
-        _, element = self._extract(self.llm, element, doc_image)
-        return element
-
-    def _extract(self, llm: LLM, element: TableElement, doc_image: Image.Image) -> tuple[bool, TableElement]:
         # We need a bounding box to be able to do anything.
         if element.bbox is None:
-            return True, element
+            return element
 
         cropped_image, _ = _crop_bbox(doc_image, element.bbox)
 
         message = RenderedMessage(role="user", content=self.prompt_str, images=[cropped_image])
         prompt = RenderedPrompt(messages=[message])
 
-        retry_num = 0
-        while retry_num <= self.num_retries:
-            try:
-                res = llm.generate(prompt=prompt)
+        def response_checker(response: str) -> bool:
+            """Checks if the response is valid HTML."""
+            if not response:
+                return False
 
-                if res.startswith("```html"):
-                    res = res[7:].rstrip("`")
-                res = res.strip()
+            # Check if the response starts with a valid HTML tag
+            return Table.extract_table_block(response) is not None
 
-                table = Table.from_html(res)
-                element.table = table
-                return True, element
+        if isinstance(self.llm, ChainedLLM):
+            self.llm.response_checker = response_checker
 
-            except Exception as e:
-                logging.warning(
-                    f"Error extracting table structure: {e}. Retrying... ({retry_num + 1}/{self.num_retries})"
-                )
-                logging.exception(e)
-                backoff = self.INITIAL_BACKOFF * (2**retry_num)
-                jitter = random.uniform(0, 0.1 * backoff)
-                time.sleep(backoff + jitter)
-                retry_num += 1
+        try:
+            res: str = self.llm.generate(prompt=prompt)
 
-        logging.warning("Unable to extract table structure after retries. Returning element without table.")
-        return False, element
+            if res.startswith("```html"):
+                res = res[7:].rstrip("`")
+            res = res.strip()
+
+            table = Table.from_html(res)
+            element.table = table
+            return element
+        except Exception as e:
+            tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+            logging.warning(
+                f"Failed to extract a table due to:\n{tb_str}\nReturning the original element without a table."
+            )
+
+        return element
 
 
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor

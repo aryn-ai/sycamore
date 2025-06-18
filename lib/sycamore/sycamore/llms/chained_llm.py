@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, Callable
 
 from sycamore.llms import LLM
 from sycamore.llms.llms import LLMMode
@@ -12,7 +12,15 @@ logger = logging.getLogger(__name__)
 class ChainedLLM(LLM):
     """A ChainedLLM is a special LLM that allows for chaining multiple LLMs together."""
 
-    def __init__(self, chain: list[LLM], model_name, default_mode: LLMMode, cache=None, default_llm_kwargs=None):
+    def __init__(
+        self,
+        chain: list[LLM],
+        response_checker: Optional[Callable[[str], bool]] = None,
+        model_name: str = "",
+        default_mode: LLMMode = LLMMode.ASYNC,
+        cache=None,
+        default_llm_kwargs=None,
+    ):
         """
         Initializes a ChainedLLM instance.
         Args:
@@ -30,6 +38,7 @@ class ChainedLLM(LLM):
             if not llm.is_chat_mode():
                 self.chat_mode = False
                 break
+        self.response_checker = response_checker
 
     @property
     def chain(self) -> list[LLM]:
@@ -63,8 +72,17 @@ class ChainedLLM(LLM):
                 if index in models:
                     llm_kwargs = llm_kwargs or {}
                     llm_kwargs["model"] = models.get(index)
+                logger.info(f"Generating response using LLM: {llm._model_name}")
                 response = llm.generate(prompt=prompt, llm_kwargs=llm_kwargs)
-                return response
+                if self.response_checker:
+                    if self.response_checker(response):
+                        return response
+                    else:
+                        logger.info(
+                            f"Response {response} from LLM did not pass the response checker, trying next LLM in the chain."
+                        )
+                else:
+                    return response
             except Exception as e:
                 logger.exception(e)
                 last_exception = e

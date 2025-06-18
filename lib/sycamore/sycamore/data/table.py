@@ -1,3 +1,4 @@
+from bs4 import BeautifulSoup, Tag
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any, Optional, TypeVar, Union, List, Sequence, TYPE_CHECKING
@@ -185,6 +186,15 @@ class Table:
         d["num_cols"] = self.num_cols
         return d
 
+    @staticmethod
+    def extract_table_block(html_str: str):
+        """
+        Extracts the first <table>...</table> block from the given HTML string.
+        Returns the table block as a Tag.
+        """
+        parsed = BeautifulSoup(html_str, "html.parser")
+        return parsed.find("table")
+
     # TODO: There are likely edge cases where this will break or lose information. Nested or non-contiguous
     # headers are one likely source of issues. We also don't support missing closing tags (which are allowed in
     # the spec) because html.parser doesn't handle them. If and when this becomes an issue, we can consider
@@ -199,19 +209,17 @@ class Table:
           html_tag: A BeatifulSoup tag corresponding to the table. One of html_str or html_tag must be set.
         """
 
-        from bs4 import BeautifulSoup, Tag
-
         # TODO: This doesn't account for rowgroup/colgroup handling, which can get quite tricky.
 
         if (html_str is not None and html_tag is not None) or (html_str is None and html_tag is None):
             raise ValueError("Exactly one of html_str and html_tag must be specified.")
         root: Union[Tag, BeautifulSoup]
         if html_str is not None:
-            html_str = html_str.strip()
-            if not html_str.startswith("<table") or not html_str.endswith("</table>"):
+            table_tag = cls.extract_table_block(html_str)
+            if table_tag is None:
                 raise ValueError("html_str must be a valid html table enclosed in <table></table> tags.")
 
-            root = BeautifulSoup(html_str, "html.parser")
+            root = table_tag
         elif html_tag is not None:
             if html_tag.name != "table":
                 raise ValueError(f"html_tag must correspond to a valid <table> tag. Got {html_tag.name}")

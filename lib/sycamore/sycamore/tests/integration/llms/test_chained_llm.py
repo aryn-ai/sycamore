@@ -3,7 +3,6 @@ from sycamore.llms.chained_llm import ChainedLLM
 from sycamore.llms.gemini import Gemini
 from sycamore.llms.llms import LLMMode
 from sycamore.llms.openai import OpenAI
-from sycamore.llms.prompts import RenderedMessage, RenderedPrompt
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.tests.utils import setup_debug_logging
 

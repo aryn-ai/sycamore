@@ -513,6 +513,7 @@ class ArynPDFPartitioner:
     def process_batch_extraction(
         self,
         batch: list[Image.Image],
+        *,
         deformable_layout: list[list[Element]],
         extract_table_structure: bool,
         table_structure_extractor,
@@ -569,24 +570,24 @@ class ArynPDFPartitioner:
     ) -> list[list[Element]]:
         deformable_layout = self.process_batch_inference(
             batch,
-            threshold,
-            use_cache,
-            use_ocr,
-            ocr_model,
-            per_element_ocr,
-            extractor_inputs,
-            text_extractor,
-            supplement_text_fn,
+            threshold=threshold,
+            use_cache=use_cache,
+            use_ocr=use_ocr,
+            ocr_model=ocr_model,
+            per_element_ocr=per_element_ocr,
+            text_extractor=text_extractor,
+            supplement_text_fn=supplement_text_fn,
+            extractor_inputs=extractor_inputs,
         )
         if extract_table_structure or extract_images:
             return self.process_batch_extraction(
                 batch,
-                deformable_layout,
-                extract_table_structure,
-                table_structure_extractor,
-                table_extraction_options,
-                extract_images,
-                extract_image_format,
+                deformable_layout=deformable_layout,
+                extract_table_structure=extract_table_structure,
+                table_structure_extractor=table_structure_extractor,
+                table_extraction_options=table_extraction_options,
+                extract_images=extract_images,
+                extract_image_format=extract_image_format,
             )
         return deformable_layout
 

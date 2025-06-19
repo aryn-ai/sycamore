@@ -469,6 +469,7 @@ class ArynPDFPartitioner:
     def process_batch_inference(
         self,
         batch: list[Image.Image],
+        *,
         threshold: float,
         use_cache: bool,
         use_ocr: bool,

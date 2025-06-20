@@ -14,7 +14,7 @@ from PIL import Image
 from pypdf import PdfReader
 
 from aryn_sdk.partition import partition_file
-from sycamore.data import Element, BoundingBox, ImageElement, TableElement
+from sycamore.data import Element, BoundingBox, TableElement
 from sycamore.data.document import DocumentPropertyTypes
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR

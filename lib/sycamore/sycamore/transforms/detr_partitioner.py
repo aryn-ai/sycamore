@@ -21,7 +21,7 @@ from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_
 from sycamore.utils import choose_device
 from sycamore.utils.element_sort import sort_page
 from sycamore.utils.cache import Cache
-from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
+from sycamore.utils.image_utils import crop_to_bbox, extract_images_from_elements
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.markdown import elements_to_markdown
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
@@ -538,15 +538,7 @@ class ArynPDFPartitioner:
             with LogTime("extract_images_batch"):
                 for i, page_elements in enumerate(deformable_layout):
                     image = batch[i]
-                    for element in page_elements:
-                        if isinstance(element, ImageElement) and element.bbox is not None:
-                            cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
-                            resolved_format = None if extract_image_format == "PPM" else extract_image_format
-                            element.binary_representation = image_to_bytes(cropped_image, format=resolved_format)
-                            element.image_mode = cropped_image.mode
-                            element.image_size = cropped_image.size
-                            element.image_format = resolved_format
-
+                    deformable_layout[i] = extract_images_from_elements(page_elements, image, extract_image_format)
         return deformable_layout
 
     def process_batch(

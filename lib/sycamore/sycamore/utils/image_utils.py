@@ -10,6 +10,7 @@ from PIL.ImageFont import FreeTypeFont, ImageFont as ImageFontType
 from sycamore.data import Document
 from sycamore.data.bbox import BoundingBox
 from sycamore.data.document import DocumentPropertyTypes
+from sycamore.data.element import ImageElement, Element
 
 DEFAULT_PADDING = 10
 
@@ -271,3 +272,32 @@ def show_images(images: Union[Image.Image, list[Image.Image], list[ImageFile.Ima
     else:
         for image in images:
             image.show()
+
+
+def extract_image_from_element(element: ImageElement, image: Image.Image, extract_image_format: str) -> ImageElement:
+    """Extracts the image from an element."""
+    assert element.bbox is not None, "Element must have a bounding box"
+    cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
+    resolved_format = None if extract_image_format == "PPM" else extract_image_format
+    element.binary_representation = image_to_bytes(cropped_image, format=resolved_format)
+    element.image_mode = cropped_image.mode
+    element.image_size = cropped_image.size
+    element.image_format = resolved_format
+    return element
+
+
+def extract_images_from_elements(
+    elements: list[Element], image: Image.Image, extract_image_format: str
+) -> list[Element]:
+    """Extracts the images from a list of elements.
+
+    This function is used to extract the images from a list of elements.
+    Args:
+        elements: A list of elements.
+        image: The image to extract the images from.
+        extract_image_format: The format to extract the images in.
+    """
+    for i, element in enumerate(elements):
+        if isinstance(element, ImageElement) and element.bbox is not None:
+            elements[i] = extract_image_from_element(element, image, extract_image_format)
+    return elements

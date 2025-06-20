@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, List
 import json
-
+import sycamore
+from sycamore import ExecMode
 from sycamore.data import Element, Document
 from sycamore.schema import Schema
 from sycamore.llms import LLM
@@ -10,6 +11,7 @@ from sycamore.llms.prompts.default_prompts import (
     PropertiesFromSchemaJinjaPrompt,
     SchemaZeroShotJinjaPrompt,
 )
+from pathlib import Path
 from sycamore.llms.prompts import SycamorePrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
@@ -17,6 +19,58 @@ from sycamore.transforms.map import Map
 from sycamore.transforms.base_llm import LLMMap
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.time_trace import timetrace
+from sycamore.transforms.embed import OpenAIEmbedder
+from sycamore.llms.prompts.default_prompts import MetadataExtractorJinjaPrompt
+
+
+def cluster_schema_json(
+    schema_json: dict,
+    *,
+    k: int = 5,
+    cache_file: Path | None = None,
+    recompute: bool = False,
+    embed_model: str = "text-embedding-3-small",
+) -> List[Document]:
+    """
+    Returns `list[list[field-dict]]` – one sub-list per cluster.
+    Pure helper:   no DocSet of PDFs is touched.
+    """
+    if cache_file and cache_file.exists() and not recompute:
+        with open(cache_file) as f:
+            payload = json.load(f)
+
+        docs = []
+        for row in payload:
+            d = Document(**row)
+            d["cluster"] = row["cluster"]
+            docs.append(d)
+
+        return docs
+
+    field_docs: List[Document] = []
+    for fld in schema_json["fields"]:
+        txt = f"Field: {fld['name']}\nDescription: {fld.get('description', '')}"
+        field_docs.append(Document(text_representation=txt, **fld))
+
+    ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+    embedder = OpenAIEmbedder(embed_model)
+    embeddings = ctx.read.document(field_docs).embed(embedder)
+
+    centroids = embeddings.kmeans(K=k, iterations=40)
+    clds = embeddings.clustering(centroids, cluster_field_name="cluster")
+
+    clusters_docs = clds.take_all()
+    groups = {}
+    for d in clusters_docs:
+        cluster = d["cluster"].item() if hasattr(d["cluster"], "item") else d["cluster"]
+        if cluster not in groups:
+            groups[cluster] = Document()
+        groups[cluster].elements.append(Element(**d))
+
+    if cache_file:
+        cache_file.write_text(json.dumps(groups, ensure_ascii=False, indent=2))
+
+    return ctx.read.document(list(groups.values())).take_all()
 
 
 def element_list_formatter(elements: list[Element]) -> str:
@@ -165,15 +219,23 @@ class LLMPropertyExtractor(PropertyExtractor):
         self,
         llm: LLM,
         schema_name: Optional[str] = None,
-        schema: Optional[Union[dict[str, str], Schema]] = None,
+        schema: Optional[Union[dict[str, str], Schema, dict]] = None,
         num_of_elements: Optional[int] = None,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
+        metadata_extraction: bool = False,
+        track_provenance: bool = True,
+        cluster: int = 5,
     ):
         super().__init__()
         self._llm = llm
         self._schema_name = schema_name
         self._schema = schema
         self._num_of_elements = num_of_elements
+        self._prompt_formatter = prompt_formatter
+        self._metadata_extraction = metadata_extraction
+        self._prompt_formatter = prompt_formatter
+        self._track_provenance = track_provenance
+        self._cluster = cluster
         self._prompt_formatter = prompt_formatter
 
     def extract_docs(self, docs: list[Document]) -> list[Document]:
@@ -185,7 +247,7 @@ class LLMPropertyExtractor(PropertyExtractor):
         return [jsonextract_node.run(d) for d in llm_map_node.run(docs)]
 
     def cast_types(self, fields: dict) -> dict:
-        import dateparser
+        import dateparser  # type: ignore
 
         assert self._schema is not None, "Schema must be provided for property standardization."
         assert isinstance(self._schema, Schema), "Schema object must be provided for property standardization."
@@ -218,6 +280,44 @@ class LLMPropertyExtractor(PropertyExtractor):
 
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
         prompt: SycamorePrompt  # mypy grr
+        if self._metadata_extraction:
+            assert isinstance(self._schema, dict), "check format of json schema passed"
+            clusters_docs = cluster_schema_json(self._schema)
+            tmp_props: list[str] = []
+            for count, field_doc in enumerate(clusters_docs):
+                schema = {}
+                schema_name = f"_tmp_cluster_{count}"
+                tmp_props.append(schema_name)
+                assert isinstance(field_doc, Document), "Expected field_doc to be a Document instance"
+                for field in field_doc.elements:
+                    schema[field["name"]] = {
+                        "description": field["description"],
+                        "type": field["field_type"],
+                        "default": field.get("default"),
+                        "examples": field.get("examples"),
+                    }
+
+                count += 1
+                prompt = MetadataExtractorJinjaPrompt.fork(
+                    entity_name=schema_name,
+                    response_format=schema,
+                    schema=schema,
+                )
+                child = LLMMap(child, prompt=prompt, output_field=schema_name, llm=self._llm, **kwargs)
+
+            def _merge(d: Document) -> Document:
+                merged: dict = {}
+                for k in tmp_props:
+                    part = d.properties.pop(k, "{}")
+                    try:
+                        merged.update(extract_json(part) if isinstance(part, str) else part)
+                    except json.JSONDecodeError:
+                        pass
+                d.properties[self._schema_name or "_entity"] = merged
+                return d
+
+            return Map(child, f=_merge)
+
         if isinstance(self._schema, Schema):
             prompt = PropertiesFromSchemaJinjaPrompt
             prompt = prompt.fork(schema=self._schema, response_format=self._schema.model_dump())

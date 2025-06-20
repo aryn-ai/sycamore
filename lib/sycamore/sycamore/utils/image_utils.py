@@ -274,10 +274,12 @@ def show_images(images: Union[Image.Image, list[Image.Image], list[ImageFile.Ima
             image.show()
 
 
-def extract_image_from_element(element: ImageElement, image: Image.Image, extract_image_format: str) -> ImageElement:
+def extract_image_from_element(
+    element: ImageElement, page_image: Image.Image, extract_image_format: str
+) -> ImageElement:
     """Extracts the image from an element."""
     assert element.bbox is not None, "Element must have a bounding box"
-    cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
+    cropped_image = crop_to_bbox(page_image, element.bbox).convert("RGB")
     resolved_format = None if extract_image_format == "PPM" else extract_image_format
     element.binary_representation = image_to_bytes(cropped_image, format=resolved_format)
     element.image_mode = cropped_image.mode

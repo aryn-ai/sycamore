@@ -32,8 +32,7 @@ def cluster_schema_json(
     embed_model: str = "text-embedding-3-small",
 ) -> List[Document]:
     """
-    Returns `list[list[field-dict]]` – one sub-list per cluster.
-    Pure helper:   no DocSet of PDFs is touched.
+    Returns `list[list[field-dict]]` - one sub-list per cluster.
     """
     if cache_file and cache_file.exists() and not recompute:
         with open(cache_file) as f:
@@ -219,11 +218,10 @@ class LLMPropertyExtractor(PropertyExtractor):
         self,
         llm: LLM,
         schema_name: Optional[str] = None,
-        schema: Optional[Union[dict[str, str], Schema, dict]] = None,
+        schema: Optional[Union[dict, Schema]] = None,
         num_of_elements: Optional[int] = None,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
         metadata_extraction: bool = False,
-        track_provenance: bool = True,
         cluster: int = 5,
     ):
         super().__init__()
@@ -234,9 +232,7 @@ class LLMPropertyExtractor(PropertyExtractor):
         self._prompt_formatter = prompt_formatter
         self._metadata_extraction = metadata_extraction
         self._prompt_formatter = prompt_formatter
-        self._track_provenance = track_provenance
         self._cluster = cluster
-        self._prompt_formatter = prompt_formatter
 
     def extract_docs(self, docs: list[Document]) -> list[Document]:
         jsonextract_node = self.as_llm_map(None)

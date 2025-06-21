@@ -106,7 +106,7 @@ class BarLLMModel(LLMModel):
 
 
 class FooLLM(LLM):
-    model = FooLLMModel # type: ignore
+    model = FooLLMModel  # type: ignore
 
     def __init__(self, model_name, default_mode: LLMMode):
         super().__init__(model_name, default_mode)
@@ -121,7 +121,7 @@ class FooLLM(LLM):
 
 
 class BarLLM(LLM):
-    model = BarLLMModel # type: ignore
+    model = BarLLMModel  # type: ignore
 
     def __init__(self, model_name, default_mode: LLMMode, throw_error: bool = False):
         super().__init__(model_name, default_mode)

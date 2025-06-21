@@ -31,9 +31,6 @@ def cluster_schema_json(
     recompute: bool = False,
     embed_model: str = "text-embedding-3-small",
 ) -> List[Document]:
-    """
-    Returns `list[list[field-dict]]` - one sub-list per cluster.
-    """
     if cache_file and cache_file.exists() and not recompute:
         with open(cache_file) as f:
             payload = json.load(f)
@@ -229,7 +226,6 @@ class LLMPropertyExtractor(PropertyExtractor):
         self._schema_name = schema_name
         self._schema = schema
         self._num_of_elements = num_of_elements
-        self._prompt_formatter = prompt_formatter
         self._metadata_extraction = metadata_extraction
         self._prompt_formatter = prompt_formatter
         self._cluster = cluster

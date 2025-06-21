@@ -120,6 +120,7 @@ class OpenAIModels(Enum):
                 return m
         return None
 
+
 class ChainedModel(LLMModel):
 
     def __init__(self, chain: list[LLMModel]):

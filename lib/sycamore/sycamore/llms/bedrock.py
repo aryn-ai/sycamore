@@ -109,9 +109,11 @@ class Bedrock(LLM):
         self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
         return ret
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
-        model = model if model else self.model.name
-        if self.model.name != model:
-            logger.info(f"Overriding Gemini model from {self.model.name} to {model}")
-        d = self.generate_metadata(model=model, prompt=prompt, llm_kwargs=llm_kwargs)
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
+        model_name: str = model.name if model else self.model.name
+        if self.model.name != model_name:
+            logger.info(f"Overriding Gemini model from {self.model.name} to {model_name}")
+        d = self.generate_metadata(model=model_name, prompt=prompt, llm_kwargs=llm_kwargs)
         return d["output"]

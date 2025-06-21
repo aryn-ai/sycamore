@@ -26,16 +26,17 @@ class LLMMode(Enum):
 
 class LLM(ABC):
     """Abstract representation of an LLM instance. and should be subclassed to implement specific LLM providers."""
+
     model: LLMModel
 
     def __init__(
         self,
-        model_name,
+        model_name: str,
         default_mode: LLMMode,
         cache: Optional[Cache] = None,
         default_llm_kwargs: Optional[dict[str, Any]] = None,
     ):
-        self._model_name = model_name
+        self._model_name: str = model_name
         self._cache = cache
         self._default_mode = default_mode
         self._default_llm_kwargs = default_llm_kwargs or {}
@@ -55,7 +56,9 @@ class LLM(ABC):
         return new_kwargs
 
     @abstractmethod
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters."""
         pass
 
@@ -92,7 +95,9 @@ class LLM(ABC):
         """Returns a dictionary containing the specified image suitable for use in an LLM message."""
         raise NotImplementedError("This LLM does not support images.")
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters asynchronously."""
         raise NotImplementedError("This LLM does not support asynchronous generation.")
 
@@ -119,7 +124,9 @@ class LLM(ABC):
             raise ValueError("Either 'prompt' or 'messages' must be specified in prompt_kwargs")
         return await self.generate_async(prompt=rendered, llm_kwargs=llm_kwargs)
 
-    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> list[str]:
+    def generate_batch(
+        self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> list[str]:
         """Generates a series of responses from the LLM for the given series of prompts. Order is preserved."""
         raise NotImplementedError("This LLM does not support batched generation")
 
@@ -133,9 +140,13 @@ class LLM(ABC):
         else:
             return prompt.response_format
 
-    def _llm_cache_key(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[str] = None) -> str:
+    def _llm_cache_key(
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[str] = None
+    ) -> str:
         """Return a cache key for the given prompt and LLM parameters."""
         assert self._cache
+        # We now default this to an empty dict if None is passed in.
+        llm_kwargs = llm_kwargs or {}
         model = model or self._model_name
         rf = self._pickleable_response_format(prompt)
         ms = prompt.messages
@@ -143,7 +154,7 @@ class LLM(ABC):
             "prompt": RenderedPrompt(messages=ms),
             "prompt.response_format": rf,
             "llm_kwargs": llm_kwargs,
-            "model_name": model
+            "model_name": model,
         }
         data = pickle.dumps(combined)
         return self._cache.get_hash_context(data).hexdigest()
@@ -151,7 +162,7 @@ class LLM(ABC):
     def _use_caching(self, llm_kwargs: Optional[dict]):
         if not self._cache:
             return False
-        if llm_kwargs is None:
+        if not llm_kwargs:
             return True
         # Only cache when temperature setting is zero.
         return llm_kwargs.get("temperature", 0) == 0
@@ -164,6 +175,7 @@ class LLM(ABC):
         assert self._cache is not None, "make mypy happy"
 
         model = model or self._model_name
+        llm_kwargs = llm_kwargs or {}
         key = self._llm_cache_key(prompt, llm_kwargs, model=model)
         hit = self._cache.get(key)
         if hit:
@@ -187,13 +199,16 @@ class LLM(ABC):
             return hit.get("result")
         return None
 
-    def _llm_cache_set(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict], result: Any, model: Optional[str] = None) -> None:
+    def _llm_cache_set(
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict], result: Any, model: Optional[str] = None
+    ) -> None:
         """Set a cached result for the given key."""
         if not self._use_caching(llm_kwargs):
             return
         assert self._cache is not None, "make mypy happy"
 
         model = model or self._model_name
+        llm_kwargs = llm_kwargs or {}
         key = self._llm_cache_key(prompt, llm_kwargs, model=model)
         databytes = pickle.dumps(
             {
@@ -226,7 +241,9 @@ class LLM(ABC):
             "output": response_text,
         }
 
-    def add_llm_metadata(self, kwargs, output, wall_latency, in_tokens, out_tokens, model: Optional[str] = None) -> None:
+    def add_llm_metadata(
+        self, kwargs, output, wall_latency, in_tokens, out_tokens, model: Optional[str] = None
+    ) -> None:
         tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
         if tls.present():
             model = model or self._model_name
@@ -248,7 +265,9 @@ class FakeLLM(LLM):
         super().__init__("trivial", cache=cache, default_mode=default_mode, default_llm_kwargs=default_llm_kwargs)
         self._return_value = return_value
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         return self._return_value
 
     def is_chat_mode(self) -> bool:

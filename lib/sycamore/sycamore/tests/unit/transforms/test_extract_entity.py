@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import sycamore
 from sycamore.context import Context, OperationTypes, ExecMode
 from sycamore.data import Document, Element
+from sycamore.llms.config import LLMModel
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import LLM
 from sycamore.llms.llms import LLMMode
@@ -18,7 +19,9 @@ class MockLLM(LLM):
     def __init__(self):
         super().__init__(model_name="mock_model", default_mode=LLMMode.SYNC)
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         print(prompt)
         if len(prompt.messages) == 1:
             usermessage = prompt.messages[0].content

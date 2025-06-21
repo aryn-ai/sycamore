@@ -165,6 +165,6 @@ def test_default_llm_kwargs():
         model=model.value.name,
         prompt=RenderedPrompt(
             messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
-        )
+        ),
     )
     assert res["out_tokens"] <= 5

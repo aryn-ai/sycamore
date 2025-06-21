@@ -4,6 +4,7 @@ from typing import Optional
 import copy
 
 from sycamore.llms import LLM
+from sycamore.llms.config import LLMModel
 from sycamore.llms.llms import LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.query.logical_plan import LogicalPlan
@@ -112,7 +113,9 @@ class DummyLLMClient(LLM):
     def is_chat_mode(self) -> bool:
         return False
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         return "Dummy response from an LLM Client"
 
 

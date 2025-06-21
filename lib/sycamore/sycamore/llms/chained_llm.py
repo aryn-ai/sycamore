@@ -50,7 +50,9 @@ class ChainedLLM(LLM):
         """
         return self._chain
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         """
         Generates a response by chaining multiple LLMs together.
 
@@ -94,7 +96,9 @@ class ChainedLLM(LLM):
 
         raise last_exception
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters asynchronously."""
         assert self._chain is not None and len(self._chain) > 0, "ChainedLLM must have at least one LLM in the chain."
 
@@ -115,7 +119,9 @@ class ChainedLLM(LLM):
 
         raise last_exception
 
-    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> list[str]:
+    def generate_batch(
+        self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> list[str]:
         """Generates a series of responses from the LLM for the given series of prompts. Order is preserved."""
         assert self._chain is not None and len(self._chain) > 0, "ChainedLLM must have at least one LLM in the chain."
 

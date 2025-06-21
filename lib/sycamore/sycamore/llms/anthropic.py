@@ -190,21 +190,25 @@ class Anthropic(LLM):
         self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
         return ret
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
-        model = model if model else self.model.name
-        if self.model.name != model:
-            logging.info(f"Overriding Gemini model from {self.model.name} to {model}")
-        d = self.generate_metadata(model=model, prompt=prompt, llm_kwargs=llm_kwargs)
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
+        model_name: str = model.name if model else self.model.name
+        if self.model.name != model_name:
+            logging.info(f"Overriding Gemini model from {self.model.name} to {model_name}")
+        d = self.generate_metadata(model=model_name, prompt=prompt, llm_kwargs=llm_kwargs)
         return d["output"]
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         from anthropic import RateLimitError, APIConnectionError
 
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
-        model = model if model else self.model.name
-        if self.model.name != model:
-            logging.info(f"Overriding Gemini model from {self.model.name} to {model}")
-        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
+        model_name: str = model.name if model else self.model.name
+        if self.model.name != model_name:
+            logging.info(f"Overriding Gemini model from {self.model.name} to {model_name}")
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if isinstance(ret, dict):
             return ret["output"]
 
@@ -215,7 +219,7 @@ class Anthropic(LLM):
         response = None
         while not done:
             try:
-                response = await self._async_client.messages.create(model=model, **kwargs)
+                response = await self._async_client.messages.create(model=model_name, **kwargs)
                 done = True
             except (RateLimitError, APIConnectionError):
                 backoff = INITIAL_BACKOFF * (2**retries)
@@ -223,23 +227,25 @@ class Anthropic(LLM):
                 await asyncio.sleep(backoff + jitter)
                 retries += 1
 
-        ret = self._metadata_from_response(kwargs, response, start)
+        ret = self._metadata_from_response(model_name, kwargs, response, start)
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
-        self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret["output"]
 
-    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> list[str]:
+    def generate_batch(
+        self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> list[str]:
         from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
         from anthropic.types.messages.batch_create_params import Request
 
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
-        model = model if model else self.model.name
-        if self.model.name != model:
-            logging.info(f"Overriding Gemini model from {self.model.name} to {model}")
+        model_name: str = model.name if model else self.model.name
+        if self.model.name != model_name:
+            logging.info(f"Overriding Gemini model from {self.model.name} to {model_name}")
 
-        cache_hits = [self._llm_cache_get(p, llm_kwargs, model=model) for p in prompts]
+        cache_hits = [self._llm_cache_get(p, llm_kwargs, model=model_name) for p in prompts]
 
         calls = []
         for p, ch, i in zip(prompts, cache_hits, range(len(prompts))):
@@ -265,8 +271,8 @@ class Anthropic(LLM):
                 raise ValueError(f"Call failed: {rs}")
             id = int(rs.custom_id)
             in_kwargs = get_generate_kwargs(prompts[id], llm_kwargs)
-            ret = self._metadata_from_response(in_kwargs, rs.result.message, starttime)
+            ret = self._metadata_from_response(model_name, in_kwargs, rs.result.message, starttime)
             cache_hits[id] = ret
-            self._llm_cache_set(prompts[id], llm_kwargs, ret, model=model)
+            self._llm_cache_set(prompts[id], llm_kwargs, ret, model=model_name)
 
         return [ch["output"] for ch in cache_hits]

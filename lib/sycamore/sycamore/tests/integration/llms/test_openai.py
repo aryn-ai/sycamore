@@ -113,16 +113,16 @@ def test_cached_guidance(tmp_path: Path):
     llm = OpenAI(OpenAIModels.GPT_3_5_TURBO, cache=cache)
     prompt = TestPrompt().render_generic()
 
-    key = llm._llm_cache_key(prompt, llm_kwargs={})
+    key = llm._llm_cache_key(prompt)
 
-    res = llm.generate(prompt=prompt, llm_kwargs=None)
+    res = llm.generate(prompt=prompt)
 
     # assert result is cached
     assert isinstance(cacheget(cache, key), dict)
     assert cacheget(cache, key).get("result") == res
     assert cacheget(cache, key).get("prompt") == prompt
     assert cacheget(cache, key).get("prompt.response_format") is None
-    assert cacheget(cache, key).get("llm_kwargs") is None
+    assert cacheget(cache, key).get("llm_kwargs") == {}  # We default this to {}
     assert cacheget(cache, key).get("model_name") == "gpt-3.5-turbo"
 
     # assert llm.generate is using cached result
@@ -130,7 +130,7 @@ def test_cached_guidance(tmp_path: Path):
         "result": "This is a custom response",
         "prompt": TestPrompt().render_generic(),
         "prompt.response_format": None,
-        "llm_kwargs": None,
+        "llm_kwargs": {},
         "model_name": "gpt-3.5-turbo",
     }
     cacheset(cache, key, custom_output)

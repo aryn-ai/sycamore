@@ -358,22 +358,24 @@ class OpenAI(LLM):
         kwargs.update({"messages": messages_list})
         return kwargs
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         llm_kwargs = self._convert_response_format(llm_kwargs)
-        model = model or self._model_name
-        if model != self._model_name:
-            logger.info(f"Overriding OpenAI model from {self._model_name} to {model}")
-        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
+        model_name: str = model.name if model else self._model_name
+        if model_name != self._model_name:
+            logger.info(f"Overriding OpenAI model from {self._model_name} to {model_name}")
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if ret is not None:
             return ret
 
         if prompt.response_format is not None:
-            ret = self._generate_using_openai_structured(model, prompt, llm_kwargs)
+            ret = self._generate_using_openai_structured(model_name, prompt, llm_kwargs)
         else:
-            ret = self._generate_using_openai(model, prompt, llm_kwargs)
+            ret = self._generate_using_openai(model_name, prompt, llm_kwargs)
 
-        self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret
 
     def _generate_using_openai(self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
@@ -407,7 +409,9 @@ class OpenAI(LLM):
                 completion_tokens, prompt_tokens = self.validate_tokens(completion)
                 wall_latency = datetime.now() - starttime
                 response_text = completion.choices[0].message.content
-                self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens, model=model)
+                self.add_llm_metadata(
+                    kwargs, response_text, wall_latency, completion_tokens, prompt_tokens, model=model
+                )
             else:
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
                 # completion = self.client_wrapper.get_client().beta.completions.parse(model=self._model_name, **kwargs)
@@ -419,12 +423,14 @@ class OpenAI(LLM):
             # 2.) The LLM refused to respond to the request because it did not meet guidelines
             raise e
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
-        model = model or self._model_name
-        if model != self._model_name:
-            logger.info(f"Overriding OpenAI model from {self._model_name} to {model}")
-        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
+        model_name: str = model.name if model else self._model_name
+        if model_name != self._model_name:
+            logger.info(f"Overriding OpenAI model from {self._model_name} to {model_name}")
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if ret is not None:
             return ret
 
@@ -436,9 +442,9 @@ class OpenAI(LLM):
         while not done:
             try:
                 if prompt.response_format is not None:
-                    ret = await self._generate_awaitable_using_openai_structured(model, prompt, llm_kwargs)
+                    ret = await self._generate_awaitable_using_openai_structured(model_name, prompt, llm_kwargs)
                 else:
-                    ret = await self._generate_awaitable_using_openai(model, prompt, llm_kwargs)
+                    ret = await self._generate_awaitable_using_openai(model_name, prompt, llm_kwargs)
                 done = True
             except APIConnectionError:
                 backoff = INITIAL_BACKOFF * (2**retries)
@@ -446,10 +452,12 @@ class OpenAI(LLM):
                 await asyncio.sleep(backoff + jitter)
                 retries += 1
 
-        self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret
 
-    async def _generate_awaitable_using_openai(self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
+    async def _generate_awaitable_using_openai(
+        self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]
+    ) -> str:
         kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
         starttime = datetime.now()
         if self.is_chat_mode():
@@ -496,12 +504,14 @@ class OpenAI(LLM):
             # 2.) The LLM refused to respond to the request because it did not meet guidelines
             raise e
 
-    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> list[str]:
+    def generate_batch(
+        self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> list[str]:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
-        model = model if model else self.model.name
-        if self.model.name != model:
-            logging.info(f"Overriding Gemini model from {self.model.name} to {model}")
-        cache_hits = [self._llm_cache_get(p, llm_kwargs, model=model) for p in prompts]
+        model_name: str = model.name if model else self.model.name
+        if self.model.name != model_name:
+            logging.info(f"Overriding Gemini model from {self.model.name} to {model_name}")
+        cache_hits = [self._llm_cache_get(p, llm_kwargs, model=model_name) for p in prompts]
 
         calls = []
         for p, ch, i in zip(prompts, cache_hits, range(len(prompts))):
@@ -509,7 +519,7 @@ class OpenAI(LLM):
                 continue
             kwargs = self._get_generate_kwargs(p, llm_kwargs)
             if "model" not in kwargs:
-                kwargs["model"] = model
+                kwargs["model"] = model_name
             call = {"custom_id": str(i), "method": "POST", "url": "/v1/chat/completions", "body": kwargs}
             calls.append(call)
         f = io.BytesIO()
@@ -541,8 +551,8 @@ class OpenAI(LLM):
                 response_text = cc.choices[0].message.content
                 ct, pt = self.validate_tokens(cc)
                 kws = call["body"]
-                self.add_llm_metadata(kws, response_text, wall_latency, ct, pt, model=model)
+                self.add_llm_metadata(kws, response_text, wall_latency, ct, pt, model=model_name)
                 cache_hits[id] = response_text
-                self._llm_cache_set(prompts[id], llm_kwargs, response_text, model=model)
+                self._llm_cache_set(prompts[id], llm_kwargs, response_text, model=model_name)
             return cache_hits
         raise ValueError(f"LLM batch call terminated with no output file or error file: {batch}")

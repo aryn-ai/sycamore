@@ -304,7 +304,7 @@ class LLMPropertyExtractor(PropertyExtractor):
                     try:
                         merged.update(extract_json(part) if isinstance(part, str) else part)
                     except json.JSONDecodeError:
-                        pass
+                        print(f"Failed to decode JSON for property '{k}': {part}")
                 d.properties[self._schema_name or "_entity"] = merged
                 return d
 

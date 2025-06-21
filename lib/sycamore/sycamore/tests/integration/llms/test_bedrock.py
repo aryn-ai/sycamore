@@ -143,12 +143,13 @@ def test_cached_bedrock_different_models(tmp_path: Path):
 
 
 def test_metadata():
-    llm = Bedrock(BedrockModels.CLAUDE_3_HAIKU)
+    model = BedrockModels.CLAUDE_3_HAIKU
+    llm = Bedrock(model)
     prompt = RenderedPrompt(
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
     )
 
-    res = llm.generate_metadata(prompt=prompt, llm_kwargs={})
+    res = llm.generate_metadata(model=model.value.name, prompt=prompt, llm_kwargs={})
 
     assert "output" in res
     assert "wall_latency" in res
@@ -158,8 +159,10 @@ def test_metadata():
 
 
 def test_default_llm_kwargs():
-    llm = Bedrock(BedrockModels.CLAUDE_3_HAIKU, default_llm_kwargs={"max_tokens": 5})
+    model = BedrockModels.CLAUDE_3_HAIKU
+    llm = Bedrock(model, default_llm_kwargs={"max_tokens": 5})
     res = llm.generate_metadata(
+        model=model.value.name,
         prompt=RenderedPrompt(
             messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
         )

@@ -140,12 +140,13 @@ def test_cached_anthropic_different_models(tmp_path: Path):
 
 
 def test_metadata():
-    llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU)
+    model = AnthropicModels.CLAUDE_3_HAIKU
+    llm = Anthropic(model)
     prompt = RenderedPrompt(
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
     )
 
-    res = llm.generate_metadata(prompt=prompt, llm_kwargs={})
+    res = llm.generate_metadata(model=model.name, prompt=prompt, llm_kwargs={})
 
     assert "output" in res
     assert "wall_latency" in res
@@ -154,9 +155,11 @@ def test_metadata():
 
 
 def test_default_llm_kwargs():
-    llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU, default_llm_kwargs={"max_tokens": 5})
+    model = AnthropicModels.CLAUDE_3_HAIKU
+    llm = Anthropic(model, default_llm_kwargs={"max_tokens": 5})
 
     res = llm.generate_metadata(
+        model=model.name,
         prompt=RenderedPrompt(
             messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
         )

@@ -37,11 +37,12 @@ def test_openai_defaults():
 
 
 def test_openai_override_defaults():
-    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO)
+    model = OpenAIModels.GPT_3_5_TURBO
+    llm = OpenAI(model)
     prompt = RenderedPrompt(
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
     )
-    res = llm.generate(prompt=prompt, llm_kwargs={"model": OpenAIModels.GPT_4O_MINI.value.name})
+    res = llm.generate(prompt=prompt, model=OpenAIModels.GPT_4O_MINI.value.name)
 
     assert len(res) > 0
 
@@ -52,7 +53,7 @@ def test_openai_override_defaults():
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")],
         response_format=StringResponseFormat,
     )
-    res = llm.generate(prompt=prompt, llm_kwargs={"model": OpenAIModels.GPT_4O_MINI.value.name})
+    res = llm.generate(prompt=prompt, model=OpenAIModels.GPT_4O_MINI.value.name)
 
     assert len(res) > 0
 
@@ -112,7 +113,7 @@ def test_cached_guidance(tmp_path: Path):
     llm = OpenAI(OpenAIModels.GPT_3_5_TURBO, cache=cache)
     prompt = TestPrompt().render_generic()
 
-    key = llm._llm_cache_key(prompt, None)
+    key = llm._llm_cache_key(prompt, llm_kwargs={})
 
     res = llm.generate(prompt=prompt, llm_kwargs=None)
 

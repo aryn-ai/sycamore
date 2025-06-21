@@ -6,7 +6,7 @@ import io
 
 from google.api_core import retry
 
-from sycamore.llms.config import GeminiModel, GeminiModels
+from sycamore.llms.config import GeminiModel, GeminiModels, LLMModel
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
@@ -30,7 +30,7 @@ class Gemini(LLM):
     @requires_modules("google.genai", extra="google-genai")
     def __init__(
         self,
-        model_name: Union[GeminiModels, str],
+        model_name: Union[GeminiModels, GeminiModel, str],
         default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
         api_key: Optional[str] = None,
@@ -38,12 +38,19 @@ class Gemini(LLM):
     ):
         from google.genai import Client
 
-        self.model_name = model_name
+        self.model_name = model_name # Is this supposed to a string?
 
         if isinstance(model_name, GeminiModels):
             self.model = model_name.value
+        elif isinstance(model_name, GeminiModel):
+            self.model = model_name
         elif isinstance(model_name, str):
-            self.model = GeminiModel(name=model_name)
+            self.model = GeminiModels.from_name(model_name).value
+            if self.model is None:
+                raise ValueError(f"Invalid model name: {model_name}")
+        else:
+            raise TypeError("model_name must be an instance of str, GeminiAIModel, or GeminiAIModels")
+
         api_key = api_key if api_key else os.getenv("GEMINI_API_KEY")
         self._client = Client(api_key=api_key)
         super().__init__(self.model.name, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
@@ -121,48 +128,47 @@ class Gemini(LLM):
         self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
         return ret
 
-    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def generate_metadata(self, *, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
         if isinstance(ret, dict):
             return ret
         assert ret is None
 
-        model = llm_kwargs.pop("model", self.model.name)
         if self.model.name != model:
             logger.info(f"Overriding Gemini model from {self.model.name} to {model}")
         kwargs = self.get_generate_kwargs(prompt, llm_kwargs)
 
         start = datetime.datetime.now()
         response = self.generate_content(model=self.model.name, contents=kwargs["content"], config=kwargs["config"])
-        response = self._client.models.generate_content(
-            model=model, contents=kwargs["content"], config=kwargs["config"]
-        )
         ret = self._metadata_from_response(kwargs, response, start)
         self._llm_cache_set(prompt, llm_kwargs, ret)
         return ret
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
+    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+        model = model if model else self.model.name
+        if self.model.name != model:
+            logger.info(f"Overriding Gemini model from {self.model.name} to {model}")
+        d = self.generate_metadata(model=model, prompt=prompt, llm_kwargs=llm_kwargs)
         return d["output"]
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+        model = model if model else self.model.name
+        if self.model.name != model:
+            logger.info(f"Overriding Gemini model from {self.model.name} to {model}")
 
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
         if isinstance(ret, dict):
             return ret["output"]
         assert ret is None
 
-        model = llm_kwargs.pop("model", self.model.name)
-        if self.model.name != model:
-            logger.info(f"Overriding Gemini model from {self.model.name} to {model}")
         kwargs = self.get_generate_kwargs(prompt, llm_kwargs)
 
         start = datetime.datetime.now()
         response = await self.generate_content_async(
-            model=self.model.name, contents=kwargs["content"], config=kwargs["config"]
+            model=model, contents=kwargs["content"], config=kwargs["config"]
         )
         ret = self._metadata_from_response(kwargs, response, start)
         self._llm_cache_set(prompt, llm_kwargs, ret)

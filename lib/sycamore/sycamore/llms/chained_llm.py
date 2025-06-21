@@ -2,6 +2,7 @@ import logging
 from typing import Optional, Callable
 
 from sycamore.llms import LLM
+from sycamore.llms.config import LLMModel, ChainedModel
 from sycamore.llms.llms import LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 
@@ -49,7 +50,7 @@ class ChainedLLM(LLM):
         """
         return self._chain
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
         """
         Generates a response by chaining multiple LLMs together.
 
@@ -64,16 +65,19 @@ class ChainedLLM(LLM):
         # The current strategy is to try each LLM in the chain until one succeeds.
         assert self._chain is not None and len(self._chain) > 0, "ChainedLLM must have at least one LLM in the chain."
 
-        models: dict[int, str] = llm_kwargs.pop("models", {}) if llm_kwargs else {}
         last_exception: Exception = RuntimeError("unknown error")
         index = 0
-        for llm in self._chain:
+        if model is not None:
+            if not isinstance(model, ChainedModel):
+                raise ValueError("model must be an instance of ChainedLLM")
+            model_list = [llm for llm in model.chain]
+        else:
+            model_list = [llm.model for llm in self._chain]
+        for model, llm in zip(model_list, self._chain):
             try:
-                if index in models:
-                    llm_kwargs = llm_kwargs or {}
-                    llm_kwargs["model"] = models.get(index)
+
                 logger.info(f"Generating response using LLM: {llm._model_name}")
-                response = llm.generate(prompt=prompt, llm_kwargs=llm_kwargs)
+                response = llm.generate(model=model, prompt=prompt, llm_kwargs=llm_kwargs)
                 if self.response_checker:
                     if self.response_checker(response):
                         return response
@@ -90,14 +94,20 @@ class ChainedLLM(LLM):
 
         raise last_exception
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters asynchronously."""
         assert self._chain is not None and len(self._chain) > 0, "ChainedLLM must have at least one LLM in the chain."
 
         last_exception: Exception = RuntimeError("unknown error")
-        for llm in self._chain:
+        if model is not None:
+            if not isinstance(model, ChainedModel):
+                raise ValueError("model must be an instance of ChainedLLM")
+            model_list = [llm for llm in model.chain]
+        else:
+            model_list = [llm.model for llm in self._chain]
+        for model, llm in zip(model_list, self._chain):
             try:
-                response = await llm.generate_async(prompt=prompt, llm_kwargs=llm_kwargs)
+                response = await llm.generate_async(model=model, prompt=prompt, llm_kwargs=llm_kwargs)
                 return response
             except Exception as e:
                 logger.exception(e)
@@ -105,14 +115,14 @@ class ChainedLLM(LLM):
 
         raise last_exception
 
-    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> list[str]:
         """Generates a series of responses from the LLM for the given series of prompts. Order is preserved."""
         assert self._chain is not None and len(self._chain) > 0, "ChainedLLM must have at least one LLM in the chain."
 
         last_exception: Exception = RuntimeError("unknown error")
         for llm in self._chain:
             try:
-                response = llm.generate_batch(prompts=prompts, llm_kwargs=llm_kwargs)
+                response = llm.generate_batch(prompts=prompts, llm_kwargs=llm_kwargs, model=model)
                 return response
             except Exception as e:
                 logger.exception(e)

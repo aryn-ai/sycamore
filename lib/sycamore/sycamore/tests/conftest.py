@@ -1,3 +1,5 @@
+import shutil
+
 import pytest
 from pyarrow.fs import LocalFileSystem
 
@@ -30,3 +32,23 @@ def exec_mode(request):
                 ...
     """
     return request.param
+
+@pytest.fixture(scope="function", autouse=True)
+def check_huggingface_hub(request):
+    """
+    Use this to find tests that download a model from Huggingface.
+    """
+
+    import os
+    hf_cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
+    curr_test = request.node.name
+    if os.path.exists(hf_cache_dir):
+        # try2 = os.environ.get('PYTEST_CURRENT_TEST').split(':')[-1].split(' ')[0]
+        print(f"!!!!!! BEFORE: {curr_test} Hugging Face Hub cache exists.")
+        shutil.rmtree(hf_cache_dir)
+
+    yield
+
+    if os.path.exists(hf_cache_dir):
+        print(f"!!!!!! AFTER: {curr_test} Hugging Face Hub cache exists.")
+        shutil.rmtree(hf_cache_dir)

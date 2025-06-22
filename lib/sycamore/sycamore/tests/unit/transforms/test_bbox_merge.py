@@ -10,7 +10,7 @@ from sycamore.transforms import (
     SortByPageBbox,
 )
 from sycamore.transforms.merge_elements import Merge, MarkedMerger
-from sycamore.functions.tokenizer import HuggingFaceTokenizer
+from sycamore.functions.tokenizer import CharacterTokenizer
 from sycamore.plan_nodes import Node
 
 
@@ -66,7 +66,7 @@ class TestBboxMerge:
             ],
         }
     )
-    tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
+    tokenizer = CharacterTokenizer()
 
     def testMergeElements(self):
         doc = Document(self.doc)
@@ -78,14 +78,14 @@ class TestBboxMerge:
         doc = MarkBreakByTokens(None, self.tokenizer, 512).run(doc)
         doc = MarkedMerger().merge_elements(doc)
         merged = doc.elements
-        assert len(merged) == 5
+        assert len(merged) == 6
 
         assert merged[0].text_representation.startswith("previous page")
         assert merged[0].properties["page_number"] == 1
         assert merged[0].properties["page_numbers"] == [1]
         assert merged[1].text_representation.startswith("top of page")
-        assert merged[2].text_representation.startswith("wide text")
-        assert merged[4].text_representation.startswith("next page")
+        assert merged[3].text_representation.startswith("wide text")
+        assert merged[5].text_representation.startswith("next page")
 
         for elem in merged:
             assert "0" not in elem.text_representation
@@ -100,19 +100,19 @@ class TestBboxMerge:
         doc = MarkBreakByTokens(None, self.tokenizer, 512).run(doc)
         doc = MarkedMerger().merge_elements(doc)
         merged = doc.elements
-        assert len(merged) == 3
+        assert len(merged) == 4
 
         assert merged[0].text_representation.startswith("previous page")
         assert merged[0].properties["page_number"] == 1
         assert merged[0].properties["page_numbers"] == [1, 2]
 
-        assert merged[1].text_representation.startswith("wide text")
-        assert merged[1].properties["page_number"] == 2
-        assert merged[1].properties["page_numbers"] == [2]
-
-        assert merged[2].text_representation.startswith("lorem")
+        assert merged[2].text_representation.startswith("wide text")
         assert merged[2].properties["page_number"] == 2
-        assert merged[2].properties["page_numbers"] == [2, 3]
+        assert merged[2].properties["page_numbers"] == [2]
+
+        assert merged[3].text_representation.startswith("lorem")
+        assert merged[3].properties["page_number"] == 2
+        assert merged[3].properties["page_numbers"] == [2, 3]
 
         for elem in merged:
             assert "0" not in elem.text_representation

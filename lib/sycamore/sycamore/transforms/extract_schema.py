@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Callable, Optional, Union, List
 import json
 import sycamore
+import logging
 from sycamore import ExecMode
 from sycamore.data import Element, Document
 from sycamore.schema import Schema
@@ -11,7 +12,6 @@ from sycamore.llms.prompts.default_prompts import (
     PropertiesFromSchemaJinjaPrompt,
     SchemaZeroShotJinjaPrompt,
 )
-from pathlib import Path
 from sycamore.llms.prompts import SycamorePrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
@@ -25,24 +25,9 @@ from sycamore.llms.prompts.default_prompts import MetadataExtractorJinjaPrompt
 
 def cluster_schema_json(
     schema_json: dict,
-    *,
     k: int = 5,
-    cache_file: Path | None = None,
-    recompute: bool = False,
     embed_model: str = "text-embedding-3-small",
 ) -> List[Document]:
-    if cache_file and cache_file.exists() and not recompute:
-        with open(cache_file) as f:
-            payload = json.load(f)
-
-        docs = []
-        for row in payload:
-            d = Document(**row)
-            d["cluster"] = row["cluster"]
-            docs.append(d)
-
-        return docs
-
     field_docs: List[Document] = []
     for fld in schema_json["fields"]:
         txt = f"Field: {fld['name']}\nDescription: {fld.get('description', '')}"
@@ -62,10 +47,6 @@ def cluster_schema_json(
         if cluster not in groups:
             groups[cluster] = Document()
         groups[cluster].elements.append(Element(**d))
-
-    if cache_file:
-        cache_file.write_text(json.dumps(groups, ensure_ascii=False, indent=2))
-
     return ctx.read.document(list(groups.values())).take_all()
 
 
@@ -288,8 +269,6 @@ class LLMPropertyExtractor(PropertyExtractor):
                         "default": field.get("default"),
                         "examples": field.get("examples"),
                     }
-
-                count += 1
                 prompt = MetadataExtractorJinjaPrompt.fork(
                     entity_name=schema_name,
                     response_format=schema,
@@ -298,14 +277,28 @@ class LLMPropertyExtractor(PropertyExtractor):
                 child = LLMMap(child, prompt=prompt, output_field=schema_name, llm=self._llm, **kwargs)
 
             def _merge(d: Document) -> Document:
-                merged: dict = {}
+                merged_metadata: dict = {}
+                merged_provenance: dict = {}
                 for k in tmp_props:
+                    temp_metadata = {}
+                    temp_provenance = {}
                     part = d.properties.pop(k, "{}")
                     try:
-                        merged.update(extract_json(part) if isinstance(part, str) else part)
+                        if isinstance(part, str):
+                            part_json = extract_json(part)
+                            if isinstance(part_json, dict):
+                                for k, v in part_json.items():
+                                    if v:
+                                        temp_metadata[k] = v[0]
+                                        temp_provenance[k] = v[1]
+                                    else:
+                                        temp_metadata[k] = None
+                            merged_metadata.update(temp_metadata)
+                            merged_provenance.update(temp_provenance)
                     except json.JSONDecodeError:
-                        print(f"Failed to decode JSON for property '{k}': {part}")
-                d.properties[self._schema_name or "_entity"] = merged
+                        logging.error(f"Failed to decode JSON for property '{k}': {part}")
+                d.properties[self._schema_name or "_entity"] = merged_metadata
+                d.properties[(self._schema_name or "_entity") + "_metadata"] = merged_provenance
                 return d
 
             return Map(child, f=_merge)

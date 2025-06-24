@@ -24,7 +24,7 @@ from sycamore.llms.prompts.default_prompts import MetadataExtractorJinjaPrompt
 import math
 
 
-def cluster_schema_json(schema: Schema, k: Optional[int] = None, embedder: Optional[Embedder] = None) -> List[Document]:
+def cluster_schema_json(schema: Schema, cluster_size: int, embedder: Optional[Embedder] = None) -> List[Document]:
     field_docs: List[Document] = []
     for fld in schema.fields:
         txt = f"Field: {fld.name}\nDescription: {fld.description or ''}"
@@ -34,7 +34,7 @@ def cluster_schema_json(schema: Schema, k: Optional[int] = None, embedder: Optio
     ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
     embeddings = ctx.read.document(field_docs).embed(embedder)
 
-    centroids = embeddings.kmeans(K=k or round(math.sqrt(len(schema.fields))), iterations=40)
+    centroids = embeddings.kmeans(K=cluster_size or round(math.sqrt(len(schema.fields))), iterations=40)
     clds = embeddings.clustering(centroids, cluster_field_name="cluster")
 
     clusters_docs = clds.take_all()
@@ -44,6 +44,20 @@ def cluster_schema_json(schema: Schema, k: Optional[int] = None, embedder: Optio
         if cluster not in groups:
             groups[cluster] = Document()
         groups[cluster].elements.append(Element(**d))
+    return ctx.read.document(list(groups.values())).take_all()
+
+
+def batch_schema_json(schema: Schema, batch_size: int) -> List[Document]:
+    groups = {}
+    for batch_num in range(batch_size):
+        groups[batch_num] = Document()
+
+    field_count = len(schema.fields)
+
+    for field_num in range(field_count):
+        batch = field_num % batch_size
+        groups[batch].elements.append(Element(**schema.fields[field_num].__dict__))
+    ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
     return ctx.read.document(list(groups.values())).take_all()
 
 
@@ -198,7 +212,8 @@ class LLMPropertyExtractor(PropertyExtractor):
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
         metadata_extraction: bool = False,
         embedder: Optional[Embedder] = None,
-        cluster: Optional[int] = None,
+        group_size: Optional[int] = None,
+        clustering: bool = True,
     ):
         super().__init__()
         self._llm = llm
@@ -207,8 +222,9 @@ class LLMPropertyExtractor(PropertyExtractor):
         self._num_of_elements = num_of_elements
         self._metadata_extraction = metadata_extraction
         self._prompt_formatter = prompt_formatter
-        self._cluster = cluster
+        self._group_size = group_size
         self._embedder = embedder
+        self._clustering = clustering
 
     def extract_docs(self, docs: list[Document]) -> list[Document]:
         jsonextract_node = self.as_llm_map(None)
@@ -254,7 +270,13 @@ class LLMPropertyExtractor(PropertyExtractor):
         prompt: SycamorePrompt  # mypy grr
         if self._metadata_extraction:
             assert isinstance(self._schema, Schema), "check format of schema passed"
-            clusters_docs = cluster_schema_json(schema=self._schema, embedder=self._embedder)
+            self._group_size = self._group_size or round(math.sqrt(len(self._schema.fields)))
+            if self._clustering:
+                clusters_docs = cluster_schema_json(
+                    schema=self._schema, embedder=self._embedder, cluster_size=self._group_size
+                )
+            else:
+                clusters_docs = batch_schema_json(schema=self._schema, batch_size=self._group_size)
             tmp_props: list[str] = []
             for count, field_doc in enumerate(clusters_docs):
                 schema = {}

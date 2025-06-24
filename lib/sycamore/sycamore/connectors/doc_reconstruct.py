@@ -39,6 +39,15 @@ class RAGDocumentReconstructor(DocumentReconstructor):
     ):
         super().__init__(index_name, reconstruct_fn=None)
 
+    def get_required_source_fields(self) -> list[str]:
+        fields = [
+            "doc_id",
+            "parent_id",
+            "properties",
+            "type",
+        ]
+        return fields
+
     def reconstruct(self, output: list[dict]) -> list[Document]:
         result: list[Document] = []
         unique_docs: dict[str, Document] = {}

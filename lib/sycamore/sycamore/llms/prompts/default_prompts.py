@@ -110,21 +110,14 @@ MetadataExtractorJinjaPrompt = JinjaPrompt(
         The schema includes some description and type hints to help you
         find them in the document. Make sure to not use comma for number. Do not output these hints.
         Return all the properties. If a property is not present in the document return null.
-        Output ONLY JSON conforming to this schema, and nothing else, pass it json between '```json {JSON}```.
-
-        Data:
-        Properties extracted so far:
-        {% for p in doc.properties %}{% if p is not mapping %}{% continue %}{% endif %}{% for pk in doc.properties[p] %}
-        {{ p }}.{{ pk }}: {{ doc.properties[p][pk] }}
-        {% endfor %}{% endfor %}
-
+        Output ONLY JSON conforming to this schema, and nothing else, pass it as json between '```json {JSON}```.
 
         Text:
         {% for elt in doc.elements %}
         Page Number {{ elt['properties']['page_number'] }}: {{ elt.text_representation }}
         {% endfor %}
 
-        Make sure to return the output tuple with square brackets
+        Make sure to return the output tuple with square brackets.
 
         """,
 )

@@ -19,22 +19,17 @@ from sycamore.transforms.map import Map
 from sycamore.transforms.base_llm import LLMMap
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.time_trace import timetrace
-from sycamore.transforms.embed import OpenAIEmbedder
+from sycamore.transforms.embed import Embedder
 from sycamore.llms.prompts.default_prompts import MetadataExtractorJinjaPrompt
 
 
-def cluster_schema_json(
-    schema_json: dict,
-    k: int = 5,
-    embed_model: str = "text-embedding-3-small",
-) -> List[Document]:
+def cluster_schema_json(schema_json: dict, k: int = 5, embedder: Optional[Embedder] = None) -> List[Document]:
     field_docs: List[Document] = []
     for fld in schema_json["fields"]:
         txt = f"Field: {fld['name']}\nDescription: {fld.get('description', '')}"
         field_docs.append(Document(text_representation=txt, **fld))
 
     ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
-    embedder = OpenAIEmbedder(embed_model)
     embeddings = ctx.read.document(field_docs).embed(embedder)
 
     centroids = embeddings.kmeans(K=k, iterations=40)
@@ -200,7 +195,8 @@ class LLMPropertyExtractor(PropertyExtractor):
         num_of_elements: Optional[int] = None,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
         metadata_extraction: bool = False,
-        cluster: int = 5,
+        embedder: Optional[Embedder] = None,
+        cluster: Optional[int] = None,
     ):
         super().__init__()
         self._llm = llm
@@ -210,6 +206,7 @@ class LLMPropertyExtractor(PropertyExtractor):
         self._metadata_extraction = metadata_extraction
         self._prompt_formatter = prompt_formatter
         self._cluster = cluster
+        self._embedder = embedder
 
     def extract_docs(self, docs: list[Document]) -> list[Document]:
         jsonextract_node = self.as_llm_map(None)
@@ -255,7 +252,7 @@ class LLMPropertyExtractor(PropertyExtractor):
         prompt: SycamorePrompt  # mypy grr
         if self._metadata_extraction:
             assert isinstance(self._schema, dict), "check format of json schema passed"
-            clusters_docs = cluster_schema_json(self._schema)
+            clusters_docs = cluster_schema_json(schema_json=self._schema, embedder=self._embedder)
             tmp_props: list[str] = []
             for count, field_doc in enumerate(clusters_docs):
                 schema = {}

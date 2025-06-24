@@ -45,6 +45,7 @@ class RAGDocumentReconstructor(DocumentReconstructor):
             "parent_id",
             "properties",
             "type",
+            "text_representation",
         ]
         return fields
 

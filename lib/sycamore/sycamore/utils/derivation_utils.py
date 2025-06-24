@@ -1,14 +1,5 @@
-import sys
-import os
-from typing import Dict, Any
-import re
 from collections import deque, defaultdict
 
-root_dir = os.path.normpath(os.path.dirname(__file__) + "/../..")
-sys.path.append(root_dir)
-
-
-field_type_lookup: Dict[str, Any] = {}
 
 class UnitConverter:
     def __init__(self):
@@ -53,8 +44,7 @@ class UnitDerivation:
         self.properties = properties
         self.metadata = metadata
         self.unitConverter = unitConverter
-        self.unit_map = unit_map or  {
-        }
+        self.unit_map = unit_map or {}
 
     def derive_conversion(self, to_property_name: str, from_property_name: str) -> bool:
         if to_property_name in self.properties:
@@ -77,63 +67,6 @@ class UnitDerivation:
                 return False
         return False
 
-    def derive_ratio(self, ratio_name: str, numerator_prop: str, denominator_prop: str) -> bool:
-        if ratio_name in self.properties:
-            return False  # Don't overwrite existing values
-
-        numerator = self.properties.get(numerator_prop)
-        denominator = self.properties.get(denominator_prop)
-
-        if numerator is None or denominator is None or denominator == 0:
-            return False
-
-        try:
-            ratio_value = numerator / denominator
-            self.properties[ratio_name] = round(ratio_value, 4)
-            self.metadata[ratio_name] = [numerator_prop, denominator_prop]
-            return True
-        except (ZeroDivisionError, TypeError):
-            return False
-
-    def derive_percentage(
-        self, percentage_name: str, part_prop: str, total_prop: str, max_value: float = 100.0
-    ) -> bool:
-        if percentage_name in self.properties:
-            return False
-
-        part = self.properties.get(part_prop)
-        total = self.properties.get(total_prop)
-
-        if part is None or total is None or total == 0:
-            return False
-
-        try:
-            percentage = min((part / total) * 100.0, max_value)
-            self.properties[percentage_name] = round(percentage, 2)
-            self.metadata[percentage_name] = [part_prop, total_prop]
-            return True
-        except (ZeroDivisionError, TypeError):
-            return False
-
-    def derive_per_unit_metric(
-        self, metric_name: str, total_prop: str, unit_prop: str, unit_divisor: float = 1.0, precision: int = 2
-    ) -> bool:
-        if metric_name in self.properties:
-            return False
-        total = self.properties.get(total_prop)
-        units = self.properties.get(unit_prop)
-
-        if total is None or units is None or units == 0:
-            return False
-
-        try:
-            per_unit_value = total / (units / unit_divisor)
-            self.properties[metric_name] = round(per_unit_value, precision)
-            self.metadata[metric_name] = [total_prop, unit_prop]
-            return True
-        except (ZeroDivisionError, TypeError):
-            return False
-
     def derive_all_conversion(self, to_property_name, from_property_name, unit_map: None):
         self.unit_map = unit_map or self.unit_map
         if to_property_name not in self.properties and from_property_name not in self.properties:
@@ -145,80 +78,114 @@ class UnitDerivation:
             to_unit = self.unit_map[to_property_name]
             from_unit = self.unit_map[from_property_name]
             if value1 is not None:
-                if isinstance(value1, str):
-                    value1 = extract_numbers(value1)
                 converted_value = self.unitConverter.convert(value1, from_unit, to_unit)
                 self.properties[to_property_name] = converted_value
                 self.metadata[to_property_name] = [from_property_name]
                 return True
         return False
 
-    def fill_missing_units(self, list_of_fields, unit_map ):
-        # Check if all fields are None
+    def fill_missing_units(self, list_of_fields, unit_map):
         fields_with_value = [field for field in list_of_fields if self.properties.get(field) is not None]
         if len(fields_with_value) == 0:
             return
         reference_field = fields_with_value[0]
-        # Fill in missing fields using the reference field
         for field in list_of_fields:
-            if field == reference_field:  # Skip the reference field itself
+            if field == reference_field:
                 continue
 
-            if self.properties.get(field) is None:  # Only fill in if the field is None
-                self.derive_all_conversion(field, reference_field, unit_map )
+            if self.properties.get(field) is None:
+                self.derive_all_conversion(field, reference_field, unit_map)
 
 
 class PropertyDerivation(UnitConverter, UnitDerivation):
-    def __init__(self, properties , metadata = None):
+    def __init__(self, properties, metadata=None):
 
-        self.properties = properties 
+        self.properties = properties
         self.metadata = metadata or {}
-        UnitConverter.__init__(self)  # This calls UnitConver
+        UnitConverter.__init__(self)
         self.unit_map = {}
         UnitDerivation.__init__(self, self.properties, self.metadata, self, self.unit_map)
-        self.group = []   
-    
+        self.group = []
+
     def unit_group(self, group):
         temp_group = []
-        for property,unit in group:
+        for property, unit in group:
             self.unit_map[property] = unit
             temp_group.append(property)
         self.fill_missing_units(temp_group, self.unit_map)
         self.group.append(temp_group)
 
-    def evaluate_formula(self, formula_string):
-        left_side, target_property = formula_string.split("=")
-        target_property = target_property.strip()
+    def fill_from_formula(self, formula_string: str):
+        ops = "+-*/"
+        left, right = [part.strip() for part in formula_string.split("=")]
+        if any(op in left for op in ops):
+            expr, target = left, right  #  a op b = target
+        else:
+            expr, target = right, left  #  target = a op b
+        for op in ops:
+            if op in expr:
+                a_sym, b_sym = [t.strip() for t in expr.split(op, 1)]
+                operator_symbol = op
+                break
+        else:
+            raise ValueError("No arithmetic operator found in formula")
 
-        # tokens = re.findall(r'[a-zA-Z_][a-zA-Z0-9_/()]*|[+\-*/()]', left_side.strip())
-        # expression_parts = []
-        # for token in tokens:
-        #     if token in ['+', '-', '*', '/']:
-        #         expression_parts.append(token)
-        #     else:
-        #         value = 
+        def value_of(token):
+            return self.properties.get(token)
 
-        elements_formula = formula_string.split(" ")[::-1]
-        target = elements_formula[-1]
-        elements = elements_formula[:-2]
-        queue = []
-        for element in elements:
-            if element in ['+', '-', '*', '/']:
-                queue.append(element)
-            else:
-                temp = self.properties.get(element, None)
-                if temp:
-                    queue.append(str(temp))
-        self.properties[target]  = eval(''.join(queue)) 
+        val_a = value_of(a_sym)
+        val_b = value_of(b_sym)
+        val_target = value_of(target)
+
+        known = sum(x is not None for x in (val_a, val_b, val_target))
+        if known != 2:
+            return
+
+        #  compute the missing one
+        if val_target is None:  # find target
+            if operator_symbol == "+":
+                val_target = val_a + val_b
+            elif operator_symbol == "-":
+                val_target = val_a - val_b
+            elif operator_symbol == "*":
+                val_target = val_a * val_b
+            elif operator_symbol == "/":
+                val_target = val_a / val_b
+            self.properties[target] = val_target
+
+        elif val_a is None:  # find a
+            if operator_symbol == "+":
+                val_a = val_target - val_b
+            elif operator_symbol == "-":  # target = a - b
+                val_a = val_target + val_b
+            elif operator_symbol == "*":
+                val_a = val_target / val_b
+            elif operator_symbol == "/":  # target = a / b
+                val_a = val_target * val_b
+            self.properties[a_sym] = val_a
+
+        elif val_b is None:  # find b
+            if operator_symbol == "+":
+                val_b = val_target - val_a
+            elif operator_symbol == "-":  # target = a - b
+                val_b = val_a - val_target
+            elif operator_symbol == "*":
+                val_b = val_target / val_a
+            elif operator_symbol == "/":  # target = a / b
+                val_b = val_a / val_target
+            self.properties[b_sym] = val_b
+
         return self.properties
 
-properties = {'airspeed': 101, 'altitude_cm':12}
+
+properties = {"airspeed": 101, "altitude_cm": 12, "airPerAl": 20}
 ud = PropertyDerivation(properties)
 ud.add_conversion("m", "cm", 100.0)
+ud.add_conversion("cm", "mm", 10.0)
 
 ud.unit_group([("airspeed", "cm"), ("airspeed_m", "m")])
-ud.unit_group([("altitude", "m"), ("altitude_cm", "cm")])
+ud.unit_group([("altitude", "mm"), ("altitude_cm", "cm")])
 
-ud.evaluate_formula("airPerAl = airspeed_m / altitude")
+ud.fill_from_formula("airPerAl = airspeed_m / altitude_m")
 
 print(properties)

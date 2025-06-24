@@ -153,7 +153,7 @@ class Tesseract(OcrModel):
 
 
 class LegacyOcr(OcrModel):
-    """Match existing behavior where we use tesseract for the main text and EasyOcr for tables."""
+    """Legacy behavior using Tesseract for text and EasyOcr for tables."""
 
     @requires_modules(["easyocr", "pytesseract"], extra="local-inference")
     def __init__(self):
@@ -172,23 +172,28 @@ class LegacyOcr(OcrModel):
 
 
 class PaddleOcr(OcrModel):
+    """
+    PaddleOCR is a state-of-the-art OCR model that uses a combination of
+    convolutional neural networks and transformer models to extract text from images.
+    It is the default OCR model for Sycamore.
+    """
+
     # NOTE: Also requires the installation of paddlepaddle or paddlepaddle-gpu
     # depending on your system
     @requires_modules(["paddleocr", "paddle"], extra="local-inference")
     def __init__(self, language="en", **kwargs):
-        from paddleocr import PaddleOCR, logger
+        from paddleocr import PaddleOCR
         import paddle
 
-        logger.setLevel(logging.CRITICAL)
-        self.device = "gpu" if paddle.device.is_compiled_with_cuda() else "cpu"
-        self.reader = PaddleOCR(
-            device=self.device,
+        device = "gpu" if paddle.device.is_compiled_with_cuda() else "cpu"
+        self.predictor = PaddleOCR(
+            device=device,
             lang=language,
             **kwargs,
         )
 
     def get_text(self, image: Image.Image) -> tuple[str, Optional[float]]:
-        result = self.reader.predict(np.array(image))
+        result = self.predictor.predict(np.array(image))
         if result and (res := result[0]):
             text_values = []
             font_sizes = []
@@ -200,7 +205,7 @@ class PaddleOcr(OcrModel):
         return "", None
 
     def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
-        result = self.reader.predict(np.array(image))
+        result = self.predictor.predict(np.array(image))
         out: list[dict[str, Any]] = []
         if not result or not (res := result[0]):
             return out
@@ -211,7 +216,7 @@ class PaddleOcr(OcrModel):
                     "text": text,
                 }
             )
-        return out  # type: ignore
+        return out
 
     def __name__(self):
         return "PaddleOcr"

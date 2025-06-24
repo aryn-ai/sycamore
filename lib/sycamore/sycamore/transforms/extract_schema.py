@@ -21,18 +21,20 @@ from sycamore.utils.extract_json import extract_json
 from sycamore.utils.time_trace import timetrace
 from sycamore.transforms.embed import Embedder
 from sycamore.llms.prompts.default_prompts import MetadataExtractorJinjaPrompt
+import math
 
 
-def cluster_schema_json(schema_json: dict, k: int = 5, embedder: Optional[Embedder] = None) -> List[Document]:
+def cluster_schema_json(schema: Schema, k: Optional[int] = None, embedder: Optional[Embedder] = None) -> List[Document]:
     field_docs: List[Document] = []
-    for fld in schema_json["fields"]:
-        txt = f"Field: {fld['name']}\nDescription: {fld.get('description', '')}"
-        field_docs.append(Document(text_representation=txt, **fld))
+    for fld in schema.fields:
+        txt = f"Field: {fld.name}\nDescription: {fld.description or ''}"
+        # txt = f"Field: {fld['name']}\nDescription: {fld.get('description', '')}"
+        field_docs.append(Document(text_representation=txt, **fld.__dict__))
 
     ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
     embeddings = ctx.read.document(field_docs).embed(embedder)
 
-    centroids = embeddings.kmeans(K=k, iterations=40)
+    centroids = embeddings.kmeans(K=k or round(math.sqrt(len(schema.fields))), iterations=40)
     clds = embeddings.clustering(centroids, cluster_field_name="cluster")
 
     clusters_docs = clds.take_all()
@@ -251,8 +253,8 @@ class LLMPropertyExtractor(PropertyExtractor):
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
         prompt: SycamorePrompt  # mypy grr
         if self._metadata_extraction:
-            assert isinstance(self._schema, dict), "check format of json schema passed"
-            clusters_docs = cluster_schema_json(schema_json=self._schema, embedder=self._embedder)
+            assert isinstance(self._schema, Schema), "check format of schema passed"
+            clusters_docs = cluster_schema_json(schema=self._schema, embedder=self._embedder)
             tmp_props: list[str] = []
             for count, field_doc in enumerate(clusters_docs):
                 schema = {}

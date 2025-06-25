@@ -198,7 +198,7 @@ class PaddleOcr(OcrModel):
             text_values = []
             font_sizes = []
             for value, bbox in zip(res["rec_texts"], res["rec_boxes"]):
-                text_values.append(value[1][0])
+                text_values.append(value)
                 font_sizes.append(bbox[3] - bbox[1])
             avg_font_size = sum(font_sizes) / len(font_sizes) if font_sizes else None
             return " ".join(text_values), avg_font_size

@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 from sycamore.context import Context, ExecMode
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
-
+import sycamore
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def sycamore_ray_init(**ray_args) -> None:
         ray_args.update({"logging_level": logging.INFO})
 
     if "runtime_env" not in ray_args:
-        ray_args["runtime_env"] = {}
+        ray_args["runtime_env"] = {"py_modules": ["sycamore"]}
 
     if "worker_process_setup_hook" not in ray_args["runtime_env"]:
         # logging.error("Spurious log 0: If you do not see spurious log 1 & 2,

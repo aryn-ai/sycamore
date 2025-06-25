@@ -1,22 +1,13 @@
 import pdf2image
+import tempfile
+
 from sycamore.transforms.text_extraction.ocr_models import PaddleOcr
-import os
+from sycamore.tests.config import TEST_DIR
 
 
 class TestPaddleOcr:
     def test_paddle_ocr_on_pdf(self):
-        document = os.path.realpath(
-            os.path.join(
-                os.path.dirname(__file__),
-                "..",
-                "..",
-                "..",
-                "resources",
-                "data",
-                "pdfs",
-                "Ray_page1.pdf",
-            )
-        )
+        document = TEST_DIR / "resources" / "data" / "pdfs" / "Transformer.pdf"
         reader = PaddleOcr(
             text_detection_model_name="PP-OCRv5_mobile_det",
             text_recognition_model_name="PP-OCRv5_mobile_rec",
@@ -24,14 +15,14 @@ class TestPaddleOcr:
             use_doc_orientation_classify=False,
             use_textline_orientation=False,
         )
-        with open(document, "rb") as f:
-            images = pdf2image.convert_from_bytes(f.read())
-            with open("test.txt", "w") as f:
-                f.write("change")
-            image = images[0]
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with open(document, "rb") as f:
+                images = pdf2image.convert_from_bytes(f.read(), output_folder=tmp_dir)
+                image = images[0]
             output = reader.get_boxes_and_text(image)
+
             texts = " ".join([o["text"] for o in output])
-            with open("test.txt", "w") as f:
-                f.write(texts)
-            assert "Ray: A Distributed Framework for Emerging AI Applications" in texts
-            assert "The next generation of AI applications will continuously" in texts
+
+            # Doesn't work in Paddle 2.0
+            assert "the Transformer, based" in texts
+            assert "modeling and transduction problems" in texts

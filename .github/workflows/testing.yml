@@ -177,6 +177,9 @@ jobs:
           cache: "poetry"
       - name: Install sycamore
         run: poetry install --all-extras --no-root
+      - name: Install Paddle CPU
+        run: poetry run pip install "paddlepaddle>=3.0.0,<=4.0.0"
+        shell: bash
       - name: Download nltk packages
         run: poetry run python -m nltk.downloader punkt_tab averaged_perceptron_tagger_eng
       - name: Update Apt

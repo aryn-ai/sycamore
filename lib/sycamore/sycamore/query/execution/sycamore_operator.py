@@ -238,6 +238,11 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
                 RAGDocumentReconstructor(index_name=self.logical_node.index) if self.logical_node.rag_mode else None
             ),
             result_filter=self.logical_node.result_filter,
+            query_kwargs={
+                "size": (
+                    os_query["query"]["knn"]["embedding"]["k"] if "k" in os_query["query"]["knn"]["embedding"] else 500
+                )
+            },
         ).map(remove_original_elements)
         if self.rerank:
             result = result.rerank(query=self.logical_node.query_phrase)

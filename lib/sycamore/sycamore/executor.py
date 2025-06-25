@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Iterable, TYPE_CHECKING
+from typing import Any, Callable, Iterable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ray.data import Dataset
@@ -39,7 +39,7 @@ def _ray_logging_setup():
     # other_logger.info("RayLoggingSetup-After-3")
 
 
-def sycamore_ray_init(**ray_args) -> None:
+def sycamore_ray_init(**ray_args: Any) -> None:
     import ray
 
     if ray.is_initialized():
@@ -50,12 +50,13 @@ def sycamore_ray_init(**ray_args) -> None:
         ray_args.update({"logging_level": logging.INFO})
 
     if "runtime_env" not in ray_args:
-        ray_args["runtime_env"] = {"py_modules": [sycamore]}
+        new_val: dict[str, Any] = {"py_modules": [sycamore]}  # Make mypy happy.
+        ray_args["runtime_env"] = new_val
 
     if "worker_process_setup_hook" not in ray_args["runtime_env"]:
         # logging.error("Spurious log 0: If you do not see spurious log 1 & 2,
         # log messages are being dropped")
-        ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup  # type: ignore
+        ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
 
     ray.init(**ray_args)
 

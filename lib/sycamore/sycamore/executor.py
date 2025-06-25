@@ -50,12 +50,12 @@ def sycamore_ray_init(**ray_args) -> None:
         ray_args.update({"logging_level": logging.INFO})
 
     if "runtime_env" not in ray_args:
-        ray_args["runtime_env"] = {"py_modules": ["sycamore"]}
+        ray_args["runtime_env"] = {"py_modules": [sycamore]}
 
     if "worker_process_setup_hook" not in ray_args["runtime_env"]:
         # logging.error("Spurious log 0: If you do not see spurious log 1 & 2,
         # log messages are being dropped")
-        ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
+        ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup  # type: ignore
 
     ray.init(**ray_args)
 

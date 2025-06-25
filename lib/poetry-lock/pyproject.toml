@@ -22,10 +22,8 @@ protobuf = "^5.29.5"
 
 # Required to continue supporting python 3.9; it may be possible to make these a bit more
 # current, but latest version no longer supports 3.9
-#scipy = "1.13.1" 
 networkx = "3.2.1"
 ipython = "8.18.1"
-#onnxruntime = "1.19.0" # Required by unstructured
 
 # Package versions from being yanked
 matplotlib = "3.10.3"

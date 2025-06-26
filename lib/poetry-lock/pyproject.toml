@@ -26,6 +26,7 @@ protobuf = "^5.29.5"
 networkx = "3.2.1"
 ipython = "8.18.1"
 onnxruntime = "1.22.0" # Used by Unstructured. Necessary for python 3.13
+onnx = "1.18.0"
 
 # Package versions from being yanked
 matplotlib = "3.10.3"

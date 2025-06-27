@@ -12,15 +12,15 @@ from sycamore.connectors.opensearch.opensearch_writer import OpenSearchWriterCli
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-client = OpenSearch(hosts=[{'host': 'localhost', 'port': 9200}], verify_certs=False, use_ssl=True)
+client = OpenSearch(hosts=[{"host": "localhost", "port": 9200}], verify_certs=False, use_ssl=True)
 if False:
-    print (client.indices.get_alias("*"))
+    print(client.indices.get_alias("*"))
     exit(0)
 
 if False:
     client.indices.delete("missing-xx")
-                        
-    
+
+
 if False:
     d = [Document(doc_id=path_to_sha256_docid(str(i)), text_representation=str(i)) for i in range(5)]
     sycamore.init(exec_mode=sycamore.EXEC_LOCAL).read.document(d).materialize(
@@ -45,7 +45,8 @@ def fake_splitter(doc):
 
     return ret
 
-oss =  OpenSearchSync([("/tmp/xx", fake_splitter)], cp, tp)
+
+oss = OpenSearchSync([("/tmp/xx", fake_splitter)], cp, tp)
 # oss = OpenSearchSync([("/tmp/xx", fake_splitter), ("/tmp/yy", fake_splitter)], cp, tp)
 
 oss.sync()

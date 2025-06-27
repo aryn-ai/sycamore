@@ -37,6 +37,7 @@ class OpenSearchClientWithLogging(OpenSearch):
 
         return parallel_bulk(self, record_gen, **kwargs)
 
+
 @context_params("opensearch")
 def get_knn_query(
     text_embedder: Embedder,

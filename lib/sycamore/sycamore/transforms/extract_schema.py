@@ -233,7 +233,7 @@ class LLMPropertyExtractor(PropertyExtractor):
         return [jsonextract_node.run(d) for d in llm_map_node.run(docs)]
 
     def cast_types(self, fields: dict) -> dict:
-        import dateparser  # type: ignore
+        import dateparser  # type: ignore # No type stubs available for 'dateparser'; ignoring for mypy
 
         assert self._schema is not None, "Schema must be provided for property standardization."
         assert isinstance(self._schema, Schema), "Schema object must be provided for property standardization."

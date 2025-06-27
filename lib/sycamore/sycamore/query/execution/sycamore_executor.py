@@ -362,8 +362,9 @@ import sycamore
             query_result, _ = self.process_node(plan.nodes[plan.result_node], result, is_result_node=True)
 
             if self.dry_run:
-                code = self.get_code_string()
-                result.code = code
+                if self.codegen_mode:
+                    code = self.get_code_string()
+                    result.code = code
                 return result
 
             if self.codegen_mode:

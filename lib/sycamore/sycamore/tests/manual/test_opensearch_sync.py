@@ -1,5 +1,6 @@
 """Manual program for playing around with opensearch sync against real opensearch"""
 
+import logging
 from opensearchpy import OpenSearch
 
 import sycamore
@@ -8,6 +9,8 @@ from sycamore.connectors.opensearch.sync import OpenSearchSync
 from sycamore.data.docid import path_to_sha256_docid
 from sycamore.materialize_config import MRRNameGroup
 from sycamore.connectors.opensearch.opensearch_writer import OpenSearchWriterClientParams, OpenSearchWriterTargetParams
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 client = OpenSearch(hosts=[{'host': 'localhost', 'port': 9200}], verify_certs=False, use_ssl=True)
 if False:
@@ -46,3 +49,4 @@ oss =  OpenSearchSync([("/tmp/xx", fake_splitter)], cp, tp)
 # oss = OpenSearchSync([("/tmp/xx", fake_splitter), ("/tmp/yy", fake_splitter)], cp, tp)
 
 oss.sync()
+print(oss.stats)

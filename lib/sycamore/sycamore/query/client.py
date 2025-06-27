@@ -32,7 +32,7 @@ from sycamore.query.planner import LlmPlanner, PlannerExample, Planner
 from sycamore.query.result import SycamoreQueryResult
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaFetcher
 from sycamore.query.strategy import DefaultQueryPlanStrategy, QueryPlanStrategy
-from sycamore.transforms.embed import OpenAIEmbedder
+from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.transforms.similarity import HuggingFaceTransformersSimilarityScorer
 from sycamore.utils.cache import cache_from_path
@@ -270,7 +270,7 @@ class SycamoreQueryClient:
 
     @staticmethod
     def default_text_embedder():
-        return OpenAIEmbedder()
+        return SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     @staticmethod
     def _get_default_context(

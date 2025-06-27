@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 import random
 import tempfile
+from unittest.mock import patch
 
 import sycamore
 from sycamore.connectors.opensearch.sync import OpenSearchSync
@@ -22,6 +23,7 @@ class FakeOpensearch:
         self.written = []
         self.deleted = []
         self.inject_429_frac = inject_429_frac
+        self.injected_429_count = 0
         pass
 
     def __enter__(self):
@@ -34,7 +36,7 @@ class FakeOpensearch:
         return self
 
     def search(self, index, body, scroll, size):
-        assert body == {"query": {"match_all": {}}, "_source": ["parent_id"]}
+        assert body == {"query": {"match_all": {}}, "_source": ["parent_id", "doc_mtime"]}
         if index not in self._indices:
             from opensearchpy.exceptions import NotFoundError
 
@@ -77,6 +79,7 @@ class FakeOpensearch:
             assert index in self._indices # oddly not a requirement for opensearch
             if random.random() < self.inject_429_frac:
                 ret.append([False, { op_type: {"_id": id, "status": 429 }}])
+                self.injected_429_count += 1
             elif op_type == "index":
                 self._indices[index][id] = r["_source"]
                 ret.append([True, {"index": {"_id": r["_id"]}}])
@@ -231,8 +234,15 @@ def test_drop_subdoc_in_opensearch(mat_dirs):
     assert len(oss.fake_os.written) == 0
     assert len(oss.fake_os.deleted) == 0
 
+    # WARNING: There is an annoying effect that if you add a default None field to
+    # DEFAULT_RECORD_PROPERTIES, when it is converted to a OpenSearchWriterRecord in split_doc,
+    # the new field will end up changing the calculated content-based hash.  There is debug
+    # code in sync.py to help find the new magic constant.
+    # TODO: Consider removing None fields from the os record, that way changes like that don't
+    # affect the hash.
+
     # resync after dropping doc 3 - first part
-    doc_id_3_p1 = "splitdoc-V25ZNuGuBJo2gDh4uIoee8Aj_hYs0VPFqGxA04gG9aE="
+    doc_id_3_p1 = "splitdoc-5bckOEOUxIxwOXQoj4ZiPzEaji-rpOMPrBqNjCqDkxM="
     del oss.fake_os._indices["test_create"][doc_id_3_p1]
     oss.fake_os.written = []
     oss.sync()
@@ -270,8 +280,120 @@ def test_delete_source_file(mat_dirs):
     assert len(oss.fake_os.written) == 0
     assert len(oss.fake_os.deleted) == 4
     
+def test_update_source_file(mat_dirs):
+    to_update = "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+    xx = f"{mat_dirs}/xx"
+    oss = UnitTestOpenSearchSync(
+        [(xx, fake_splitter)],
+        OpenSearchWriterClientParams(),
+        OpenSearchWriterTargetParams(index_name="test_update"),
+    )
+    oss.sync()
+    assert len(oss.fake_os.written) == 5 + 0 + 1 + 2 + 3 + 4  # main + subdocs
+    assert len(oss.fake_os.deleted) == 0
+    
+    old_md = list(Path(xx).glob(f"oss-{to_update}*"))
+    assert len(old_md) == 1
+    
+    print("--------------------------- update and resync ------------------------")
+    Path(f"{xx}/doc-path-sha256-{to_update}.pickle").touch()
+    oss.fake_os.written = []
+    oss.sync()
+    assert len(oss.fake_os.written) == 4
+    assert len(oss.fake_os.deleted) == 4
+    new_md = list(Path(xx).glob(f"oss-{to_update}*"))
+    assert len(new_md) == 1
+    assert old_md != new_md
 
-# Add test injecting 429's
-# Add test adding subdoc into OS
-# Add test adding oss-<id>,<mangled-key>.md
-# Add test with completely spurious os file
+def test_spurious_os_doc(mat_dirs):
+    to_update = "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+    oss = UnitTestOpenSearchSync(
+        [(f"{mat_dirs}/xx", fake_splitter)],
+        OpenSearchWriterClientParams(),
+        OpenSearchWriterTargetParams(index_name="test_spurious"),
+    )
+    oss.sync()
+    assert len(oss.fake_os.written) == 5 + 0 + 1 + 2 + 3 + 4  # main + subdocs
+    assert len(oss.fake_os.deleted) == 0
+
+    oss.fake_os._indices['test_spurious']["splitdoc-garbageid"] = {"parent_id": f"path-sha256-{to_update}"}
+    oss.fake_os.written = []
+    oss.sync()
+    assert len(oss.fake_os.written) == 4
+    assert len(oss.fake_os.deleted) == 5
+
+def test_mangled_oss_md(mat_dirs):
+    to_mangle = "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+    xx = f"{mat_dirs}/xx"
+    oss = UnitTestOpenSearchSync(
+        [(xx, fake_splitter)],
+        OpenSearchWriterClientParams(),
+        OpenSearchWriterTargetParams(index_name="test_spurious"),
+    )
+    oss.sync()
+    assert len(oss.fake_os.written) == 5 + 0 + 1 + 2 + 3 + 4  # main + subdocs
+    assert len(oss.fake_os.deleted) == 0
+    # A completely invalid oss-*.md file
+    Path(f"{xx}/oss-{to_mangle},sadf213qdssd.md").touch()
+    oss.sync()
+    print(oss.stats)
+    assert oss.stats.mis_formatted_file == 1
+
+    mtime_ns = Path(f"{xx}/doc-path-sha256-{to_mangle}.pickle").stat().st_mtime_ns
+    # A syntactically valid md file with the wrong key
+    Path(f"{xx}/oss-{to_mangle},{mtime_ns},abcdefghij.md").touch()
+    oss.fake_os.written = []
+    oss.fake_os.deleted = []
+    oss.sync()
+    assert oss.stats.missing_md_info == 1
+    assert len(oss.fake_os.written) == 4
+    assert len(oss.fake_os.deleted) == 4
+
+def test_wrong_key_oss_md(mat_dirs):
+    to_rekey = "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+    xx = f"{mat_dirs}/xx"
+    oss = UnitTestOpenSearchSync(
+        [(xx, fake_splitter)],
+        OpenSearchWriterClientParams(),
+        OpenSearchWriterTargetParams(index_name="test_spurious"),
+    )
+    oss.sync()
+    assert len(oss.fake_os.written) == 5 + 0 + 1 + 2 + 3 + 4  # main + subdocs
+    assert len(oss.fake_os.deleted) == 0
+    
+    existing = list(Path(xx).glob(f"oss-{to_rekey},*"))
+    assert len(existing) == 1
+    parts = existing[0].name.split(",")
+    assert len(parts) == 3
+    if parts[2][0] == 'X':
+        parts[2] = 'Y' + parts[2][1:]
+    else:
+        parts[2] = 'X' + parts[2][1:]
+    existing[0].unlink()
+    Path(f"{xx}/{parts[0]},{parts[1]},{parts[2]}").touch()
+    oss.fake_os.written = []
+    oss.fake_os.deleted = []
+    oss.sync()
+    assert oss.stats.mismatch_key == 1
+    assert len(oss.fake_os.written) == 4
+    assert len(oss.fake_os.deleted) == 4
+
+def test_intermittent_429s(mat_dirs):
+    fake_os=FakeOpensearch(inject_429_frac=0.1)
+    with patch.object(UnitTestOpenSearchSync.ProcessBatch, 'sleep', lambda a,b: True):
+        for i in range(0,5):
+            oss = UnitTestOpenSearchSync(
+                [(f"{mat_dirs}/xx", fake_splitter)],
+                OpenSearchWriterClientParams(),
+                OpenSearchWriterTargetParams(index_name=f"test_429_{i}"),
+                fake_os=fake_os,
+            )
+            oss.fake_os.written = []
+            oss.sync()
+            assert len(oss.fake_os.written) == 5 + 0 + 1 + 2 + 3 + 4  # main + subdocs
+            assert len(oss.fake_os.deleted) == 0
+            if oss.fake_os.injected_429_count > 0:
+                print(f"Succeeded with {oss.fake_os.injected_429_count} injected 429s on try {i}")
+                break
+            else:
+                assert i < 4, "Too many tries to get any injected 429s"

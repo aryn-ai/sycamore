@@ -164,6 +164,7 @@ class OpenSearchSync:
         self.stats = SyncStats()
 
     def sync(self):
+        self.stats = SyncStats()
         with ThreadPoolExecutor() as e:
             os_files_fut = e.submit(self.prepare_opensearch)
             # sychronous
@@ -268,6 +269,7 @@ class OpenSearchSync:
                     id_to_info[did] = (mtime, key)
             else:
                 logger.warn(f"Unexpected mis-formatted file {f.base_name} found")
+                self.stats.mis_formatted_file += 1
                 mat_dir.delete_file(f.base_name)
 
         to_remove = {}
@@ -309,7 +311,6 @@ class OpenSearchSync:
                     "parent_id": h["_source"].get("parent_id", None),
                 }
                 if (mtime := h["_source"].get("doc_mtime", None)) is not None:
-                    print(f"ERIC FOUND mtime {h['_id']} {mtime}")
                     d["doc_mtime"] = mtime
 
                 os_docs.append(d)
@@ -489,6 +490,11 @@ class OpenSearchSync:
                 h = hashlib.sha256(f"{parent_id}/{i}/".encode("UTF-8"))
                 # sort keys so the hash should be deterministic.
                 h.update(json.dumps(r._source, sort_keys=True).encode("UTF-8"))
+
+                # See debugging details on key calculation for the drop_subdoc test
+                if False and "4e07" in parent_id and i == 0:
+                    print(f"ERIC DEBUG {parent_id}/{i}/{json.dumps(r._source, sort_keys=True)}")
+
                 sid = base64.urlsafe_b64encode(h.digest()).decode("UTF-8")
                 r._id = "splitdoc-" + sid
                 r._source["doc_id"] = r._id
@@ -523,7 +529,7 @@ class OpenSearchSync:
                         assert False
                 elif item["index"]["status"] == 429:
                     assert len(item) == 1, f"Fail {item}"
-                    retry_ids.add(item.values()[0]["_id"])
+                    retry_ids.add(next(iter(item.values()))["_id"])
                     # opensearch_writer.py uses item["index"]["data"], but from
                     # https://github.com/opensearch-project/opensearch-py/blob/5f6cc2e0072214c8b67c3570598318f7cd73ca9e/opensearchpy/helpers/actions.py#L192
                     # that only seems to exist if raise_on_error is set in which case we
@@ -591,8 +597,11 @@ class OpenSearchSync:
             sleep_time = backoff + random.uniform(0, 0.1 * backoff)
             self.retry_count += 1
 
-            logger.warning(f"{self.retry_count} consecutive requests with some 429s. Sleep({sleep_time:%.2f}).")
-            time.sleep(sleep_time)
+            logger.warning(f"{self.retry_count} consecutive requests with some 429s. Sleep({sleep_time:.2f}).")
+            self.sleep(sleep_time)
+
+        def sleep(self, seconds):
+            time.sleep(seconds)
 
         def flush_records(self, mat_dir):
             while len(self.records) > 0:
@@ -616,8 +625,9 @@ class SourceFileInfo():
 class SyncStats():
     # Counts of all of these are in documents
     correctly_loaded: int = 0
-    missing_md_info: int = 0
+    missing_md_info: int = 0 # multiple md entries will get classified as this
     updated_source_file: int = 0 # all of these will also be counted in missing_md_info
     missing_os_record: int = 0
     mismatch_key: int = 0
     only_in_os: int = 0
+    mis_formatted_file: int = 0

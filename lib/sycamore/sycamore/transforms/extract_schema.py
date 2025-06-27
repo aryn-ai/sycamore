@@ -28,7 +28,6 @@ def cluster_schema_json(schema: Schema, cluster_size: int, embedder: Optional[Em
     field_docs: List[Document] = []
     for fld in schema.fields:
         txt = f"Field: {fld.name}\nDescription: {fld.description or ''}"
-        # txt = f"Field: {fld['name']}\nDescription: {fld.get('description', '')}"
         field_docs.append(Document(text_representation=txt, **fld.__dict__))
 
     ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
@@ -44,7 +43,7 @@ def cluster_schema_json(schema: Schema, cluster_size: int, embedder: Optional[Em
         if cluster not in groups:
             groups[cluster] = Document()
         groups[cluster].elements.append(Element(**d))
-    return ctx.read.document(list(groups.values())).take_all()
+    return list(groups.values())
 
 
 def batch_schema_json(schema: Schema, batch_size: int) -> List[Document]:
@@ -57,8 +56,7 @@ def batch_schema_json(schema: Schema, batch_size: int) -> List[Document]:
     for field_num in range(field_count):
         batch = field_num % batch_size
         groups[batch].elements.append(Element(**schema.fields[field_num].__dict__))
-    ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
-    return ctx.read.document(list(groups.values())).take_all()
+    return list(groups.values())
 
 
 def element_list_formatter(elements: list[Element]) -> str:
@@ -278,9 +276,9 @@ class LLMPropertyExtractor(PropertyExtractor):
             else:
                 clusters_docs = batch_schema_json(schema=self._schema, batch_size=self._group_size)
             tmp_props: list[str] = []
-            for count, field_doc in enumerate(clusters_docs):
+            for idx, field_doc in enumerate(clusters_docs):
                 schema = {}
-                schema_name = f"_tmp_cluster_{count}"
+                schema_name = f"_tmp_cluster_{idx}"
                 tmp_props.append(schema_name)
                 assert isinstance(field_doc, Document), "Expected field_doc to be a Document instance"
                 for field in field_doc.elements:

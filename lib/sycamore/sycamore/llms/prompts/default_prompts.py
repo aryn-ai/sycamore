@@ -104,7 +104,7 @@ MetadataExtractorJinjaPrompt = JinjaPrompt(
     system="""You are a helpful property extractor.
         You generate JSON objects according to a schema
         to represent unstructured text data""",
-    user="""You are given a series of elements from a document and each element contain a page number.
+    user="""You are given a series of elements from a document and each element contains a page number.
         Your task is to extract the {{ entity_name }} from the document and also record the page number where the property is found.
         The {{ entity_name }} follows the schema {{ schema }}.
         The schema includes some description and type hints to help you

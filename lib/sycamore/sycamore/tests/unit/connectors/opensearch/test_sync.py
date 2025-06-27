@@ -1,6 +1,8 @@
 import logging
 import os
+from pathlib import Path
 import pytest
+import random
 import tempfile
 
 import sycamore
@@ -14,10 +16,12 @@ logging.getLogger("sycamore.connectors.opensearch.sync").setLevel(logging.DEBUG)
 
 
 class FakeOpensearch:
-    def __init__(self):
+    def __init__(self, inject_429_frac = 0.0):
         self._indices = {}
         self._index_properties = {}
         self.written = []
+        self.deleted = []
+        self.inject_429_frac = inject_429_frac
         pass
 
     def __enter__(self):
@@ -62,12 +66,27 @@ class FakeOpensearch:
 
     def parallel_bulk(self, record_gen, **kwargs):
         ret = []
+        single_op_type = None
         for r in record_gen:
+            op_type = r.get("_op_type", "index")
+            if single_op_type != op_type:
+                # not an OS requirement, but our code should only generate bulk single op type
+                assert single_op_type is None
+                single_op_type = op_type
             index, id = r["_index"], r["_id"]
-            assert index in self._indices
-            self._indices[index][id] = r["_source"]
-            ret.append([True, {"index": {"_id": r["_id"]}}])
-            self.written.append([index, r["_id"]])
+            assert index in self._indices # oddly not a requirement for opensearch
+            if random.random() < self.inject_429_frac:
+                ret.append([False, { op_type: {"_id": id, "status": 429 }}])
+            elif op_type == "index":
+                self._indices[index][id] = r["_source"]
+                ret.append([True, {"index": {"_id": r["_id"]}}])
+                self.written.append([index, r["_id"]])
+            elif op_type == "delete":
+                del self._indices[index][id]
+                ret.append([True, {"delete": {"_id": r["_id"]}}])
+                self.deleted.append([index, r["_id"]])
+            else:
+                assert False, f"unimplimented {op_type}"
 
         return ret
 
@@ -144,6 +163,7 @@ def test_drop_in_opensearch(mat_dirs):
     del oss.fake_os._indices["test_create"][doc_id_3]
 
     oss.sync()
+    assert len(oss.fake_os.deleted) == 0
     assert len(oss.fake_os.written) == 1
     assert oss.fake_os.written[0] == ["test_create", doc_id_3]
 
@@ -160,12 +180,16 @@ def test_drop_in_matdir(mat_dirs):
     oss.fake_os.written = []
 
     doc_id_3 = "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
-    derived_key_3 = "SBNJTRN-FjG7owHVrKtue7eqdM4RhdRWVl71HXN2d7I="
-    os.unlink(f"{mat_dirs}/xx/oss-{doc_id_3},{derived_key_3}.md")
+    oss_file = list(Path(f"{mat_dirs}/xx").glob(f"oss-{doc_id_3},*.md"))
+    assert len(oss_file) == 1
+    oss_file[0].unlink()
 
+    print("--------------- re-sync after drop -------------")
     oss.sync()
     assert len(oss.fake_os.written) == 1
     assert oss.fake_os.written[0] == ["test_create", f"path-sha256-{doc_id_3}"]
+    assert len(oss.fake_os.deleted) == 1
+    assert oss.fake_os.deleted[0] == ["test_create", f"path-sha256-{doc_id_3}"]
 
 
 def fake_splitter(doc):
@@ -189,6 +213,7 @@ def test_drop_subdoc_in_opensearch(mat_dirs):
     oss.sync()
     assert "test_create" in oss.fake_os._indices
     assert len(oss.fake_os.written) == 5 + 0 + 1 + 2 + 3 + 4  # main + subdocs
+    assert len(oss.fake_os.deleted) == 0
 
     # resync after dropping doc 3 - root doc
     doc_id_3 = "path-sha256-4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
@@ -197,11 +222,14 @@ def test_drop_subdoc_in_opensearch(mat_dirs):
     oss.sync()
     assert len(oss.fake_os.written) == 4
     assert oss.fake_os.written[0] == ["test_create", doc_id_3]
+    assert len(oss.fake_os.deleted) == 3 # 3 subdocs, main already dropped
 
     # resync unchanged
     oss.fake_os.written = []
+    oss.fake_os.deleted = []
     oss.sync()
     assert len(oss.fake_os.written) == 0
+    assert len(oss.fake_os.deleted) == 0
 
     # resync after dropping doc 3 - first part
     doc_id_3_p1 = "splitdoc-V25ZNuGuBJo2gDh4uIoee8Aj_hYs0VPFqGxA04gG9aE="
@@ -210,8 +238,40 @@ def test_drop_subdoc_in_opensearch(mat_dirs):
     oss.sync()
     assert len(oss.fake_os.written) == 4
     assert oss.fake_os.written[0] == ["test_create", doc_id_3]
+    assert len(oss.fake_os.deleted) == 3 # main + 2 subdocs
 
     # resync unchanged
     oss.fake_os.written = []
+    oss.fake_os.deleted = []
     oss.sync()
     assert len(oss.fake_os.written) == 0
+    assert len(oss.fake_os.deleted) == 0
+
+def test_delete_source_file(mat_dirs):
+    to_remove = "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+    xx_del = f"{mat_dirs}/xx-del"
+    os.makedirs(xx_del)
+    for i in Path(f"{mat_dirs}/xx").glob("*"):
+        os.link(f"{mat_dirs}/xx/{i.name}", f"{xx_del}/{i.name}")
+
+    oss = UnitTestOpenSearchSync(
+        [(xx_del, fake_splitter)],
+        OpenSearchWriterClientParams(),
+        OpenSearchWriterTargetParams(index_name="test_delete"),
+    )
+    oss.sync()
+    assert len(oss.fake_os.written) == 5 + 0 + 1 + 2 + 3 + 4  # main + subdocs
+    assert len(oss.fake_os.deleted) == 0
+    
+    print("--------------------------- remove and resync ------------------------")
+    os.unlink(f"{xx_del}/doc-path-sha256-{to_remove}.pickle")
+    oss.fake_os.written = []
+    oss.sync()
+    assert len(oss.fake_os.written) == 0
+    assert len(oss.fake_os.deleted) == 4
+    
+
+# Add test injecting 429's
+# Add test adding subdoc into OS
+# Add test adding oss-<id>,<mangled-key>.md
+# Add test with completely spurious os file

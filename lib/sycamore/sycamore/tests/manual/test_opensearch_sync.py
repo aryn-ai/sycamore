@@ -1,5 +1,7 @@
 """Manual program for playing around with opensearch sync against real opensearch"""
 
+from opensearchpy import OpenSearch
+
 import sycamore
 from sycamore.data.document import Document
 from sycamore.connectors.opensearch.sync import OpenSearchSync
@@ -7,6 +9,15 @@ from sycamore.data.docid import path_to_sha256_docid
 from sycamore.materialize_config import MRRNameGroup
 from sycamore.connectors.opensearch.opensearch_writer import OpenSearchWriterClientParams, OpenSearchWriterTargetParams
 
+client = OpenSearch(hosts=[{'host': 'localhost', 'port': 9200}], verify_certs=False, use_ssl=True)
+if False:
+    print (client.indices.get_alias("*"))
+    exit(0)
+
+if False:
+    client.indices.delete("missing-xx")
+                        
+    
 if False:
     d = [Document(doc_id=path_to_sha256_docid(str(i)), text_representation=str(i)) for i in range(5)]
     sycamore.init(exec_mode=sycamore.EXEC_LOCAL).read.document(d).materialize(
@@ -18,7 +29,7 @@ if False:
     ).execute()
 
 cp = OpenSearchWriterClientParams(verify_certs=False, ssl_show_warn=False)
-tp = OpenSearchWriterTargetParams(index_name="eric_test")
+tp = OpenSearchWriterTargetParams(index_name="eric_test2")
 
 
 def fake_splitter(doc):
@@ -31,7 +42,7 @@ def fake_splitter(doc):
 
     return ret
 
-
-oss = OpenSearchSync([("/tmp/xx", fake_splitter), ("/tmp/yy", fake_splitter)], cp, tp)
+oss =  OpenSearchSync([("/tmp/xx", fake_splitter)], cp, tp)
+# oss = OpenSearchSync([("/tmp/xx", fake_splitter), ("/tmp/yy", fake_splitter)], cp, tp)
 
 oss.sync()

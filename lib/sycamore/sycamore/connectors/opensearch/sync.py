@@ -59,9 +59,15 @@ Notes:
    correct but inefficient if that isn't true.
 """
 
+# TODO: rethink the constant translation between short ids (hash only) and the full doc id
+# (path-sha256-<hash> or splitdoc-<hash>). With deletion it's not really saving memory since we
+# need the full doc id to delete in opensearch (or another way to tell what type of docid it is),
+# and it leads to a lot of back-and-forth translation in the code. Conventiently if we switch it,
+# the hash changes will force it to auto-clean-up.
+
 import base64
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, is_dataclass
 import hashlib
 import json
 import logging
@@ -99,18 +105,22 @@ class _MatDir:
         return self.fs.get_file_info(FileSelector(self.root, recursive=False))
 
     def read_document(self, filename):
-        assert "/" not in filename, f"{filename} should be just the name"
-        path = f"{self.root}/{filename}"
+        path = self._name_to_path(filename)
         with self.fs.open_input_stream(str(path)) as f:
             return Document.deserialize(f.read())
 
     def touch_file(self, filename):
-        assert "/" not in filename, f"{filename} should be just the name"
-        path = f"{self.root}/{filename}"
+        path = self._name_to_path(filename)
         with self.fs.open_output_stream(path, compression=None):
             pass
 
+    def delete_file(self, filename):
+        self.fs.delete_file(self._name_to_path(filename))
 
+    def _name_to_path(self, filename):
+        assert "/" not in filename, f"{filename} should be just the name"
+        return f"{self.root}/{filename}"
+        
 def raw_id_to_doc_id(raw_id):
     return f"path-sha256-{raw_id}"
 
@@ -160,7 +170,7 @@ class OpenSearchSync:
             # mtime is present it's just not printed, and the interface is a mess since
             # according to docs, mtime can be a datetime or a float, or mtime_ns can be present
             # docs lie for a local filesystem, both are present
-            os_pid_to_key = os_files_fut.result()
+            os_pid_to_parts = os_files_fut.result()
 
             # TODO: once we have delete implemented:
             # If we add the timestamp from the filesystem into the calculated key; and we implement
@@ -169,55 +179,97 @@ class OpenSearchSync:
             # If delete also removes the oss-<did>,key.md file; then we can even handle the
             # case of update in place.
 
+            # ERIC: for deletion make sure to handle the case of document removed but the oss-*
+            # stamp file remains; it should get deleted.
+            
+            if False:
+                from devtools import PrettyFormat
+                print(f"-------DEBUGGING-------\nSource_Files\n{PrettyFormat()(source_files)}")
+                print(f"-------DEBUGGING-------\nOS PidToParts\n{PrettyFormat()(os_pid_to_parts)}")
+                
             # need to track source to know the splitter
             to_be_loaded_groups = [[] for s in self.sources]
-            for i, x in enumerate(source_files):
-                fs, id_to_key = x
-                for f in fs:
-                    if f not in id_to_key:  # no filesystem md record, must reload
+            all_source_ids = set()
+            changed_pid_to_osids = {}
+            for i, sf in enumerate(source_files):
+                all_source_ids.update(sf.id_to_key.keys())
+                for f in sf.base_files:
+                    if f not in sf.id_to_key:  # no filesystem md record, must reload
                         to_be_loaded_groups[i].append(f)
-                    elif f not in os_pid_to_key:  # no os record, must reload
+                    elif f not in os_pid_to_parts:  # no os record, must reload
                         to_be_loaded_groups[i].append(f)
-                    elif id_to_key[f] == os_pid_to_key[f]:
+                    elif sf.id_to_key[f] == os_pid_to_parts[f]["key"]:
                         pass  # in opensearch and calculated key matches expected
                     else:
-                        # Might want to delete in this case. If there is a non-determinism
-                        # in calculating stuff (which shouldn't happen), then we could get in
-                        # the state where we never successfully load the document since we would
-                        # have partial, incorrect stuff in there
+                        # Deleting in this case, either we loaded something incorrectly, or
+                        # the source document changed in a way that caused the key to change
+                        # in either case, we need to delete what is in opensearch and replace
+                        # it with updated information.
+                        os_ids = os_pid_to_parts[f]["os_ids"]
+                        changed_pid_to_osids[f] = os_ids
                         logger.info(
-                            f"Mismatch on document id {f}: filesystem_key={id_to_key[f]} os_calculated_key={os_pid_to_key[f]}"
+                            f"Mismatch on document id {f}: filesystem_key={sf.id_to_key[f]} os_calculated_key={os_pid_to_parts[f]['key']}; os_ids={os_ids}"
                         )
                         to_be_loaded_groups[i].append(f)
+
+            self.delete_os_not_in_source(os_pid_to_parts, all_source_ids)
 
             for i, g in enumerate(to_be_loaded_groups):
                 # See comment on class for what splitter is
                 root, splitter = self.sources[i]
-                self.load_batch(root, splitter, g)
+                with self.os_client() as os:
+                    self.ProcessBatch(root, splitter, g, changed_pid_to_osids,
+                                      os, self.target_params).run()
 
     def find_source_files(self, src):
+        """Finds source file information, also cleans up files which can't be part of a source"""
         base_re = re.compile(f"doc-path-sha256-({ID_RE})\\.pickle")
         # does not match with *.pickle so materialize will ignore
         oss_md_re = re.compile(f"^oss-({ID_RE}){KEYSEP}({ID_RE})\\.md")
         path, splitter = src
-        fis = _MatDir(path).list_files()
+        mat_dir = _MatDir(path)
+        fis = mat_dir.list_files()
 
-        base_files = []
+        base_files = set()
         id_to_key = {}
-
+        remove_list = []
+        
         for f in fis:
             assert f.is_file, f"{f.base_name} is not a file, but mat dir should be all files"
             if f.base_name.startswith("materialize."):
                 continue
             elif m := base_re.fullmatch(f.base_name):
-                base_files.append(m.group(1))
+                base_files.add(m.group(1))
                 assert raw_id_to_filename(m.group(1)) == f.base_name
             elif m := oss_md_re.fullmatch(f.base_name):
-                id_to_key[m.group(1)] = m.group(2)
+                did = m.group(1)
+                if did in id_to_key:
+                    logger.warning(f"Duplicate key for {did} {id_to_key[did]} {m.group(2)}")
+                    if not isinstance(id_to_key[did], list):
+                        id_to_key[did] = [id_to_key[did]]
+                    id_to_key[did].append(m.group(2))
+                else:
+                    id_to_key[did] = m.group(2)
             else:
-                assert False, f"Should not have an unexpected file like {f.base_name}"
+                logger.warn(f"Unexpected mis-formatted file {f.base_name} found")
+                mat_dir.delete_file(f.base_name)
 
-        return [base_files, id_to_key]
+        to_remove = {}
+        for k,v in id_to_key.items():
+            if k not in base_files or isinstance(v, list):
+                to_remove[k] = v
+
+        if len(to_remove) > 0:
+            logger.info(f"{len(to_remove)} files were removed but still have a metadata sync file")
+            for k,v in to_remove.items():
+                del id_to_key[k]
+                if isinstance(v, list):
+                    for w in v:
+                        mat_dir.delete_file(f"oss-{k}{KEYSEP}{w}.md")
+                else:
+                    mat_dir.delete_file(f"oss-{k}{KEYSEP}{v}.md")
+
+        return SourceFileInfo(base_files, id_to_key)
 
     def prepare_opensearch(self):
         """Make sure the index exists in a compatible way and
@@ -270,7 +322,7 @@ class OpenSearchSync:
                 did = o["doc_id"]
                 assert did.startswith("path-sha256-"), f"opensearch document {did} with no parent has incorrect prefix"
                 pid = did.removeprefix("path-sha256-")
-                pid_to_parts.setdefault(pid, []).append("root")
+                did = pid
             else:
                 did, pid = o["doc_id"], o["parent_id"]
                 assert did.startswith("splitdoc-"), f"opensearch document {did} with parent {pid} has incorrect prefix"
@@ -280,25 +332,41 @@ class OpenSearchSync:
                 did = did.removeprefix("splitdoc-")
                 pid = pid.removeprefix("path-sha256-")
 
-                pid_to_parts.setdefault(pid, []).append(did)
+            parts = pid_to_parts.setdefault(pid, {"parts": [], "os_ids": []})
+            parts["parts"].append(did)
+            parts["os_ids"].append(o["doc_id"])
 
-        for k in pid_to_parts:
-            pid_to_parts[k] = calculate_doc_key(pid_to_parts[k])
+        for k, v in pid_to_parts.items():
+            v["key"] = calculate_doc_key(v["parts"])
+            del v["parts"]
 
         return pid_to_parts
 
     def os_client(self):
         return OpenSearchClientWithLogging(**self.os_client_params)
 
-    def load_batch(self, root, splitter, ids):
-        with self.os_client() as os:
-            self.LoadBatch(root, splitter, ids, os, self.target_params).run()
 
-    class LoadBatch:
-        def __init__(self, root, splitter, ids, os_client, target_params):
+    def delete_os_not_in_source(self, os_pid_to_parts, all_source_ids):
+        with self.os_client() as os:
+            deleter = self.ProcessBatch(None, None, None, None, os, self.target_params)
+            for k, v in os_pid_to_parts.items():
+                if k in all_source_ids:
+                    continue
+                for id in v["os_ids"]:
+                    deleter.records.append(OpenSearchDeleteRecord(
+                        _index = self.target_params.index_name,
+                        _id = id,
+                    ))
+                    if len(deleter.records) >= deleter.os_batch_size:
+                        deleter.write_os_records(None)
+            deleter.flush_records(None)
+
+    class ProcessBatch:
+        def __init__(self, root, splitter, ids, to_be_deleted, os_client, target_params):
             self.root = root
             self.splitter = splitter
             self.ids = ids
+            self.to_be_deleted = to_be_deleted
             self.os_client = os_client
             self.target_params = target_params
 
@@ -311,6 +379,27 @@ class OpenSearchSync:
         def run(self):
             mat_dir = _MatDir(self.root)
 
+            # process all deletes first; we can later optimize this to not delete documents that
+            # are going to be created, but we only know which ones will be created when we process
+            # the files; Ideally we would affect each document in opensearch exactly once.
+            # The deletion and re-insertion only happens in failure cases and update cases which
+            # are right now expected to be rare, so we can avoid the optimization complexity.
+            for i in self.ids:
+                if i not in self.to_be_deleted:
+                    continue
+
+                for j in self.to_be_deleted[i]:
+                    self.records.append(OpenSearchDeleteRecord(
+                        _index = self.target_params.index_name,
+                        _id = j,
+                    ))
+                    if len(self.records) >= self.os_batch_size:
+                        self.write_os_records(None)
+
+            # Make sure to flush all deletions before starting insertion to avoid
+            # race conditions between delete and insert.
+            self.flush_records(None)
+            
             for i in self.ids:
                 fn = raw_id_to_filename(i)
                 doc = mat_dir.read_document(fn)
@@ -319,8 +408,7 @@ class OpenSearchSync:
                 if len(self.records) >= self.os_batch_size:
                     self.write_os_records()
 
-            while len(self.records) > 0:
-                self.write_os_records(mat_dir)
+            self.flush_records(mat_dir)
 
         def split_doc(self, doc, expected_raw_id) -> list[OpenSearchWriterRecord]:
             expected_doc_id = raw_id_to_doc_id(expected_raw_id)
@@ -343,7 +431,7 @@ class OpenSearchSync:
                 assert (
                     parts[0].doc_id == parent_id
                 ), f"If first doc has no parent id, it should still have doc_id as its id, but {parts[0].doc_id} != {parent_id}"
-                psw["root"] = True
+                psw[short_doc_id] = True
                 ret.append(OpenSearchWriterRecord.from_doc(parts[0], self.target_params))
                 parts = parts[1:]
 
@@ -370,60 +458,86 @@ class OpenSearchSync:
         def write_os_records(self, mat_dir):
             def generate_records(records):
                 for r in records:
+                    assert is_dataclass(r)
                     yield asdict(r)
 
-            retry_records = []
+            unique_id_check = set()
+            for r in self.records:
+                assert r._id not in unique_id_check
+                unique_id_check.add(r._id)
+                        
+            retry_ids = set()
             for success, item in self.os_client.parallel_bulk(
                 generate_records(self.records), **self.target_params.insert_settings
             ):
                 if success:
-                    did = item["index"]["_id"]
-                    if did.startswith("path-sha256-"):
-                        did = did.removeprefix("path-sha256-")
-                        assert (
-                            did in self.pending_successful_write
-                        ), f"root doc {did} has no entry in pending_successful_write?"
-                        psw = self.pending_successful_write[did]
-                        assert (
-                            "root" in psw
-                        ), f"root of docid {did} successfully written, but not a pending successful write?"
-                        del psw["root"]
-                    elif did.startswith("splitdoc-"):
-                        cdid = did.removeprefix("splitdoc-")
-                        assert (
-                            cdid in self.id_to_parent_id
-                        ), f"doc id {cdid} successfully written, but not in id_to_parent_id"
-                        did = self.id_to_parent_id.pop(cdid)
-                        assert (
-                            did in self.pending_successful_write
-                        ), f"parent doc {did} has no entry in pending_successful_write?"
-                        psw = self.pending_successful_write[did]
-                        assert cdid in psw, f"sub-doc {cdid} of {did} not present in pending_successful_write"
-                        del psw[cdid]
+                    if "index" in item:
+                        self.handle_index_success(item, mat_dir)
+                    elif "delete" in item:
+                        pass # nothing to do
                     else:
-                        raise Exception(f"unexpected doc_id {did} in successful write")
-
-                    assert len(psw) >= 1, f"psw for {did} has len 0"
-                    if len(psw) == 1:
-                        assert "key" in psw
-                        path = f"oss-{did}{KEYSEP}{psw['key']}.md"
-                        logger.debug(f"Successfully wrote all parts of {did} touching {path}")
-                        mat_dir.touch_file(path)
-
-                    pass
+                        assert False
                 elif item["index"]["status"] == 429:
-                    retry_records.append(item["index"]["data"])
+                    assert len(item) == 1, f"Fail {item}"
+                    retry_ids.add(item.values()[0]["_id"])
+                    # opensearch_writer.py uses item["index"]["data"], but from
+                    # https://github.com/opensearch-project/opensearch-py/blob/5f6cc2e0072214c8b67c3570598318f7cd73ca9e/opensearchpy/helpers/actions.py#L192
+                    # that only seems to exist if raise_on_error is set in which case we
+                    # crash, or if the entire chunk failed with a TransportError and so goes
+                    # through https://github.com/opensearch-project/opensearch-py/blob/5f6cc2e0072214c8b67c3570598318f7cd73ca9e/opensearchpy/helpers/actions.py#L224
+                    # So instead we handle this ourselves since it doesn't look like we can rely
+                    # on data always being present.  Worse for deletes we need to get back to the
+                    # original value and we can't since delete entries don't have data
                 else:
                     msg = f"Failed to upload documnet: {item}"
                     logger.error(msg)
                     raise Exception(msg)
 
-            if len(retry_records) == 0:
+            if len(retry_ids) == 0:
                 self.retry_count = 0
+                self.records = []
             else:
                 self.backoff()
+                retry_records = []
+                for r in self.records:
+                    if r._id in retry_ids:
+                        retry_records.append(r)
+                self.records = retry_records
 
-            self.records = retry_records
+        def handle_index_success(self, item, mat_dir):
+            assert mat_dir is not None
+            did = item["index"]["_id"]
+            if did.startswith("path-sha256-"):
+                did = did.removeprefix("path-sha256-")
+                assert (
+                    did in self.pending_successful_write
+                ), f"root doc {did} has no entry in pending_successful_write?"
+                psw = self.pending_successful_write[did]
+                assert (
+                    did in psw
+                ), f"root of docid {did} successfully written, but not a pending successful write?"
+                del psw[did]
+            elif did.startswith("splitdoc-"):
+                cdid = did.removeprefix("splitdoc-")
+                assert (
+                    cdid in self.id_to_parent_id
+                ), f"doc id {cdid} successfully written, but not in id_to_parent_id"
+                did = self.id_to_parent_id.pop(cdid)
+                assert (
+                    did in self.pending_successful_write
+                ), f"parent doc {did} has no entry in pending_successful_write?"
+                psw = self.pending_successful_write[did]
+                assert cdid in psw, f"sub-doc {cdid} of {did} not present in pending_successful_write"
+                del psw[cdid]
+            else:
+                raise Exception(f"unexpected doc_id {did} in successful write")
+
+            assert len(psw) >= 1, f"psw for {did} has len 0"
+            if len(psw) == 1:
+                assert "key" in psw
+                path = f"oss-{did}{KEYSEP}{psw['key']}.md"
+                logger.debug(f"Successfully wrote all parts of {did} touching {path}")
+                mat_dir.touch_file(path)
 
         def backoff(self):
             if self.retry_count > 6:
@@ -435,3 +549,21 @@ class OpenSearchSync:
 
             logger.warning(f"{self.retry_count} consecutive requests with some 429s. Sleep({sleep_time:%.2f}).")
             time.sleep(sleep_time)
+
+        def flush_records(self, mat_dir):
+            while len(self.records) > 0:
+                self.write_os_records(mat_dir)
+            
+@dataclass
+class OpenSearchDeleteRecord():
+    _index: str
+    _id: str
+    _op_type: str = "delete"
+    
+
+@dataclass
+class SourceFileInfo():
+    base_files: set
+    id_to_key: dict
+
+    

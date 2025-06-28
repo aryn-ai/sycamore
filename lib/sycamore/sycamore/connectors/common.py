@@ -19,6 +19,7 @@ class HostAndPort:
 
 DEFAULT_RECORD_PROPERTIES: dict[str, Any] = {
     "doc_id": None,
+    "doc_mtime": None,
     "type": None,
     "text_representation": None,
     "elements": [],

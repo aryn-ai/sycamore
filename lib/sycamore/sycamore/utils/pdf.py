@@ -124,7 +124,7 @@ def convert_from_path_streamed_batched(filename: str, batch_size: int) -> Genera
         yield batch
 
 
-def pdf_to_image_files(pdf_path: str, file_dir: Path) -> Generator[Path, None, None]:
+def pdf_to_image_files(pdf_path: str, file_dir: Path, resolution: int = 200) -> Generator[Path, None, None]:
     """Writes the files (streamed) into file_dir.  Caller is responsible for calling
     path.unlink() to cleanup the files.
 
@@ -193,7 +193,7 @@ def pdf_to_image_files(pdf_path: str, file_dir: Path) -> Generator[Path, None, N
     with LogTime("convert_to_image"):
         # If we don't have the separate threads for reading stdout/stderr,
         # then if the stderr buffer fills up we could get stuck.
-        args = ["pdftoppm", "-r", "200", pdf_path]
+        args = ["pdftoppm", "-r", str(resolution), pdf_path]
         proc = Popen(args, stdout=PIPE, stderr=PIPE)
         q: Queue = Queue(1)
         t_out = Thread(

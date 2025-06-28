@@ -204,18 +204,19 @@ class PaddleOcr(OcrModel):
             return " ".join(text_values), avg_font_size
         return "", None
 
-    def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
+    def get_boxes_and_text(self, image: Image.Image, get_confidences: bool = False) -> list[dict[str, Any]]:
         result = self.predictor.predict(np.array(image))
         out: list[dict[str, Any]] = []
         if not result or not (res := result[0]):
             return out
-        for text, bbox in zip(res["rec_texts"], res["rec_boxes"]):
-            out.append(
-                {
-                    "bbox": BoundingBox(*bbox),
-                    "text": text,
-                }
-            )
+        for text, bbox, confidence in zip(res["rec_texts"], res["rec_boxes"], res["rec_scores"]):
+            out_dict = {
+                "bbox": BoundingBox(*bbox),
+                "text": text,
+            }
+            if get_confidences:
+                out_dict["confidence"] = confidence
+            out.append(out_dict)
         return out
 
     def __name__(self):

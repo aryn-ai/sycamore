@@ -205,7 +205,7 @@ class MaterializeReadReliability(NodeTraverse):
                 ), f"""Reliability pipeline cannot have node {type(node)} as first node.\n
                 Only BinaryScan and Materialize nodes are allowed."""
 
-            assert len(node.children) < 2, "Reliablity pipeline should only have one/zero child"
+            assert len(node.children) < 2, "Reliability pipeline should only have one/zero child"
 
             self.count += 1
 
@@ -314,7 +314,7 @@ class Materialize(UnaryNode):
                 self._doc_to_name = namer.doc_to_materialize_name
             elif callable(namer):
                 self._doc_to_name = namer
-                logger.warn(
+                logger.warning(
                     "Found floating materialize-file naming function. "
                     "Some operations (MRR, materialize filter) may not work."
                 )
@@ -607,7 +607,7 @@ class Materialize(UnaryNode):
                 # default doc_to_name includes a content based hash, so "duplicate" entries
                 # should only be possible if ray executes the save operation multiple times on
                 # the same content.
-                logger.warn(
+                logger.warning(
                     f"Duplicate name {path} generated for clean root;"
                     + " this could be ray re-execution or fault tolerance; first written data kept"
                 )

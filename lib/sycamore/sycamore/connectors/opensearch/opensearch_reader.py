@@ -143,7 +143,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                     }
                 )
                 doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
-                doc.properties["opensearch_score"] = data["_score"]
+                doc.properties["search_relevance_score"] = data["_score"]
                 result.append(doc)
         else:
             assert (
@@ -204,7 +204,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                         **element.get("_source", {}),
                     }
                 )
-                doc.properties["opensearch_score"] = opensearch_scores.get(doc.doc_id, 0.0)
+                doc.properties["search_relevance_score"] = opensearch_scores.get(doc.doc_id, 0.0)
                 assert doc.parent_id, "Got non-element record from OpenSearch reconstruction query"
                 if doc.doc_id not in query_result_elements_per_doc.get(doc.parent_id, {}):
                     doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL

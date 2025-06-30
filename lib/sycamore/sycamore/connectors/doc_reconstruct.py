@@ -60,7 +60,7 @@ class RAGDocumentReconstructor(DocumentReconstructor):
                 }
             )
             doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
-            doc.properties["opensearch_score"] = element["_score"]
+            doc.properties["search_relevance_score"] = element["_score"]
             assert doc.doc_id, "Retrieved invalid doc with a missing doc_id"
             if not doc.parent_id:
                 temp = unique_docs[doc.doc_id].elements if doc.doc_id in unique_docs else []

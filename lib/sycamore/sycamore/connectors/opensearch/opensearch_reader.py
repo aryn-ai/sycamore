@@ -159,7 +159,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
             # Get unique documents
             unique_docs: dict[str, Document] = {}
             query_result_elements_per_doc: dict[str, set[str]] = {}
-            opensearch_scores: dict[str, float] = {}
+            opensearch_scores: dict[Optional[str], float] = {}
             for data in self.output:
                 doc = Document(
                     {

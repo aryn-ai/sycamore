@@ -194,7 +194,7 @@ class TestOpenSearchReaderQueryResponse:
         for i in range(len(docs)):
             assert docs[i].parent_id == records[i]["parent_id"]
             assert docs[i].text_representation == records[i]["text_representation"]
-            assert "opensearch_score" in docs[i].properties
+            assert "search_relevance_score" in docs[i].properties
 
     def test_to_docs_reconstruct_require_client(self):
         query_response = OpenSearchReaderQueryResponse([])

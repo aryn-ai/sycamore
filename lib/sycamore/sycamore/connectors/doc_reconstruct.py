@@ -1,16 +1,20 @@
-from typing import Callable, Optional
-
+from typing import Callable, Optional, Any
+import logging
 from sycamore.data import Document, Element
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentReconstructor:
     def __init__(
         self,
         index_name: str,
+        query: Optional[dict[str, Any]] = None,
         reconstruct_fn: Optional[Callable[[str, str], Document]] = None,
     ):
         self.index_name = index_name
+        self.query = query
         self.reconstruct_fn = reconstruct_fn
 
     def get_required_source_fields(self) -> list[str]:
@@ -36,8 +40,9 @@ class RAGDocumentReconstructor(DocumentReconstructor):
     def __init__(
         self,
         index_name: str,
+        query: Optional[dict[str, Any]] = None,
     ):
-        super().__init__(index_name, reconstruct_fn=None)
+        super().__init__(index_name, query, reconstruct_fn=None)
 
     def get_required_source_fields(self) -> list[str]:
         fields = [
@@ -60,7 +65,12 @@ class RAGDocumentReconstructor(DocumentReconstructor):
                 }
             )
             doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
-            doc.properties["search_relevance_score"] = element["_score"]
+            if "_score" not in element:
+                logger.warning(
+                    f"No _score field found in OpenSearch response for index: {self.index_name} and query:{self.query}."
+                    "This may lead to incorrect search relevance scores."
+                )
+            doc.properties["search_relevance_score"] = element.get("_score", 0.0)
             assert doc.doc_id, "Retrieved invalid doc with a missing doc_id"
             if not doc.parent_id:
                 temp = unique_docs[doc.doc_id].elements if doc.doc_id in unique_docs else []

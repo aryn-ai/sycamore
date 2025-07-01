@@ -327,6 +327,16 @@ class TestOpenSearchReaderQueryResponse:
 
         # no elements match
         hits = [{"_source": record, "_score": random.random()} for record in records]
+        # Add a hit with no _score
+        hits.append(
+            {
+                "_source": {
+                    "text_representation": "this is an element belonging to parent doc 2",
+                    "parent_id": "doc_2",
+                    "doc_id": "element_2",
+                }
+            }
+        )
         return_val = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}, "_scroll_id": "123"}
         total = len(return_val["hits"]["hits"])
         return_val["hits"]["total"] = {"value": total}
@@ -346,13 +356,14 @@ class TestOpenSearchReaderQueryResponse:
         doc_3 = [doc for doc in docs if doc.doc_id == "doc_3"][0]
 
         assert len(doc_1.elements) == 2
-        assert len(doc_2.elements) == 1
+        assert len(doc_2.elements) == 2
         assert len(doc_3.elements) == 0
 
         assert doc_1.elements[0].text_representation == "this is an element belonging to parent doc 1"
         assert doc_1.elements[1].text_representation == "this is an element belonging to parent doc 1"
 
         assert doc_2.elements[0].text_representation == "this is an element belonging to parent doc 2"
+        assert doc_2.elements[1].text_representation == "this is an element belonging to parent doc 2"
 
 
 class TestOpenSearchRecord:

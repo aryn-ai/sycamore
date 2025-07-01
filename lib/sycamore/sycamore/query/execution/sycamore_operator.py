@@ -235,7 +235,9 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
             query=os_query,
             reconstruct_document=True,
             doc_reconstructor=(
-                RAGDocumentReconstructor(index_name=self.logical_node.index) if self.logical_node.rag_mode else None
+                RAGDocumentReconstructor(index_name=self.logical_node.index, query=os_query)
+                if self.logical_node.rag_mode
+                else None
             ),
             result_filter=self.logical_node.result_filter,
             query_kwargs={"size": os_query["query"]["knn"]["embedding"].get("k", 500)},

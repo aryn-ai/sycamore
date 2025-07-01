@@ -143,7 +143,12 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                     }
                 )
                 doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
-                doc.properties["search_relevance_score"] = data["_score"]
+                if "_score" not in data:
+                    logger.warning(
+                        f"No _score field found in OpenSearch response for index: {query_params.index_name} and query:{query_params.query}."
+                        "This may lead to incorrect search relevance scores."
+                    )
+                doc.properties["search_relevance_score"] = data.get("_score", 0.0)
                 result.append(doc)
         else:
             assert (
@@ -168,7 +173,12 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                 )
                 doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
                 assert doc.doc_id, "Retrieved invalid doc with missing doc_id"
-                opensearch_scores[doc.doc_id] = data["_score"]
+                if "_score" not in data:
+                    logger.warning(
+                        f"No _score field found in OpenSearch response for index: {query_params.index_name} and query:{query_params.query}."
+                        "This may lead to incorrect search relevance scores."
+                    )
+                opensearch_scores[doc.doc_id] = data.get("_score", 0.0)
                 if not doc.parent_id:
                     # Always use retrieved doc as the unique parent doc - override any empty parent doc created below
                     unique_docs[doc.doc_id] = doc

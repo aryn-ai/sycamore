@@ -71,6 +71,7 @@ class RAGDocumentReconstructor(DocumentReconstructor):
                     "This may lead to incorrect search relevance scores."
                 )
             doc.properties["search_relevance_score"] = element.get("_score", 0.0)
+
             assert doc.doc_id, "Retrieved invalid doc with a missing doc_id"
             if not doc.parent_id:
                 temp = unique_docs[doc.doc_id].elements if doc.doc_id in unique_docs else []

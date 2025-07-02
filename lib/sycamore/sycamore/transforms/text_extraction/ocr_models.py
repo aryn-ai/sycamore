@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class OcrModel(TextExtractor):
     """Base class for OCR models with caching support."""
 
-    def __init__(self, cache_path: Optional[str] = None, cache_only: bool = False, disable_caching: bool = False):
+    def __init__(self, cache_path: Optional[str] = None, cache_only: bool = False, disable_caching: bool = True):
         """
         Initialize OCR model with caching support.
 
@@ -32,7 +32,7 @@ class OcrModel(TextExtractor):
             cache_path: Path to cache directory or S3 URL (e.g., "s3://bucket/path")
                        If None, uses default local cache
             cache_only: If True, only use cached results (raise error on cache miss)
-            disable_caching: If True, disable caching completely
+            disable_caching: If True, disable caching completely (default: True)
         """
         self.cache_only = cache_only
         self.disable_caching = disable_caching
@@ -88,8 +88,11 @@ class OcrModel(TextExtractor):
                 logger.debug(f"Cache hit for {self._model_name}.get_text")
                 return cached_result
         except CacheMissError as e:
-            logger.error(f"Cache miss for {self._model_name}.get_text: {e}")
-            raise
+            if self.cache_only:
+                logger.error(f"Cache miss for {self._model_name}.get_text: {e}")
+                raise
+            else:
+                logger.warning(f"Cache miss for {self._model_name}.get_text: {e}")
 
         # Cache miss or cache disabled
         logger.debug(f"Cache miss for {self._model_name}.get_text, computing result")
@@ -126,8 +129,11 @@ class OcrModel(TextExtractor):
                 logger.debug(f"Cache hit for {self._model_name}.get_boxes_and_text")
                 return cached_result
         except CacheMissError as e:
-            logger.error(f"Cache miss for {self._model_name}.get_boxes_and_text: {e}")
-            raise
+            if self.cache_only:
+                logger.error(f"Cache miss for {self._model_name}.get_boxes_and_text: {e}")
+                raise
+            else:
+                logger.warning(f"Cache miss for {self._model_name}.get_boxes_and_text: {e}")
 
         # Cache miss or cache disabled
         logger.debug(f"Cache miss for {self._model_name}.get_boxes_and_text, computing result")
@@ -175,7 +181,7 @@ class EasyOcr(OcrModel):
         lang_list=["en"],
         cache_path: Optional[str] = None,
         cache_only: bool = False,
-        disable_caching: bool = False,
+        disable_caching: bool = True,
         **kwargs,
     ):
         super().__init__(cache_path=cache_path, cache_only=cache_only, disable_caching=disable_caching)
@@ -234,7 +240,7 @@ class EasyOcr(OcrModel):
 
 class Tesseract(OcrModel):
     @requires_modules("pytesseract", extra="local-inference")
-    def __init__(self, cache_path: Optional[str] = None, cache_only: bool = False, disable_caching: bool = False):
+    def __init__(self, cache_path: Optional[str] = None, cache_only: bool = False, disable_caching: bool = True):
         super().__init__(cache_path=cache_path, cache_only=cache_only, disable_caching=disable_caching)
         import pytesseract
 
@@ -271,7 +277,7 @@ class LegacyOcr(OcrModel):
     """Legacy behavior using Tesseract for text and EasyOcr for tables."""
 
     @requires_modules(["easyocr", "pytesseract"], extra="local-inference")
-    def __init__(self, cache_path: Optional[str] = None, cache_only: bool = False, disable_caching: bool = False):
+    def __init__(self, cache_path: Optional[str] = None, cache_only: bool = False, disable_caching: bool = True):
         super().__init__(cache_path=cache_path, cache_only=cache_only, disable_caching=disable_caching)
         self.tesseract = Tesseract(cache_path=cache_path, cache_only=cache_only, disable_caching=disable_caching)
         self.easy_ocr = EasyOcr(cache_path=cache_path, cache_only=cache_only, disable_caching=disable_caching)
@@ -305,7 +311,7 @@ class PaddleOcr(OcrModel):
         language="en",
         cache_path: Optional[str] = None,
         cache_only: bool = False,
-        disable_caching: bool = False,
+        disable_caching: bool = True,
         **kwargs,
     ):
         super().__init__(cache_path=cache_path, cache_only=cache_only, disable_caching=disable_caching)

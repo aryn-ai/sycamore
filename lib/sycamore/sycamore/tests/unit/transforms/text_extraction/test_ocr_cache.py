@@ -248,21 +248,21 @@ class TestOcrModelsWithCaching:
         """Test PaddleOcr initialization with different caching modes."""
         from sycamore.transforms.text_extraction.ocr_models import PaddleOcr
 
-        # Test with default caching
+        # Test with default parameters (caching disabled)
         ocr = PaddleOcr(cache_path=temp_cache_dir)
-        assert ocr.cache_manager is not None
-        assert not ocr.disable_caching
+        assert ocr.cache_manager is None
+        assert ocr.disable_caching
         assert not ocr.cache_only
         assert ocr._model_name == "PaddleOcr"
         assert ocr._package_names == ["paddleocr", "paddle"]
 
-        # Test with cache disabled
-        ocr_disabled = PaddleOcr(cache_path=temp_cache_dir, disable_caching=True)
-        assert ocr_disabled.cache_manager is None
-        assert ocr_disabled.disable_caching
+        # Test with caching enabled
+        ocr_enabled = PaddleOcr(cache_path=temp_cache_dir, disable_caching=False)
+        assert ocr_enabled.cache_manager is not None
+        assert not ocr_enabled.disable_caching
 
         # Test with cache only mode
-        ocr_cache_only = PaddleOcr(cache_path=temp_cache_dir, cache_only=True)
+        ocr_cache_only = PaddleOcr(cache_path=temp_cache_dir, cache_only=True, disable_caching=False)
         assert ocr_cache_only.cache_manager is not None
         assert ocr_cache_only.cache_only
         assert not ocr_cache_only.disable_caching
@@ -272,21 +272,21 @@ class TestOcrModelsWithCaching:
         """Test EasyOcr initialization with different caching modes."""
         from sycamore.transforms.text_extraction.ocr_models import EasyOcr
 
-        # Test with default caching
+        # Test with default parameters (caching disabled)
         ocr = EasyOcr(cache_path=temp_cache_dir)
-        assert ocr.cache_manager is not None
-        assert not ocr.disable_caching
+        assert ocr.cache_manager is None
+        assert ocr.disable_caching
         assert not ocr.cache_only
         assert ocr._model_name == "EasyOcr"
         assert ocr._package_names == ["easyocr"]
 
-        # Test with cache disabled
-        ocr_disabled = EasyOcr(cache_path=temp_cache_dir, disable_caching=True)
-        assert ocr_disabled.cache_manager is None
-        assert ocr_disabled.disable_caching
+        # Test with caching enabled
+        ocr_enabled = EasyOcr(cache_path=temp_cache_dir, disable_caching=False)
+        assert ocr_enabled.cache_manager is not None
+        assert not ocr_enabled.disable_caching
 
         # Test with cache only mode
-        ocr_cache_only = EasyOcr(cache_path=temp_cache_dir, cache_only=True)
+        ocr_cache_only = EasyOcr(cache_path=temp_cache_dir, cache_only=True, disable_caching=False)
         assert ocr_cache_only.cache_manager is not None
         assert ocr_cache_only.cache_only
         assert not ocr_cache_only.disable_caching
@@ -296,21 +296,21 @@ class TestOcrModelsWithCaching:
         """Test Tesseract initialization with different caching modes."""
         from sycamore.transforms.text_extraction.ocr_models import Tesseract
 
-        # Test with default caching
+        # Test with default parameters (caching disabled)
         ocr = Tesseract(cache_path=temp_cache_dir)
-        assert ocr.cache_manager is not None
-        assert not ocr.disable_caching
+        assert ocr.cache_manager is None
+        assert ocr.disable_caching
         assert not ocr.cache_only
         assert ocr._model_name == "Tesseract"
         assert ocr._package_names == ["pytesseract"]
 
-        # Test with cache disabled
-        ocr_disabled = Tesseract(cache_path=temp_cache_dir, disable_caching=True)
-        assert ocr_disabled.cache_manager is None
-        assert ocr_disabled.disable_caching
+        # Test with caching enabled
+        ocr_enabled = Tesseract(cache_path=temp_cache_dir, disable_caching=False)
+        assert ocr_enabled.cache_manager is not None
+        assert not ocr_enabled.disable_caching
 
         # Test with cache only mode
-        ocr_cache_only = Tesseract(cache_path=temp_cache_dir, cache_only=True)
+        ocr_cache_only = Tesseract(cache_path=temp_cache_dir, cache_only=True, disable_caching=False)
         assert ocr_cache_only.cache_manager is not None
         assert ocr_cache_only.cache_only
         assert not ocr_cache_only.disable_caching
@@ -320,21 +320,21 @@ class TestOcrModelsWithCaching:
         """Test LegacyOcr initialization with different caching modes."""
         from sycamore.transforms.text_extraction.ocr_models import LegacyOcr
 
-        # Test with default caching
+        # Test with default parameters (caching disabled)
         ocr = LegacyOcr(cache_path=temp_cache_dir)
-        assert ocr.cache_manager is not None
-        assert not ocr.disable_caching
+        assert ocr.cache_manager is None
+        assert ocr.disable_caching
         assert not ocr.cache_only
         assert ocr._model_name == "LegacyOcr"
         assert ocr._package_names == ["easyocr", "pytesseract"]
 
-        # Test with cache disabled
-        ocr_disabled = LegacyOcr(cache_path=temp_cache_dir, disable_caching=True)
-        assert ocr_disabled.cache_manager is None
-        assert ocr_disabled.disable_caching
+        # Test with caching enabled
+        ocr_enabled = LegacyOcr(cache_path=temp_cache_dir, disable_caching=False)
+        assert ocr_enabled.cache_manager is not None
+        assert not ocr_enabled.disable_caching
 
         # Test with cache only mode
-        ocr_cache_only = LegacyOcr(cache_path=temp_cache_dir, cache_only=True)
+        ocr_cache_only = LegacyOcr(cache_path=temp_cache_dir, cache_only=True, disable_caching=False)
         assert ocr_cache_only.cache_manager is not None
         assert ocr_cache_only.cache_only
         assert not ocr_cache_only.disable_caching
@@ -349,7 +349,7 @@ class TestOcrModelsWithCaching:
             with patch.object(PaddleOcr, "_get_boxes_and_text_impl", return_value=[{"text": "test", "bbox": None}]):
 
                 # Test with caching enabled
-                ocr = PaddleOcr(cache_path=temp_cache_dir)
+                ocr = PaddleOcr(cache_path=temp_cache_dir, disable_caching=False)
                 result1 = ocr.get_text(test_image)
                 result2 = ocr.get_text(test_image)
 
@@ -357,8 +357,8 @@ class TestOcrModelsWithCaching:
                 assert result1 == result2
                 assert result1 == ("test text", 12.0)
 
-                # Test with caching disabled
-                ocr_disabled = PaddleOcr(cache_path=temp_cache_dir, disable_caching=True)
+                # Test with caching disabled (default)
+                ocr_disabled = PaddleOcr(cache_path=temp_cache_dir)
                 result3 = ocr_disabled.get_text(test_image)
                 result4 = ocr_disabled.get_text(test_image)
 
@@ -378,11 +378,11 @@ class TestOcrModelsWithCaching:
         with patch.object(PaddleOcr, "_get_text_impl", return_value=("test text", 12.0)):
 
             # First, populate cache with normal mode
-            ocr_normal = PaddleOcr(cache_path=temp_cache_dir)
+            ocr_normal = PaddleOcr(cache_path=temp_cache_dir, disable_caching=False)
             ocr_normal.get_text(test_image)
 
             # Then test cache-only mode
-            ocr_cache_only = PaddleOcr(cache_path=temp_cache_dir, cache_only=True)
+            ocr_cache_only = PaddleOcr(cache_path=temp_cache_dir, cache_only=True, disable_caching=False)
 
             # Should work with cached data
             result = ocr_cache_only.get_text(test_image)
@@ -402,7 +402,7 @@ class TestOcrModelsWithCaching:
         with patch.object(PaddleOcr, "_get_boxes_and_text_impl") as mock_impl:
             mock_impl.return_value = [{"text": "test", "bbox": None}]
 
-            ocr = PaddleOcr(cache_path=temp_cache_dir)
+            ocr = PaddleOcr(cache_path=temp_cache_dir, disable_caching=False)
 
             # Call with different parameters
             ocr.get_boxes_and_text(test_image, get_confidences=False)
@@ -425,7 +425,7 @@ class TestOcrModelsWithCaching:
         # Mock the OCR implementation
         with patch.object(PaddleOcr, "_get_text_impl", return_value=("test text", 12.0)):
 
-            ocr = PaddleOcr(cache_path=temp_cache_dir)
+            ocr = PaddleOcr(cache_path=temp_cache_dir, disable_caching=False)
 
             # Initially 0 hit rate
             assert ocr.cache_manager.get_hit_rate() == 0.0

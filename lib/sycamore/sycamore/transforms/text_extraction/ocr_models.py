@@ -148,7 +148,10 @@ class OcrModel(TextExtractor):
         # Cache miss or cache disabled
         logger.debug(f"Cache miss for {self._model_name}.get_boxes_and_text, computing result")
         result = self._get_boxes_and_text_impl(image, **kwargs)
-        jsonable_result = [{"bbox": [float(x) for x in dict_value["bbox"].to_list()], "text": dict_value["text"]} for dict_value in result]
+        jsonable_result = [
+            {"bbox": [float(x) for x in dict_value["bbox"].to_list()], "text": dict_value["text"]}
+            for dict_value in result
+        ]
 
         # Cache the result
         self.cache_manager.set(

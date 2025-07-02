@@ -267,10 +267,20 @@ class OpenSearchSync:
                     id_to_info[did].append((mtime, key))
                 else:
                     id_to_info[did] = (mtime, key)
-            else:
-                logger.warning(f"Unexpected mis-formatted file {f.base_name} found")
-                self.stats.mis_formatted_file += 1
+            elif f.base_name.startswith("oss-") and f.base_name.endswith(".md"):
+                # Clean these up; likely cause is a change to the format.
+                logger.warning(f"Unexpected mis-formatted oss-*.md file {f.base_name} found")
+                self.stats.misformatted_oss_file += 1
                 mat_dir.delete_file(f.base_name)
+            elif f.base_name.endswith(".md"):
+                self.stats.ignored_other_md += 1
+            elif f.base_name.endswith(".pickle"):
+                raise ValueError(
+                    f"Found file {f.base_name} ending with .pickle; is this not a reliable pipeline? doc ids should start with doc-path-sha256-"
+                )
+            else:
+                self.stats.ignored_unrecognized += 1
+                logger.warning(f"Ignoring unrecognized, file {f.base_name}")
 
         to_remove = {}
         for k, v in id_to_info.items():
@@ -628,4 +638,6 @@ class SyncStats:
     missing_os_record: int = 0
     mismatch_key: int = 0
     only_in_os: int = 0
-    mis_formatted_file: int = 0
+    misformatted_oss_file: int = 0
+    ignored_other_md: int = 0
+    ignored_unrecognized: int = 0

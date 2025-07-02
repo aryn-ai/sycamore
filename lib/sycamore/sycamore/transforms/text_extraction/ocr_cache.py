@@ -2,7 +2,6 @@ import hashlib
 import json
 import logging
 from typing import Any, Dict, Optional
-from pathlib import Path
 from PIL import Image
 import io
 import importlib.metadata

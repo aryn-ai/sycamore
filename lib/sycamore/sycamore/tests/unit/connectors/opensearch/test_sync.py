@@ -403,3 +403,28 @@ def test_intermittent_429s(mat_dirs):
                 break
             else:
                 assert i < 4, "Too many tries to get any injected 429s"
+
+
+def test_multiple_os_write_rounds(mat_dirs):
+    def mega_splitter(doc):
+        children = int(doc.text_representation)
+        ret = [doc]
+        for i in range(children * 20):
+            child_id = f"{doc.doc_id}.{i}"
+            d = Document(doc_id="", parent_id=doc.doc_id, text_representation=str(child_id))
+            ret.append(d)
+
+        return ret
+
+    oss = UnitTestOpenSearchSync(
+        [(f"{mat_dirs}/xx", mega_splitter)],
+        OpenSearchWriterClientParams(),
+        OpenSearchWriterTargetParams(index_name="test_spurious"),
+    )
+    oss.sync()
+    assert len(oss.fake_os.written) == 5 + 0 + 1 * 20 + 2 * 20 + 3 * 20 + 4 * 20  # main + subdocs
+    assert len(oss.fake_os.deleted) == 0
+    oss.fake_os_written = []
+
+    oss.sync()
+    assert len(oss.fake_os.written) == 0

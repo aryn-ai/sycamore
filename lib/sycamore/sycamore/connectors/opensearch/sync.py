@@ -74,7 +74,7 @@ import logging
 import random
 import re
 import time
-from typing import Callable, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Tuple, TYPE_CHECKING
 
 from sycamore.data.document import Document
 from sycamore.connectors.opensearch.opensearch_writer import (
@@ -164,7 +164,7 @@ class OpenSearchSync:
         self.target_params = target_params
         self.stats = SyncStats()
 
-    def sync(self):
+    def sync(self) -> None:
         self.stats = SyncStats()
         with ThreadPoolExecutor() as e:
             os_files_fut = e.submit(self.prepare_opensearch)
@@ -176,16 +176,6 @@ class OpenSearchSync:
             # docs lie for a local filesystem, both are present
             os_pid_to_parts = os_files_fut.result()
 
-            # TODO: once we have delete implemented:
-            # If we add the timestamp from the filesystem into the calculated key; and we implement
-            # deletion on key mismatch, then we can handle the case where files get updated in
-            # ETL, or we change which mat dir is synced to an index.
-            # If delete also removes the oss-<did>,key.md file; then we can even handle the
-            # case of update in place.
-
-            # ERIC: for deletion make sure to handle the case of document removed but the oss-*
-            # stamp file remains; it should get deleted.
-
             if False:
                 from devtools import PrettyFormat
 
@@ -193,8 +183,8 @@ class OpenSearchSync:
                 print(f"-------DEBUGGING-------\nOS PidToParts\n{PrettyFormat()(os_pid_to_parts)}")
 
             # need to track source to know the splitter
-            to_be_loaded_groups = [[] for s in self.sources]
-            all_source_ids = set()
+            to_be_loaded_groups: list[list[str]] = [[] for s in self.sources]
+            all_source_ids: set[str] = set()
             changed_pid_to_osids = {}
             for i, sf in enumerate(source_files):
                 all_source_ids.update(sf.id_to_key.keys())
@@ -233,7 +223,7 @@ class OpenSearchSync:
                         root, splitter, g, fid_to_mtime, changed_pid_to_osids, os, self.target_params
                     ).run()
 
-    def find_source_files(self, src):
+    def find_source_files(self, src: Tuple[str, Callable[[Document], list[Document]]]) -> "SourceFileInfo":
         """Finds source file information, also cleans up files which can't be part of a source"""
         base_re = re.compile(f"doc-path-sha256-({ID_RE})\\.pickle")
         # does not match with *.pickle so materialize will ignore
@@ -243,7 +233,7 @@ class OpenSearchSync:
         fis = mat_dir.list_files()
 
         fid_to_mtime = {}
-        id_to_info = {}
+        id_to_info: dict[str, Any] = {}  # should be a list or a tuple, but I can't make mypy happy
 
         updated_count = 0
 
@@ -259,17 +249,18 @@ class OpenSearchSync:
                 fid_to_mtime[m.group(1)] = mtime_ns
                 assert raw_id_to_filename(m.group(1)) == f.base_name
             elif m := oss_md_re.fullmatch(f.base_name):
-                # print(f"ERIC {m.group(1)} {m.group(2)}")
                 did, mtime, key = m.group(1), int(m.group(2)), m.group(3)
                 if did in id_to_info:
                     logger.warning(f"Duplicate key for {did} {id_to_info[did]} {mtime} {key}")
                     if not isinstance(id_to_info[did], list):
-                        id_to_info[did] = [id_to_info[did]]
+                        a = id_to_info[did]
+                        assert isinstance(a, tuple) and len(a) == 2 and isinstance(a[0], int) and isinstance(a[1], str)
+                        id_to_info[did] = [a]
                     id_to_info[did].append((mtime, key))
                 else:
                     id_to_info[did] = (mtime, key)
             else:
-                logger.warn(f"Unexpected mis-formatted file {f.base_name} found")
+                logger.warning(f"Unexpected mis-formatted file {f.base_name} found")
                 self.stats.mis_formatted_file += 1
                 mat_dir.delete_file(f.base_name)
 
@@ -278,7 +269,6 @@ class OpenSearchSync:
             if k not in fid_to_mtime or isinstance(v, list):
                 to_remove[k] = v
             elif v[0] != fid_to_mtime[k]:
-                print(f"ERIC mtime change {v[0]} {fid_to_mtime[k]}")
                 updated_count += 1
                 to_remove[k] = v
 
@@ -300,7 +290,7 @@ class OpenSearchSync:
 
         return SourceFileInfo(fid_to_mtime, id_to_info, updated_count)
 
-    def prepare_opensearch(self):
+    def prepare_opensearch(self) -> dict[str, dict]:
         """Make sure the index exists in a compatible way and
         find files in the index."""
         from opensearchpy.exceptions import NotFoundError
@@ -336,7 +326,7 @@ class OpenSearchSync:
             existing_params = get_existing_target_params(os, tp)
             assert tp.compatible_with(existing_params)
             scroll_id = response["_scroll_id"]
-            os_docs = []
+            os_docs: list[dict] = []
             process_hits(os_docs, response)
             if scroll_id is not None:
                 while len(response["hits"]["hits"]) > 0:
@@ -346,7 +336,7 @@ class OpenSearchSync:
 
                 os.clear_scroll(scroll_id=scroll_id)
 
-        pid_to_parts = {}
+        pid_to_parts: dict[str, dict] = {}
         for o in os_docs:
             assert "doc_id" in o
             if o["parent_id"] is None:
@@ -386,10 +376,10 @@ class OpenSearchSync:
     def os_client(self):
         return OpenSearchClientWithLogging(**self.os_client_params)
 
-    def delete_os_not_in_source(self, os_pid_to_parts, all_source_ids):
+    def delete_os_not_in_source(self, os_pid_to_parts, all_source_ids) -> None:
         with self.os_client() as os:
-            # Probably should split ProcessBatch into just the os writer piece and the
-            # other bit, all the nones is a bit weird.
+            # TODO: Split ProcessBatch into just the os writer piece and the other bit, all the
+            # nones is a bit weird.
             deleter = self.ProcessBatch(None, None, None, None, None, os, self.target_params)
             for k, v in os_pid_to_parts.items():
                 if k in all_source_ids:
@@ -422,7 +412,7 @@ class OpenSearchSync:
             self.pending_successful_write = {}
             self.id_to_parent_id = {}
 
-        def run(self):
+        def run(self) -> None:
             mat_dir = _MatDir(self.root)
 
             # process all deletes first; we can later optimize this to not delete documents that
@@ -454,7 +444,7 @@ class OpenSearchSync:
 
                 self.records.extend(self.split_doc(doc, i))
                 if len(self.records) >= self.os_batch_size:
-                    self.write_os_records()
+                    self.write_os_records(mat_dir)
 
             self.flush_records(mat_dir)
 
@@ -498,7 +488,7 @@ class OpenSearchSync:
 
                 # See debugging details on key calculation for the drop_subdoc test
                 if False and "4e07" in parent_id and i == 0:
-                    print(f"ERIC DEBUG {parent_id}/{i}/{json.dumps(r._source, sort_keys=True)}")
+                    print(f"DROP_SUBDOC_TEST {parent_id}/{i}/{json.dumps(r._source, sort_keys=True)}")
 
                 sid = base64.urlsafe_b64encode(h.digest()).decode("UTF-8")
                 r._id = "splitdoc-" + sid
@@ -510,7 +500,7 @@ class OpenSearchSync:
             psw["key"] = calculate_doc_key(self.fid_to_mtime[expected_raw_id], list(psw.keys()))
             return ret
 
-        def write_os_records(self, mat_dir):
+        def write_os_records(self, mat_dir) -> None:
             def generate_records(records):
                 for r in records:
                     assert is_dataclass(r)
@@ -531,7 +521,7 @@ class OpenSearchSync:
                     elif "delete" in item:
                         pass  # nothing to do
                     else:
-                        assert False
+                        assert False, f"invalid response from opensearch {item}"
                 elif item["index"]["status"] == 429:
                     assert len(item) == 1, f"Fail {item}"
                     retry_ids.add(next(iter(item.values()))["_id"])
@@ -559,7 +549,7 @@ class OpenSearchSync:
                         retry_records.append(r)
                 self.records = retry_records
 
-        def handle_index_success(self, item, mat_dir):
+        def handle_index_success(self, item, mat_dir) -> None:
             assert mat_dir is not None
             did = item["index"]["_id"]
             if did.startswith("path-sha256-"):
@@ -588,7 +578,7 @@ class OpenSearchSync:
                 logger.debug(f"Successfully wrote all parts of {did} touching {path}")
                 mat_dir.touch_file(path)
 
-        def backoff(self):
+        def backoff(self) -> None:
             if self.retry_count > 6:
                 raise Exception("too many consecutive requests that required backoff")
 
@@ -599,10 +589,10 @@ class OpenSearchSync:
             logger.warning(f"{self.retry_count} consecutive requests with some 429s. Sleep({sleep_time:.2f}).")
             self.sleep(sleep_time)
 
-        def sleep(self, seconds):
+        def sleep(self, seconds) -> None:
             time.sleep(seconds)
 
-        def flush_records(self, mat_dir):
+        def flush_records(self, mat_dir) -> None:
             while len(self.records) > 0:
                 self.write_os_records(mat_dir)
 

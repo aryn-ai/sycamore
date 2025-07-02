@@ -134,7 +134,7 @@ class OcrModel(TextExtractor):
                 logger.debug(f"Cache hit for {self._model_name}.get_boxes_and_text")
                 assert isinstance(cached_result, list), f"Cached result is not a list: {type(cached_result)}"
                 cached_result = [
-                    {"bbox": BoundingBox(*dict_value["bbox"]), "text": dict_value["text"]}
+                    {"bbox": BoundingBox(*dict_value["bbox"]), **{k: v for k, v in dict_value.items() if k != "bbox"}}
                     for dict_value in cached_result
                 ]
                 return cached_result
@@ -148,8 +148,7 @@ class OcrModel(TextExtractor):
         # Cache miss or cache disabled
         logger.debug(f"Cache miss for {self._model_name}.get_boxes_and_text, computing result")
         result = self._get_boxes_and_text_impl(image, **kwargs)
-        jsonable_result = [{"bbox": [float(x) for x in dict_value["bbox"].to_list()], "text": dict_value["text"]} for dict_value in result]
-
+        jsonable_result = [{"bbox": [float(x) for x in dict_value["bbox"].to_list()], **{k: v for k, v in dict_value.items() if k != "bbox"}} for dict_value in result]
         # Cache the result
         self.cache_manager.set(
             image, self._model_name, "get_boxes_and_text", kwargs, self._package_names, jsonable_result

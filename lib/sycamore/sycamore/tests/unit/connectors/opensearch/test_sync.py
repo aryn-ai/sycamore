@@ -237,12 +237,12 @@ def test_drop_subdoc_in_opensearch(mat_dirs):
     # WARNING: There is an annoying effect that if you add a default None field to
     # DEFAULT_RECORD_PROPERTIES, when it is converted to a OpenSearchWriterRecord in split_doc,
     # the new field will end up changing the calculated content-based hash.  There is debug
-    # code in sync.py to help find the new magic constant.
+    # code in sync.py (search for DROP_SUBDOC_TEST) to help find the new magic constant.
     # TODO: Consider removing None fields from the os record, that way changes like that don't
     # affect the hash.
 
     # resync after dropping doc 3 - first part
-    doc_id_3_p1 = "splitdoc-5bckOEOUxIxwOXQoj4ZiPzEaji-rpOMPrBqNjCqDkxM="
+    doc_id_3_p1 = "splitdoc-V25ZNuGuBJo2gDh4uIoee8Aj_hYs0VPFqGxA04gG9aE="
     del oss.fake_os._indices["test_create"][doc_id_3_p1]
     oss.fake_os.written = []
     oss.sync()
@@ -424,7 +424,8 @@ def test_multiple_os_write_rounds(mat_dirs):
     oss.sync()
     assert len(oss.fake_os.written) == 5 + 0 + 1 * 20 + 2 * 20 + 3 * 20 + 4 * 20  # main + subdocs
     assert len(oss.fake_os.deleted) == 0
-    oss.fake_os_written = []
+    oss.fake_os.written = []
 
     oss.sync()
+    print(oss.stats)
     assert len(oss.fake_os.written) == 0

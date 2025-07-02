@@ -92,6 +92,14 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def doc_to_record(d: Document, target_params: OpenSearchWriterTargetParams) -> OpenSearchWriterRecord:
+    r = OpenSearchWriterRecord.from_doc(d, target_params)
+    if "doc_mtime" in d.data:
+        r._source["doc_mtime"] = d.data["doc_mtime"]
+
+    return r
+
+
 # TODO: figure out how best to unify with materialize.py:_PyArrowFsHelper
 class _MatDir:
     def __init__(self, path):
@@ -472,7 +480,7 @@ class OpenSearchSync:
                     parts[0].doc_id == parent_id
                 ), f"If first doc has no parent id, it should still have doc_id as its id, but {parts[0].doc_id} != {parent_id}"
                 psw[short_doc_id] = True
-                ret.append(OpenSearchWriterRecord.from_doc(parts[0], self.target_params))
+                ret.append(doc_to_record(parts[0], self.target_params))
                 parts = parts[1:]
 
             for i, p in enumerate(parts):
@@ -480,19 +488,19 @@ class OpenSearchSync:
                     p.parent_id == parent_id
                 ), f"Subdocs should have proper parent id. got {p.parent_id}; want {parent_id}"
                 p.doc_id = "X"
-                r = OpenSearchWriterRecord.from_doc(p, self.target_params)
+                r = doc_to_record(p, self.target_params)
                 assert r._id == "X" and r._source["doc_id"] == "X"
                 h = hashlib.sha256(f"{parent_id}/{i}/".encode("UTF-8"))
                 # sort keys so the hash should be deterministic.
                 h.update(json.dumps(r._source, sort_keys=True).encode("UTF-8"))
 
-                # See debugging details on key calculation for the drop_subdoc test
-                if False and "4e07" in parent_id and i == 0:
-                    print(f"DROP_SUBDOC_TEST {parent_id}/{i}/{json.dumps(r._source, sort_keys=True)}")
-
                 sid = base64.urlsafe_b64encode(h.digest()).decode("UTF-8")
                 r._id = "splitdoc-" + sid
                 r._source["doc_id"] = r._id
+                # See debugging details on key calculation for the drop_subdoc test
+                if True and "4e07" in parent_id and i == 0:
+                    print(f"DROP_SUBDOC_TEST {parent_id}/{i}/{json.dumps(r._source, sort_keys=True)}")
+
                 ret.append(r)
                 psw[sid] = True
                 self.id_to_parent_id[sid] = short_doc_id

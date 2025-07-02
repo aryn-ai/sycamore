@@ -8,6 +8,7 @@ from sycamore.docset import DocSet
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.functions.tokenizer import CharacterTokenizer
 from sycamore.llms import LLM
+from sycamore.llms.config import LLMModel
 from sycamore.llms.llms import LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.llms.prompts.default_prompts import (
@@ -26,7 +27,9 @@ class MockLLM(LLM):
         super().__init__(model_name="mock_model", default_mode=LLMMode.SYNC)
         self.capture = []
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         self.capture.append(prompt)
         if prompt.messages[0].content.endswith('"1, 2, one, two, 1, 3".'):
             return '{"groups": ["group1", "group2", "group3"]}'
@@ -64,7 +67,9 @@ class MockLLM(LLM):
             return ""
         return ""
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         return self.generate(prompt=prompt, llm_kwargs=llm_kwargs)
 
     def is_chat_mode(self):

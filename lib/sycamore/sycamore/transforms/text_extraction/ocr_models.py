@@ -7,7 +7,12 @@ from io import IOBase, BytesIO
 from sycamore.utils.pdf import pdf_to_image_files
 from sycamore.utils.import_utils import requires_modules
 from sycamore.transforms.text_extraction.text_extractor import TextExtractor
-from sycamore.transforms.text_extraction.ocr_cache import get_ocr_cache_manager, CacheMissError, set_ocr_cache_path
+from sycamore.transforms.text_extraction.ocr_cache import (
+    get_ocr_cache_manager,
+    CacheMissError,
+    set_ocr_cache_path,
+    OcrCacheManager,
+)
 import logging
 import os
 import numpy as np
@@ -36,7 +41,7 @@ class OcrModel(TextExtractor):
         """
         self.cache_only = cache_only
         self.disable_caching = disable_caching
-
+        self.cache_manager: Optional[OcrCacheManager] = None
         if not disable_caching:
             if cache_path is not None:
                 set_ocr_cache_path(cache_path)
@@ -152,9 +157,7 @@ class OcrModel(TextExtractor):
         return self.parse_output(ocr_output, width, height)
 
     @timetrace("OCRDocEx")
-    def extract_document(
-        self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs
-    ) -> list[list[Element]]:
+    def extract_document(self, filename: Union[str, IOBase], **kwargs) -> list[list[Element]]:
         # Note: This method still uses the old document-level caching for backward compatibility
         # The new per-image caching is handled in get_text and get_boxes_and_text methods
         with tempfile.TemporaryDirectory() as tempdirname:  # type: ignore

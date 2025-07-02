@@ -94,10 +94,7 @@ class OcrCacheManager:
             cache_path: Path to cache directory or S3 URL (e.g., "s3://bucket/path")
                        If None, uses default local cache at ~/.sycamore/OcrCache
         """
-        if cache_path is None:
-            cache_path = str(Path.home() / ".sycamore/OcrCache")
-
-        self.cache: Optional[Cache] = cache_from_path(cache_path)
+        self.cache: Optional[Cache] = cache_from_path(cache_path) if cache_path is not None else None
         self.key_generator = OcrCacheKeyGenerator()
 
         if self.cache is None:

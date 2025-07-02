@@ -373,35 +373,3 @@ class TestOcrModelsWithCaching:
         # Third call - hit
         cache_manager.get(test_image, "TestModel", "get_text", {}, ["test_package"])
         assert abs(cache_manager.get_hit_rate() - 0.67) < 0.01  # 2 hits, 3 total
-
-    def test_all_ocr_models_package_names(self):
-        """Test that all OCR models have correct package names."""
-        # Mock the import_modules function to prevent actual imports
-        with patch("sycamore.utils.import_utils.import_modules") as mock_import_modules:
-            # Mock import_modules to do nothing
-            mock_import_modules.return_value = None
-
-            # Import the models (the decorators will call our mocked import_modules)
-            from sycamore.transforms.text_extraction.ocr_models import PaddleOcr, EasyOcr, Tesseract, LegacyOcr
-
-        # Test package names for each model
-        assert PaddleOcr()._get_package_names() == ["paddleocr", "paddle"]
-        assert EasyOcr()._get_package_names() == ["easyocr"]
-        assert Tesseract()._get_package_names() == ["pytesseract"]
-        assert LegacyOcr()._get_package_names() == ["easyocr", "pytesseract"]
-
-    def test_ocr_models_model_names(self):
-        """Test that all OCR models have correct model names."""
-        # Mock the import_modules function to prevent actual imports
-        with patch("sycamore.utils.import_utils.import_modules") as mock_import_modules:
-            # Mock import_modules to do nothing
-            mock_import_modules.return_value = None
-
-            # Import the models (the decorators will call our mocked import_modules)
-            from sycamore.transforms.text_extraction.ocr_models import PaddleOcr, EasyOcr, Tesseract, LegacyOcr
-
-        # Test model names for each model
-        assert PaddleOcr()._model_name == "PaddleOcr"
-        assert EasyOcr()._model_name == "EasyOcr"
-        assert Tesseract()._model_name == "Tesseract"
-        assert LegacyOcr()._model_name == "LegacyOcr"

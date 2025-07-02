@@ -341,7 +341,7 @@ def test_mangled_oss_md(mat_dirs):
     Path(f"{xx}/oss-{to_mangle},sadf213qdssd.md").touch()
     oss.sync()
     print(oss.stats)
-    assert oss.stats.mis_formatted_file == 1
+    assert oss.stats.misformatted_oss_file == 1
 
     mtime_ns = Path(f"{xx}/doc-path-sha256-{to_mangle}.pickle").stat().st_mtime_ns
     # A syntactically valid md file with the wrong key
@@ -429,3 +429,29 @@ def test_multiple_os_write_rounds(mat_dirs):
     oss.sync()
     print(oss.stats)
     assert len(oss.fake_os.written) == 0
+
+
+def test_tolerate_other_md(mat_dirs):
+    xx = f"{mat_dirs}/xx"
+    oss = UnitTestOpenSearchSync(
+        [(xx, fake_splitter)],
+        OpenSearchWriterClientParams(),
+        OpenSearchWriterTargetParams(index_name="test_spurious"),
+    )
+    Path(f"{xx}/foo.md").touch()
+    Path(f"{xx}/yy.test").touch()
+    oss.sync()
+    assert oss.stats.ignored_other_md == 1
+    assert oss.stats.ignored_unrecognized == 1
+
+
+def test_unrecognized_pickle_file_aborts(mat_dirs):
+    xx = f"{mat_dirs}/xx"
+    oss = UnitTestOpenSearchSync(
+        [(xx, fake_splitter)],
+        OpenSearchWriterClientParams(),
+        OpenSearchWriterTargetParams(index_name="test_spurious"),
+    )
+    Path(f"{xx}/foo.pickle").touch()
+    with pytest.raises(ValueError):
+        oss.sync()

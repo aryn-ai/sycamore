@@ -376,17 +376,12 @@ class TestOcrModelsWithCaching:
 
     def test_all_ocr_models_package_names(self):
         """Test that all OCR models have correct package names."""
-        # Patch the decorator at the source module level
-        with patch("sycamore.utils.import_utils.requires_modules") as mock_requires_modules:
-            # Mock the decorator to do nothing
-            mock_requires_modules.return_value = lambda func: func
+        # Mock the import_modules function to prevent actual imports
+        with patch("sycamore.utils.import_utils.import_modules") as mock_import_modules:
+            # Mock import_modules to do nothing
+            mock_import_modules.return_value = None
 
-            # Reload the module to apply the patch
-            import importlib
-            import sycamore.transforms.text_extraction.ocr_models
-
-            importlib.reload(sycamore.transforms.text_extraction.ocr_models)
-
+            # Import the models (the decorators will call our mocked import_modules)
             from sycamore.transforms.text_extraction.ocr_models import PaddleOcr, EasyOcr, Tesseract, LegacyOcr
 
         # Test package names for each model
@@ -397,17 +392,12 @@ class TestOcrModelsWithCaching:
 
     def test_ocr_models_model_names(self):
         """Test that all OCR models have correct model names."""
-        # Patch the decorator at the source module level
-        with patch("sycamore.utils.import_utils.requires_modules") as mock_requires_modules:
-            # Mock the decorator to do nothing
-            mock_requires_modules.return_value = lambda func: func
+        # Mock the import_modules function to prevent actual imports
+        with patch("sycamore.utils.import_utils.import_modules") as mock_import_modules:
+            # Mock import_modules to do nothing
+            mock_import_modules.return_value = None
 
-            # Reload the module to apply the patch
-            import importlib
-            import sycamore.transforms.text_extraction.ocr_models
-
-            importlib.reload(sycamore.transforms.text_extraction.ocr_models)
-
+            # Import the models (the decorators will call our mocked import_modules)
             from sycamore.transforms.text_extraction.ocr_models import PaddleOcr, EasyOcr, Tesseract, LegacyOcr
 
         # Test model names for each model

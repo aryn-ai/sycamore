@@ -1,15 +1,17 @@
+from bs4 import BeautifulSoup, Tag
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Optional, TypeVar, Union, List, Sequence
+from typing import Any, Optional, TypeVar, Union, List, Sequence, TYPE_CHECKING
 import xml.etree.ElementTree as ET
 
-from bs4 import BeautifulSoup, Tag
 from PIL import Image, ImageDraw
-import numpy as np
-from pandas import DataFrame
 
 from sycamore.data.bbox import BoundingBox
 from sycamore.utils.import_utils import requires_modules
+
+if TYPE_CHECKING:
+    from pandas import DataFrame
+    from bs4 import Tag
 
 
 # This is part of itertools in 3.10+.
@@ -184,12 +186,21 @@ class Table:
         d["num_cols"] = self.num_cols
         return d
 
+    @staticmethod
+    def extract_table_block(html_str: str):
+        """
+        Extracts the first <table>...</table> block from the given HTML string.
+        Returns the table block as a Tag.
+        """
+        parsed = BeautifulSoup(html_str, "html.parser")
+        return parsed.find("table")
+
     # TODO: There are likely edge cases where this will break or lose information. Nested or non-contiguous
     # headers are one likely source of issues. We also don't support missing closing tags (which are allowed in
     # the spec) because html.parser doesn't handle them. If and when this becomes an issue, we can consider
     # moving to the html5lib parser.
     @classmethod
-    def from_html(cls, html_str: Optional[str] = None, html_tag: Optional[Tag] = None) -> "Table":
+    def from_html(cls, html_str: Optional[str] = None, html_tag: Optional["Tag"] = None) -> "Table":
         """
         Constructs a Table object from a well-formated HTML table.
 
@@ -204,11 +215,11 @@ class Table:
             raise ValueError("Exactly one of html_str and html_tag must be specified.")
         root: Union[Tag, BeautifulSoup]
         if html_str is not None:
-            html_str = html_str.strip()
-            if not html_str.startswith("<table") or not html_str.endswith("</table>"):
+            table_tag = cls.extract_table_block(html_str)
+            if table_tag is None:
                 raise ValueError("html_str must be a valid html table enclosed in <table></table> tags.")
 
-            root = BeautifulSoup(html_str, "html.parser")
+            root = table_tag
         elif html_tag is not None:
             if html_tag.name != "table":
                 raise ValueError(f"html_tag must correspond to a valid <table> tag. Got {html_tag.name}")
@@ -290,11 +301,15 @@ class Table:
     # we speculate that duplication may create confusion, so we default to only displaying a cells
     # content for the first row/column for which it is applicable. The exception is for header rows,
     # where we duplicate values to each columnn to ensure that every column has a fully qualified header.
-    def to_pandas(self, column_header_only: bool = False) -> Union[DataFrame, List[str]]:
+    def to_pandas(self, column_header_only: bool = False) -> Union["DataFrame", List[str]]:
         """Returns this table as a Pandas DataFrame.
 
         For example, Suppose a cell spans row 2-3 and columns 4-5.
         """
+
+        from pandas import DataFrame
+        import numpy
+
         # Find all row nums containing cells marked as headers.
         header_rows = sorted(set((row_num for cell in self.cells for row_num in cell.rows if cell.is_header)))
 
@@ -310,7 +325,7 @@ class Table:
 
         max_header_prefix_row = i
 
-        table_array = np.empty([self.num_rows, self.num_cols], dtype="object")
+        table_array = numpy.empty([self.num_rows, self.num_cols], dtype="object")
         if len(self.cells) > 0:
             for cell in self.cells:
                 # We treat header cells that are not at the beginning of the table
@@ -359,6 +374,8 @@ class Table:
         Args:
             kwargs: Keyword arguments to pass to the pandas to_csv method.
         """
+
+        from pandas import DataFrame
 
         has_header = any((row_num == 0 for cell in self.cells for row_num in cell.rows if cell.is_header))
 

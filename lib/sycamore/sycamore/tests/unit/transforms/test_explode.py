@@ -3,6 +3,7 @@ import ray.data
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.transforms import Explode
+from sycamore.transforms.explode import UnRoll
 
 
 class TestExplode:
@@ -42,3 +43,11 @@ class TestExplode:
         input_dataset.show()
         output_dataset = explode.execute()
         output_dataset.show()
+
+
+class TestUnroll:
+    def test_unroll(self):
+        doc = Document()
+        doc.properties["entities"] = "e1\ne2\ne3"
+        docs = UnRoll(None, field="properties.entities").run(doc)
+        assert len(docs) == 3

@@ -1,23 +1,56 @@
 from typing import Callable, Dict
 
 from sycamore.llms.llms import LLM
-from sycamore.llms.openai import OpenAI, OpenAIClientType, OpenAIModels, OpenAIClientParameters, OpenAIClientWrapper
-from sycamore.llms.bedrock import Bedrock, BedrockModels
-from sycamore.llms.anthropic import Anthropic, AnthropicModels
-from sycamore.llms.gemini import Gemini, GeminiModels
+from sycamore.llms.config import AnthropicModels, BedrockModels, GeminiModels, OpenAIModels
+
+
+def AnthropicTrampoline(name, **kwargs):
+    from sycamore.llms.anthropic import Anthropic
+
+    return Anthropic(name, **kwargs)
+
+
+def BedrockTrampoline(name, **kwargs):
+    from sycamore.llms.bedrock import Bedrock
+
+    return Bedrock(name, **kwargs)
+
+
+def GeminiTrampoline(name, **kwargs):
+    from sycamore.llms.gemini import Gemini
+
+    return Gemini(name, **kwargs)
+
+
+def OpenAITrampoline(name, **kwargs):
+    from sycamore.llms.openai import OpenAI
+
+    return OpenAI(name, **kwargs)
+
 
 # Register the model constructors.
 MODELS: Dict[str, Callable[..., LLM]] = {}
 MODELS.update(
-    {f"openai.{model.value.name}": lambda **kwargs: OpenAI(model.value.name, **kwargs) for model in OpenAIModels}
+    {
+        f"openai.{model.value.name}": lambda **kwargs: OpenAITrampoline(model.value.name, **kwargs)
+        for model in OpenAIModels
+    }
 )
 MODELS.update(
-    {f"bedrock.{model.value.name}": lambda **kwargs: Bedrock(model.value.name, **kwargs) for model in BedrockModels}
+    {
+        f"bedrock.{model.value.name}": lambda **kwargs: BedrockTrampoline(model.value.name, **kwargs)
+        for model in BedrockModels
+    }
 )
 MODELS.update(
-    {f"anthropic.{model.value}": lambda **kwargs: Anthropic(model.value, **kwargs) for model in AnthropicModels}
+    {
+        f"anthropic.{model.value}": lambda **kwargs: AnthropicTrampoline(model.value, **kwargs)
+        for model in AnthropicModels
+    }
 )
-MODELS.update({f"gemini.{model.value}": lambda **kwargs: Gemini(model.value.name, **kwargs) for model in GeminiModels})
+MODELS.update(
+    {f"gemini.{model.value}": lambda **kwargs: GeminiTrampoline(model.value.name, **kwargs) for model in GeminiModels}
+)
 
 
 def get_llm(model_name: str) -> Callable[..., LLM]:
@@ -27,19 +60,21 @@ def get_llm(model_name: str) -> Callable[..., LLM]:
     return MODELS[model_name]
 
 
+# commented out bits can be removed after 2025-08-01; they are here to help people
+# find where things should be imported from
 __all__ = [
     "MODELS",
     "get_llm",
     "LLM",
-    "OpenAI",
-    "OpenAIClientType",
     "OpenAIModels",
-    "OpenAIClientParameters",
-    "OpenAIClientWrapper",
-    "Bedrock",
+    #   "OpenAI", # sycamore.llms.openai
+    #   "OpenAIClientType", # sycamore.llms.openai
+    #   "OpenAIClientParameters", # sycamore.llms.openai
+    #   "OpenAIClientWrapper", # sycamore.llms.openai
+    #   "Bedrock", # sycamore.llms.bedrock
     "BedrockModels",
-    "Anthropic",
+    # "Anthropic", # sycamore.llms.anthropic
     "AnthropicModels",
-    "Gemini",
+    # "Gemini", # sycamore.llms.gemini
     "GeminiModels",
 ]

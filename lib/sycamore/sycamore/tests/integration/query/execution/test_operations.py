@@ -3,7 +3,7 @@ import pytest
 import sycamore
 from sycamore import EXEC_RAY
 from sycamore.data import Document
-from sycamore.llms import OpenAI, OpenAIModels
+from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.llms.llms import LLMMode
 from sycamore.query.execution.operations import (
     MultiStepDocumentSummarizer,
@@ -15,7 +15,7 @@ from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
 @pytest.fixture(scope="class")
 def llm():
-    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO)
+    llm = OpenAI(OpenAIModels.GPT_4_1_MINI)
 
     yield llm
 

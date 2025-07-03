@@ -133,6 +133,54 @@ def select_pages(page_selection: list[Union[int, list[int]]]) -> Callable[[Docum
     return select_pages_fn
 
 
+def split_pdf(num_pages: int = 1) -> Callable[[Document], list[Document]]:
+    """
+    Splits a PDF document into smaller documents, each containing a specified number of pages.
+
+    Args:
+        num_pages: The number of pages in each split document.
+
+    Returns:
+        A function that takes a Document and returns a list of Documents with the specified
+        number of pages. Suitable for passing to FlatMap on a DocSet.
+    """
+
+    def split_pdf_fn(doc: Document) -> list[Document]:
+        """
+        Splits a PDF into multiple documents, each containing the specified number of pages.
+
+        This method is suitable for passing to FlatMap on a DocSet.
+        """
+
+        if doc.binary_representation is None:
+            logging.warning(f"No binary representation found in doc {doc.doc_id}. Skipping splitting.")
+            return [doc]
+
+        with PdfReader(BytesIO(doc.binary_representation)) as reader:
+            page_count = len(reader.pages)
+
+            new_docs = []
+
+            for idx, start in enumerate(range(1, page_count, num_pages)):
+                outstream = BytesIO()
+                page_list, remapped_pages = flatten_selected_pages(
+                    [[start, min(page_count, start + num_pages - 1)]], page_count
+                )
+                select_pdf_pages(reader, outstream, page_list=page_list)
+
+                new_elements = filter_elements_by_page(doc.elements, page_list)
+                new_doc = Document(binary_representation=outstream.getvalue(), elements=new_elements)
+                new_doc.properties["_original_id"] = doc.doc_id
+                new_doc.properties["_split_index"] = idx
+                new_doc.properties["remapped_pages"] = remapped_pages
+
+                new_docs.append(new_doc)
+
+            return new_docs
+
+    return split_pdf_fn
+
+
 def enumerate_images_and_tables(m_pages: list[Document]):
     from IPython.display import display, HTML
 

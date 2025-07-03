@@ -44,7 +44,7 @@ class PineconeReaderClient(BaseDBReader.Client):
             for pids in index.list(namespace=query_params.namespace):
                 ids.extend(pids)
             results = PineconeReaderQueryResponse(
-                list(dict(index.fetch(ids=ids, namespace=query_params.namespace)["vectors"]).values())
+                list(dict(index.fetch(ids=ids, namespace=query_params.namespace).vectors).values())
             )
         return results
 

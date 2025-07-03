@@ -4,7 +4,12 @@ import random
 from opensearchpy import OpenSearch, RequestError, ConnectionError
 import pytest
 
-from sycamore.connectors.opensearch.opensearch_reader import OpenSearchReaderQueryResponse, OpenSearchReaderQueryParams
+from sycamore.connectors.opensearch.opensearch_reader import (
+    OpenSearchReaderQueryResponse,
+    OpenSearchReaderQueryParams,
+    add_filter_to_query,
+    add_filter_to_knn_query,
+)
 
 from sycamore import Context
 from sycamore.connectors.opensearch import (
@@ -189,7 +194,7 @@ class TestOpenSearchReaderQueryResponse:
         for i in range(len(docs)):
             assert docs[i].parent_id == records[i]["parent_id"]
             assert docs[i].text_representation == records[i]["text_representation"]
-            assert "score" in docs[i].properties
+            assert "search_relevance_score" in docs[i].properties
 
     def test_to_docs_reconstruct_require_client(self):
         query_response = OpenSearchReaderQueryResponse([])
@@ -228,7 +233,7 @@ class TestOpenSearchReaderQueryResponse:
         client = mocker.Mock(spec=OpenSearch)
 
         # no elements match
-        hits = [{"_source": record} for record in records]
+        hits = [{"_source": record, "_score": random.random()} for record in records]
         return_val = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}, "_scroll_id": "123"}
         return_val["hits"]["hits"] += [
             {
@@ -321,7 +326,17 @@ class TestOpenSearchReaderQueryResponse:
         client = mocker.Mock(spec=OpenSearch)
 
         # no elements match
-        hits = [{"_source": record} for record in records]
+        hits = [{"_source": record, "_score": random.random()} for record in records]
+        # Add a hit with no _score
+        hits.append(
+            {
+                "_source": {
+                    "text_representation": "this is an element belonging to parent doc 2",
+                    "parent_id": "doc_2",
+                    "doc_id": "element_2",
+                }
+            }
+        )
         return_val = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}, "_scroll_id": "123"}
         total = len(return_val["hits"]["hits"])
         return_val["hits"]["total"] = {"value": total}
@@ -341,13 +356,14 @@ class TestOpenSearchReaderQueryResponse:
         doc_3 = [doc for doc in docs if doc.doc_id == "doc_3"][0]
 
         assert len(doc_1.elements) == 2
-        assert len(doc_2.elements) == 1
+        assert len(doc_2.elements) == 2
         assert len(doc_3.elements) == 0
 
         assert doc_1.elements[0].text_representation == "this is an element belonging to parent doc 1"
         assert doc_1.elements[1].text_representation == "this is an element belonging to parent doc 1"
 
         assert doc_2.elements[0].text_representation == "this is an element belonging to parent doc 2"
+        assert doc_2.elements[1].text_representation == "this is an element belonging to parent doc 2"
 
 
 class TestOpenSearchRecord:
@@ -461,3 +477,61 @@ class TestOpenSearchUtils:
     def test_get_knn_query_validation(self):
         with pytest.raises(ValueError, match="Only one of `k` or `min_score` should be populated"):
             get_knn_query(Mock(spec=Embedder), query_phrase="test", k=10, min_score=0.5)
+
+
+class TestOpenSearchReader:
+
+    def test_add_filter_to_query(self):
+        query = {"query": {"match_all": {}}}
+        filter = {"properties.colors": ["red", "blue"]}
+        add_filter_to_query(query, filter)
+
+        assert "bool" in query["query"]
+        assert "must" in query["query"]["bool"]
+        assert "filter" in query["query"]["bool"]
+        assert "terms" in query["query"]["bool"]["filter"][0]
+        assert filter == query["query"]["bool"]["filter"][0]["terms"]
+        assert query == {
+            "query": {
+                "bool": {"must": [{"match_all": {}}], "filter": [{"terms": {"properties.colors": ["red", "blue"]}}]}
+            }
+        }
+
+    def test_add_filter_to_knn_query(self):
+        query = {"query": {"knn": {"embedding": {"vector": [0.1, 0.2], "k": 10}}}}
+        filter = {"properties.colors": ["red", "blue"]}
+        add_filter_to_knn_query(query, filter)
+
+        inner_query = query["query"]["knn"]["embedding"]
+        assert "filter" in inner_query
+        assert "bool" in inner_query["filter"]
+        assert "must" in inner_query["filter"]["bool"]
+        assert "terms" in inner_query["filter"]["bool"]["must"][0]
+        assert filter == inner_query["filter"]["bool"]["must"][0]["terms"]
+
+        with pytest.raises(AssertionError):
+            query = {
+                "query": {
+                    "knn": {
+                        "something_else": {
+                            "vector": [0.1, 0.2],
+                            "k": 10,
+                        }
+                    }
+                }
+            }
+            add_filter_to_knn_query(query, filter)
+
+        with pytest.raises(AssertionError):
+            query = {
+                "query": {
+                    "knn": {
+                        "embedding": {
+                            "vector": [0.1, 0.2],
+                            "k": 10,
+                        },
+                        "field": "something_else",
+                    }
+                }
+            }
+            add_filter_to_knn_query(query, filter)

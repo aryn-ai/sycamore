@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Union, Optional, Callable, TYPE_CHECKING
+from typing_extensions import Self
 import copy
 
 import pydantic
@@ -55,6 +56,17 @@ class SycamorePrompt:
     convert sycamore objects (``Document``, ``Element``) into ``RenderedPrompts``
     """
 
+    def render_any(self, **kwargs) -> RenderedPrompt:
+        """Render this prompt, given the input data as context
+
+        Args:
+            **kwargs: key-value pairs of data to include in the prompt
+
+        Returns:
+            A fully rendered prompt that can be sent to an llm for inference
+        """
+        raise NotImplementedError(f"render_any is not implemented for {self.__class__.__name__}")
+
     def render_document(self, doc: Document) -> RenderedPrompt:
         """Render this prompt, given this document as context.
         Used in llm_map
@@ -90,7 +102,7 @@ class SycamorePrompt:
             A fully rendered prompt that can be sent to an LLM for inference"""
         raise NotImplementedError(f"render_multiple_documents is not implemented for {self.__class__.__name__}")
 
-    def fork(self, **kwargs: Any) -> "SycamorePrompt":
+    def fork(self, **kwargs: Any) -> Self:
         """Create a new prompt with some fields changed.
 
         Args:

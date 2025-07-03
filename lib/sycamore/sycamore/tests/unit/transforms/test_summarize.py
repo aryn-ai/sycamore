@@ -203,7 +203,10 @@ class TestOneStepSummarize:
                     for i, s in enumerate(list(USStateStandardizer.state_abbreviations.values()) + ["Canada"])
                 }
                 | {"title": "Title A"},
-                elements=[Element(text_representation="subelement 1"), Element(text_representation="subelement 2")],
+                elements=[
+                    Element(text_representation="subelement 1"),
+                    Element(text_representation="subelement 2"),
+                ],
             ),
             Document(
                 text_representation="Something very long part 2",
@@ -323,7 +326,10 @@ class TestOneStepSummarize:
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = OneStepDocumentSummarizer(
-            llm, question="say what?", fields=["properties.title"], tokenizer=CharacterTokenizer(max_tokens=1850)
+            llm,
+            question="say what?",
+            fields=["properties.title"],
+            tokenizer=CharacterTokenizer(max_tokens=1850),
         )
         d = summarizer.summarize(self.doc)
 
@@ -331,7 +337,7 @@ class TestOneStepSummarize:
         assert generate.call_count == 1
         prompt = generate.call_args.kwargs["prompt"]
         usermessage = prompt.messages[-1].content
-        assert occurrences(usermessage, "subelement") == 32
+        assert occurrences(usermessage, "subelement") == 34
         assert occurrences(usermessage, "properties.title") == 4
         assert "say what?" in usermessage
         assert "properties.state" not in usermessage
@@ -341,7 +347,10 @@ class TestOneStepSummarize:
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = "sum"
         summarizer = OneStepDocumentSummarizer(
-            llm, question="say what?", fields=["properties.title"], tokenizer=CharacterTokenizer(max_tokens=600)
+            llm,
+            question="say what?",
+            fields=["properties.title"],
+            tokenizer=CharacterTokenizer(max_tokens=600),
         )
         d = summarizer.summarize(self.doc)
 

@@ -21,12 +21,15 @@ from sycamore.transforms.summarize import (
 )
 
 log = structlog.get_logger(__name__)
+
+# making this takes 0.4s; see if we can delay
+_DEFAULT_TOKENIZER = OpenAITokenizer("gpt-4o", max_tokens=128_000)
 # multistep
 _MULTISTEP_SUMMARIZE: tuple[type[Summarizer], dict[str, Any]] = (
     MultiStepDocumentSummarizer,
     {
         "fields": [EtCetera],
-        "tokenizer": OpenAITokenizer("gpt-4o", max_tokens=128_000),
+        "tokenizer": _DEFAULT_TOKENIZER,
         "llm_mode": LLMMode.ASYNC,
     },
 )
@@ -35,7 +38,7 @@ _ONESTEP_SUMMARIZE: tuple[type[Summarizer], dict[str, Any]] = (
     OneStepDocumentSummarizer,
     {
         "fields": [EtCetera],
-        "tokenizer": OpenAITokenizer("gpt-4o", max_tokens=128_000),
+        "tokenizer": _DEFAULT_TOKENIZER,
     },
 )
 

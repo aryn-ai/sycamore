@@ -1,5 +1,5 @@
 from sycamore.data import Document, Element, Table, TableCell
-from sycamore.llms import OpenAI
+from sycamore.llms.openai import OpenAI
 from sycamore.transforms.extract_table_properties import ExtractTableProperties
 from PIL import Image
 from io import BytesIO

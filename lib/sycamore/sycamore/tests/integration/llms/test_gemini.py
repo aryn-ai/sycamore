@@ -3,9 +3,16 @@ from typing import Any
 import base64
 import pickle
 
-from sycamore.llms import Gemini, GeminiModels
+import pytest
+
+from sycamore.llms.gemini import Gemini, GeminiModels
 from sycamore.llms.prompts.prompts import RenderedPrompt, RenderedMessage
 from sycamore.utils.cache import DiskCache
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
 
 
 def cacheget(cache: DiskCache, key: str):
@@ -25,6 +32,18 @@ def test_gemini_defaults():
     )
 
     res = llm.generate(prompt=prompt, llm_kwargs={})
+
+    assert len(res) > 0
+
+
+@pytest.mark.anyio
+async def test_gemini_async_defaults():
+    llm = Gemini(GeminiModels.GEMINI_2_FLASH)
+    prompt = RenderedPrompt(
+        messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+    )
+
+    res = await llm.generate_async(prompt=prompt, llm_kwargs={})
 
     assert len(res) > 0
 
@@ -151,3 +170,14 @@ def test_metadata():
     assert "wall_latency" in res
     assert "in_tokens" in res
     assert "out_tokens" in res
+
+
+def test_default_llm_kwargs():
+    llm = Gemini(GeminiModels.GEMINI_2_FLASH_LITE, default_llm_kwargs={"max_output_tokens": 5})
+    res = llm.generate_metadata(
+        prompt=RenderedPrompt(
+            messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+        ),
+        llm_kwargs={},
+    )
+    assert res["out_tokens"] <= 5

@@ -9,9 +9,6 @@ from collections import OrderedDict, defaultdict
 from typing import Optional
 import xml.etree.ElementTree as ET
 
-import numpy as np
-import pandas as pd
-
 from sycamore.data.table import Table, TableCell
 from sycamore.data import BoundingBox
 
@@ -127,7 +124,11 @@ DEFAULT_STRUCTURE_CLASS_THRESHOLDS = {
 
 
 def objects_to_table(
-    objects, tokens, structure_class_thresholds=DEFAULT_STRUCTURE_CLASS_THRESHOLDS, union_tokens=False
+    objects,
+    tokens,
+    structure_class_thresholds=DEFAULT_STRUCTURE_CLASS_THRESHOLDS,
+    union_tokens=False,
+    resolve_overlaps=False,
 ) -> Optional[Table]:
     structures = objects_to_structures(objects, tokens=tokens, class_thresholds=structure_class_thresholds)
 
@@ -196,7 +197,7 @@ def objects_to_table(
     return Table(table_cells)
 
 
-def refine_rows(rows, tokens, score_threshold):
+def refine_rows(rows, tokens, score_threshold, resolve_overlaps=False):
     """
     Apply operations to the detected rows, such as
     thresholding, NMS, and alignment.
@@ -209,24 +210,99 @@ def refine_rows(rows, tokens, score_threshold):
         rows = nms(rows, match_criteria="object2_overlap", match_threshold=0.5, keep_higher=True)
     if len(rows) > 1:
         rows = sort_objects_top_to_bottom(rows)
-
+        if resolve_overlaps:
+            rows = resolve_overlaps_func(rows, is_row=True)
+    if len(tokens) > 0 and resolve_overlaps:
+        remove_objects_without_content(tokens, rows)
     return rows
 
 
-def refine_columns(columns, tokens, score_threshold):
+def resolve_overlaps_func(objects, is_row):
+    """
+    Resolves overlaps between objects (rows or columns).
+    `is_row` = True for rows (vertical), False for columns (horizontal).
+
+    First, handles non-adjacent overlaps: if obj_i overlaps obj_k (k > i+1),
+    obj_k's start boundary is pushed to be at least obj_{i+1}'s end boundary.
+    Then, resolves adjacent overlaps by setting their shared boundary to the midpoint.
+    Guards are in place to prevent objects from inverting (e.g., x1 > x2 or y1 > y2).
+    """
+    n = len(objects)
+    if n < 2:
+        return objects
+
+    if is_row:  # Rows (vertical)
+        start_coord_idx, end_coord_idx = 1, 3  # y1, y2
+    else:  # Columns (horizontal)
+        start_coord_idx, end_coord_idx = 0, 2  # x1, x2
+
+    # # Phase 1: Handle "further away" overlaps
+    # # If obj_i overlaps obj_k (where k > i+1), ensure objk's start boundary
+    # # is at least obj{i+1}'s end boundary.
+    # We move k ahead so that the subsequent logic can handle adjacent overlaps.
+    for i in range(n - 2):  # obj_i ranges from index 0 to n-3
+        obj_i_bbox = objects[i]["bbox"]
+        # obj_intermediate is objects[i+1]
+        obj_intermediate_bbox = objects[i + 1]["bbox"]
+
+        # Check obj_i against all objects obj_k where k is from i+2 to n-1
+        for k in range(i + 2, n):
+            obj_k_bbox = objects[k]["bbox"]
+
+            # If obj_i's end edge is past obj_k's start edge (overlap)
+            if obj_i_bbox[end_coord_idx] > obj_k_bbox[start_coord_idx]:
+                # Proposed new start for obj_k is the end of obj_intermediate.
+                new_obj_k_start = obj_intermediate_bbox[end_coord_idx]
+
+                if new_obj_k_start > obj_k_bbox[start_coord_idx]:  # If this pushes obj_k
+                    obj_k_bbox[start_coord_idx] = new_obj_k_start
+                # Ensure obj_k remains valid. If not, collapse it.
+                if obj_k_bbox[start_coord_idx] > obj_k_bbox[end_coord_idx]:
+                    obj_k_bbox[start_coord_idx] = obj_k_bbox[end_coord_idx]
+
+    # Phase 2: Resolve adjacent overlaps using midpoint logic
+    for i in range(n - 1):  # Iterate through adjacent pairs
+        obj_a = objects[i]
+        obj_b = objects[i + 1]
+
+        obj_a_bbox = obj_a["bbox"]
+        obj_b_bbox = obj_b["bbox"]
+
+        obj_a_end = obj_a_bbox[end_coord_idx]
+        obj_b_start = obj_b_bbox[start_coord_idx]
+
+        if obj_a_end > obj_b_start:  # Overlap detected
+            midpoint = (obj_a_end + obj_b_start) / 2
+
+            # Update obj_a's end boundary.
+            # obj_a_bbox[start_coord_idx] is assumed <= obj_b_start < midpoint.
+            # Thus, obj_a should not invert.
+            obj_a_bbox[end_coord_idx] = midpoint
+
+            # Update obj_b's start boundary, guarding against inversion.
+            if midpoint > obj_b_bbox[end_coord_idx]:  # If midpoint would make obj_b start after it ends
+                obj_b_bbox[start_coord_idx] = obj_b_bbox[end_coord_idx]  # Collapse obj_b
+            else:
+                obj_b_bbox[start_coord_idx] = midpoint
+
+    return objects
+
+
+def refine_columns(columns, tokens, score_threshold, resolve_overlaps=False):
     """
     Apply operations to the detected columns, such as
     thresholding, NMS, and alignment.
     """
-
     if len(tokens) > 0:
         columns = nms_by_containment(columns, tokens, overlap_threshold=0.5)
-        remove_objects_without_content(tokens, columns)
     else:
         columns = nms(columns, match_criteria="object2_overlap", match_threshold=0.25, keep_higher=True)
     if len(columns) > 1:
         columns = sort_objects_left_to_right(columns)
-
+        if resolve_overlaps:
+            columns = resolve_overlaps_func(columns, is_row=False)
+    if len(tokens) > 0 and resolve_overlaps:
+        remove_objects_without_content(tokens, columns)
     return columns
 
 
@@ -367,6 +443,8 @@ def remove_objects_without_content(page_spans, objects):
     Remove any objects (these can be rows, columns, supercells, etc.) that don't
     have any text associated with them.
     """
+    if not objects:
+        return
     for obj in objects[:]:
         object_text, _ = extract_text_inside_bbox(page_spans, obj["bbox"])
         if len(object_text.strip()) == 0:
@@ -936,7 +1014,7 @@ def header_supercell_tree(supercells):
                 break
 
 
-def objects_to_structures(objects, tokens, class_thresholds):
+def objects_to_structures(objects, tokens, class_thresholds, resolve_overlaps=False):
     """
     Process the bounding boxes produced by the table structure recognition model into
     a *consistent* set of table structures (rows, columns, spanning cells, headers).
@@ -981,8 +1059,8 @@ def objects_to_structures(objects, tokens, class_thresholds):
                 obj["column header"] = True
 
     # Refine table structures
-    rows = refine_rows(rows, table_tokens, class_thresholds["table row"])
-    columns = refine_columns(columns, table_tokens, class_thresholds["table column"])
+    rows = refine_rows(rows, table_tokens, class_thresholds["table row"], resolve_overlaps=resolve_overlaps)
+    columns = refine_columns(columns, table_tokens, class_thresholds["table column"], resolve_overlaps=resolve_overlaps)
 
     # Shrink table bbox to just the total height of the rows
     # and the total width of the columns
@@ -1199,6 +1277,9 @@ def structure_to_cells(table_structure, tokens, union_tokens):
 
 
 def cells_to_csv(cells):
+    import pandas
+    import numpy
+
     if len(cells) > 0:
         num_columns = max([max(cell["column_nums"]) for cell in cells]) + 1
         num_rows = max([max(cell["row_nums"]) for cell in cells]) + 1
@@ -1211,7 +1292,7 @@ def cells_to_csv(cells):
     else:
         max_header_row = -1
 
-    table_array = np.empty([num_rows, num_columns], dtype="object")
+    table_array = numpy.empty([num_rows, num_columns], dtype="object")
     if len(cells) > 0:
         for cell in cells:
             for row_num in cell["row_nums"]:
@@ -1225,7 +1306,7 @@ def cells_to_csv(cells):
     for col in header.transpose():
         flattened_header.append(" | ".join(OrderedDict.fromkeys(col)))
 
-    df = pd.DataFrame(table_array[max_header_row + 1 :, :], index=None, columns=flattened_header)
+    df = pandas.DataFrame(table_array[max_header_row + 1 :, :], index=None, columns=flattened_header)
 
     return df.to_csv(index=None)
 

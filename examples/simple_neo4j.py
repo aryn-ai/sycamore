@@ -4,7 +4,7 @@ from sycamore.transforms.extract_graph_entities import EntityExtractor
 from sycamore.transforms.extract_graph_relationships import RelationshipExtractor
 from sycamore.transforms.partition import ArynPartitioner
 
-from sycamore.llms import OpenAI, OpenAIModels
+from sycamore.llms.openai import OpenAI, OpenAIModels
 
 from typing import Optional
 from pydantic import BaseModel, Field

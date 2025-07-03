@@ -3,7 +3,7 @@ from typing import Any
 import base64
 import pickle
 
-from sycamore.llms import Anthropic, AnthropicModels
+from sycamore.llms.anthropic import Anthropic, AnthropicModels
 from sycamore.llms.prompts.prompts import RenderedPrompt, RenderedMessage
 from sycamore.utils.cache import DiskCache
 
@@ -151,3 +151,14 @@ def test_metadata():
     assert "wall_latency" in res
     assert "in_tokens" in res
     assert "out_tokens" in res
+
+
+def test_default_llm_kwargs():
+    llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU, default_llm_kwargs={"max_tokens": 5})
+
+    res = llm.generate_metadata(
+        prompt=RenderedPrompt(
+            messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+        )
+    )
+    assert res["out_tokens"] <= 5

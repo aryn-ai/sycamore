@@ -220,6 +220,7 @@ class MaterializeReadReliability(NodeTraverse):
             self._name_group.materialize_name_to_docid_safe(str(f.path)): f.mtime
             for f in files
             if self._name_group.materialize_name_to_docid_safe(str(f.path)) is not None
+            and not self._name_group.is_metadata_materialize_name(str(f.path))
         }
         logger.info(f"Found {len(self.seen)} already materialized outputs")
         if len(self.seen) == self.prev_seen:

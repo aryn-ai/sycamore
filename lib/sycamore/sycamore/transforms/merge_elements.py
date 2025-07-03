@@ -13,7 +13,7 @@ from sycamore.utils.time_trace import timetrace
 from sycamore.utils.merge_utils import combine_strs_min_newline
 from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.llms import LLM
-from sycamore.utils.bbox_sort import bbox_sort_document
+from sycamore.utils.element_sort import sort_document
 
 
 class ElementMerger(ABC):
@@ -463,12 +463,14 @@ class TableMerger(ElementMerger):
         regex_pattern: Optional[Pattern] = None,
         llm_prompt: Optional[str] = None,
         llm: Optional[LLM] = None,
+        sort_mode: Optional[str] = None,
         *args,
         **kwargs,
     ):
         self.regex_pattern = regex_pattern
         self.llm_prompt = llm_prompt
         self.llm = llm
+        self.sort_mode = sort_mode
 
     def merge_elements(self, document: Document) -> Document:
 
@@ -492,7 +494,7 @@ class TableMerger(ElementMerger):
                 new_table_elements[-1]["properties"]["table_continuation"] = False
         other_elements.extend(new_table_elements)
         document.elements = other_elements
-        bbox_sort_document(document)
+        sort_document(document, mode=self.sort_mode)
 
         return document
 

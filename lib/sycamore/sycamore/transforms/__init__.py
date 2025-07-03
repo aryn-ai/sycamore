@@ -1,3 +1,5 @@
+# Please don't add more to these; every one slows down importing transforms if they are unused.
+# Worse importing any transform forces importing all of them.
 from sycamore.transforms.embed import Embed, Embedder
 from sycamore.transforms.basics import Limit, Filter
 from sycamore.transforms.extract_document_structure import DocumentStructure, ExtractDocumentStructure
@@ -5,7 +7,8 @@ from sycamore.transforms.extract_entity import ExtractEntity, EntityExtractor
 from sycamore.transforms.explode import Explode
 from sycamore.transforms.map import Map, FlatMap, MapBatch
 from sycamore.transforms.partition import Partition, Partitioner
-from sycamore.transforms.extract_table import TableExtractor
+
+# from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.regex_replace import COALESCE_WHITESPACE, RegexReplace
 from sycamore.transforms.similarity import ScoreSimilarity
 from sycamore.transforms.sketcher import Sketcher, SketchUniquify, SketchDebug
@@ -32,12 +35,7 @@ from sycamore.transforms.mark_misc import (
     MarkBreakByTokens,
 )
 from sycamore.transforms.merge_elements import Merge
-from sycamore.transforms.extract_schema import (
-    ExtractSchema,
-    ExtractBatchSchema,
-    SchemaExtractor,
-    PropertyExtractor,
-)
+
 from sycamore.transforms.random_sample import RandomSample
 from sycamore.transforms.split_elements import SplitElements
 from sycamore.transforms.query import Query
@@ -48,6 +46,8 @@ from sycamore.transforms.groupby_count import GroupByCount
 from sycamore.transforms.dataset_scan import DatasetScan
 
 
+# commented out bits can be removed after 2025-08-01; they are here to help people
+# find where things should be imported from
 __all__ = [
     "COALESCE_WHITESPACE",
     "Explode",
@@ -63,7 +63,7 @@ __all__ = [
     "ExtractDocumentStructure",
     "ExtractEntity",
     "EntityExtractor",
-    "TableExtractor",
+    #    "TableExtractor", # sycamore.transforms.extract_table
     "SpreadProperties",
     "RegexReplace",
     "Sketcher",
@@ -78,10 +78,10 @@ __all__ = [
     "MarkDropHeaderFooter",
     "Filter",
     "Merge",
-    "ExtractSchema",
-    "ExtractBatchSchema",
-    "SchemaExtractor",
-    "PropertyExtractor",
+    #    "ExtractSchema",  # sycamore.transforms.extract_schema
+    #    "ExtractBatchSchema",  # sycamore.transforms.extract_schema
+    #    "SchemaExtractor",  # sycamore.transforms.extract_schema
+    #    "PropertyExtractor",  # sycamore.transforms.extract_schema
     "RandomSample",
     "SplitElements",
     "Query",

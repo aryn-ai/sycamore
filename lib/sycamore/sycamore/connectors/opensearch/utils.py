@@ -32,6 +32,11 @@ class OpenSearchClientWithLogging(OpenSearch):
             logger.error(f"OpenSearch query skipped shards: {response}")
         return response
 
+    def parallel_bulk(self, record_gen, **kwargs):
+        from opensearchpy.helpers import parallel_bulk
+
+        return parallel_bulk(self, record_gen, **kwargs)
+
 
 @context_params("opensearch")
 def get_knn_query(

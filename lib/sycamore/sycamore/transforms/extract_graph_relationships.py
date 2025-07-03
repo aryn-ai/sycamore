@@ -17,7 +17,7 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
 from sycamore.llms import LLM
-from sycamore.llms.prompts import GraphRelationshipExtractorPrompt
+from sycamore.llms.prompts.default_prompts import GraphRelationshipExtractorPrompt
 
 logger = logging.getLogger(__name__)
 

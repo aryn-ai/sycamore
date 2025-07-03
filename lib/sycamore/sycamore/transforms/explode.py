@@ -1,4 +1,5 @@
-from typing import Union
+import copy
+from typing import Union, Optional
 from sycamore.data import Document, HierarchicalDocument, mkdocid
 from sycamore.data.element import TableElement
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
@@ -61,4 +62,28 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
             documents.extend(Explode.explode_hierarchical(document))
 
         del parent.children
+        return documents
+
+
+class UnRoll(SingleThreadUser, NonGPUUser, FlatMap):
+    def __init__(self, child: Node, field: str, delimiter: Optional[str] = None, **resource_args):
+        super().__init__(child, f=UnRoll.unroll, args=[field, delimiter], **resource_args)
+
+    @staticmethod
+    @timetrace("unroll")
+    def unroll(parent: Document, field: str, delimiter: Optional[str]) -> list[Document]:
+        documents: list[Document] = []
+
+        value = parent.field_to_value(field)
+        if value:
+            entities = value.split(delimiter) if delimiter else value.splitlines()
+
+            for entity in entities:
+                copied = copy.deepcopy(parent)
+                copied.properties["_original_id"] = parent.doc_id
+                copied.doc_id = mkdocid("c")
+
+                copied.set_value_to_field(field, entity)
+                documents.append(copied)
+
         return documents

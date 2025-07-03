@@ -2,7 +2,7 @@ import sys
 
 import sycamore
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
-from sycamore.llms import OpenAI, OpenAIModels
+from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.transforms import COALESCE_WHITESPACE
 from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import SycamorePartitioner

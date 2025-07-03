@@ -1,13 +1,14 @@
 from dataclasses import dataclass
-from typing import Callable, Iterator, Union, Iterable, Tuple, Any, Dict
+from typing import Callable, Iterator, Union, Iterable, Tuple, Any, Dict, TYPE_CHECKING
 from sycamore.data import Document, Element
 import json
 import string
 import random
 import math
-import numpy as np
-import pyarrow as pa
 import re
+
+if TYPE_CHECKING:
+    import pyarrow
 
 
 @dataclass
@@ -55,10 +56,14 @@ def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any],
 
 
 def compare_docs(doc1: Document, doc2: Document):
+    import numpy
+
     filtered_doc1 = filter_doc(doc1, DEFAULT_RECORD_PROPERTIES.keys())
     filtered_doc2 = filter_doc(doc2, DEFAULT_RECORD_PROPERTIES.keys())
     for key in filtered_doc1:
-        if isinstance(filtered_doc1[key], (list, np.ndarray)) or isinstance(filtered_doc2.get(key), (list, np.ndarray)):
+        if isinstance(filtered_doc1[key], (list, numpy.ndarray)) or isinstance(
+            filtered_doc2.get(key), (list, numpy.ndarray)
+        ):
             assert len(filtered_doc1[key]) == len(filtered_doc2[key])
             for item1, item2 in zip(filtered_doc1[key], filtered_doc2[key]):
                 try:
@@ -75,8 +80,8 @@ def compare_docs(doc1: Document, doc2: Document):
                         assert item1 == item2
         elif isinstance(filtered_doc1[key], dict) and isinstance(filtered_doc2.get(key), dict):
             assert check_dictionary_compatibility(filtered_doc1[key], filtered_doc2.get(key))
-        else:
-            assert filtered_doc1[key] == filtered_doc2.get(key)
+        elif filtered_doc1[key] != filtered_doc2.get(key):
+            raise AssertionError(f"{key} mismatch: {filtered_doc1[key]} != {filtered_doc2.get(key)}")
     return True
 
 
@@ -313,13 +318,15 @@ def _make_type_filter(types: list[type]) -> Callable[[Any], bool]:
     return _type_filter
 
 
-def _get_pyarrow_type(key: str, dtype: str) -> pa.DataType:
+def _get_pyarrow_type(key: str, dtype: str) -> "pyarrow.DataType":
+    import pyarrow
+
     if dtype == ("VARCHAR"):
-        return pa.string()
+        return pyarrow.string()
     elif dtype == ("DOUBLE"):
-        return pa.float64()
+        return pyarrow.float64()
     elif dtype == ("BIGINT"):
-        return pa.int64()
+        return pyarrow.int64()
     elif dtype.startswith("MAP"):
         match = re.match(r"MAP\((.+),\s*(.+)\)", dtype)
         if not match:
@@ -327,14 +334,14 @@ def _get_pyarrow_type(key: str, dtype: str) -> pa.DataType:
         key_type, value_type = match.groups()
         pa_key_type = _get_pyarrow_type(key, key_type)
         pa_value_type = _get_pyarrow_type(key, value_type)
-        return pa.map_(pa_key_type, pa_value_type)
+        return pyarrow.map_(pa_key_type, pa_value_type)
     elif dtype == "VARCHAR[]":
-        return pa.list_(pa.string())
+        return pyarrow.list_(pyarrow.string())
     elif dtype == "DOUBLE[]" or key == "embedding":  # embedding is a list of floats with a fixed dimension
-        return pa.list_(pa.float64())
+        return pyarrow.list_(pyarrow.float64())
     elif dtype == "BIGINT[]":
-        return pa.list_(pa.int64())
+        return pyarrow.list_(pyarrow.int64())
     elif dtype == "FLOAT":
-        return pa.float32()
+        return pyarrow.float32()
     else:
         raise ValueError(f"Unsupported pyarrow datatype: {dtype}")

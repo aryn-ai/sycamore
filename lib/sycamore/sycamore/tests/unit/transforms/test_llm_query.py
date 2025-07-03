@@ -2,7 +2,7 @@ import random
 import string
 
 from sycamore.data import Document, Element
-from sycamore.llms import OpenAI
+from sycamore.llms.openai import OpenAI
 from sycamore.transforms.llm_query import LLMTextQueryAgent
 
 

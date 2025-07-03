@@ -18,19 +18,23 @@ from sycamore.llms.prompts.default_prompts import (
 from sycamore.transforms import (
     Embedder,
     Embed,
+    Filter,
     Partitioner,
     FlatMap,
     Map,
     MapBatch,
     Partition,
-    ExtractBatchSchema,
     Query,
 )
-from sycamore.transforms import Filter
 from sycamore.transforms.base import get_name_from_callable, CompositeTransform
 from sycamore.transforms.base_llm import LLMMap, LLMMapElements
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
-from sycamore.transforms.extract_schema import SchemaExtractor, LLMPropertyExtractor, LLMSchemaExtractor
+from sycamore.transforms.extract_schema import (
+    ExtractBatchSchema,
+    SchemaExtractor,
+    LLMPropertyExtractor,
+    LLMSchemaExtractor,
+)
 from sycamore.transforms.query import QueryExecutor
 from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.transforms.sort import Sort

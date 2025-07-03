@@ -2,7 +2,6 @@ import functools
 import inspect
 import logging
 import os
-from dataclasses import dataclass
 from enum import Enum
 from PIL import Image
 from typing import Any, Dict, Optional, Tuple, Union
@@ -26,7 +25,8 @@ from openai.types.chat.chat_completion import ChatCompletion
 import pydantic
 
 from sycamore.llms.llms import LLM, LLMMode
-from sycamore.llms.prompts import RenderedPrompt
+from sycamore.llms.config import OpenAIModel, OpenAIModels
+from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data_url
 
@@ -42,34 +42,6 @@ BATCH_POLL_INTERVAL = 10
 class OpenAIClientType(Enum):
     OPENAI = 0
     AZURE = 1
-
-
-@dataclass
-class OpenAIModel:
-    name: str
-    is_chat: bool = False
-
-
-class OpenAIModels(Enum):
-    TEXT_DAVINCI = OpenAIModel(name="text-davinci-003", is_chat=True)
-    GPT_3_5_TURBO = OpenAIModel(name="gpt-3.5-turbo", is_chat=True)
-    GPT_4_TURBO = OpenAIModel(name="gpt-4-turbo", is_chat=True)
-    GPT_4O = OpenAIModel(name="gpt-4o", is_chat=True)
-    GPT_4O_STRUCTURED = OpenAIModel(
-        name="gpt-4o-2024-08-06", is_chat=True
-    )  # remove after october 2nd, gpt-4o will point to this model then
-    GPT_4O_MINI = OpenAIModel(name="gpt-4o-mini", is_chat=True)
-    GPT_3_5_TURBO_INSTRUCT = OpenAIModel(name="gpt-3.5-turbo-instruct", is_chat=False)
-    GPT_4_1 = OpenAIModel(name="gpt-4.1", is_chat=True)
-    GPT_4_1_MINI = OpenAIModel(name="gpt-4.1-mini", is_chat=True)
-    GPT_4_1_NANO = OpenAIModel(name="gpt-4.1-nano", is_chat=True)
-
-    @classmethod
-    def from_name(cls, name: str):
-        for m in iter(cls):
-            if m.value.name == name:
-                return m
-        return None
 
 
 class OpenAIClientWrapper:
@@ -266,6 +238,7 @@ class OpenAI(LLM):
         params: Optional[OpenAIClientParameters] = None,
         default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
+        default_llm_kwargs: Optional[dict[str, Any]] = None,
         **kwargs,
     ):
         if isinstance(model_name, OpenAIModels):
@@ -280,7 +253,7 @@ class OpenAI(LLM):
         if self.model.name == OpenAIModels.TEXT_DAVINCI.value.name:
             logger.warning("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
             self.model = OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value
-        super().__init__(self.model.name, default_mode, cache)
+        super().__init__(self.model.name, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
         # This is somewhat complex to provide a degree of backward compatibility.
         if client_wrapper is None:
@@ -307,6 +280,7 @@ class OpenAI(LLM):
             "model_name": self.model,
             "cache": self._cache,
             "default_mode": self._default_mode,
+            "default_llm_kwargs": self._default_llm_kwargs,
         }
 
         return openai_deserializer, (kwargs,)
@@ -345,9 +319,12 @@ class OpenAI(LLM):
 
     def _get_generate_kwargs(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
         kwargs = {
-            "temperature": 0,
             **(llm_kwargs or {}),
         }
+
+        if not self.model.name.startswith("o"):
+            kwargs["temperature"] = 0
+
         if "SYCAMORE_OPENAI_USER" in os.environ:
             kwargs.update({"user": os.environ.get("SYCAMORE_OPENAI_USER")})
 
@@ -380,6 +357,7 @@ class OpenAI(LLM):
         return kwargs
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         llm_kwargs = self._convert_response_format(llm_kwargs)
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if ret is not None:
@@ -439,6 +417,7 @@ class OpenAI(LLM):
             raise e
 
     async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if ret is not None:
             return ret
@@ -516,6 +495,7 @@ class OpenAI(LLM):
             raise e
 
     def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         cache_hits = [self._llm_cache_get(p, llm_kwargs) for p in prompts]
 
         calls = []

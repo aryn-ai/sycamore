@@ -4,18 +4,20 @@ from sycamore.llms.prompts import RenderedPrompt, SycamorePrompt
 from sycamore.llms.prompts.prompts import RenderedMessage
 from sycamore.transforms.base_llm import LLMMap, LLMMapElements
 import pytest
-from typing import Optional
+from typing import Any, Optional
 
 
 class FakeLLM(LLM):
     def __init__(self, default_mode: LLMMode = LLMMode.SYNC):
         super().__init__(model_name="dummy", default_mode=default_mode)
         self.async_calls = 0
+        self.used_llm_kwargs: dict[str, Any] = {}
 
     def is_chat_mode(self) -> bool:
         return True
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        self.used_llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         return "".join(m.content for m in prompt.messages)
 
     async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:

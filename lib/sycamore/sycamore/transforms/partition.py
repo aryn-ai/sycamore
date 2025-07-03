@@ -1,28 +1,28 @@
 from abc import abstractmethod, ABC
 import io
-from typing import Any, Literal, Optional, Union
-
-from bs4 import BeautifulSoup, Tag
+from typing import Any, Literal, Optional, Union, TYPE_CHECKING
 
 from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.data import BoundingBox, Document, Element, TableElement, Table
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
-from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.table_structure.extract import TableStructureExtractor
 from sycamore.transforms.map import Map
 from sycamore.utils.cache import Cache
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.aryn_config import ArynConfig
-from sycamore.utils.bbox_sort import bbox_sort_document
+from sycamore.utils.element_sort import sort_document
 
-from sycamore.transforms.detr_partitioner import (
+from sycamore.transforms.detr_partitioner_config import (
     ARYN_DETR_MODEL,
     DEFAULT_ARYN_PARTITIONER_ADDRESS,
     DEFAULT_LOCAL_THRESHOLD,
 )
+
+if TYPE_CHECKING:
+    from sycamore.transforms.extract_table import TableExtractor
 
 
 class Partitioner(ABC):
@@ -164,6 +164,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         min_partition_length: Optional[int] = 500,
         include_metadata: bool = True,
         retain_coordinates: bool = False,
+        sort_mode: Optional[str] = None,
     ):
         super().__init__(device="cpu")
         self._include_page_breaks = include_page_breaks
@@ -174,6 +175,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         self._min_partition_length = min_partition_length
         self._include_metadata = include_metadata
         self._retain_coordinates = retain_coordinates
+        self._sort_mode = sort_mode
 
     @staticmethod
     def to_element(dict: dict[str, Any], element_index: Optional[int] = None, retain_coordinates=False) -> Element:
@@ -233,7 +235,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         ]
         del elements
 
-        bbox_sort_document(document)
+        sort_document(document, mode=self._sort_mode)
         return document
 
 
@@ -277,6 +279,8 @@ class HtmlPartitioner(Partitioner):
 
     @timetrace("beautSoup")
     def partition(self, document: Document) -> Document:
+        from bs4 import BeautifulSoup, Tag
+
         raw_html = document.binary_representation
 
         if raw_html is None:
@@ -394,7 +398,7 @@ class ArynPartitioner(Partitioner):
         table_structure_extractor: The table extraction implementaion to use when extract_table_structure
              is True. The default is the TableTransformerStructureExtractor.
              Ignored when local mode is false.
-        table_extractor_options: Dictionary of options that are sent to the TableExtractor implementation. Currently
+        table_extraction_options: Dictionary of options that are sent to the TableExtractor implementation. Currently
             supports union_tokens, which is a boolean that controls whether to union OCR / PDFMiner tokens
             in the table cells.
             default: {"union_tokens": False}
@@ -427,6 +431,7 @@ class ArynPartitioner(Partitioner):
             Here is an example set of output label options:
                 {"promote_title": True, "title_candidate_elements": ["Section-header", "Caption"]}
             default: None (no element is promoted to "Title")
+        sort_mode: Reading order algorithm: bbox (default) or xycut.
         kwargs: Additional keyword arguments to pass to the remote partitioner.
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
@@ -449,7 +454,7 @@ class ArynPartitioner(Partitioner):
         per_element_ocr: bool = True,
         extract_table_structure: bool = False,
         table_structure_extractor: Optional[TableStructureExtractor] = None,
-        table_extractor_options: dict[str, Any] = {},
+        table_extraction_options: dict[str, Any] = {},
         extract_images: bool = False,
         extract_image_format: str = "PPM",
         device=None,
@@ -464,6 +469,7 @@ class ArynPartitioner(Partitioner):
         text_extraction_options: dict[str, Any] = {},
         source: str = "",
         output_label_options: dict[str, Any] = {},
+        sort_mode: Optional[str] = None,
         **kwargs,
     ):
         if use_partitioning_service:
@@ -493,7 +499,7 @@ class ArynPartitioner(Partitioner):
         self._per_element_ocr = per_element_ocr
         self._extract_table_structure = extract_table_structure
         self._table_structure_extractor = table_structure_extractor
-        self._table_extractor_options = table_extractor_options
+        self._table_extraction_options = table_extraction_options
         self._extract_images = extract_images
         self._extract_image_format = extract_image_format
         self._output_format = output_format
@@ -506,6 +512,7 @@ class ArynPartitioner(Partitioner):
         self._text_extraction_options = text_extraction_options
         self._source = source
         self.output_label_options = output_label_options
+        self.sort_mode = sort_mode
         self._kwargs = kwargs
 
     @timetrace("SycamorePdf")
@@ -524,7 +531,7 @@ class ArynPartitioner(Partitioner):
                 ocr_model=self._ocr_model,
                 extract_table_structure=self._extract_table_structure,
                 table_structure_extractor=self._table_structure_extractor,
-                table_extractor_options=self._table_extractor_options,
+                table_extraction_options=self._table_extraction_options,
                 extract_images=self._extract_images,
                 extract_image_format=self._extract_image_format,
                 batch_size=self._batch_size,
@@ -537,6 +544,7 @@ class ArynPartitioner(Partitioner):
                 text_extraction_options=self._text_extraction_options,
                 source=self._source,
                 output_label_options=self.output_label_options,
+                sort_mode=self.sort_mode,
                 **self._kwargs,
             )
         except Exception as e:
@@ -545,7 +553,7 @@ class ArynPartitioner(Partitioner):
 
         document.elements = elements
 
-        bbox_sort_document(document)
+        sort_document(document, mode=self.sort_mode)
 
         return document
 
@@ -605,7 +613,7 @@ class Partition(CompositeTransform):
     """
 
     def __init__(
-        self, child: Node, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **resource_args
+        self, child: Node, partitioner: Partitioner, table_extractor: Optional["TableExtractor"] = None, **resource_args
     ):
         ops = []
 

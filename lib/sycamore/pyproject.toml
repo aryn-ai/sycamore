@@ -28,7 +28,7 @@ boto3 = "^1.28.70"
 boto3-stubs = {extras = ["essential"], version = "^1.35.12"}
 urllib3 = ">=2.5.0,<3"
 async-timeout = ">4.0.0"
-pillow = "^11.1.0" # See poetry-lock/pyproject.toml
+pillow = "^11.3.0" # See poetry-lock/pyproject.toml
 tenacity = "^8.4.1"
 diskcache = "^5.6.3"
 overrides = "^7.7.0"

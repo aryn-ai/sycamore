@@ -249,6 +249,18 @@ class Document(UserDict):
             flen = struct.unpack("<Q", buffer.read(8))[0]  # Read the length of the flattened data
             flattened_data = buffer.read(flen).decode()
             data = json.loads(flattened_data)
+            if "metadata" in data:
+                raise UnsupportedOperationError(
+                    "`web_deserialize` does not yet support deserializing MetadataDocuments."
+                )
+            elif "children" in data:
+                raise UnsupportedOperationError(
+                    "`web_deserialize` does not yet support deserializing HierarchicalDocuments."
+                )
+            elif "sub_docs" in data:
+                raise UnsupportedOperationError(
+                    "`web_deserialize` does not yet support deserializing SummaryDocuments."
+                )
             doc = Document(data)
             blen = struct.unpack("<Q", buffer.read(8))[0]  # Read the length of the binary representation
             if blen > 0:

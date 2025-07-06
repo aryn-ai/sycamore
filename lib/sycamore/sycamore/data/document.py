@@ -1,3 +1,6 @@
+from io import BytesIO
+import struct
+import logging
 from collections import UserDict
 import json
 from typing import Any, Optional
@@ -6,6 +9,7 @@ from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
 from sycamore.data.docid import mkdocid, nanoid36
 
+WEB_SERIALIZATION_VERSION = 1
 
 class DocumentSource:
     UNKNOWN = "UNKNOWN"
@@ -201,6 +205,69 @@ class Document(UserDict):
             return SummaryDocument(data)
         else:
             return Document(data)
+
+    def web_serialize(self) -> bytes:
+        with BytesIO() as buffer:
+            buffer.write(b"aryn-ai-doc")
+            buffer.write(struct.pack("<I", WEB_SERIALIZATION_VERSION))
+            binless_elementless_data = self.data.copy()
+            elements = binless_elementless_data.pop("elements", None)
+            b = binless_elementless_data.pop("binary_representation", None)
+            flattened_data = json.dumps(binless_elementless_data).encode()
+            buffer.write(struct.pack("<Q", len(flattened_data)))
+            buffer.write(flattened_data)
+            blen = len(b) if b is not None else 0
+            buffer.write(struct.pack("<Q", blen))
+            if b is not None:
+                buffer.write(b)
+            eslen = len(elements) if elements is not None else 0
+            buffer.write(struct.pack("<Q", eslen))
+            if elements is not None:
+                for element in elements:
+                    edata = element.data
+                    ebin = edata.pop("binary_representation", None)
+                    eflattened_data = json.dumps(edata).encode()
+                    elen = len(eflattened_data)
+                    buffer.write(struct.pack("<Q", elen))
+                    buffer.write(eflattened_data)
+                    eblen = len(ebin) if ebin is not None else 0
+                    buffer.write(struct.pack("<Q", eblen))
+                    if ebin is not None:
+                        buffer.write(ebin)
+            return buffer.getvalue()
+
+
+    @staticmethod
+    def web_deserialize(raw: bytes) -> "Document":
+        if not raw.startswith(b"aryn-ai-doc"):
+            raise ValueError("Invalid document serialization format")
+        with BytesIO(raw) as buffer:
+            buffer.read(11)
+            ver = struct.unpack("<I", buffer.read(4))[0]  # Read the version
+            if ver != WEB_SERIALIZATION_VERSION:
+                raise ValueError(f"Unsupported document serialization version: {ver}")
+            flen = struct.unpack("<Q", buffer.read(8))[0]  # Read the length of the flattened data
+            flattened_data = buffer.read(flen).decode()
+            data = json.loads(flattened_data)
+            doc = Document(data)
+            blen = struct.unpack("<Q", buffer.read(8))[0]  # Read the length of the binary representation
+            if blen > 0:
+                doc.binary_representation = buffer.read(blen)
+            eslen = struct.unpack("<Q", buffer.read(8))[0]  # Read the number of elements
+            elements = []
+            if eslen > 0:
+                for _ in range(eslen):
+                    elen = struct.unpack("<Q", buffer.read(8))[0]
+                    eflattened_data = buffer.read(elen).decode()
+                    edata = json.loads(eflattened_data)
+                    e = Element(**edata)  # Create an Element from the data
+                    eblen = struct.unpack("<Q", buffer.read(8))[0]  # Read the length of the binary representation
+                    if eblen > 0:
+                        e.binary_representation = buffer.read(eblen)
+                    elements.append(e)
+            doc.elements = elements
+        return doc
+
 
     @staticmethod
     def from_row(row: dict[str, bytes]) -> "Document":

@@ -8,6 +8,7 @@ from typing import Any, Optional
 from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
 from sycamore.data.docid import mkdocid, nanoid36
+from sycamore.decorators import experimental
 
 WEB_SERIALIZATION_VERSION = 1
 
@@ -206,6 +207,7 @@ class Document(UserDict):
         else:
             return Document(data)
 
+    @experimental
     def web_serialize(self) -> bytes:
         with BytesIO() as buffer:
             buffer.write(b"aryn-ai-doc")
@@ -237,6 +239,7 @@ class Document(UserDict):
             return buffer.getvalue()
 
 
+    @experimental
     @staticmethod
     def web_deserialize(raw: bytes) -> "Document":
         if not raw.startswith(b"aryn-ai-doc"):

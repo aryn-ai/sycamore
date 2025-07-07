@@ -458,11 +458,11 @@ class PlannerPrompt(SycamorePrompt):
         prompt += f"""\n\nThe following represents the schema of the data you should return a query plan for:
 
         INDEX_NAME: {self.index}
-        DATA_SCHEMA:\n\n{self.make_schema_prompt(self.data_schema)}\n
+        DATA_SCHEMA:\n\n{self.make_schema_prompt(self.data_schema)}
         """
 
         if self.planner_tail_prompt:
-            prompt += self.planner_tail_prompt
+            prompt += f"\n{self.planner_tail_prompt}"
 
         return prompt
 

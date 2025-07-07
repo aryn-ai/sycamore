@@ -10632,7 +10632,7 @@ paddleocr = {version = "^3.1.0", optional = true}
 pandas = "^2.3.0"
 pdf2image = "^1.16.3"
 pdfminer-six = {version = "20221105", optional = true}
-pillow = "^11.1.0"
+pillow = "^11.3.0"
 pinecone = {version = "^6.0.2", extras = ["grpc"], optional = true}
 pinecone-text = {version = "^0.9.0", optional = true}
 protobuf = "^5.29.5"

@@ -367,6 +367,7 @@ class PlannerPrompt(SycamorePrompt):
         planner_system_prompt: str = PLANNER_SYSTEM_PROMPT,
         planner_natural_language_prompt: str = PLANNER_NATURAL_LANGUAGE_PROMPT,
         planner_raw_data_prompt: str = PLANNER_RAW_DATA_PROMPT,
+        planner_tail_prompt: Optional[str] = None,
     ):
         self.query = query
         self.examples = examples
@@ -377,6 +378,7 @@ class PlannerPrompt(SycamorePrompt):
         self.planner_system_prompt = planner_system_prompt
         self.planner_natural_language_prompt = planner_natural_language_prompt
         self.planner_raw_data_prompt = planner_raw_data_prompt
+        self.planner_tail_prompt = planner_tail_prompt
 
     @staticmethod
     def make_operator_prompt(operator: type[Node]) -> str:
@@ -456,8 +458,11 @@ class PlannerPrompt(SycamorePrompt):
         prompt += f"""\n\nThe following represents the schema of the data you should return a query plan for:
 
         INDEX_NAME: {self.index}
-        DATA_SCHEMA:\n\n{self.make_schema_prompt(self.data_schema)}
+        DATA_SCHEMA:\n\n{self.make_schema_prompt(self.data_schema)}\n
         """
+
+        if self.planner_tail_prompt:
+            prompt += self.planner_tail_prompt
 
         return prompt
 

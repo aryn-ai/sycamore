@@ -98,19 +98,17 @@ class UnitDerivation:
 
 
 class PropertyDerivation(UnitConverter, UnitDerivation):
-    def __init__(self, properties, metadata=None):
-
+    def __init__(self, properties, metadata={}, unit_map={}):
         self.properties = properties
-        self.metadata = metadata or {}
+        self.metadata = metadata
         UnitConverter.__init__(self)
-        self.unit_map = {}
+        self.unit_map = unit_map
         UnitDerivation.__init__(self, self.properties, self.metadata, self, self.unit_map)
         self.group = []
 
     def unit_group(self, group):
         temp_group = []
-        for property, unit in group:
-            self.unit_map[property] = unit
+        for property in group:
             temp_group.append(property)
         self.fill_missing_units(temp_group, self.unit_map)
         self.group.append(temp_group)
@@ -178,14 +176,27 @@ class PropertyDerivation(UnitConverter, UnitDerivation):
         return self.properties
 
 
-properties = {"airspeed": 101, "altitude_cm": 12, "airPerAl": 20}
-ud = PropertyDerivation(properties)
-ud.add_conversion("m", "cm", 100.0)
-ud.add_conversion("cm", "mm", 10.0)
+def main():
+    properties = {"airdistance": 101, "altitude_cm": 12, "airPerAl": 20}
+    unit_map = {
+        "airdistance": "cm",
+        "airdistance_m": "m",
+        "altitude": "mm",
+        "altitude_cm": "cm",
+        "altitude_m": "m",
+    }
 
-ud.unit_group([("airspeed", "cm"), ("airspeed_m", "m")])
-ud.unit_group([("altitude", "mm"), ("altitude_cm", "cm")])
+    ud = PropertyDerivation(properties, unit_map=unit_map)
+    ud.add_conversion("m", "cm", 100.0)
+    ud.add_conversion("cm", "mm", 10.0)
 
-ud.fill_from_formula("airPerAl = airspeed_m / altitude_m")
+    ud.unit_group(["airdistance", "airdistance_m"])
+    ud.unit_group(["altitude", "altitude_cm"])
 
-print(properties)
+    ud.fill_from_formula("airPerAl = airspeed_m / altitude_m")
+
+    print(ud.properties, ud.metadata)
+
+
+if __name__ == "__main__":
+    main()

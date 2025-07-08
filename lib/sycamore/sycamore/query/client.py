@@ -220,7 +220,7 @@ class SycamoreQueryClient:
         return plan
 
     def run_plan(
-        self, plan: LogicalPlan, dry_run=False, codegen_mode=False, os_client_args: Optional[dict] = None
+        self, plan: LogicalPlan, dry_run=False, codegen_mode=False, os_client_args: Optional[dict] = None, **kwargs
     ) -> SycamoreQueryResult:
         """Run the given logical query plan and return a tuple of the query ID and result."""
         assert self.context is not None, "Running a plan requires a configured Context"
@@ -247,7 +247,7 @@ class SycamoreQueryClient:
     ) -> SycamoreQueryResult:
         """Run a query against the given index."""
         plan = self.generate_plan(query, index, **kwargs)
-        return self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
+        return self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode, **kwargs)
 
     def dump_traces(self, result: SycamoreQueryResult, limit: int = 5):
         if not result.execution:

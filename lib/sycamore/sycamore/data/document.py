@@ -220,7 +220,7 @@ class Document(UserDict):
             elif isinstance(obj, dict):
                 return {k: make_serializeable(v) for k, v in obj.items()}
             elif isinstance(obj, list):
-                return [make_serializeable(v) for i, v in enumerate(obj)]
+                return [make_serializeable(v) for v in obj]
             return obj
 
         serializeable = make_serializeable(unserializeable)
@@ -248,7 +248,7 @@ class Document(UserDict):
                 else:
                     return {k: reconstruct(v) for k, v in obj.items()}
             elif isinstance(obj, list):
-                return [reconstruct(v) for i, v in enumerate(obj)]
+                return [reconstruct(v) for v in obj]
             return obj
 
         data = reconstruct(unreconstructed_data)

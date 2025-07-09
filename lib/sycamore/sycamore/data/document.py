@@ -218,17 +218,7 @@ class Document(UserDict):
             raise NotImplementedError(f"web_serialize cannot yet handle type '{kind.__name__}'")
         unserializeable = deepcopy(self.data)
 
-        def make_serializeable(obj):
-            if isinstance(obj, Element):
-                data = {"_kind": type(obj).__name__, "data": obj.data}
-                return data
-            elif isinstance(obj, dict):
-                return {k: make_serializeable(v) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [make_serializeable(v) for v in obj]
-            return obj
-
-        serializeable = make_serializeable(unserializeable)
+        serializeable = _make_serializeable(unserializeable)
 
         rv = bytearray()
         rv.extend(SERIALIZATION_MAGIC)  # Magic Bytes
@@ -253,24 +243,7 @@ class Document(UserDict):
 
         unreconstructed_data = msgpack.unpackb(mv[16:])
 
-        def reconstruct(obj):
-            if isinstance(obj, dict):
-                if "_kind" in obj:
-                    if obj["_kind"] == "TableElement":
-                        return TableElement(**obj["data"])
-                    elif obj["_kind"] == "ImageElement":
-                        return ImageElement(**obj["data"])
-                    elif obj["_kind"] == "Element":
-                        return Element(**obj["data"])
-                    else:
-                        raise ValueError(f"Unknown element type: {obj['_kind']}")
-                else:
-                    return {k: reconstruct(v) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [reconstruct(v) for v in obj]
-            return obj
-
-        data = reconstruct(unreconstructed_data)
+        data = _reconstruct(unreconstructed_data)
         return Document(data)
 
     @staticmethod
@@ -325,6 +298,35 @@ class Document(UserDict):
         from sycamore.utils.nested import dotted_lookup
 
         return dotted_lookup(self, field)
+
+
+def _make_serializeable(obj):
+    if isinstance(obj, Element):
+        data = {"_kind": type(obj).__name__, "data": obj.data}
+        return data
+    elif isinstance(obj, dict):
+        return {k: _make_serializeable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_make_serializeable(v) for v in obj]
+    return obj
+
+
+def _reconstruct(obj):
+    if isinstance(obj, dict):
+        if "_kind" in obj:
+            if obj["_kind"] == "TableElement":
+                return TableElement(**obj["data"])
+            elif obj["_kind"] == "ImageElement":
+                return ImageElement(**obj["data"])
+            elif obj["_kind"] == "Element":
+                return Element(**obj["data"])
+            else:
+                raise ValueError(f"Unknown element type: {obj['_kind']}")
+        else:
+            return {k: _reconstruct(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_reconstruct(v) for v in obj]
+    return obj
 
 
 class MetadataDocument(Document):

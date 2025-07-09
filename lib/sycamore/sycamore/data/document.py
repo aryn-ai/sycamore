@@ -1,14 +1,12 @@
 from collections import UserDict
 import json
 from typing import Any, Optional
-from pathlib import Path
-from typing import BinaryIO
 from copy import deepcopy
 
 import msgpack
 
 from sycamore.data import BoundingBox, Element
-from sycamore.data.element import create_element, TableElement, ImageElement, Element
+from sycamore.data.element import create_element, TableElement, ImageElement
 from sycamore.data.docid import mkdocid, nanoid36
 
 
@@ -207,9 +205,9 @@ class Document(UserDict):
         else:
             return Document(data)
 
-
     def web_serialize(self) -> bytes:
         unserializeable = deepcopy(self.data)
+
         def make_serializeable(obj):
             if isinstance(obj, Element):
                 data = {"_kind": type(obj).__name__, "data": obj.data}
@@ -219,6 +217,7 @@ class Document(UserDict):
             elif isinstance(obj, list):
                 return [make_serializeable(v) for i, v in enumerate(obj)]
             return obj
+
         serializeable = make_serializeable(unserializeable)
 
         if bits := msgpack.packb(serializeable):
@@ -228,6 +227,7 @@ class Document(UserDict):
     @staticmethod
     def web_deserialize(raw: bytes) -> "Document":
         unreconstructed_data = msgpack.unpackb(raw)
+
         def reconstruct(obj):
             if isinstance(obj, dict):
                 if "_kind" in obj:
@@ -242,6 +242,7 @@ class Document(UserDict):
             elif isinstance(obj, list):
                 return [reconstruct(v) for i, v in enumerate(obj)]
             return obj
+
         data = reconstruct(unreconstructed_data)
         return Document(data)
 

@@ -2,6 +2,7 @@ from collections import UserDict
 import json
 from typing import Any, Optional
 from copy import deepcopy
+import struct
 
 import msgpack
 
@@ -9,6 +10,10 @@ from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element, TableElement, ImageElement
 from sycamore.data.docid import mkdocid, nanoid36
 from sycamore.decorators import experimental
+
+SERIALIZATION_MAGIC = b"ArynSDoc"
+SERIALIZATION_VERSION_MAJOR = 0
+SERIALIZATION_VERSION_MINOR = 1
 
 
 class DocumentSource:
@@ -209,7 +214,7 @@ class Document(UserDict):
     @experimental
     def web_serialize(self) -> bytes:
         kind = type(self)
-        if kind != "Document":  # MetadataDocument, HierarchicalDocument, SummaryDocument are not yet supported
+        if kind != Document:  # MetadataDocument, HierarchicalDocument, SummaryDocument are not yet supported
             raise NotImplementedError(f"web_serialize cannot yet handle type '{kind.__name__}'")
         unserializeable = deepcopy(self.data)
 
@@ -225,14 +230,28 @@ class Document(UserDict):
 
         serializeable = make_serializeable(unserializeable)
 
+        rv = bytearray()
+        rv.extend(SERIALIZATION_MAGIC)  # Magic Bytes
+        rv.extend(struct.pack(">h", SERIALIZATION_VERSION_MAJOR))  # Version Major
+        rv.extend(struct.pack(">h", SERIALIZATION_VERSION_MINOR))  # Version Minor
+        rv.extend(struct.pack(">I", 0))  # Zero Padding
         if bits := msgpack.packb(serializeable):
-            return bits
+            rv.extend(bits)
+            return bytes(rv)
         raise ValueError("Failed to serialize document")
 
     @experimental
     @staticmethod
     def web_deserialize(raw: bytes) -> "Document":
-        unreconstructed_data = msgpack.unpackb(raw)
+        if not raw.startswith(SERIALIZATION_MAGIC):
+            raise ValueError("Invalid serialization magic")
+        mv = memoryview(raw)
+        version_major = struct.unpack(">h", mv[8:10])[0]
+        version_minor = struct.unpack(">h", mv[10:12])[0]
+        if version_major != SERIALIZATION_VERSION_MAJOR or version_minor != SERIALIZATION_VERSION_MINOR:
+            raise ValueError(f"Unsupported serialization version: {version_major}.{version_minor}")
+
+        unreconstructed_data = msgpack.unpackb(mv[16:])
 
         def reconstruct(obj):
             if isinstance(obj, dict):

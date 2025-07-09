@@ -235,8 +235,10 @@ class Document(UserDict):
                         return TableElement(**obj["data"])
                     elif obj["_kind"] == "ImageElement":
                         return ImageElement(**obj["data"])
-                    else:
+                    elif obj["_kind"] == "Element":
                         return Element(**obj["data"])
+                    else:
+                        raise ValueError(f"Unknown element type: {obj['_kind']}")
                 else:
                     return {k: reconstruct(v) for k, v in obj.items()}
             elif isinstance(obj, list):

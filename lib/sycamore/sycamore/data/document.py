@@ -1,16 +1,15 @@
-from io import BytesIO
-import struct
-import logging
 from collections import UserDict
 import json
 from typing import Any, Optional
+from pathlib import Path
+from typing import BinaryIO
+from copy import deepcopy
+
+import msgpack
 
 from sycamore.data import BoundingBox, Element
-from sycamore.data.element import create_element
+from sycamore.data.element import create_element, TableElement, ImageElement, Element
 from sycamore.data.docid import mkdocid, nanoid36
-from sycamore.decorators import experimental
-
-WEB_SERIALIZATION_VERSION = 1
 
 
 class DocumentSource:
@@ -208,74 +207,44 @@ class Document(UserDict):
         else:
             return Document(data)
 
-    @experimental
-    def web_serialize(self) -> bytes:
-        with BytesIO() as buffer:
-            buffer.write(b"aryn-ai-doc")
-            buffer.write(struct.pack("<I", WEB_SERIALIZATION_VERSION))
-            binless_elementless_data = self.data.copy()
-            elements = binless_elementless_data.pop("elements", None)
-            b = binless_elementless_data.pop("binary_representation", None)
-            flattened_data = json.dumps(binless_elementless_data).encode()
-            buffer.write(struct.pack("<Q", len(flattened_data)))
-            buffer.write(flattened_data)
-            blen = len(b) if b is not None else 0
-            buffer.write(struct.pack("<Q", blen))
-            if b is not None:
-                buffer.write(b)
-            eslen = len(elements) if elements is not None else 0
-            buffer.write(struct.pack("<Q", eslen))
-            if elements is not None:
-                for element in elements:
-                    edata = element.data
-                    ebin = edata.pop("binary_representation", None)
-                    eflattened_data = json.dumps(edata).encode()
-                    elen = len(eflattened_data)
-                    buffer.write(struct.pack("<Q", elen))
-                    buffer.write(eflattened_data)
-                    eblen = len(ebin) if ebin is not None else 0
-                    buffer.write(struct.pack("<Q", eblen))
-                    if ebin is not None:
-                        buffer.write(ebin)
-            return buffer.getvalue()
 
-    @experimental
+    def web_serialize(self) -> bytes:
+        unserializeable = deepcopy(self.data)
+        def make_serializeable(obj):
+            if isinstance(obj, Element):
+                data = {"_kind": type(obj).__name__, "data": obj.data}
+                return data
+            elif isinstance(obj, dict):
+                return {k: make_serializeable(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [make_serializeable(v) for i, v in enumerate(obj)]
+            return obj
+        serializeable = make_serializeable(unserializeable)
+
+        bits = msgpack.packb(serializeable)
+        if bits:
+            return bits
+        raise ValueError("Failed to serialize document")
+
     @staticmethod
     def web_deserialize(raw: bytes) -> "Document":
-        if not raw.startswith(b"aryn-ai-doc"):
-            raise ValueError("Invalid document serialization format")
-        with BytesIO(raw) as buffer:
-            buffer.read(11)
-            ver = struct.unpack("<I", buffer.read(4))[0]  # Read the version
-            if ver != WEB_SERIALIZATION_VERSION:
-                raise ValueError(f"Unsupported document serialization version: {ver}")
-            flen = struct.unpack("<Q", buffer.read(8))[0]  # Read the length of the flattened data
-            flattened_data = buffer.read(flen).decode()
-            data = json.loads(flattened_data)
-            if "metadata" in data:
-                raise NotImplementedError("`web_deserialize` does not yet support deserializing MetadataDocuments.")
-            elif "children" in data:
-                raise NotImplementedError("`web_deserialize` does not yet support deserializing HierarchicalDocuments.")
-            elif "sub_docs" in data:
-                raise NotImplementedError("`web_deserialize` does not yet support deserializing SummaryDocuments.")
-            doc = Document(data)
-            blen = struct.unpack("<Q", buffer.read(8))[0]  # Read the length of the binary representation
-            if blen > 0:
-                doc.binary_representation = buffer.read(blen)
-            eslen = struct.unpack("<Q", buffer.read(8))[0]  # Read the number of elements
-            elements = []
-            if eslen > 0:
-                for _ in range(eslen):
-                    elen = struct.unpack("<Q", buffer.read(8))[0]
-                    eflattened_data = buffer.read(elen).decode()
-                    edata = json.loads(eflattened_data)
-                    e = Element(**edata)  # Create an Element from the data
-                    eblen = struct.unpack("<Q", buffer.read(8))[0]  # Read the length of the binary representation
-                    if eblen > 0:
-                        e.binary_representation = buffer.read(eblen)
-                    elements.append(e)
-            doc.elements = elements
-        return doc
+        unreconstructed_data = msgpack.unpackb(raw)
+        def reconstruct(obj):
+            if isinstance(obj, dict):
+                if "_kind" in obj:
+                    if obj["_kind"] == "TableElement":
+                        return TableElement(**obj["data"])
+                    elif obj["_kind"] == "ImageElement":
+                        return ImageElement(**obj["data"])
+                    else:
+                        return Element(**obj["data"])
+                else:
+                    return {k: reconstruct(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [reconstruct(v) for i, v in enumerate(obj)]
+            return obj
+        data = reconstruct(unreconstructed_data)
+        return Document(data)
 
     @staticmethod
     def from_row(row: dict[str, bytes]) -> "Document":

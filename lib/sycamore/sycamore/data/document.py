@@ -208,7 +208,7 @@ class Document(UserDict):
 
     @experimental
     def web_serialize(self) -> bytes:
-        kind = type(self).__name__
+        kind = type(self)
         if kind != "Document":  # MetadataDocument, HierarchicalDocument, SummaryDocument are not yet supported
             raise NotImplementedError(f"web_serialize cannot yet handle type '{kind.__name__}'")
         unserializeable = deepcopy(self.data)

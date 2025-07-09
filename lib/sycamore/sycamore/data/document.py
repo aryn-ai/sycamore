@@ -221,8 +221,7 @@ class Document(UserDict):
             return obj
         serializeable = make_serializeable(unserializeable)
 
-        bits = msgpack.packb(serializeable)
-        if bits:
+        if bits := msgpack.packb(serializeable):
             return bits
         raise ValueError("Failed to serialize document")
 

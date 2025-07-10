@@ -1,7 +1,6 @@
 from collections import UserDict
 import json
-from typing import Any, Optional
-from copy import deepcopy
+from typing import Any, Optional, BinaryIO
 import struct
 
 import msgpack
@@ -11,9 +10,9 @@ from sycamore.data.element import create_element, TableElement, ImageElement
 from sycamore.data.docid import mkdocid, nanoid36
 from sycamore.decorators import experimental
 
-SERIALIZATION_MAGIC = b"ArynSDoc"
-SERIALIZATION_VERSION_MAJOR = 0
-SERIALIZATION_VERSION_MINOR = 1
+DOCUMENT_SERIALIZATION_MAGIC = b"ArynSDoc"
+DOCUMENT_SERIALIZATION_VERSION_MAJOR = 0
+DOCUMENT_SERIALIZATION_VERSION_MINOR = 1
 
 
 class DocumentSource:
@@ -212,39 +211,63 @@ class Document(UserDict):
             return Document(data)
 
     @experimental
-    def web_serialize(self) -> bytes:
+    def web_serialize(self, file: BinaryIO) -> None:
         kind = type(self)
         if kind != Document:  # MetadataDocument, HierarchicalDocument, SummaryDocument are not yet supported
             raise NotImplementedError(f"web_serialize cannot yet handle type '{kind.__name__}'")
-        unserializeable = deepcopy(self.data)
 
-        serializeable = _make_serializeable(unserializeable)
+        file.write(DOCUMENT_SERIALIZATION_MAGIC)  # 8 Bytes - Magic
+        file.write(struct.pack(">H", DOCUMENT_SERIALIZATION_VERSION_MAJOR))  # 2 Bytes - Version Major
+        file.write(struct.pack(">H", DOCUMENT_SERIALIZATION_VERSION_MINOR))  # 2 Bytes - Version Minor
+        file.write(struct.pack(">I", 0))  # 4 Bytes - Zero Padding
 
-        rv = bytearray()
-        rv.extend(SERIALIZATION_MAGIC)  # Magic Bytes
-        rv.extend(struct.pack(">h", SERIALIZATION_VERSION_MAJOR))  # Version Major
-        rv.extend(struct.pack(">h", SERIALIZATION_VERSION_MINOR))  # Version Minor
-        rv.extend(struct.pack(">I", 0))  # Zero Padding
-        if bits := msgpack.packb(serializeable):
-            rv.extend(bits)
-            return bytes(rv)
-        raise ValueError("Failed to serialize document")
+        elementless_data = self.data.copy()  # Shallow copy
+        del elementless_data["elements"]
+
+        packed_elementless_data = msgpack.packb(elementless_data)
+        if not packed_elementless_data:
+            raise ValueError("Failed to serialize document")
+        file.write(packed_elementless_data)
+
+        for element in self.elements:
+            element.web_serialize(file)
 
     @experimental
     @staticmethod
-    def web_deserialize(raw: bytes) -> "Document":
-        if not raw.startswith(SERIALIZATION_MAGIC):
+    def web_deserialize(file: BinaryIO) -> "Document":
+        def readmin(file: BinaryIO, size: int):
+            data = bytearray()
+            read = 0
+            while read < size:
+                to_add = file.read(size - read)
+                if len(to_add) == 0:
+                    break
+                data.extend(to_add)
+                read += len(to_add)
+            return data
+
+        header = readmin(file, 16)
+        if len(header) != 16:
+            raise ValueError("Failed to read document header")
+
+        magic_bytes, version_major, version_minor, zero_padding = struct.unpack(">8s2HI", header)
+        if magic_bytes != DOCUMENT_SERIALIZATION_MAGIC:
             raise ValueError("Invalid serialization magic")
-        mv = memoryview(raw)
-        version_major = struct.unpack(">h", mv[8:10])[0]
-        version_minor = struct.unpack(">h", mv[10:12])[0]
-        if version_major != SERIALIZATION_VERSION_MAJOR or version_minor != SERIALIZATION_VERSION_MINOR:
+        if (
+            version_major != DOCUMENT_SERIALIZATION_VERSION_MAJOR
+            or version_minor != DOCUMENT_SERIALIZATION_VERSION_MINOR
+        ):
             raise ValueError(f"Unsupported serialization version: {version_major}.{version_minor}")
+        if zero_padding != 0:
+            logger.warning("Options in zero padding region are not yet supported")
 
-        unreconstructed_data = msgpack.unpackb(mv[16:])
-
-        data = _reconstruct(unreconstructed_data)
-        return Document(data)
+        unpacker = msgpack.Unpacker(file)
+        elementless_data = next(unpacker)
+        doc = Document(elementless_data)
+        elements = doc.elements
+        for obj in unpacker:
+            elements.append(Element.web_deserialize(obj))
+        return doc
 
     @staticmethod
     def from_row(row: dict[str, bytes]) -> "Document":

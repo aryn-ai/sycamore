@@ -244,48 +244,38 @@ class LimitLlmOperations(LogicalPlanProcessor):
             "Limit the number of documents going through the following llm operation for interactivity"
     """
 
-    def __init__(self, types: list[str], limit: int, message: Optional[str] = None):
+    def __init__(
+        self,
+        types: list[str],
+        limit: int,
+        message: str = "Limit the number of documents going through the following llm operation for interactivity",
+    ):
         self._types = types
         self._limit = limit
-        self._message = (
-            message or "Limit the number of documents going through the following llm operation for interactivity"
-        )
+        self._message = message
 
     def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
-        new_nodes: dict[int, Node] = {}
-        new_nodes_i = 0
-        old_to_new_mapping: dict[int, int] = {}
-        for old_i in sorted(plan.nodes.keys()):
-            node = plan.nodes[old_i]
-            new_inputs = [old_to_new_mapping[inp] for inp in node.inputs]
-            # Don't add a limit after another limit. Note - this is close to but not correct.
-            # The correct behavior should be set the limit to the min of the two that I want.
-            # If I'm doing the subquery-limit-by-field then you can probably double up.
-            if node.node_type in self._types and all(new_nodes[nwinp].node_type != "Limit" for nwinp in new_inputs):
+        for i in sorted(plan.nodes.keys(), reverse=True):
+            n = plan.nodes[i]
+            if n.node_type not in self._types:
+                continue
+            inputs = plan.get_node_inputs(i)
+            if len(inputs) != 1:
+                logging.warning(f"Cannot add limit before {n.node_type} node because it has multiple or zero inputs")
+                continue
+            input = inputs[0]
+            if isinstance(input, Limit):
+                input.num_records = min(input.num_records, self._limit)
+            else:
                 limit = Limit(
                     node_type="Limit",
                     num_records=self._limit,
-                    inputs=new_inputs,
                     description=self._message,
-                    node_id=new_nodes_i,
+                    node_id=n.node_id,
+                    inputs=n.inputs,
                 )
-                node.inputs = [new_nodes_i]
-                new_nodes[new_nodes_i] = limit
-                new_nodes_i += 1
-
-                node.node_id = new_nodes_i
-                new_nodes[new_nodes_i] = node
-                old_to_new_mapping[old_i] = new_nodes_i
-                new_nodes_i += 1
-            else:
-                node.inputs = new_inputs
-                node.node_id = new_nodes_i
-                new_nodes[new_nodes_i] = node
-                old_to_new_mapping[old_i] = new_nodes_i
-                new_nodes_i += 1
-        plan.nodes = new_nodes
-        plan.result_node = old_to_new_mapping[plan.result_node]
-        return LogicalPlan.model_validate(plan)
+                plan.insert_node(i, limit)
+        return plan
 
 
 class RequireQueryDatabase(LogicalPlanProcessor):

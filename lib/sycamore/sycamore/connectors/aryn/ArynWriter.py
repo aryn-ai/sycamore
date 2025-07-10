@@ -58,7 +58,7 @@ class ArynWriterClient(BaseDBWriter.Client):
         for record in records:
             assert isinstance(record, ArynWriterRecord)
             doc = record.doc
-            files: Mapping = {"doc": doc.serialize()}
+            files: Mapping = {"doc": doc.web_serialize()}
             sess.post(
                 url=f"{self.aryn_url}/docsets/write",
                 params={"docset_id": docset_id, "update_schema": update_schema},

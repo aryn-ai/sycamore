@@ -1,10 +1,19 @@
 from collections import UserDict
 import json
-from typing import Any, Optional
+from typing import Any, Optional, BinaryIO
+import struct
+import warnings
+
+import msgpack
 
 from sycamore.data import BoundingBox, Element
-from sycamore.data.element import create_element
+from sycamore.data.element import create_element, TableElement, ImageElement
 from sycamore.data.docid import mkdocid, nanoid36
+from sycamore.decorators import experimental
+
+DOCUMENT_SERIALIZATION_MAGIC = b"ArynSDoc"
+DOCUMENT_SERIALIZATION_VERSION_MAJOR = 0
+DOCUMENT_SERIALIZATION_VERSION_MINOR = 1
 
 
 class DocumentSource:
@@ -202,6 +211,65 @@ class Document(UserDict):
         else:
             return Document(data)
 
+    @experimental
+    def web_serialize(self, file: BinaryIO) -> None:
+        kind = type(self)
+        if kind != Document:  # MetadataDocument, HierarchicalDocument, SummaryDocument are not yet supported
+            raise NotImplementedError(f"web_serialize cannot yet handle type '{kind.__name__}'")
+
+        file.write(DOCUMENT_SERIALIZATION_MAGIC)  # 8 Bytes - Magic
+        file.write(struct.pack(">H", DOCUMENT_SERIALIZATION_VERSION_MAJOR))  # 2 Bytes - Version Major
+        file.write(struct.pack(">H", DOCUMENT_SERIALIZATION_VERSION_MINOR))  # 2 Bytes - Version Minor
+        file.write(struct.pack(">I", 0))  # 4 Bytes - Zero Padding
+
+        elementless_data = self.data.copy()  # Shallow copy
+        del elementless_data["elements"]
+
+        packed_elementless_data = msgpack.packb(elementless_data)
+        if not packed_elementless_data:
+            raise ValueError("Failed to serialize document")
+        file.write(packed_elementless_data)
+
+        for element in self.elements:
+            element.web_serialize(file)
+
+    @experimental
+    @staticmethod
+    def web_deserialize(file: BinaryIO) -> "Document":
+        def readmin(file: BinaryIO, size: int):
+            data = bytearray()
+            read = 0
+            while read < size:
+                to_add = file.read(size - read)
+                if len(to_add) == 0:
+                    break
+                data.extend(to_add)
+                read += len(to_add)
+            return data
+
+        header = readmin(file, 16)
+        if len(header) != 16:
+            raise ValueError("Failed to read document header")
+
+        magic_bytes, version_major, version_minor, zero_padding = struct.unpack(">8s2HI", header)
+        if magic_bytes != DOCUMENT_SERIALIZATION_MAGIC:
+            raise ValueError("Invalid serialization magic")
+        if (
+            version_major != DOCUMENT_SERIALIZATION_VERSION_MAJOR
+            or version_minor != DOCUMENT_SERIALIZATION_VERSION_MINOR
+        ):
+            raise ValueError(f"Unsupported serialization version: {version_major}.{version_minor}")
+        if zero_padding != 0:
+            warnings.warn("Options in zero padding region are not yet supported")
+
+        unpacker = msgpack.Unpacker(file)
+        elementless_data = next(unpacker)
+        doc = Document(elementless_data)
+        elements = doc.elements
+        for obj in unpacker:
+            elements.append(Element.web_deserialize(obj))
+        return doc
+
     @staticmethod
     def from_row(row: dict[str, bytes]) -> "Document":
         """Unserialize a Ray row back into a Document."""
@@ -254,6 +322,35 @@ class Document(UserDict):
         from sycamore.utils.nested import dotted_lookup
 
         return dotted_lookup(self, field)
+
+
+def _make_serializeable(obj):
+    if isinstance(obj, Element):
+        data = {"aryn_element_type": type(obj).__name__, "data": obj.data}
+        return data
+    elif isinstance(obj, dict):
+        return {k: _make_serializeable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_make_serializeable(v) for v in obj]
+    return obj
+
+
+def _reconstruct(obj):
+    if isinstance(obj, dict):
+        if (aryn_element_type := obj.get("aryn_element_type", None)) is not None:
+            if aryn_element_type == "TableElement":
+                return TableElement(**obj["data"])
+            elif aryn_element_type == "ImageElement":
+                return ImageElement(**obj["data"])
+            elif aryn_element_type == "Element":
+                return Element(**obj["data"])
+            else:
+                raise ValueError(f"Unknown element type: {aryn_element_type}")
+        else:
+            return {k: _reconstruct(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_reconstruct(v) for v in obj]
+    return obj
 
 
 class MetadataDocument(Document):

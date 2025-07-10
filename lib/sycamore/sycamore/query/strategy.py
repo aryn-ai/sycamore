@@ -202,7 +202,7 @@ class AlwaysSummarize(LogicalPlanProcessor):
             inputs=[prev_result],
             question=question,
         )
-        return plan
+        return LogicalPlan.model_validate(plan)
 
 
 class OnlyRetrieval(LogicalPlanProcessor):
@@ -229,6 +229,60 @@ class OnlyRetrieval(LogicalPlanProcessor):
             del plan.nodes[plan.result_node]
             plan.result_node = penultimate
             n = plan.nodes[plan.result_node]
+        return LogicalPlan.model_validate(plan)
+
+
+class LimitLlmOperations(LogicalPlanProcessor):
+    """
+    Add a limit node before certain operators. This is useful to make some queries faster, although
+    less accurate.
+
+    Args:
+        types: List of node types to limit; e.g. "LlmFilter", "SummarizeData"
+        limit: How many documents to limit to
+        message: Optional message to add to the description of the added limit node. Default is
+            "Limit the number of documents going through the following llm operation for interactivity"
+    """
+
+    def __init__(
+        self,
+        types: list[str],
+        limit: int,
+        message: str = "Limit the number of documents going through the following llm operation for interactivity",
+    ):
+        self._types = types
+        self._limit = limit
+        self._message = message
+
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
+        for i in sorted(plan.nodes.keys(), reverse=True):
+            n = plan.nodes[i]
+            if n.node_type not in self._types:
+                continue
+            inputs = plan.get_node_inputs(i)
+            if len(inputs) != 1:
+                logging.warning(f"Cannot add limit before {n.node_type} node because it has multiple or zero inputs")
+                continue
+            input = inputs[0]
+            if isinstance(input, Limit):
+                input.num_records = min(input.num_records, self._limit)
+            else:
+                limit = Limit(
+                    node_type="Limit",
+                    num_records=self._limit,
+                    description=self._message,
+                    node_id=n.node_id,
+                    inputs=n.inputs,
+                )
+                plan.insert_node(i, limit)
+        return plan
+
+
+class RequireQueryDatabase(LogicalPlanProcessor):
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
+        assert (
+            plan.nodes[0].node_type == "QueryDatabase"
+        ), "Found non-QueryDatabase start node, but QueryDatabase is required"
         return plan
 
 

@@ -2,6 +2,7 @@ from collections import UserDict
 import json
 from typing import Any, Optional, BinaryIO
 import struct
+import warnings
 
 import msgpack
 
@@ -259,7 +260,7 @@ class Document(UserDict):
         ):
             raise ValueError(f"Unsupported serialization version: {version_major}.{version_minor}")
         if zero_padding != 0:
-            logger.warning("Options in zero padding region are not yet supported")
+            warnings.warn("Options in zero padding region are not yet supported")
 
         unpacker = msgpack.Unpacker(file)
         elementless_data = next(unpacker)

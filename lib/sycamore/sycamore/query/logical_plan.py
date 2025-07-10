@@ -78,6 +78,7 @@ class Node(BaseModel):
 
     # The nodes that this node depends on. This should be populated externally
     # when a LogicalPlan is created.
+    # TODO: Make this not stupid. Either a plan is a graph or it's not!
     _input_nodes: Optional[List["Node"]] = None
 
     @property

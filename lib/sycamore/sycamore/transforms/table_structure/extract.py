@@ -1,13 +1,16 @@
+import traceback
 from abc import abstractmethod
+import copy
 import logging
 from typing import Any, Union, Optional, Callable
 
 from PIL import Image
 import pdf2image
 
-from sycamore.data import BoundingBox, Element, Document, Table, TableElement
+from sycamore.data import BoundingBox, Element, Document, Table, TableCell, TableElement
 from sycamore.data.document import DocumentPropertyTypes
 from sycamore.llms import LLM
+from sycamore.llms.chained_llm import ChainedLLM
 from sycamore.llms.prompts import RenderedMessage, RenderedPrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
@@ -16,6 +19,7 @@ from sycamore.transforms.table_structure.table_transformers import MaxResize
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.import_utils import requires_modules
+from sycamore.utils.rotation import VectorMean, quad_rotation, rot_bbox, rot_dict, rot_image, rot_tuple
 
 Num = Union[float, int]
 
@@ -33,6 +37,42 @@ def _crop_bbox(image: Image.Image, bbox: BoundingBox, padding: int = 10):
     cropped_image = image.crop(crop_box).convert("RGB")
 
     return cropped_image, crop_box
+
+
+def rotated_table(elem: TableElement, quad: int) -> TableElement:
+    """Returns potentially new TableElement with bboxes rotated."""
+    if not quad:
+        return elem
+    rv = copy.deepcopy(elem)  # wasteful but safe
+    d = rv.data
+    bbtup = rot_tuple(d["bbox"], quad)
+    d["bbox"] = bbtup
+
+    if toks := rv.tokens:
+        for tok in toks:
+            if bbox := tok.get("bbox"):
+                bbox = rot_bbox(bbox, quad)
+                tok["bbox"] = bbox
+
+    if tbl := rv.table:
+        ary: list[TableCell] = []
+        for cell in tbl.cells:
+            cd = cell.to_dict()
+            cbb = rot_dict(cd["bbox"], quad)
+            cd["bbox"] = cbb
+            ary.append(TableCell.from_dict(cd))
+        tbl.cells = ary
+
+    return rv
+
+
+def average_vector(tokens: Optional[list[dict[str, Any]]]) -> complex:
+    vm = VectorMean()
+    if tokens:
+        for tok in tokens:
+            if (v := tok.get("vector")) is not None:
+                vm.add(v)
+    return vm.get()
 
 
 class TableStructureExtractor:
@@ -71,8 +111,8 @@ class TableStructureExtractor:
 
         for elem in doc.elements:
             if isinstance(elem, TableElement):
-                if DocumentPropertyTypes.PAGE_NUMBER in elem.properties:
-                    page_num = elem.properties[DocumentPropertyTypes.PAGE_NUMBER] - 1
+                if (pn := elem.properties.get(DocumentPropertyTypes.PAGE_NUMBER)) is not None:
+                    page_num = pn - 1
                 elif len(images) == 1:
                     page_num = 0
                 else:
@@ -123,11 +163,17 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         from transformers import TableTransformerForObjectDetection
 
         self.structure_model = TableTransformerForObjectDetection.from_pretrained(self.model).to(self._get_device())
+        self.structure_model.eval()
 
     @timetrace("tblExtr")
     @requires_modules(["torch", "torchvision"], extra="local-inference")
     def extract(
-        self, element: TableElement, doc_image: Image.Image, union_tokens=False, apply_thresholds=False
+        self,
+        element: TableElement,
+        doc_image: Image.Image,
+        union_tokens=False,
+        apply_thresholds=False,
+        resolve_overlaps=False,
     ) -> TableElement:
         """Extracts the table structure from the specified element using a TableTransformer model.
 
@@ -145,6 +191,12 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         # We need a bounding box to be able to do anything.
         if element.bbox is None:
             return element
+
+        quad = quad_rotation(average_vector(element.tokens))
+        logging.info(f"Table extract using rotation {quad}")
+        element = rotated_table(element, -quad)
+        assert element.bbox  # for mypy
+        doc_image = rot_image(doc_image, -quad)
 
         from torchvision import transforms
 
@@ -183,7 +235,9 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         # Convert the raw objects to our internal table representation. This involves multiple
         # phases of postprocessing.
-        table = table_transformers.objects_to_table(objects, tokens, union_tokens=union_tokens)
+        table = table_transformers.objects_to_table(
+            objects, tokens, union_tokens=union_tokens, resolve_overlaps=resolve_overlaps
+        )
 
         if table is None:
             element.table = None
@@ -197,6 +251,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
             cell.bbox.translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
 
         element.table = table
+        element = rotated_table(element, quad)  # map bboxes back to page
         return element
 
 
@@ -222,7 +277,12 @@ class DeformableTableStructureExtractor(TableTransformerStructureExtractor):
         return choose_device(self.device, detr=True)
 
     def extract(
-        self, element: TableElement, doc_image: Image.Image, union_tokens=False, apply_thresholds=True
+        self,
+        element: TableElement,
+        doc_image: Image.Image,
+        union_tokens=False,
+        apply_thresholds=True,
+        resolve_overlaps=False,
     ) -> TableElement:
         """Extracts the table structure from the specified element using a DeformableDETR model.
 
@@ -305,6 +365,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         doc_image: Image.Image,
         union_tokens=False,
         model_selection: str = "pixels > 500 -> deformable_detr; table_transformer",
+        resolve_overlaps=False,
     ) -> TableElement:
         """Extracts the table structure from the specified element using a either a DeformableDETR or
         TATR model, depending on the size of the table.
@@ -470,6 +531,9 @@ class VLMTableStructureExtractor(TableStructureExtractor):
     EXTRACT_TABLE_STRUCTURE_PROMPT = """You are given an image of a table from a document. Please convert this table into HTML. Be sure to include the table header and all rows. Use 'colspan' and 'rowspan' in the output to indicate merged cells. Return the HTML as a string. Do not include any other text in the response.
 +"""
 
+    DEFAULT_RETRIES = 2
+    INITIAL_BACKOFF = 0.2
+
     def __init__(self, llm: LLM, prompt_str: str = EXTRACT_TABLE_STRUCTURE_PROMPT):
         self.llm = llm
         self.prompt_str = prompt_str
@@ -484,18 +548,32 @@ class VLMTableStructureExtractor(TableStructureExtractor):
         message = RenderedMessage(role="user", content=self.prompt_str, images=[cropped_image])
         prompt = RenderedPrompt(messages=[message])
 
-        res = self.llm.generate(prompt=prompt)
+        def response_checker(response: str) -> bool:
+            """Checks if the response is valid HTML."""
+            if not response:
+                return False
 
-        if res.startswith("```html"):
-            res = res[7:].rstrip("`")
-        res = res.strip()
+            # Check if the response starts with a valid HTML tag
+            return Table.extract_table_block(response) is not None
+
+        if isinstance(self.llm, ChainedLLM):
+            self.llm.response_checker = response_checker
 
         try:
+            res: str = self.llm.generate(prompt=prompt)
+
+            if res.startswith("```html"):
+                res = res[7:].rstrip("`")
+            res = res.strip()
+
             table = Table.from_html(res)
             element.table = table
-        except Exception as e:
-            logging.warning(f"Not able to parse table from HTML: {e}")
             return element
+        except Exception as e:
+            tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+            logging.warning(
+                f"Failed to extract a table due to:\n{tb_str}\nReturning the original element without a table."
+            )
 
         return element
 

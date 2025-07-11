@@ -1412,21 +1412,10 @@ class DocSet:
     def llm_generate_group(self, llm: LLM, instruction: str, field: str, **kwargs):
         # Not all documents will have a value for the given field, so we filter those out.
 
-        def filter_meta(row):
-            doc = Document.from_row(row)
-            return not isinstance(doc, MetadataDocument)
+        count = self.count()
+        samples = self if count < 1000 else self.random_sample(1000.0 / count)
 
-        def extract_entities(row):
-            doc = Document.from_row(row)
-            value = doc.field_to_value(field)
-            return {"key": value}
-
-        values = self.plan.execute().filter(filter_meta).map(extract_entities).materialize()
-
-        count = values.count()
-        samples = values if count < 1000 else values.random_sample(1000.0 / count)
-
-        field_values = [sample["key"] for sample in samples.take_all()]
+        field_values = [sample.field_to_value(field) for sample in samples.take_all()]
         text = ", ".join([str(v) for v in field_values if v is not None])
 
         messages = LlmClusterEntityFormGroupsMessagesPrompt(

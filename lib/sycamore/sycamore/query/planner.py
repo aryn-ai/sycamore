@@ -54,8 +54,8 @@ class LlmPlanner(Planner):
         self,
         index: str,
         data_schema: Union[OpenSearchSchema, Schema],
-        os_config: dict[str, str],
-        os_client: "OpenSearch",
+        os_config: Optional[dict[str, str]] = None,
+        os_client: Optional["OpenSearch"] = None,
         strategy: QueryPlanStrategy = QueryPlanStrategy(ALL_OPERATORS, []),
         llm_client: Optional[LLM] = None,
         examples: Optional[List[PlannerExample]] = None,
@@ -76,7 +76,7 @@ class LlmPlanner(Planner):
             data_schema.to_schema() if isinstance(data_schema, OpenSearchSchema) else data_schema
         )
 
-    def generate_prompt(self, question: str) -> RenderedPrompt:
+    def generate_prompt(self, question: str, **kwargs) -> RenderedPrompt:
         if self._prompt is None:
             prompt = PlannerPrompt(
                 query=question,
@@ -92,20 +92,20 @@ class LlmPlanner(Planner):
                 prompt = prompt.fork(data_schema=self._data_schema)
 
         for preprocessor in self._strategy.prompt_processors:
-            prompt = preprocessor(prompt)
+            prompt = preprocessor(prompt, **kwargs)
         return prompt.render()
 
     def parse_llm_output(self, llm_output: str) -> LogicalPlan:
         return process_json_plan(llm_output)
 
-    def plan(self, question: str) -> LogicalPlan:
+    def plan(self, question: str, **kwargs) -> LogicalPlan:
         """Given a question from the user, generate a logical query plan."""
-        llm_prompt = self.generate_prompt(question)
+        llm_prompt = self.generate_prompt(question, **kwargs)
         llm_plan = self._llm_client.generate(prompt=llm_prompt, llm_kwargs={"temperature": 0})
         try:
             plan = self.parse_llm_output(llm_plan)
             for processor in self._strategy.plan_processors:
-                plan = processor(plan)
+                plan = processor(plan, **kwargs)
         except Exception as e:
             logging.error(f"Error processing LLM-generated query plan: {e}\nPlan is:\n{llm_plan}")
             raise

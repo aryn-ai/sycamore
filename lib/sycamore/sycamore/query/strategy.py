@@ -33,14 +33,14 @@ ALL_OPERATORS: list[type[Node]] = [
 
 
 class LogicalPlanProcessor:
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         """Given the LogicalPlan query plan, postprocess it using a set of rules that modify the plan for
         optimizing or other purposes."""
         return plan
 
 
 class PlannerPromptProcessor:
-    def __call__(self, prompt: PlannerPrompt) -> PlannerPrompt:
+    def __call__(self, prompt: PlannerPrompt, **kwargs) -> PlannerPrompt:
         """Apply code to change the prompt used by the planner"""
         return prompt
 
@@ -51,7 +51,7 @@ class DefaultPlanValidator(LogicalPlanProcessor):
     1. Type validation: ensure inputs to nodes are of valid types (e.g. DocSet, int, None, etc.)
     """
 
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         logging.info("Executing DefaultPlanValidator processor")
 
         # type validation
@@ -76,7 +76,7 @@ class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
         super().__init__()
         self.llm = llm
 
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         logging.info("Executing RemoveVectorSearchForAnalytics processor")
 
         # Rule: If the plan has a vector search in the beginning followed by a count or nothing or extract_entity,
@@ -179,7 +179,7 @@ class AlwaysSummarize(LogicalPlanProcessor):
     end of the plan.
     """
 
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         n = plan.nodes[plan.result_node]
         if n.node_type == "SummarizeData":
             return plan
@@ -202,7 +202,7 @@ class AlwaysSummarize(LogicalPlanProcessor):
             inputs=[prev_result],
             question=question,
         )
-        return plan
+        return LogicalPlan.model_validate(plan)
 
 
 class OnlyRetrieval(LogicalPlanProcessor):
@@ -216,7 +216,7 @@ class OnlyRetrieval(LogicalPlanProcessor):
     This processor is useful for efficiently computing retrieval metrics.
     """
 
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         n = plan.nodes[plan.result_node]
         while n.node_type in ("Sort", "SummarizeData", "LlmExtractEntity", "TopK"):
             # SummarizeData is bad, it can fail to execute the entire pipeline so we don't get
@@ -229,6 +229,60 @@ class OnlyRetrieval(LogicalPlanProcessor):
             del plan.nodes[plan.result_node]
             plan.result_node = penultimate
             n = plan.nodes[plan.result_node]
+        return LogicalPlan.model_validate(plan)
+
+
+class LimitLlmOperations(LogicalPlanProcessor):
+    """
+    Add a limit node before certain operators. This is useful to make some queries faster, although
+    less accurate.
+
+    Args:
+        types: List of node types to limit; e.g. "LlmFilter", "SummarizeData"
+        limit: How many documents to limit to
+        message: Optional message to add to the description of the added limit node. Default is
+            "Limit the number of documents going through the following llm operation for interactivity"
+    """
+
+    def __init__(
+        self,
+        types: list[str],
+        limit: int,
+        message: str = "Limit the number of documents going through the following llm operation for interactivity",
+    ):
+        self._types = types
+        self._limit = limit
+        self._message = message
+
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
+        for i in sorted(plan.nodes.keys(), reverse=True):
+            n = plan.nodes[i]
+            if n.node_type not in self._types:
+                continue
+            inputs = plan.get_node_inputs(i)
+            if len(inputs) != 1:
+                logging.warning(f"Cannot add limit before {n.node_type} node because it has multiple or zero inputs")
+                continue
+            input = inputs[0]
+            if isinstance(input, Limit):
+                input.num_records = min(input.num_records, self._limit)
+            else:
+                limit = Limit(
+                    node_type="Limit",
+                    num_records=self._limit,
+                    description=self._message,
+                    node_id=n.node_id,
+                    inputs=n.inputs,
+                )
+                plan.insert_node(i, limit)
+        return plan
+
+
+class RequireQueryDatabase(LogicalPlanProcessor):
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
+        assert (
+            plan.nodes[0].node_type == "QueryDatabase"
+        ), "Found non-QueryDatabase start node, but QueryDatabase is required"
         return plan
 
 
@@ -247,7 +301,7 @@ class PrintPlan(LogicalPlanProcessor):
         self._post = post_message
         self._quiet = quiet
 
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         if self._quiet:
             return plan
         if self._pre is not None:
@@ -275,7 +329,7 @@ class LLMRewriteQuestion(PlannerPromptProcessor):
         self._rewrite_prompt = prompt
         self._llm = llm
 
-    def __call__(self, prompt: PlannerPrompt) -> PlannerPrompt:
+    def __call__(self, prompt: PlannerPrompt, **kwargs) -> PlannerPrompt:
         q = prompt.query
         rendered = self._rewrite_prompt.render_any(question=q)
         rewritten = self._llm.generate(prompt=rendered)

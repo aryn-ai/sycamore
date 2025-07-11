@@ -186,6 +186,7 @@ class SycamoreQueryClient:
         schema: Union[Schema, OpenSearchSchema, None] = None,
         examples: Optional[List[PlannerExample]] = None,
         natural_language_response: bool = False,
+        **kwargs,
     ) -> LogicalPlan:
         """Generate a logical query plan for the given query, index, and schema.
 
@@ -215,11 +216,11 @@ class SycamoreQueryClient:
             )
         else:
             planner = self.query_planner
-        plan = planner.plan(query)
+        plan = planner.plan(query, **kwargs)
         return plan
 
     def run_plan(
-        self, plan: LogicalPlan, dry_run=False, codegen_mode=False, os_client_args: Optional[dict] = None
+        self, plan: LogicalPlan, dry_run=False, codegen_mode=False, os_client_args: Optional[dict] = None, **kwargs
     ) -> SycamoreQueryResult:
         """Run the given logical query plan and return a tuple of the query ID and result."""
         assert self.context is not None, "Running a plan requires a configured Context"
@@ -242,10 +243,11 @@ class SycamoreQueryClient:
         index: str,
         dry_run: bool = False,
         codegen_mode: bool = False,
+        **kwargs,
     ) -> SycamoreQueryResult:
         """Run a query against the given index."""
-        plan = self.generate_plan(query, index)
-        return self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
+        plan = self.generate_plan(query, index, **kwargs)
+        return self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode, **kwargs)
 
     def dump_traces(self, result: SycamoreQueryResult, limit: int = 5):
         if not result.execution:

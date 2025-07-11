@@ -10,6 +10,8 @@ from sycamore.utils.import_utils import requires_modules
 from sycamore.transforms.text_extraction.text_extractor import TextExtractor
 import logging
 import os
+import numpy as np
+
 from sycamore.utils.time_trace import timetrace
 import tempfile
 
@@ -151,7 +153,7 @@ class Tesseract(OcrModel):
 
 
 class LegacyOcr(OcrModel):
-    """Match existing behavior where we use tesseract for the main text and EasyOcr for tables."""
+    """Legacy behavior using Tesseract for text and EasyOcr for tables."""
 
     @requires_modules(["easyocr", "pytesseract"], extra="local-inference")
     def __init__(self):
@@ -170,72 +172,52 @@ class LegacyOcr(OcrModel):
 
 
 class PaddleOcr(OcrModel):
+    """
+    PaddleOCR is a state-of-the-art OCR model that uses a combination of
+    convolutional neural networks and transformer models to extract text from images.
+    It is the default OCR model for Sycamore.
+    """
+
     # NOTE: Also requires the installation of paddlepaddle or paddlepaddle-gpu
     # depending on your system
     @requires_modules(["paddleocr", "paddle"], extra="local-inference")
-    def __init__(self, language="en", slice_kwargs={}, **kwargs):
+    def __init__(self, language="en", **kwargs):
         from paddleocr import PaddleOCR
-        from paddleocr.ppocr.utils.logging import get_logger
         import paddle
 
-        get_logger().setLevel(logging.ERROR)
-        self.use_gpu = paddle.device.is_compiled_with_cuda()
-        self.language = kwargs.pop("lang", language)
-        self.reader = PaddleOCR(use_gpu=self.use_gpu, lang=self.language, **kwargs)
-        self.slice_kwargs = slice_kwargs
+        device = "gpu" if paddle.device.is_compiled_with_cuda() else "cpu"
+        self.predictor = PaddleOCR(
+            device=device,
+            lang=language,
+            **kwargs,
+        )
 
     def get_text(self, image: Image.Image) -> tuple[str, Optional[float]]:
-        bytearray = BytesIO()
-        image.save(bytearray, format="BMP")
-        result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False, bin=True)
-        if result and result[0]:
+        result = self.predictor.predict(np.array(image))
+        if result and (res := result[0]):
             text_values = []
             font_sizes = []
-            for value in result[0]:
-                text_values.append(value[1][0])
-                font_sizes.append(value[0][3][1] - value[0][0][1])
+            for value, bbox in zip(res["rec_texts"], res["rec_boxes"]):
+                text_values.append(value)
+                font_sizes.append(bbox[3] - bbox[1])
             avg_font_size = sum(font_sizes) / len(font_sizes) if font_sizes else None
             return " ".join(text_values), avg_font_size
         return "", None
 
-    def set_slicing_parameters(self, image_width, image_height) -> dict[str, Any]:
-        slicing_params = {}
-        slice_threshold = self.slice_kwargs.get("slice_threshold", 800)  # Only slice big images
-        if image_width * image_height > slice_threshold**2:
-            merge_x_thres, merge_y_thres = self.slice_kwargs.get("merge_threshold", (10, 10))
-            default_horizontal_stride, default_vertical_stride = self.slice_kwargs.get("stride", (300, 500))  # pixels
-
-            # Adjust strides if they exceed image dimensions
-            horizontal_stride = min(default_horizontal_stride, image_width)
-            vertical_stride = min(default_vertical_stride, image_height)
-
-            # Compile slicing parameters
-            slicing_params = {
-                "horizontal_stride": horizontal_stride,
-                "vertical_stride": vertical_stride,
-                "merge_x_thres": merge_x_thres,
-                "merge_y_thres": merge_y_thres,
-            }
-
-        return slicing_params
-
-    def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
-        bytearray = BytesIO()
-        image.save(bytearray, format="BMP")
-        width, height = image.size
-        result = self.reader.ocr(
-            bytearray.getvalue(), rec=True, det=True, cls=False, slice=self.set_slicing_parameters(width, height)
-        )
+    def get_boxes_and_text(self, image: Image.Image, get_confidences: bool = False) -> list[dict[str, Any]]:
+        result = self.predictor.predict(np.array(image))
         out: list[dict[str, Any]] = []
-        if not result or not result[0]:
+        if not result or not (res := result[0]):
             return out
-        for res in result[0]:
-            raw_bbox = res[0]
-            text = res[1][0]
-            out.append(
-                {"bbox": BoundingBox(raw_bbox[0][0], raw_bbox[0][1], raw_bbox[2][0], raw_bbox[2][1]), "text": text}
-            )
-        return out  # type: ignore
+        for text, bbox, confidence in zip(res["rec_texts"], res["rec_boxes"], res["rec_scores"]):
+            out_dict = {
+                "bbox": BoundingBox(*bbox),
+                "text": text,
+            }
+            if get_confidences:
+                out_dict["confidence"] = confidence
+            out.append(out_dict)
+        return out
 
     def __name__(self):
         return "PaddleOcr"

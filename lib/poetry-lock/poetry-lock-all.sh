@@ -27,7 +27,7 @@ for i in ${tomls}; do
         (
             echo "--------------------- special casing in $i"
             cd $(dirname "$i")
-            poetry lock --no-update || fail "broke on special case 'poetry lock --no-update' for $i"
+            poetry lock || fail "broke on special case 'poetry lock' for $i"
             # Do not apply the consistency logic, it can't do anything useful.
         ) || fail "broke on special case for $i"
         continue
@@ -35,7 +35,7 @@ for i in ${tomls}; do
     (
         echo "--------------------- processing in $i"
         cd $(dirname "$i")
-        poetry lock --no-update || fail "broke on regular case 'poetry lock --no-update' $i"
+        poetry lock || fail "broke on regular case 'poetry lock' $i"
         poetry install 2>&1 | tee /tmp/poetry-install.out || fail "broke on 'poetry install' for $i"
         perl -ne 'print qq{$1 = "$2"\n} if /Downgrading (\S+) \((\S+) ->/o;' </tmp/poetry-install.out >/tmp/downgraded
         cat /tmp/downgraded

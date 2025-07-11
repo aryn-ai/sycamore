@@ -398,7 +398,7 @@ class ArynPartitioner(Partitioner):
         table_structure_extractor: The table extraction implementaion to use when extract_table_structure
              is True. The default is the TableTransformerStructureExtractor.
              Ignored when local mode is false.
-        table_extractor_options: Dictionary of options that are sent to the TableExtractor implementation. Currently
+        table_extraction_options: Dictionary of options that are sent to the TableExtractor implementation. Currently
             supports union_tokens, which is a boolean that controls whether to union OCR / PDFMiner tokens
             in the table cells.
             default: {"union_tokens": False}
@@ -454,7 +454,7 @@ class ArynPartitioner(Partitioner):
         per_element_ocr: bool = True,
         extract_table_structure: bool = False,
         table_structure_extractor: Optional[TableStructureExtractor] = None,
-        table_extractor_options: dict[str, Any] = {},
+        table_extraction_options: dict[str, Any] = {},
         extract_images: bool = False,
         extract_image_format: str = "PPM",
         device=None,
@@ -499,7 +499,7 @@ class ArynPartitioner(Partitioner):
         self._per_element_ocr = per_element_ocr
         self._extract_table_structure = extract_table_structure
         self._table_structure_extractor = table_structure_extractor
-        self._table_extractor_options = table_extractor_options
+        self._table_extraction_options = table_extraction_options
         self._extract_images = extract_images
         self._extract_image_format = extract_image_format
         self._output_format = output_format
@@ -531,7 +531,7 @@ class ArynPartitioner(Partitioner):
                 ocr_model=self._ocr_model,
                 extract_table_structure=self._extract_table_structure,
                 table_structure_extractor=self._table_structure_extractor,
-                table_extractor_options=self._table_extractor_options,
+                table_extraction_options=self._table_extraction_options,
                 extract_images=self._extract_images,
                 extract_image_format=self._extract_image_format,
                 batch_size=self._batch_size,

@@ -377,7 +377,7 @@ class TestOpenSearchRead:
         retrieved_docs_reconstructed = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
             index_name=setup_index,
-            doc_reconstructor=DocumentReconstructor(setup_index, doc_reconstructor),
+            doc_reconstructor=DocumentReconstructor(index_name=setup_index, reconstruct_fn=doc_reconstructor),
         ).take_all()
 
         assert len(retrieved_docs_reconstructed) == 6

@@ -191,11 +191,7 @@ def find_procedures_to_update(client: bigquery.Client, local_procedures: Dict[st
         #print(f"ERICDIFF\n-----------------------------\n{diff_text}\n----------------------------")
         
         if diff_text:
-            print(f"  → Differences detected:")
-            print("    " + "=" * 40)
-            for line in diff_text.split('\n'):
-                print(f"    {line}")
-            print("    " + "=" * 40)
+            print_diff(diff_text)
             procedures_to_update.append((procedure_name, local_sql, bigquery_sql))
         else:
             print(f"  → No differences found")
@@ -203,20 +199,25 @@ def find_procedures_to_update(client: bigquery.Client, local_procedures: Dict[st
     return procedures_to_update
 
 
-def prompt_for_confirmation(procedures_to_update: List[Tuple[str, str, Optional[str]]]) -> bool:
+def prompt_for_confirmation(items_to_update: List[str], item_type: str = "item") -> bool:
     """
-    Prompt user for confirmation before uploading procedures.
+    Prompt user for confirmation before uploading.
     
     Args:
-        procedures_to_update: List of procedures to be updated
+        items_to_update: List of items to be updated
+        item_type: Type of items (e.g., "procedure", "UDF")
         
     Returns:
         True if user confirms, False if cancelled
     """
-    print(f"\n{len(procedures_to_update)} procedure(s) need to be updated:")
-    for name, _, _ in procedures_to_update:
+    print(f"\n{len(items_to_update)} {item_type}(s) need to be updated:")
+    for name in items_to_update:
         print(f"  - {name}")
         
+    print("\n" + "=" * 50)
+    print(f"WARNING: This will replace the {item_type}s in BigQuery!")
+    print("=" * 50)
+    
     try:
         response = input("\nDo you want to proceed with the upload? (yes/no): ").strip().lower()
         if response not in ['yes', 'y']:
@@ -258,7 +259,8 @@ def sync_stored_procedures(sql_file_path: str) -> None:
         print("\nAll procedures are up to date!")
         return
     
-    if not prompt_for_confirmation(procedures_to_update):
+    procedure_names = [name for name, _, _ in procedures_to_update]
+    if not prompt_for_confirmation(procedure_names, "procedure"):
         return
     
     print("\nUploading procedures...")
@@ -271,6 +273,142 @@ def sync_stored_procedures(sql_file_path: str) -> None:
     print(f"\nUpload complete: {success_count}/{len(procedures_to_update)} procedures updated successfully.")
 
 
+def get_local_python_as_ddl(function_name: str, sql_params: str, return_type: str, packages: List[str]) -> str:
+    for path in [f"{function_name}.py", f"{function_name}/main.py"]:
+        path = f"examples/bigquery-docparse/{path}"
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                local_code = f.read()
+                break
+    else:
+        raise ValueError(f"Unable to find code for {function_name}")
+    
+    local_code = local_code.removesuffix("\n")
+    packages_str = '[\n    ' + ',\n    '.join([f'"{pkg}"' for pkg in packages]) + ']'
+    if packages:
+        packages_str = ',\n  packages=[\n    ' + ',\n    '.join([f'"{pkg}"' for pkg in packages]) + ']'
+    else:
+        packages_str = ''
+    return f"""CREATE OR REPLACE FUNCTION `{PROJECT_ID}`.{DATASET_ID}.{function_name}({sql_params}) RETURNS {return_type} LANGUAGE python
+WITH CONNECTION `{PROJECT_ID}.us.vertex-ai-connection`
+OPTIONS(
+  entry_point="{function_name}",
+  runtime_version="python-3.11"{packages_str})
+AS
+r"\""
+{local_code}
+"\"";"""
+
+
+def get_bigquery_udf(client: bigquery.Client, function_name: str) -> Optional[str]:
+    try:
+        print(f"  → Downloading UDF {function_name} from BigQuery")
+        query = f"""
+        SELECT ddl 
+        FROM `{PROJECT_ID}.{DATASET_ID}.INFORMATION_SCHEMA.ROUTINES` 
+        WHERE routine_name = '{function_name}'
+        """
+        
+        query_job = client.query(query)
+        results = list(query_job)
+        
+        if results:
+            ddl = results[0].ddl.replace("CREATE FUNCTION", "CREATE OR REPLACE FUNCTION")
+            return ddl
+        else:
+            return None
+            
+    except Exception as e:
+        print(f"Error downloading UDF {function_name}: {e}")
+        return None
+
+
+def print_diff(diff_text: str) -> None:
+    print("  → Differences detected:")
+    print("    " + "=" * 40)
+    for line in diff_text.split('\n'):
+        print(f"    {line}")
+    print("    " + "=" * 40)
+
+
+def compare_udf(local_ddl: str, bigquery_ddl: str) -> str:
+    if local_ddl.strip() == bigquery_ddl.strip():
+        return ""
+    
+    diff = difflib.unified_diff(
+        bigquery_ddl.splitlines(keepends=True),
+        local_ddl.splitlines(keepends=True),
+        fromfile='BigQuery',
+        tofile='Local',
+        lineterm=''
+    )
+    
+    xdiff = [l if l.endswith('\n') else l + '\n' for l in diff]
+    ret = ''.join(xdiff)
+    assert ret != "", "No differences found but contents were different"
+    return ret
+
+
+def upload_udf(client: bigquery.Client, function_name: str, ddl: str) -> bool:
+    try:
+        query_job = client.query(ddl)
+        query_job.result()  # Wait for the job to complete
+        print(f"✓ Successfully uploaded UDF: {function_name}")
+        return True
+    except Exception as e:
+        print(f"✗ Error uploading UDF {function_name}: {e}")
+        return False
+
+
+def sync_udf(function_name: str, sql_params: str, return_type: str, packages: List[str]) -> None:
+    """
+    Sync a UDF between local Python file and BigQuery.
+    
+    Args:
+        function_name: Name of the function
+        sql_params: SQL parameter definition
+        return_type: SQL return type
+        packages: List of Python packages
+    """
+    print(f"Syncing UDF: {function_name}")
+    
+    try:
+        client = bigquery.Client(project=PROJECT_ID)
+    except Exception as e:
+        print(f"Error initializing BigQuery client: {e}")
+        return
+    
+    local_ddl = get_local_python_as_ddl(function_name, sql_params, return_type, packages)
+    bigquery_ddl = get_bigquery_udf(client, function_name)
+    
+    if bigquery_ddl is None:
+        print("  → UDF not found in BigQuery (will be created)")
+        should_upload = True
+    else:
+        diff_text = compare_udf(local_ddl, bigquery_ddl)
+        
+        if diff_text:
+            print_diff(diff_text)
+            should_upload = True
+        else:
+            print("  → No differences found")
+            should_upload = False
+    
+    if not should_upload:
+        print("  → UDF is up to date!")
+        return
+    
+    if not prompt_for_confirmation([function_name], "UDF"):
+        return
+    
+    print("  → Uploading UDF...")
+    if upload_udf(client, function_name, local_ddl):
+        print("  → Upload complete!")
+    else:
+        print("  → Upload failed!")
+
+
 if __name__ == "__main__":
-    sql_file = "examples/bigquery-docparse/stored_procedures.sql"
-    sync_stored_procedures(sql_file)
+    # sync_stored_procedures("examples/bigquery-docparse/stored_procedures.sql")
+    packages = ["google-cloud-storage", "google-cloud-secret-manager", "aryn-sdk"]
+    sync_udf("sleep_until", "unix_timestamp INT64", "STRING", [])

@@ -1308,6 +1308,12 @@ class DocSet:
         aggregation = agg.build(self.plan)
         return DocSet(self.context, aggregation)
 
+    def reduce(self, reduce_fn: Callable[[list[Document]], Document], **kwargs) -> "DocSet":
+        from sycamore.transforms.aggregation import Reduce
+
+        reduction = Reduce(self.plan, reduce_fn)
+        return DocSet(self.context, reduction)
+
     def groupby_count(self, field: str, unique_field: Optional[str] = None, **kwargs) -> "DocSet":
         """
         Performs a count aggregation on a DocSet.

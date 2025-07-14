@@ -1,8 +1,8 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from sycamore import DocSet
 from sycamore.data import Document, MetadataDocument
-from sycamore.transforms.aggregation import AggBuilder
+from sycamore.transforms.aggregation import AggBuilder, Reduce
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Transform, Node
 
 if TYPE_CHECKING:
@@ -100,9 +100,16 @@ class GroupedData:
     def collect(self) -> DocSet:
         return DocSet(self._docset.context, AggregateCollect(self._docset.plan, self._grouped_key, self._entity))
 
-    def aggregate(self, agg: AggBuilder):
+    def aggregate(self, agg: AggBuilder) -> DocSet:
         def group_key_fn(doc: Document) -> str:
             return str(doc.field_to_value(self._grouped_key))
 
         aggregation = agg.build_grouped(self._docset.plan, group_key_fn)
         return DocSet(self._docset.context, aggregation)
+
+    def reduce(self, reduce_fn: Callable[[list[Document]], Document]) -> DocSet:
+        def group_key_fn(doc: Document) -> str:
+            return str(doc.field_to_value(self._grouped_key))
+
+        reduction = Reduce(self._docset.plan, reduce_fn, group_key_fn)
+        return DocSet(self._docset.context, reduction)

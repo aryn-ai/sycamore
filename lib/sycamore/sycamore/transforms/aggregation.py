@@ -2,10 +2,10 @@ from typing import Callable, Optional, TYPE_CHECKING, Union
 
 from sycamore.plan_nodes import UnaryNode, Node
 from sycamore.data import Document, MetadataDocument
+import numpy as np
 
 if TYPE_CHECKING:
     from ray.data import Dataset
-    import numpy as np
 
 
 class Aggregation(UnaryNode):
@@ -164,7 +164,6 @@ class AggBuilder:
 
 
 class Reduce(UnaryNode):
-    import numpy as np
 
     def __init__(
         self,
@@ -191,12 +190,17 @@ class Reduce(UnaryNode):
             return block
         docs = [Document.deserialize(d) for d in block["doc"]]
         reduced = self._reduce_fn(docs)
-        return reduced.to_row() | {"key": key}
+        return {"doc": [reduced.serialize()], "key": [key]}
 
     def execute(self, **kwargs) -> "Dataset":
         dataset = self.child().execute()
 
-        return dataset.map(self._to_key_val).groupby("key").map_groups(self._group_reduce_ray).drop_columns(["key"])
+        return (
+            dataset.map(self._to_key_val)
+            .groupby("key")
+            .map_groups(self._group_reduce_ray, batch_format="numpy")
+            .drop_columns(["key"])
+        )
 
     def local_execute(self, all_docs: list[Document]) -> list[Document]:
 

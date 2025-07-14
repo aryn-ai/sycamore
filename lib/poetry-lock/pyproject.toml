@@ -32,7 +32,7 @@ onnx = "1.18.0"
 matplotlib = "3.10.3"
 
 # Package versions specified because of github vulnerability reports
-aiohttp = ">=3.10.11"
+aiohttp = "^3.12.14"
 nltk = ">3.9.0"
 requests = "^2.32.4"
 scrapy = ">=2.11.2"

@@ -224,18 +224,17 @@ class Reduce(UnaryNode):
         if key.startswith("md-"):
             return block
         docs = [Document.deserialize(d) for d in block["doc"]]
-        reduced = self._reduce_fn(docs)
-        return {"doc": [reduced.serialize()], "key": [key]}
+        extra_metadata: list[MetadataDocument] = []
+        with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
+            reduced = self._reduce_fn(docs)
+        extra_metadata.extend(update_lineage(from_docs=docs, to_docs=[reduced]))
+
+        return {"doc": [reduced.serialize()] + [m.serialize() for m in extra_metadata]}
 
     def execute(self, **kwargs) -> "Dataset":
         dataset = self.child().execute()
 
-        return (
-            dataset.map(self._to_key_val)
-            .groupby("key")
-            .map_groups(self._group_reduce_ray, batch_format="numpy")
-            .drop_columns(["key"])
-        )
+        return dataset.map(self._to_key_val).groupby("key").map_groups(self._group_reduce_ray, batch_format="numpy")
 
     def local_execute(self, all_docs: list[Document]) -> list[Document]:
 
@@ -251,6 +250,11 @@ class Reduce(UnaryNode):
                 split_docs[key] = [d]
 
         ret: list[Union[Document, MetadataDocument]] = metadata  # type: ignore
-        for key, split in split_docs.items():
-            ret.append(self._reduce_fn(split))
+        extra_metadata: list[MetadataDocument] = []
+        with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
+            for key, split in split_docs.items():
+                reduced = self._reduce_fn(split)
+                ret.append(reduced)
+                ret.extend(update_lineage(from_docs=split, to_docs=[reduced]))
+        ret.extend(extra_metadata)
         return ret

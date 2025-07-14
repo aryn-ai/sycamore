@@ -5,6 +5,7 @@ from sycamore.data import Document, MetadataDocument
 
 if TYPE_CHECKING:
     from ray.data import Dataset
+    import numpy as np
 
 
 class Aggregation(UnaryNode):
@@ -160,3 +161,57 @@ class AggBuilder:
             group_key_fn=group_key_fn,
             zero_factory=self._zero_factory,
         )
+
+
+class Reduce(UnaryNode):
+    import numpy as np
+
+    def __init__(
+        self,
+        child: Optional[Node],
+        reduce_fn: Callable[[list[Document]], Document],
+        group_key_fn: Callable[[Document], str] = lambda d: "nogrouping",
+    ):
+        super().__init__(child)
+        self._reduce_fn = reduce_fn
+        self._group_key_fn = group_key_fn
+
+    def _to_key_val(self, row):
+        doc = Document.from_row(row)
+        if isinstance(doc, MetadataDocument):
+            row["key"] = f"md-{doc.doc_id}"
+        else:
+            row["key"] = self._group_key_fn(doc)
+        return row
+
+    def _group_reduce_ray(self, block: dict[str, np.ndarray]):
+        key = block["key"][0]
+        assert isinstance(key, str)
+        if key.startswith("md-"):
+            return block
+        docs = [Document.deserialize(d) for d in block["doc"]]
+        reduced = self._reduce_fn(docs)
+        return reduced.to_row() | {"key": key}
+
+    def execute(self, **kwargs) -> "Dataset":
+        dataset = self.child().execute()
+
+        return dataset.map(self._to_key_val).groupby("key").map_groups(self._group_reduce_ray).drop_columns(["key"])
+
+    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+
+        metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
+        documents = [d for d in all_docs if not isinstance(d, MetadataDocument)]
+
+        split_docs = {}
+        for d in documents:
+            key = self._group_key_fn(d)
+            if (split := split_docs.get(key, None)) is not None:
+                split.append(d)
+            else:
+                split_docs[key] = [d]
+
+        ret: list[Union[Document, MetadataDocument]] = metadata  # type: ignore
+        for key, split in split_docs.items():
+            ret.append(self._reduce_fn(split))
+        return ret

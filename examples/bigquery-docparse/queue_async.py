@@ -1,13 +1,18 @@
 """
 UDF for queueing an async request to Aryn DocParse
 """
-import datetime
+
+from aryn_sdk.client.partition import partition_file_async_submit
+from google.cloud import storage
 import os
 import random
-from google.cloud import storage, secretmanager
-from aryn_sdk.client.partition import partition_file_async_submit, partition_file_async_result, ArynConfig
+import sys
 
-sys.path.append(os.path.dirname(__file__) + "/.."); from config import *
+sys.path.append(os.path.dirname(__file__) + "/..")
+from config import configs, get_secret
+
+if False:
+    _ = get_secret("use fn to have a consistent import to simplify sync_code_with_bigquery.py's replacement logic")
 
 def queue_async(uri, async_id, config_list):
     possible_config_nums = [int(k) for k in config_list.split(",")]
@@ -30,6 +35,7 @@ def get_pdf(uri):
     bucket, object = uri.removeprefix("gs://").split("/", 1)
     return storage.Client().bucket(bucket).blob(object).download_as_bytes()
 
+
 if __name__ == "__main__":
-    sa = queue_async("gs://eric-aryn-test-bucket/visit_aryn.pdf", None, "2")
+    sa = queue_async("gs://eric-aryn-test-bucket/visit_aryn.pdf", None, "4")
     print(f"submitted as {sa}")

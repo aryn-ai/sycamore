@@ -496,14 +496,14 @@ test = ["dateparser (==1.*)", "pre-commit", "pytest", "pytest-cov", "pytest-mock
 
 [[package]]
 name = "aryn-sdk"
-version = "0.2.6"
+version = "0.2.10"
 description = "The client library for Aryn services."
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev", "docs", "duckdb", "elasticsearch", "eval", "legacy-partitioners", "local-inference", "neo4j", "opensearch", "pinecone", "qdrant", "weaviate"]
 files = [
-    {file = "aryn_sdk-0.2.6-py3-none-any.whl", hash = "sha256:16886f7590432ab4d71f674d71fc41243f018f3abcee283b0c89ce2fee7999aa"},
-    {file = "aryn_sdk-0.2.6.tar.gz", hash = "sha256:dd788c947a2537bb449d5190f61bc7d1572cad1488880583db06aef3f2c36f10"},
+    {file = "aryn_sdk-0.2.10-py3-none-any.whl", hash = "sha256:e6c85ac7cfe80b68667a7d13bdcfd2478d0957164543f6c21f033321f70d6feb"},
+    {file = "aryn_sdk-0.2.10.tar.gz", hash = "sha256:023ec3a7c7472cff91d78597ea838a7d90ed53cf1d013370d04285869c5070a9"},
 ]
 
 [package.dependencies]
@@ -12542,4 +12542,4 @@ docs = ["enum-tools", "furo", "myst-parser", "sphinx", "sphinx-toolbox"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "5c61f14cc974b0d7fb3975f9717ecdcfd507649550744bdef1885d46ccde4f3a"
+content-hash = "e61a2a018b8e708c21acdbc884bfbdff65de8cb28ed00dd5acc0158f2a6e33ee"

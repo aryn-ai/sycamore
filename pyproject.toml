@@ -19,6 +19,7 @@ repository = "https://github.com/aryn-ai/sycamore.git"
 python = ">=3.10,<3.14"
 
 sycamore-ai = "^0.1.32"
+aryn-sdk = ">=0.2.8" # filename support added
 
 # Dependencies for building docs. Defined as an extra
 # so they can be installed using pip on RTD.

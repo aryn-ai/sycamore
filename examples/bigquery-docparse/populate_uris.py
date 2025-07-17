@@ -30,15 +30,15 @@ def get_objects(uri_prefix: str):
         return objects
 
 
-def get_existing_uris() -> list:
+def get_existing_uris() -> dict[str, tuple[str, int]]:
     print("Getting existing uris...")
     client = bigquery.Client()
     query_job = client.query("SELECT uri, checksum, size FROM example.input_files")
 
-    uris = {}
+    uris: dict[str, tuple[str, int]] = {}
     for row in query_job:
         assert row.uri and row.checksum and row.size is not None
-        uris[row.uri] = [row.checksum, row.size]
+        uris[row.uri] = (row.checksum, row.size)
         if (len(uris) % 1000) == 0:
             print(f"  {len(uris)} so far...")
 
@@ -77,15 +77,19 @@ def insert_uris(existing, additional, verbose=False):
         return
 
     print(f"Found {len(rows)} new URIs to add")
-    
+
     if verbose:
         print("URIs to be added:")
         for row in rows:
             print(f"  {row['uri']}")
-    
+
     try:
-        response = input(f"\nDo you want to add these {len(rows)} URIs (use --verbose to see them)? (yes/no): ").strip().lower()
-        if response not in ['yes', 'y']:
+        response = (
+            input(f"\nDo you want to add these {len(rows)} URIs (use --verbose to see them)? (yes/no): ")
+            .strip()
+            .lower()
+        )
+        if response not in ["yes", "y"]:
             print("Operation cancelled by user.")
             return
     except KeyboardInterrupt:
@@ -94,7 +98,6 @@ def insert_uris(existing, additional, verbose=False):
 
     print("Creating temporary table for uris...")
     bigquery_client = bigquery.Client()
-    table_ref = bigquery_client.dataset("example").table("input_files")
 
     import uuid
 
@@ -118,7 +121,7 @@ def insert_uris(existing, additional, verbose=False):
         )
 
         job = bigquery_client.load_table_from_json(rows, temp_table_ref, job_config=job_config)
-        job.result() # Force completion
+        job.result()  # Force completion
 
         print("Inserting temporary table into main table")
         insert_query = f"""
@@ -143,15 +146,19 @@ def add_missing_objects(uri_prefix, verbose=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Populate URIs from GCS prefix into BigQuery")
-    parser.add_argument("--verbose", "-v", action="store_true", default=False,
-                       help="Print URIs that would be added (default: False)")
-    parser.add_argument("--uri-prefix", default=os.environ.get("ARYN_BQ_INPUT_PREFIX"),
-                       help="GCS URI prefix to scan (default: ARYN_BQ_INPUT_PREFIX env var)")
-    
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", default=False, help="Print URIs that would be added (default: False)"
+    )
+    parser.add_argument(
+        "--uri-prefix",
+        default=os.environ.get("ARYN_BQ_INPUT_PREFIX"),
+        help="GCS URI prefix to scan (default: ARYN_BQ_INPUT_PREFIX env var)",
+    )
+
     args = parser.parse_args()
-    
+
     if not args.uri_prefix:
         print("Error: No URI prefix specified. Set ARYN_BQ_INPUT_PREFIX environment variable or use --uri-prefix")
         exit(1)
-    
+
     add_missing_objects(args.uri_prefix, args.verbose)

@@ -1,17 +1,19 @@
 """
 UDF for getting the status of an in-progress aysnc request
 """
+
 # cloud functions requires this to be called main.py
 # pip install functions_framework google-cloud-bigquery google-cloud-storage google-cloud-secret-manager
 
+from contextlib import AbstractContextManager
 import csv
 import functions_framework
-from google.cloud import storage, secretmanager
+from google.cloud import storage
 import httpx
 import json
 import os
 import sys
-from typing import Optional, Any
+from typing import Optional
 
 from aryn_sdk.client.partition import (
     ARYN_DOCPARSE_URL,
@@ -20,12 +22,13 @@ from aryn_sdk.client.partition import (
     ArynConfig,
     _convert_sync_to_async_url,
     g_parameters,
-    raise_error_on_non_2xx,
 )
 
-sys.path.append(os.path.dirname(__file__) + "/.."); from config import *
+sys.path.append(os.path.dirname(__file__) + "/..")
+from config import configs, get_secret
 
 OVERFLOW_PREFIX = get_secret("aryn-overflow-prefix")
+
 
 def get_status(async_id):
     t = get_status_tup_except(async_id)
@@ -134,8 +137,10 @@ def upload_large(data, uri):
     blob.upload_from_string(data, content_type="application/json", if_generation_match=0)
     print(f"Uploaded blob {uri}")
 
+
 # from aryn_sdk.client.partition import partition_file_async_result
 # local copy to rewrite to fully incremental
+
 
 def partition_file_async_result(
     task_id: str,
@@ -145,7 +150,7 @@ def partition_file_async_result(
     ssl_verify: bool = True,
     async_result_url: Optional[str] = None,
     extra_headers={},
-) -> dict[str, Any]:
+) -> AbstractContextManager[httpx.Response]:
     """
     Get the results of an asynchronous partitioning task by task_id. Meant to be used with
     `partition_file_async_submit`.
@@ -163,23 +168,14 @@ def partition_file_async_result(
     """
     if not async_result_url:
         async_result_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/result", truncate=True)
-        print(f"ERIC ARU {async_result_url}")
 
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
+    assert async_result_url is not None
     specific_task_url = f"{async_result_url.rstrip('/')}/{task_id}"
     headers = _generate_headers(aryn_config.api_key())
     headers.update(extra_headers)
     return httpx.stream("GET", specific_task_url, params=g_parameters, headers=headers, verify=ssl_verify)
-    if response.status_code == 200:
-        return {"task_status": "done", "result": response}
-    elif response.status_code == 202:
-        return {"task_status": "pending"}
-    elif response.status_code == 404:
-        raise PartitionTaskNotFoundError("No such task", response.status_code)
-    else:
-        raise_error_on_non_2xx(response)
-        raise PartitionTaskError("Unexpected response code", response.status_code)
 
 
 @functions_framework.http
@@ -214,7 +210,7 @@ def get_status_entrypoint(request):
             async_id = call_args[0]  # Assuming async_id is the first (and only) parameter
 
             try:
-                status_data = get_status_logic(async_id)
+                status_data = get_status(async_id)
                 replies.append(status_data)
             except Exception as e:
                 print(f"Error processing async_id {async_id}: {e}")

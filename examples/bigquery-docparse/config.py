@@ -1,5 +1,7 @@
+# Start of config.py; will be inserted into other files to make a single bigquery UDF
 import os
 from google.cloud import storage, secretmanager
+
 
 def get_secret(secret_id="aryn-api-key"):
     if (key := os.environ.get(id_to_env(secret_id), "")) != "":
@@ -11,6 +13,7 @@ def get_secret(secret_id="aryn-api-key"):
     response = client.access_secret_version(request={"name": name})
     return response.payload.data.decode("UTF-8")
 
+
 def id_to_env(k):
     if k == "aryn-api-key":
         return "ARYN_BQ_API_KEY_1"
@@ -20,6 +23,7 @@ def id_to_env(k):
         return "ARYN_BQ_API_KEY_3"
     if k == "aryn-overflow-prefix":
         return "ARYN_BQ_OVERFLOW_PREFIX"
+
 
 configs = [
     {
@@ -43,3 +47,4 @@ configs = [
         "headers": {},
     },
 ]
+# End of config.py; will be inserted into other files to make a single bigquery UDF

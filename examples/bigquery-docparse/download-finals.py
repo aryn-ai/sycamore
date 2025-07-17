@@ -1,19 +1,24 @@
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED, ALL_COMPLETED
-from google.cloud import storage
+import google.cloud.storage as storage
 import gzip
 import os
 import argparse
 from pathlib import Path
 
+
 def main():
     parser = argparse.ArgumentParser(description="Download files from csv.gz lists")
-    parser.add_argument("--csv-files", nargs="*", 
-                       help="csv.gz files to process (default: all *.csv.gz in current directory)")
-    parser.add_argument("--pdf-prefix", default=os.path.expanduser(os.getenv("BQ_LOCAL_PDFS", "~/pdfs")),
-                       help="PDF prefix directory (default: $HOME/pdfs)")
-    
+    parser.add_argument(
+        "--csv-files", nargs="*", help="csv.gz files to process (default: all *.csv.gz in current directory)"
+    )
+    parser.add_argument(
+        "--pdf-prefix",
+        default=os.path.expanduser(os.getenv("BQ_LOCAL_PDFS", "~/pdfs")),
+        help="PDF prefix directory (default: $HOME/pdfs)",
+    )
+
     args = parser.parse_args()
-    
+
     if not args.csv_files:
         csv_files = list(Path(".").glob("*.csv.gz"))
         if not csv_files:
@@ -21,10 +26,10 @@ def main():
             exit(1)
     else:
         csv_files = [Path(f) for f in args.csv_files]
-    
+
     print(f"Processing CSV files: {[f.name for f in csv_files]}")
     print(f"PDF prefix: {args.pdf_prefix}")
-    
+
     # Select uri from example.documents where <condition>; then download the file from bigquery as csv.gz.
     process = Process(args.pdf_prefix)
     for csv_file in csv_files:
@@ -46,17 +51,17 @@ class Process:
         print(f"Processing {csv_path}")
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             with gzip.open(csv_path, "rt") as f:
-                for l in f:
-                    l = self.clean_uri(l)
-                    if l == "uri":
+                for ln in f:
+                    ln = self.clean_uri(ln)
+                    if ln == "uri":
                         continue
-                    assert l.startswith("gs://"), f"bad {l}"
-                    bucket, object = l.removeprefix("gs://").split("/", 1)
+                    assert ln.startswith("gs://"), f"bad {ln}"
+                    bucket, object = ln.removeprefix("gs://").split("/", 1)
                     if self.bucket_client is None:
                         self.bucket = bucket
                         self.bucket_client = storage.Client().bucket(bucket)
                     else:
-                        assert self.bucket == bucket, f"bad {l}"
+                        assert self.bucket == bucket, f"bad {ln}"
                     dest = f"{self.pdf_prefix}/finals/{object}"
                     # print(f"ERIC {object} {dest}")
                     if self.exists(dest):
@@ -75,12 +80,12 @@ class Process:
         print(f"{self.already_count} files downloaded already")
         print(f"{self.download_count} downloaded files")
 
-    def clean_uri(self, l):
-        l = l.strip()
-        if l.startswith('"'):
-            assert l.endswith('"')
-            l = l.removeprefix('"').removesuffix('"')
-        return l
+    def clean_uri(self, ln):
+        ln = ln.strip()
+        if ln.startswith('"'):
+            assert ln.endswith('"')
+            ln = ln.removeprefix('"').removesuffix('"')
+        return ln
 
     def exists(self, dest):
         if not os.path.exists(dest):
@@ -92,7 +97,7 @@ class Process:
         return True
 
     def already(self, object, dest):
-        src = f"{pdf_prefix}/{object}"
+        src = f"{self.pdf_prefix}/{object}"
         if not os.path.exists(src):
             return False
         Path(dest).parent.mkdir(parents=True, exist_ok=True)

@@ -14,6 +14,7 @@ from config import configs, get_secret
 if False:
     _ = get_secret("use fn to have a consistent import to simplify sync_code_with_bigquery.py's replacement logic")
 
+
 def queue_async(uri, async_id, config_list):
     possible_config_nums = [int(k) for k in config_list.split(",")]
     config_num = possible_config_nums[random.randint(0, len(possible_config_nums) - 1)]

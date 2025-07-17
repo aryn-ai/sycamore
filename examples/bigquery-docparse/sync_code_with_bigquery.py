@@ -17,13 +17,13 @@ Before running:
     3. Install required packages: pip install google-cloud-bigquery
 """
 
+import difflib
+from google.cloud import bigquery
+import os
+from pathlib import Path
 import re
 import sys
-import os
 from typing import Dict, List, Tuple, Optional
-from google.cloud import bigquery
-from google.cloud.exceptions import NotFound
-import difflib
 
 
 PROJECT_ID = os.environ.get('GOOGLE_PROJECT_ID')
@@ -274,15 +274,34 @@ def sync_stored_procedures(sql_file_path: str) -> None:
 
 
 def get_local_python_as_ddl(function_name: str, sql_params: str, return_type: str, packages: List[str]) -> str:
-    for path in [f"{function_name}.py", f"{function_name}/main.py"]:
-        path = f"examples/bigquery-docparse/{path}"
+    paths = [f"{function_name}.py", f"{function_name}/main.py", 
+             f"examples/bigquery-docparse/{function_name}.py",
+             f"examples/bigquery-docparse/{function_name}/main.py"]
+    for path in paths:
         if os.path.exists(path):
             with open(path, 'r') as f:
                 local_code = f.read()
+                local_code_path = path
                 break
     else:
-        raise ValueError(f"Unable to find code for {function_name}")
+        raise ValueError(f"Unable to find code for {function_name} in {paths}")
     
+    # Replace the config import line with the actual config contents
+    config_line = 'sys.path.append(os.path.dirname(__file__) + "/.."); from config import *'
+    if config_line in local_code:
+        # Read config.py contents
+        config_dir = Path(local_code_path).parent
+        if (config_dir / "config.py").exists():
+            config_path = config_dir / "config.py"
+        else:
+            config_path = config_dir.parent / "config.py"
+
+        assert config_path.exists(), f"Config file {config_path} does not exist"
+        with open(config_path, 'r') as f:
+            config_contents = f.read()
+        local_code = local_code.replace(config_line, config_contents)
+    
+    assert "'''" not in local_code
     local_code = local_code.removesuffix("\n")
     packages_str = '[\n    ' + ',\n    '.join([f'"{pkg}"' for pkg in packages]) + ']'
     if packages:
@@ -295,9 +314,9 @@ OPTIONS(
   entry_point="{function_name}",
   runtime_version="python-3.11"{packages_str})
 AS
-r"\""
+r'''
 {local_code}
-"\"";"""
+''';"""
 
 
 def get_bigquery_udf(client: bigquery.Client, function_name: str) -> Optional[str]:
@@ -327,7 +346,7 @@ def print_diff(diff_text: str) -> None:
     print("  → Differences detected:")
     print("    " + "=" * 40)
     for line in diff_text.split('\n'):
-        print(f"    {line}")
+        print(f"    {line}!")
     print("    " + "=" * 40)
 
 
@@ -409,6 +428,11 @@ def sync_udf(function_name: str, sql_params: str, return_type: str, packages: Li
 
 
 if __name__ == "__main__":
-    # sync_stored_procedures("examples/bigquery-docparse/stored_procedures.sql")
-    packages = ["google-cloud-storage", "google-cloud-secret-manager", "aryn-sdk"]
+    sync_stored_procedures("examples/bigquery-docparse/stored_procedures.sql")
+    packages = ["functions_framework", "google-cloud-storage", "google-cloud-secret-manager", "aryn-sdk==0.2.8"]
+    sync_udf("get_status", "async_id STRING", 
+             "STRUCT<async_id STRING, new_async_id STRING, result STRING, err STRING>",
+              packages)
+    sync_udf("queue_async", "uri STRING, async_id STRING, config_list STRING", "STRING", packages)
     sync_udf("sleep_until", "unix_timestamp INT64", "STRING", [])
+

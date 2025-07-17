@@ -3,7 +3,7 @@
 CREATE OR REPLACE PROCEDURE example.queue_new_documents()
 BEGIN
     UPDATE `example.documents`
-    SET async_id = IF(async_id is NULL, example.queue_async_2(uri, async_id, "0"), async_id),
+    SET async_id = IF(async_id is NULL, example.queue_async(uri, async_id, "0"), async_id),
         tries = IF(async_id is NULL, if(tries is null,0,tries)+1, tries)
     WHERE uri IN (
         # the LIMIT N defines the max in-flight. setting it to a parameter gives a compilation error

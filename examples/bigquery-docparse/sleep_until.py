@@ -1,3 +1,6 @@
+"""
+UDF for sleeping to guarantee we don't loop too quickly
+"""
 import datetime
 import time
 

@@ -63,7 +63,6 @@ class Process:
                     else:
                         assert self.bucket == bucket, f"bad {ln}"
                     dest = f"{self.pdf_prefix}/finals/{object}"
-                    # print(f"ERIC {object} {dest}")
                     if self.exists(dest):
                         pass
                     elif self.already(object, dest):

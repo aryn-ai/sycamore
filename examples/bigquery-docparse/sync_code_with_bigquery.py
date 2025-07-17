@@ -101,7 +101,6 @@ def get_bigquery_procedure(client: bigquery.Client, procedure_name: str) -> Opti
 
         if results:
             ddl = results[0].ddl.replace("CREATE PROCEDURE", "CREATE OR REPLACE PROCEDURE")
-            # print(f"ERICDDL\n-----------------------------\n{ddl}\n----------------------------")
             return ddl
         else:
             return None
@@ -188,7 +187,6 @@ def find_procedures_to_update(
             continue
 
         diff_text = compare_procedures(local_sql, bigquery_sql)
-        # print(f"ERICDIFF\n-----------------------------\n{diff_text}\n----------------------------")
 
         if diff_text:
             print_diff(diff_text)

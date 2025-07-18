@@ -2,7 +2,6 @@ from collections import UserDict
 import json
 from typing import Any, Optional, BinaryIO
 import struct
-import warnings
 
 import msgpack
 
@@ -217,10 +216,14 @@ class Document(UserDict):
         if kind != Document:  # MetadataDocument, HierarchicalDocument, SummaryDocument are not yet supported
             raise NotImplementedError(f"web_serialize cannot yet handle type '{kind.__name__}'")
 
-        file.write(DOCUMENT_SERIALIZATION_MAGIC)  # 8 Bytes - Magic
-        file.write(struct.pack(">H", DOCUMENT_SERIALIZATION_VERSION_MAJOR))  # 2 Bytes - Version Major
-        file.write(struct.pack(">H", DOCUMENT_SERIALIZATION_VERSION_MINOR))  # 2 Bytes - Version Minor
-        file.write(struct.pack(">I", 0))  # 4 Bytes - Zero Padding
+        file.write(
+            struct.pack(
+                "!8s2H4x",
+                DOCUMENT_SERIALIZATION_MAGIC,
+                DOCUMENT_SERIALIZATION_VERSION_MAJOR,
+                DOCUMENT_SERIALIZATION_VERSION_MINOR,
+            )
+        )
 
         elementless_data = self.data.copy()  # Shallow copy
         del elementless_data["elements"]
@@ -251,7 +254,7 @@ class Document(UserDict):
         if len(header) != 16:
             raise ValueError("Failed to read document header")
 
-        magic_bytes, version_major, version_minor, zero_padding = struct.unpack(">8s2HI", header)
+        magic_bytes, version_major, version_minor = struct.unpack("!8s2H4x", header)
         if magic_bytes != DOCUMENT_SERIALIZATION_MAGIC:
             raise ValueError("Invalid serialization magic")
         if (
@@ -259,8 +262,6 @@ class Document(UserDict):
             or version_minor != DOCUMENT_SERIALIZATION_VERSION_MINOR
         ):
             raise ValueError(f"Unsupported serialization version: {version_major}.{version_minor}")
-        if zero_padding != 0:
-            warnings.warn("Options in zero padding region are not yet supported")
 
         unpacker = msgpack.Unpacker(file)
         elementless_data = next(unpacker)

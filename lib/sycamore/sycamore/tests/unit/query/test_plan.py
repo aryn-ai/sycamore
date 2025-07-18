@@ -156,6 +156,25 @@ def test_count_operator():
     assert "_inputs" not in schema
 
 
+def test_insert():
+    nodes = {
+        1: DummyOperator(node_id=1, description="node_1"),
+        2: DummyOperator(node_id=2, description="node_2", dummy="test2", inputs=[1]),
+        3: DummyOperator(node_id=3, description="node_3", dummy="test3", inputs=[1]),
+        4: DummyOperator(node_id=4, description="final", inputs=[2, 3]),
+    }
+    plan = LogicalPlan(
+        result_node=4, nodes=nodes, query="Test query plan", llm_prompt="Test LLM prompt", llm_plan="Test LLM plan"
+    )
+
+    n1 = DummyOperator(node_id=3, description="new node_3", dummy="testnew3", inputs=[1])
+    plan.insert_node(3, n1)
+    assert plan.nodes[3] is n1
+    assert plan.nodes[4].description == "node_3"
+    assert plan.nodes[5].inputs == [2, 4]
+    assert plan.result_node == 5
+
+
 @pytest.fixture
 def llm_filter_plan():
     nodes = {

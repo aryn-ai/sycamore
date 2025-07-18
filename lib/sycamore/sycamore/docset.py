@@ -16,6 +16,7 @@ from sycamore.llms.prompts.default_prompts import (
 )
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms import DocumentStructure, Sort
+from sycamore.transforms.aggregation import AggBuilder
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph_entities import GraphEntityExtractor
 from sycamore.transforms.extract_graph_relationships import GraphRelationshipExtractor
@@ -1302,6 +1303,16 @@ class DocSet:
             )
             plan = DropIfMissingField(plan, field)
         return DocSet(self.context, Sort(plan, descending, field, default_val))
+
+    def aggregate(self, agg: AggBuilder, **kwargs) -> "DocSet":
+        aggregation = agg.build(self.plan)
+        return DocSet(self.context, aggregation)
+
+    def reduce(self, reduce_fn: Callable[[list[Document]], Document], **kwargs) -> "DocSet":
+        from sycamore.transforms.aggregation import Reduce
+
+        reduction = Reduce(self.plan, reduce_fn)
+        return DocSet(self.context, reduction)
 
     def groupby_count(self, field: str, unique_field: Optional[str] = None, **kwargs) -> "DocSet":
         """

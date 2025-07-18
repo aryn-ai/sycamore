@@ -132,7 +132,7 @@ class Element(UserDict):
         if bits := msgpack.packb(self.data):
             file.write(bits)
         else:
-            raise ValueError("Failed to serialize element")
+            raise RuntimeError("Failed to serialize element")
 
     @experimental
     @staticmethod

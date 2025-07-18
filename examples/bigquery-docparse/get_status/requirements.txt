@@ -1,0 +1,4 @@
+Flask
+google-cloud-storage
+google-cloud-secret-manager
+aryn-sdk==0.2.8

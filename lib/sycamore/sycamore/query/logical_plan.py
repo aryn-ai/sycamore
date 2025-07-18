@@ -4,6 +4,7 @@ from functools import wraps
 import json
 from typing import Any, Dict, List, MutableMapping, Optional
 from hashlib import sha256
+import logging
 
 from pydantic import (
     BaseModel,
@@ -77,6 +78,7 @@ class Node(BaseModel):
 
     # The nodes that this node depends on. This should be populated externally
     # when a LogicalPlan is created.
+    # TODO: Make this not stupid. Either a plan is a graph or it's not!
     _input_nodes: Optional[List["Node"]] = None
 
     @property
@@ -294,7 +296,7 @@ class LogicalPlan(BaseModel):
             for nid in sorted(self.nodes.keys(), reverse=True):
                 if nid >= node_id:
                     self.nodes[nid].node_id += 1
-                    self.nodes[nid].inputs = [x + 1 for x in self.nodes[nid].inputs]
+                    self.nodes[nid].inputs = [x + 1 if x >= node_id else x for x in self.nodes[nid].inputs]
                     self.nodes[nid + 1] = self.nodes[nid]
 
             # Modify the _input_nodes for self.nodes[node_id+1]
@@ -306,6 +308,21 @@ class LogicalPlan(BaseModel):
         # Modify the terminal node in the plan
         self.result_node += 1
         return
+
+    def get_node_inputs(self, node_id: int) -> list[Node]:
+        """Returns the list of input nodes for a given node"""
+        node = self.nodes[node_id]
+        # Run this before because we don't trust precomputed _input_nodes and want
+        # to see if we die when we assert equality.
+        inputs = [self.nodes[i] for i in node.inputs]
+
+        if node._input_nodes is not None:
+            assert inputs == node._input_nodes, "How did this happen?? (A node's input_nodes and inputs disagreed)"
+            return node._input_nodes
+
+        logging.warning("_input_nodes property was not set on node. Looking up input_ids instead")
+        node._input_nodes = inputs
+        return inputs
 
 
 def compare_graphs(
@@ -338,7 +355,7 @@ def compare_graphs(
 
     # Compare node types
     # pylint: disable=unidiomatic-typecheck
-    if type(node_a) != type(node_b):
+    if type(node_a) is not type(node_b):
         diff_results.append(
             LogicalPlanDiffEntry(node_a=node_a, node_b=node_b, diff_type=LogicalNodeDiffType.OPERATOR_TYPE)
         )

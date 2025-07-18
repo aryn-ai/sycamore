@@ -195,6 +195,10 @@ class Document(UserDict):
             return MetadataDocument(data)
         elif "children" in data:
             return HierarchicalDocument(data)
+        elif "sub_docs" in data:
+            from sycamore.transforms.summarize import SummaryDocument
+
+            return SummaryDocument(data)
         else:
             return Document(data)
 
@@ -227,6 +231,15 @@ class Document(UserDict):
         }
         return json.dumps(d, indent=2)
 
+    def set_value_to_field(self, field: str, value: Any):
+        names = field.split(".")
+        doc = self
+        while len(names) > 1:
+            doc = doc[names[0]]
+            names = names[1:]
+
+        doc[names[0]] = value
+
     def field_to_value(self, field: str) -> Any:
         """
         Extracts the value for a particular document field.
@@ -254,7 +267,8 @@ class MetadataDocument(Document):
         if "lineage_links" in self.metadata:
             assert len(self.metadata["lineage_links"]["from_ids"]) > 0
 
-        self.data["doc_id"] = mkdocid()
+        if "doc_id" not in self.data:
+            self.data["doc_id"] = mkdocid()
         del self.data["lineage_id"]
         del self.data["elements"]
         del self.data["properties"]

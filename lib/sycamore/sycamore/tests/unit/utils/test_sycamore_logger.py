@@ -1,7 +1,7 @@
 import logging
 import time
 
-from sycamore.utils.sycamore_logger import LoggerFilter
+from sycamore.utils.sycamore_logger import RateLimitLogger
 
 
 def test_logger_ratelimit(caplog):
@@ -11,7 +11,7 @@ def test_logger_ratelimit(caplog):
         for i in range(5):
             logger.info(f"Unbounded {i}")
 
-        logger.addFilter(LoggerFilter())
+        logger.addFilter(RateLimitLogger())
         for i in range(5):
             logger.info(f"Bounded {i}")
 

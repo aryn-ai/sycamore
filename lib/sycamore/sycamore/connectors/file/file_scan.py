@@ -206,9 +206,9 @@ class BinaryScan(FileScan):
         if self._metadata_provider:
             document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
         if self._path_filter is not None:
-            from sycamore.materialize import docid_from_path
+            from sycamore.materialize_config import MRRNameGroup
 
-            document = docid_from_path(document)
+            MRRNameGroup.make_docid(document)
         return {"doc": document.serialize()}
 
     def _file_mime_type(self):
@@ -231,7 +231,7 @@ class BinaryScan(FileScan):
         partition_filter: Optional[Callable[[dict[str, str]], bool]] = None
         if self._path_filter is not None:
             partition_filter = PathPartitionFilter(
-                cast(PathPartitionParser, RayPathParser()), partial(self._path_filter, read=True)
+                cast(PathPartitionParser, RayPathParser()), partial(self._path_filter, read_binary=True)
             )
         shuffle = None if partition_filter is None else "files"
 
@@ -279,9 +279,9 @@ class BinaryScan(FileScan):
         if self._metadata_provider:
             document.properties.update(self._metadata_provider.get_metadata(info.path))
         if self._path_filter is not None:
-            from sycamore.materialize import docid_from_path
+            from sycamore.materialize_config import MRRNameGroup
 
-            document = docid_from_path(document)
+            MRRNameGroup.make_docid(document)
         return [document]
 
     def format(self):

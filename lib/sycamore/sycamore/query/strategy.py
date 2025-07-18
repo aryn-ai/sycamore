@@ -2,6 +2,7 @@ import logging
 from typing import Type, Optional, Any
 
 from sycamore.llms import LLM
+from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.query.logical_plan import Node
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.basic_filter import BasicFilter
@@ -14,6 +15,7 @@ from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDa
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.summarize_data import SummarizeData
 from sycamore.query.operators.top_k import TopK
+from sycamore.query.planner_prompt import PlannerPrompt
 
 ALL_OPERATORS: list[type[Node]] = [
     QueryDatabase,
@@ -31,10 +33,16 @@ ALL_OPERATORS: list[type[Node]] = [
 
 
 class LogicalPlanProcessor:
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         """Given the LogicalPlan query plan, postprocess it using a set of rules that modify the plan for
         optimizing or other purposes."""
         return plan
+
+
+class PlannerPromptProcessor:
+    def __call__(self, prompt: PlannerPrompt, **kwargs) -> PlannerPrompt:
+        """Apply code to change the prompt used by the planner"""
+        return prompt
 
 
 class DefaultPlanValidator(LogicalPlanProcessor):
@@ -43,7 +51,7 @@ class DefaultPlanValidator(LogicalPlanProcessor):
     1. Type validation: ensure inputs to nodes are of valid types (e.g. DocSet, int, None, etc.)
     """
 
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         logging.info("Executing DefaultPlanValidator processor")
 
         # type validation
@@ -68,7 +76,7 @@ class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
         super().__init__()
         self.llm = llm
 
-    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
         logging.info("Executing RemoveVectorSearchForAnalytics processor")
 
         # Rule: If the plan has a vector search in the beginning followed by a count or nothing or extract_entity,
@@ -162,6 +170,173 @@ class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
         return chat_completion
 
 
+class AlwaysSummarize(LogicalPlanProcessor):
+    """
+    A logical plan processor that makes sure every plan ends with a
+    summarize data. If the plan already ends with a summarize data,
+    nothing happens. If the plan ends with a sort, we drop the sort as it
+    does not matter when summarizing. Then we add a summarize node to the
+    end of the plan.
+    """
+
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
+        n = plan.nodes[plan.result_node]
+        if n.node_type == "SummarizeData":
+            return plan
+
+        if n.node_type == "Sort":
+            assert len(n.inputs) == 1, "Trailing sort had multiple or zero inputs?"
+            penultimate = n.inputs[0]
+            del plan.nodes[plan.result_node]
+            plan.result_node = penultimate
+
+        from sycamore.query.operators.summarize_data import SummarizeData
+
+        question = plan.query
+        prev_result = plan.result_node
+        plan.result_node += 1
+        plan.nodes[plan.result_node] = SummarizeData(
+            node_type="SummarizeData",
+            node_id=plan.result_node,
+            description=f"Summarize the answer to the question {question}",
+            inputs=[prev_result],
+            question=question,
+        )
+        return LogicalPlan.model_validate(plan)
+
+
+class OnlyRetrieval(LogicalPlanProcessor):
+    """
+    Remove nodes from the end of the plan that do not change the
+    documents that are retrieved. These nodes are:
+    - Sort
+    - SummarizeData
+    - LlmExtractEntity
+    - TopK
+    This processor is useful for efficiently computing retrieval metrics.
+    """
+
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
+        n = plan.nodes[plan.result_node]
+        while n.node_type in ("Sort", "SummarizeData", "LlmExtractEntity", "TopK"):
+            # SummarizeData is bad, it can fail to execute the entire pipeline so we don't get
+            # a list of documents back because there is not materialize success dir
+            # LlmExtractEntity without anything after it is just slow
+            # TopK can sometimes fail if the LLM returns garbage and doesn't help with getting
+            # the list of documents -- we just have to ignore it
+            assert len(n.inputs) == 1, f"Trailing {n.node_type} node must have exactly one input"
+            penultimate = n.inputs[0]
+            del plan.nodes[plan.result_node]
+            plan.result_node = penultimate
+            n = plan.nodes[plan.result_node]
+        return LogicalPlan.model_validate(plan)
+
+
+class LimitLlmOperations(LogicalPlanProcessor):
+    """
+    Add a limit node before certain operators. This is useful to make some queries faster, although
+    less accurate.
+
+    Args:
+        types: List of node types to limit; e.g. "LlmFilter", "SummarizeData"
+        limit: How many documents to limit to
+        message: Optional message to add to the description of the added limit node. Default is
+            "Limit the number of documents going through the following llm operation for interactivity"
+    """
+
+    def __init__(
+        self,
+        types: list[str],
+        limit: int,
+        message: str = "Limit the number of documents going through the following llm operation for interactivity",
+    ):
+        self._types = types
+        self._limit = limit
+        self._message = message
+
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
+        for i in sorted(plan.nodes.keys(), reverse=True):
+            n = plan.nodes[i]
+            if n.node_type not in self._types:
+                continue
+            inputs = plan.get_node_inputs(i)
+            if len(inputs) != 1:
+                logging.warning(f"Cannot add limit before {n.node_type} node because it has multiple or zero inputs")
+                continue
+            input = inputs[0]
+            if isinstance(input, Limit):
+                input.num_records = min(input.num_records, self._limit)
+            else:
+                limit = Limit(
+                    node_type="Limit",
+                    num_records=self._limit,
+                    description=self._message,
+                    node_id=n.node_id,
+                    inputs=n.inputs,
+                )
+                plan.insert_node(i, limit)
+        return plan
+
+
+class RequireQueryDatabase(LogicalPlanProcessor):
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
+        assert (
+            plan.nodes[0].node_type == "QueryDatabase"
+        ), "Found non-QueryDatabase start node, but QueryDatabase is required"
+        return plan
+
+
+class PrintPlan(LogicalPlanProcessor):
+    """
+    Print the plan nodes. Useful for debugging.
+
+    Args:
+        pre_message: An optional message to print before the plan
+        post_message: An optional message to print after the plan
+        quiet: Silence all output. Default is False
+    """
+
+    def __init__(self, pre_message: Optional[str] = None, post_message: Optional[str] = None, quiet: bool = False):
+        self._pre = pre_message
+        self._post = post_message
+        self._quiet = quiet
+
+    def __call__(self, plan: LogicalPlan, **kwargs) -> LogicalPlan:
+        if self._quiet:
+            return plan
+        if self._pre is not None:
+            print(self._pre)
+        from sycamore.utils.jupyter import slow_pprint
+
+        slow_pprint(plan.nodes)
+        if self._post is not None:
+            print(self._post)
+        return plan
+
+
+class LLMRewriteQuestion(PlannerPromptProcessor):
+    """
+    A prompt processor that uses an LLM to rewrite the question.
+
+    Args:
+        prompt: A SycamorePrompt that supports prompt.render_any(question=str)
+        llm: The llm to use to rewrite the question
+    """
+
+    def __init__(self, prompt: SycamorePrompt, llm: LLM):
+        # Make sure the prompt supports the render_any interface
+        _ = prompt.render_any(question="dummy")
+        self._rewrite_prompt = prompt
+        self._llm = llm
+
+    def __call__(self, prompt: PlannerPrompt, **kwargs) -> PlannerPrompt:
+        q = prompt.query
+        rendered = self._rewrite_prompt.render_any(question=q)
+        rewritten = self._llm.generate(prompt=rendered)
+        prompt.query = rewritten
+        return prompt
+
+
 class QueryPlanStrategy:
     """
     A strategy for generating a query plan. This strategy is responsible for providing available Operators and
@@ -169,11 +344,15 @@ class QueryPlanStrategy:
     """
 
     def __init__(
-        self, operators: Optional[list[Type[Node]]] = None, post_processors: Optional[list[LogicalPlanProcessor]] = None
+        self,
+        operators: Optional[list[Type[Node]]] = None,
+        plan_processors: Optional[list[LogicalPlanProcessor]] = None,
+        prompt_processors: Optional[list[PlannerPromptProcessor]] = None,
     ) -> None:
         super().__init__()
         self.operators: list[Type[Node]] = operators or []
-        self.post_processors: list[LogicalPlanProcessor] = post_processors or []
+        self.plan_processors: list[LogicalPlanProcessor] = plan_processors or []
+        self.prompt_processors: list[PlannerPromptProcessor] = prompt_processors or []
 
 
 class DefaultQueryPlanStrategy(QueryPlanStrategy):
@@ -181,8 +360,12 @@ class DefaultQueryPlanStrategy(QueryPlanStrategy):
     Default strategy that uses all available tools and optimizes result correctness.
     """
 
-    def __init__(self, post_processors: Optional[list[LogicalPlanProcessor]] = None) -> None:
-        super().__init__(ALL_OPERATORS, post_processors)
+    def __init__(
+        self,
+        plan_processors: Optional[list[LogicalPlanProcessor]] = None,
+        prompt_processors: Optional[list[PlannerPromptProcessor]] = None,
+    ) -> None:
+        super().__init__(ALL_OPERATORS, plan_processors, prompt_processors)
 
 
 class VectorSearchOnlyStrategy(QueryPlanStrategy):
@@ -191,5 +374,11 @@ class VectorSearchOnlyStrategy(QueryPlanStrategy):
     is smaller and vector search retrievals are sufficient to provide answers.
     """
 
-    def __init__(self, post_processors: Optional[list[LogicalPlanProcessor]] = None) -> None:
-        super().__init__([op for op in ALL_OPERATORS if op not in {QueryDatabase}], post_processors or [])
+    def __init__(
+        self,
+        plan_processors: Optional[list[LogicalPlanProcessor]] = None,
+        prompt_processors: Optional[list[PlannerPromptProcessor]] = None,
+    ) -> None:
+        super().__init__(
+            [op for op in ALL_OPERATORS if op not in {QueryDatabase}], plan_processors or [], prompt_processors
+        )

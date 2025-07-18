@@ -34,26 +34,5 @@ class TopK(Node):
 
     llm_cluster_instruction: Optional[str] = Field(default=None, json_schema_extra={"exclude_from_comparison": True})
     """An instruction of what the groups should be about if llm_cluster is True. E.g. if the
-    purpose of this operation is to find the top 2 most frequent cities, llm_cluster_instruction
-    could be 'Form groups of different food'"""
-
-
-class GroupByCount(Node):
-    """Finds the top K frequent occurences of values for a particular field.
-
-    Returns a database with ONLY 2 FIELDS: "properties.key" (which corresponds to unique values of
-    *field*) and "properties.count" (which contains the counts corresponding to unique values
-    of *field*).
-    """
-
-    entity_name: Optional[str] = None
-    embed_name: Optional[str] = None
-    """The database field to find the top K occurences for."""
-
-    cluster_field_name: str = "centroids"
-
-    K: int = 5
-
-    descending: bool = False
-    """If True, will return the top K most common occurrences. If False, will return the top K
-    least common occurrences."""
+    purpose of this operation is to find the top K most frequent cities, llm_cluster_instruction
+    could be 'Form groups of different cities'"""

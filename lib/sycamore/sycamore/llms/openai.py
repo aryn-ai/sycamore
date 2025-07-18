@@ -2,7 +2,6 @@ import functools
 import inspect
 import logging
 import os
-from dataclasses import dataclass
 from enum import Enum
 from PIL import Image
 from typing import Any, Dict, Optional, Tuple, Union
@@ -25,8 +24,9 @@ from openai.types.chat.chat_completion import ChatCompletion
 
 import pydantic
 
-from sycamore.llms.llms import LLM
-from sycamore.llms.prompts import RenderedPrompt
+from sycamore.llms.llms import LLM, LLMMode
+from sycamore.llms.config import OpenAIModel, OpenAIModels
+from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data_url
 
@@ -42,31 +42,6 @@ BATCH_POLL_INTERVAL = 10
 class OpenAIClientType(Enum):
     OPENAI = 0
     AZURE = 1
-
-
-@dataclass
-class OpenAIModel:
-    name: str
-    is_chat: bool = False
-
-
-class OpenAIModels(Enum):
-    TEXT_DAVINCI = OpenAIModel(name="text-davinci-003", is_chat=True)
-    GPT_3_5_TURBO = OpenAIModel(name="gpt-3.5-turbo", is_chat=True)
-    GPT_4_TURBO = OpenAIModel(name="gpt-4-turbo", is_chat=True)
-    GPT_4O = OpenAIModel(name="gpt-4o", is_chat=True)
-    GPT_4O_STRUCTURED = OpenAIModel(
-        name="gpt-4o-2024-08-06", is_chat=True
-    )  # remove after october 2nd, gpt-4o will point to this model then
-    GPT_4O_MINI = OpenAIModel(name="gpt-4o-mini", is_chat=True)
-    GPT_3_5_TURBO_INSTRUCT = OpenAIModel(name="gpt-3.5-turbo-instruct", is_chat=False)
-
-    @classmethod
-    def from_name(cls, name: str):
-        for m in iter(cls):
-            if m.value.name == name:
-                return m
-        return None
 
 
 class OpenAIClientWrapper:
@@ -179,6 +154,14 @@ class OpenAIClientWrapper:
         else:
             raise ValueError(f"Invalid client_type {self.client_type}")
 
+    def close(self) -> None:
+        # This is tricky.  We want to close the client, but avoid creating one
+        # if there isn't one cached.  We can't close the async client from
+        # a non-async context.  Attempts to use clients after calling close()
+        # will fail.
+        if self.get_client.cache_info().currsize:
+            self.get_client().close()
+
     @functools.cache
     def get_async_client(self) -> AsyncOpenAIClient:
         if self.client_type == OpenAIClientType.OPENAI:
@@ -243,6 +226,7 @@ class OpenAI(LLM):
         params: An instance of OpenAIClientParameters to use for the OpenAI client. If not provided, a new instance
             will be created using the provided parameters.
         cache: An instance of Cache to use for caching responses. If not provided, no caching will be used.
+        default_mode: Default execution mode for the llm
         **kwargs: Additional parameters to pass to the OpenAI client.
     """
 
@@ -252,7 +236,9 @@ class OpenAI(LLM):
         api_key: Optional[str] = None,
         client_wrapper: Optional[OpenAIClientWrapper] = None,
         params: Optional[OpenAIClientParameters] = None,
+        default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
+        default_llm_kwargs: Optional[dict[str, Any]] = None,
         **kwargs,
     ):
         if isinstance(model_name, OpenAIModels):
@@ -267,7 +253,7 @@ class OpenAI(LLM):
         if self.model.name == OpenAIModels.TEXT_DAVINCI.value.name:
             logger.warning("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
             self.model = OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value
-        super().__init__(self.model.name, cache)
+        super().__init__(self.model.name, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
         # This is somewhat complex to provide a degree of backward compatibility.
         if client_wrapper is None:
@@ -289,9 +275,19 @@ class OpenAI(LLM):
     # recreate the client on the other end.
     def __reduce__(self):
 
-        kwargs = {"client_wrapper": self.client_wrapper, "model_name": self.model, "cache": self._cache}
+        kwargs = {
+            "client_wrapper": self.client_wrapper,
+            "model_name": self.model,
+            "cache": self._cache,
+            "default_mode": self._default_mode,
+            "default_llm_kwargs": self._default_llm_kwargs,
+        }
 
         return openai_deserializer, (kwargs,)
+
+    def close(self) -> None:
+        # After closing, don't expect method calls to succeed.
+        self.client_wrapper.close()
 
     def is_chat_mode(self):
         return self.model.is_chat
@@ -323,9 +319,12 @@ class OpenAI(LLM):
 
     def _get_generate_kwargs(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
         kwargs = {
-            "temperature": 0,
             **(llm_kwargs or {}),
         }
+
+        if not self.model.name.startswith("o"):
+            kwargs["temperature"] = 0
+
         if "SYCAMORE_OPENAI_USER" in os.environ:
             kwargs.update({"user": os.environ.get("SYCAMORE_OPENAI_USER")})
 
@@ -358,6 +357,7 @@ class OpenAI(LLM):
         return kwargs
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         llm_kwargs = self._convert_response_format(llm_kwargs)
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if ret is not None:
@@ -417,6 +417,7 @@ class OpenAI(LLM):
             raise e
 
     async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if ret is not None:
             return ret
@@ -494,6 +495,7 @@ class OpenAI(LLM):
             raise e
 
     def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         cache_hits = [self._llm_cache_get(p, llm_kwargs) for p in prompts]
 
         calls = []

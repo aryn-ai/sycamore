@@ -5,9 +5,10 @@ import pytest
 import sycamore
 from sycamore.data import Document, Element
 from sycamore.docset import DocSet
-from sycamore.functions import CharacterTokenizer
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
+from sycamore.functions.tokenizer import CharacterTokenizer
 from sycamore.llms import LLM
+from sycamore.llms.llms import LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
@@ -16,16 +17,17 @@ from sycamore.llms.prompts.default_prompts import (
 from sycamore.query.execution.operations import (
     summarize_data,
     math_operation,
-    _get_text_for_summarize_data,
 )
-from sycamore.transforms.summarize import NUM_DOCS_GENERATE
+from sycamore.transforms.summarize import MultiStepDocumentSummarizer
 
 
 class MockLLM(LLM):
     def __init__(self):
-        super().__init__(model_name="mock_model")
+        super().__init__(model_name="mock_model", default_mode=LLMMode.SYNC)
+        self.capture = []
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        self.capture.append(prompt)
         if prompt.messages[0].content.endswith('"1, 2, one, two, 1, 3".'):
             return '{"groups": ["group1", "group2", "group3"]}'
         if (
@@ -49,9 +51,21 @@ class MockLLM(LLM):
                 return "group2"
             elif value == "3" or value == "three":
                 return "group3"
+        elif "unique cities" in prompt.messages[-1].content:
+            if "accumulated summary" in prompt.messages[-1].content or "merged summary" in prompt.messages[-1].content:
+                return "merged summary"
+            else:
+                return "accumulated summary"
+        elif "elements of a document" in prompt.messages[-1].content:
+            return "element summary"
+        elif "element summary" in prompt.messages[-1].content:
+            return "document summary"
         else:
             return ""
         return ""
+
+    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        return self.generate(prompt=prompt, llm_kwargs=llm_kwargs)
 
     def is_chat_mode(self):
         return True
@@ -101,6 +115,23 @@ class TestOperations:
         return generate_docset(texts)
 
     @pytest.fixture
+    def big_words_and_ids_docset(self, words_and_ids_docset) -> DocSet:
+        import random
+        from copy import deepcopy
+
+        words = ["some", "words", "are", "too", "long"]
+        docs = words_and_ids_docset.take_all()
+        big_docs = []
+        for i in range(5):
+            big_docs.extend([deepcopy(d) for d in docs])
+        for bd in big_docs:
+            for i in range(3):
+                word_choices = random.choices(words, k=10)
+                bd.elements.append(Element(text_representation=" ".join(word_choices)))
+        ctx = words_and_ids_docset.context
+        return ctx.read.document(big_docs)
+
+    @pytest.fixture
     def number_docset(self, generate_docset) -> DocSet:
         return generate_docset(
             {"text_representation": ["1", "2", "one", "two", "1", "3"], "parent_id": [8, 1, 11, 17, 13, 5]},
@@ -108,87 +139,58 @@ class TestOperations:
 
     # LLM Generate
     def test_summarize_data(self, words_and_ids_docset):
-        response = summarize_data(llm=MockLLM(), question="", result_description="", result_data=[""])
+        response = summarize_data(llm=MockLLM(), question="", data_description="", input_data=[""])
         assert response == ""
 
-        response = summarize_data(llm=MockLLM(), question="", result_description="", result_data=[words_and_ids_docset])
+        response = summarize_data(llm=MockLLM(), question="", data_description="", input_data=[words_and_ids_docset])
         assert response == ""
 
     def test_get_text_for_summarize_data_docset(self, words_and_ids_docset):
-        response = _get_text_for_summarize_data(
-            result_description="List of unique cities",
-            result_data=[words_and_ids_docset],
-            use_elements=False,
-            num_elements=10,
+        llm = MockLLM()
+        summarize_data(
+            llm=llm,
+            question=None,
+            data_description="List of unique cities",
+            input_data=[words_and_ids_docset],
+            docset_summarizer=MultiStepDocumentSummarizer(
+                llm=llm, question=None, data_description="List of unique cities"
+            ),
         )
-        expected = "Data description: List of unique cities\nInput 1:\n"
-        for i, doc in enumerate(words_and_ids_docset.take(NUM_DOCS_GENERATE)):
-            expected += f"Document {i}:\n"
-            expected += f"Text contents:\n{doc.text_representation or ''}\n\n"
+        captured = llm.capture[-1]
+        mcontent = captured.messages[-1].content
 
-        assert response == expected
+        assert "List of unique cities" in mcontent
+        for i, doc in enumerate(words_and_ids_docset.take_all()):
+            for e in doc.elements:
+                # All element text should be in the call
+                assert f"Text: {e.text_representation}" in mcontent
 
-    def test_get_text_for_summarize_data_docset_with_token_limit(self, words_and_ids_docset):
-        response = _get_text_for_summarize_data(
-            result_description="List of unique cities",
-            result_data=[words_and_ids_docset],
-            use_elements=False,
-            num_elements=10,
-            tokenizer=CharacterTokenizer(),
-            max_tokens=150,  # description + text of 2 documents (manually calculated)
+    def test_get_text_for_summarize_data_docset_with_elements(self, big_words_and_ids_docset):
+        llm = MockLLM()
+        response = summarize_data(
+            llm=llm,
+            question=None,
+            data_description="List of unique cities",
+            input_data=[big_words_and_ids_docset],
+            summaries_as_text=True,
+            docset_summarizer=MultiStepDocumentSummarizer(
+                llm=llm,
+                question=None,
+                data_description="List of unique cities",
+                tokenizer=CharacterTokenizer(max_tokens=700),
+            ),
         )
-
-        expected = "Data description: List of unique cities\nInput 1:\n"
-        docs = words_and_ids_docset.take()
-        for i, doc in enumerate(docs[:2]):
-            expected += f"Document {i}:\n"
-            expected += f"Text contents:\n{doc.text_representation or ''}\n\n"
-
-        assert response == expected
-
-        # 1 more char allows another doc
-        response_3_docs = _get_text_for_summarize_data(
-            result_description="List of unique cities",
-            result_data=[words_and_ids_docset],
-            use_elements=False,
-            num_elements=10,
-            tokenizer=CharacterTokenizer(),
-            max_tokens=151,  # description + text of 3 documents (manually calculated)
-        )
-
-        expected_3_docs = expected + "Document 2:\n"
-        expected_3_docs += f"Text contents:\n{docs[2].text_representation or ''}\n\n"
-
-        assert response_3_docs == expected_3_docs
-
-    @pytest.mark.parametrize("num_elements", [1, None])
-    def test_get_text_for_summarize_data_docset_with_elements(self, words_and_ids_docset, num_elements):
-        response = _get_text_for_summarize_data(
-            result_description="List of unique cities",
-            result_data=[words_and_ids_docset],
-            use_elements=True,
-            num_elements=num_elements,
-        )
-
-        expected = "Data description: List of unique cities\nInput 1:\n"
-        for i, doc in enumerate(words_and_ids_docset.take(NUM_DOCS_GENERATE)):
-            expected += f"Document {i}:\n"
-            expected += "Text contents:\n"
-            for e in doc.elements[: (num_elements or NUM_DOCS_GENERATE)]:
-                expected += f"{e.text_representation or ''}\n"
-            expected += "\n\n"
-
-        assert response == expected
+        captured = llm.capture
+        assert len(captured) == 48
+        assert response == "merged summary"
 
     def test_get_text_for_summarize_data_non_docset(self, words_and_ids_docset):
-        response = _get_text_for_summarize_data(
-            result_description="Count of unique cities", result_data=[20], use_elements=False, num_elements=5
-        )
-        assert response == "Data description: Count of unique cities\nInput 1:\n20\n"
-        response = _get_text_for_summarize_data(
-            result_description="Count of unique cities", result_data=[20], use_elements=True, num_elements=5
-        )
-        assert response == "Data description: Count of unique cities\nInput 1:\n20\n"
+        llm = MockLLM()
+        _ = summarize_data(llm=llm, question=None, data_description="Count of unique cities", input_data=[20])
+        print(llm.capture)
+        captured = llm.capture[-1].messages[-1].content
+        assert "Count of unique cities" in captured
+        assert "Input 1: 20" in captured
 
     # Math
     def test_math(self):

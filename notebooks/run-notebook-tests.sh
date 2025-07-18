@@ -76,6 +76,12 @@ config() {
         unpickle_query.ipynb # looking for uncommitted file
         weaviate-writer.ipynb # path not set to files
         aryn-opensearch-bedrock-rag-example.ipynb
+
+        earnings_calls_notebooks/workshop_nb_0.ipynb
+        earnings_calls_notebooks/workshop_nb_1.ipynb
+        earnings_calls_notebooks/workshop_nb_2.ipynb
+        earnings_calls_notebooks/workshop_nb_3.ipynb
+        earnings_calls_notebooks/workshop_nb_4.ipynb
     )
 }
 

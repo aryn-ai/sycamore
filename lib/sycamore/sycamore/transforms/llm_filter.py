@@ -130,9 +130,9 @@ def plan_llm_filter_as_llm_map(
         tokenizer = CharacterTokenizer()
         max_tokens = 1
     if keep_none:
-        prompt = prompt.set(no_field_behavior="empty")
+        prompt = prompt.fork(no_field_behavior="empty")
     else:
-        prompt = prompt.set(no_field_behavior="crash")
+        prompt = prompt.fork(no_field_behavior="crash")
     entity_extractor = OpenAIEntityExtractor(
         entity_name=new_field,
         llm=llm,
@@ -158,7 +158,7 @@ def plan_llm_filter_as_llm_map(
         if keep_none and len(doc.elements) == 0:
             return True
         try:
-            score = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[0])
+            score = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[-1])
         except IndexError:
             return False
         return score >= threshold
@@ -167,7 +167,7 @@ def plan_llm_filter_as_llm_map(
         if keep_none:
             return True
         try:
-            _ = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[0])
+            _ = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[-1])
             return True
         except IndexError:
             return False
@@ -179,7 +179,7 @@ def plan_llm_filter_as_llm_map(
 
     def filter_fn(doc: Document) -> bool:
         try:
-            score = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[0])
+            score = int(re.findall(r"\d+", doc.properties.get(new_field, ""))[-1])
             doc.properties[new_field] = score
         except IndexError:
             return keep_none

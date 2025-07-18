@@ -53,6 +53,25 @@ class TestDocSetReader:
         assert isinstance(docset, DocSet)
         assert docset.plan.format() == "html"  # type: ignore
 
+    def test_opensearch_input_validation(self):
+        context = sycamore.init()
+        with pytest.raises(ValueError):
+            filter = {"property1": ["1", "2"], "property2": ["3", "4"]}
+            context.read.opensearch(os_client_args={}, index_name="test", result_filter=filter)
+
+        with pytest.raises(ValueError):
+            filter = {"property1": "1"}
+            context.read.opensearch(os_client_args={}, index_name="test", result_filter=filter)
+
+        with pytest.raises(ValueError):
+            filter = {"property1": ["1", 2]}
+            context.read.opensearch(os_client_args={}, index_name="test", result_filter=filter)
+
+        with pytest.raises(ValueError):
+            filter = {"property1": ["1", "2"]}
+            query = {"query": {"knn": {"embedding": {}, "filter": {}}}}
+            context.read.opensearch(os_client_args={}, index_name="test", query=query, result_filter=filter)
+
 
 class TestFileReadReliability(unittest.TestCase):
 

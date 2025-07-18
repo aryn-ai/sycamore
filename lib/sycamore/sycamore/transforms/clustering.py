@@ -1,4 +1,4 @@
-import random
+import numpy as np
 
 
 class KMeans:
@@ -27,12 +27,10 @@ class KMeans:
         K = K if count > K else count
         fraction = min(2 * K / count, 1.0)
 
-        candidates = [list(c["vector"]) for c in embeddings.random_sample(fraction).take()]
-        candidates.sort()
-        from itertools import groupby
+        candidates = np.array([c["vector"] for c in embeddings.random_sample(fraction).take()])
+        print(candidates)
 
-        uniques = [key for key, _ in groupby(candidates)]
-        centroids = random.sample(uniques, K) if K < len(uniques) else uniques
+        centroids = np.unique(candidates, axis=0)[:K].tolist()
         return centroids
 
     @staticmethod
@@ -50,9 +48,9 @@ class KMeans:
         from ray.data.aggregate import AggregateFn
 
         update_centroids = AggregateFn(
-            init=lambda v: ([0] * d, 0),
-            accumulate_row=lambda a, row: ([x + y for x, y in zip(a[0], row["vector"])], a[1] + 1),
-            merge=lambda a1, a2: ([x + y for x, y in zip(a1[0], a2[0])], a1[1] + a2[1]),
+            init=lambda v: {"v": [0] * d, "c": 0},
+            accumulate_row=lambda a, row: {"v": [x + y for x, y in zip(a["v"], row["vector"])], "c": a["c"] + 1},
+            merge=lambda a1, a2: {"v": [x + y for x, y in zip(a1["v"], a2["v"])], "c": a1["c"] + a2["c"]},
             name="centroids",
         )
 
@@ -65,7 +63,7 @@ class KMeans:
             aggregated = embeddings.map(_find_cluster).groupby("cluster").aggregate(update_centroids).take()
             import numpy as np
 
-            new_centroids = [list(np.array(c["centroids"][0]) / c["centroids"][1]) for c in aggregated]
+            new_centroids = [list(np.array(c["centroids"]["v"]) / c["centroids"]["c"]) for c in aggregated]
 
             if KMeans.converged(centroids, new_centroids, epsilon):
                 return new_centroids

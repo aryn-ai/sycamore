@@ -6,10 +6,8 @@ import time
 from tempfile import SpooledTemporaryFile
 from typing import Any, Optional, Union, BinaryIO
 
-import boto3
 import diskcache
 from botocore.exceptions import ClientError
-from mypy_boto3_s3.client import S3Client
 
 BLOCK_SIZE = 1048576  # 1 MiB
 
@@ -133,6 +131,8 @@ def s3_cache_deserializer(kwargs):
 
 class S3Cache(Cache):
     def __init__(self, s3_path: str, freshness_in_seconds: int = -1):
+        from mypy_boto3_s3.client import S3Client
+
         super().__init__()
         self._s3_path = s3_path
         self._freshness_in_seconds = freshness_in_seconds
@@ -144,6 +144,8 @@ class S3Cache(Cache):
 
     def get(self, key: str):
         if not self._s3_client:
+            import boto3
+
             self._s3_client = boto3.client("s3")
         try:
             assert self._s3_client is not None
@@ -171,6 +173,8 @@ class S3Cache(Cache):
 
     def set(self, key: str, value: Any):
         if not self._s3_client:
+            import boto3
+
             self._s3_client = boto3.client("s3")
         assert self._s3_client is not None
         bucket, key = self._get_s3_bucket_and_key(key)
@@ -183,7 +187,6 @@ class S3Cache(Cache):
     # The actual s3 client is not pickleable, This just says to pickle the wrapper, which can be used to
     # recreate the client on the other end.
     def __reduce__(self):
-
         kwargs = {"s3_path": self._s3_path, "freshness_in_seconds": self._freshness_in_seconds}
 
         return s3_cache_deserializer, (kwargs,)

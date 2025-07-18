@@ -30,4 +30,5 @@ def load_deformable_detr(model_name_or_path, device) -> "DeformableDetrForObject
         LogTime("loading_model", point=True)
         with LogTime("loading_model", log_start=True):
             model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(device)
+            model.eval()
     return model

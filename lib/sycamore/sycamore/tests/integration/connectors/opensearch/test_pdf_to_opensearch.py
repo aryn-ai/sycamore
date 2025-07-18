@@ -8,7 +8,7 @@ import sycamore
 from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 from sycamore.context import OperationTypes, ExecMode
 from sycamore.functions import HuggingFaceTokenizer
-from sycamore.llms import OpenAIModels, OpenAI
+from sycamore.llms.openai import OpenAIModels, OpenAI
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor

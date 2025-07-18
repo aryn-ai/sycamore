@@ -1,3 +1,4 @@
+from sycamore.data.bbox import BoundingBox
 from sycamore.utils.cache import Cache
 
 
@@ -15,7 +16,8 @@ def check_table_extraction(partitioner, path, **kwargs):
     batched = partitioner._partition_pdf_batched_named(path, hash_key, **kwargs)
     assert all(
         (
-            d.tokens is not None and all("bbox" in token and isinstance(token["bbox"], list) for token in d.tokens)
+            d.tokens is not None
+            and all("bbox" in token and isinstance(token["bbox"], BoundingBox) for token in d.tokens)
             if d.type == "table"
             else True
         )

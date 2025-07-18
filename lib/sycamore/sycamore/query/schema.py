@@ -73,7 +73,8 @@ class OpenSearchSchemaFetcher:
         )
 
         # Get type and example values for each field.
-        for key in schema[self._index]["mappings"].keys():
+        one_schema = next(iter(schema.values()))  # in case index is an alias
+        for key in one_schema["mappings"].keys():
             if key.endswith(".keyword"):
                 logger.debug(f"  Ignoring redundant exact match .keyword key {key}")
                 continue
@@ -97,16 +98,16 @@ class OpenSearchSchemaFetcher:
 
                             # Need to check for compatibility between the sample type and the previously
                             # seen type, and possibly upgrade the sample type.
-                            if sample_type == int and t == float:
+                            if sample_type is int and t is float:
                                 # Upgrade from int to float.
                                 sample_type = t
-                            elif sample_type == float and t == int:
+                            elif sample_type is float and t is int:
                                 # No need to change.
                                 pass
-                            elif sample_type == list and t != list:
+                            elif sample_type is list and t is not list:
                                 # Upgrade from singleton to list.
                                 sample_value = [sample_value]
-                            elif sample_type != list and t == list:
+                            elif sample_type is not list and t is list:
                                 # Need to upgrade our sample type to match the new list type.
                                 sample_type = t
                                 samples = {str([x]) for x in samples}

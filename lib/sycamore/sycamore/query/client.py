@@ -12,7 +12,6 @@
 import argparse
 import logging
 import os
-import uuid
 from typing import List, Optional, Union
 
 import structlog
@@ -23,7 +22,8 @@ from sycamore.schema import Schema
 
 import sycamore
 from sycamore import Context, ExecMode
-from sycamore.context import OperationTypes
+from sycamore.context import OperationTypes, get_val_from_context, modified_context
+from sycamore.data import nanoid36
 from sycamore.llms import LLM, get_llm, MODELS
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
@@ -111,8 +111,8 @@ class SycamoreQueryClient:
         If you override the context, you cannot override the llm_cache_dir, os_client_args, or llm; you need
         to pass those in via the context paramaters, i.e. sycamore.init(params={...})
 
-        To override os_client_args, set params["opensearch"]["os_client_args"]. You are likely to also need
-        params["opensearch"]["text_embedder"] = SycamoreQueryClient.default_text_embedder() or another
+        To override os_client_args, set params["default"]["os_client_args"]. You are likely to also need
+        params["default"]["text_embedder"] = SycamoreQueryClient.default_text_embedder() or another
         embedder of your choice.
 
         To override the LLM or cache path, you need to override the llm, for example:
@@ -157,7 +157,8 @@ class SycamoreQueryClient:
         self.context = context or self._get_default_context(llm_cache_dir, os_client_args, sycamore_exec_mode, llm)
 
         assert self.context.params, "Could not find required params in Context"
-        self.os_client_args = self.context.params.get("opensearch", {}).get("os_client_args", os_client_args)
+        osca = get_val_from_context(self.context, "os_client_args", ["opensearch"])
+        self.os_client_args = osca if osca else os_client_args
         self._os_client = OpenSearchClientWithLogging(**self.os_client_args)
         self._os_query_executor = OpenSearchQueryExecutor(self.os_client_args)
 
@@ -182,9 +183,10 @@ class SycamoreQueryClient:
         self,
         query: str,
         index: str,
-        schema: Union[Schema, OpenSearchSchema],
+        schema: Union[Schema, OpenSearchSchema, None] = None,
         examples: Optional[List[PlannerExample]] = None,
         natural_language_response: bool = False,
+        **kwargs,
     ) -> LogicalPlan:
         """Generate a logical query plan for the given query, index, and schema.
 
@@ -198,6 +200,7 @@ class SycamoreQueryClient:
         """
         planner: Planner
         if self.query_planner is None:
+            schema = schema or self.get_opensearch_schema(index)
             llm_client = self.context.params.get("default", {}).get("llm")
             if not llm_client:
                 llm_client = OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(self.llm_cache_dir))
@@ -213,19 +216,25 @@ class SycamoreQueryClient:
             )
         else:
             planner = self.query_planner
-        plan = planner.plan(query)
+        plan = planner.plan(query, **kwargs)
         return plan
 
-    def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> SycamoreQueryResult:
+    def run_plan(
+        self, plan: LogicalPlan, dry_run=False, codegen_mode=False, os_client_args: Optional[dict] = None, **kwargs
+    ) -> SycamoreQueryResult:
         """Run the given logical query plan and return a tuple of the query ID and result."""
         assert self.context is not None, "Running a plan requires a configured Context"
+        if os_client_args:
+            my_ctx = modified_context(self.context, "default", os_client_args=os_client_args)
+        else:
+            my_ctx = self.context
         executor = SycamoreExecutor(
-            context=self.context,
+            context=my_ctx,
             cache_dir=self.cache_dir,
             dry_run=dry_run,
             codegen_mode=codegen_mode,
         )
-        query_id = str(uuid.uuid4())
+        query_id = nanoid36()
         return executor.execute(plan, query_id)
 
     def query(
@@ -234,11 +243,11 @@ class SycamoreQueryClient:
         index: str,
         dry_run: bool = False,
         codegen_mode: bool = False,
+        **kwargs,
     ) -> SycamoreQueryResult:
         """Run a query against the given index."""
-        schema = self.get_opensearch_schema(index)
-        plan = self.generate_plan(query, index, schema)
-        return self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
+        plan = self.generate_plan(query, index, **kwargs)
+        return self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode, **kwargs)
 
     def dump_traces(self, result: SycamoreQueryResult, limit: int = 5):
         if not result.execution:
@@ -281,8 +290,8 @@ class SycamoreQueryClient:
                 raise ValueError(f"Invalid LLM type: {type(llm)}")
 
         context_params = {
-            "default": {"llm": llm_instance or OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(llm_cache_dir))},
-            "opensearch": {
+            "default": {
+                "llm": llm_instance or OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(llm_cache_dir)),
                 "os_client_args": os_client_args,
                 "text_embedder": SycamoreQueryClient.default_text_embedder(),
             },

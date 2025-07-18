@@ -21,12 +21,17 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreTopK,
     SycamoreLimit,
     SycamoreQueryVectorDatabase,
+    SycamoreDataLoader,
 )
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
+from sycamore.query.operators.query_database import (
+    QueryDatabase,
+    QueryVectorDatabase,
+    DataLoader,
+)
 from sycamore.query.operators.top_k import TopK
 from sycamore.transforms import Embedder
 
@@ -51,6 +56,22 @@ def test_query_database(mock_sycamore_docsetreader, mock_opensearch_num_docs):
         )
         logical_node = QueryDatabase(node_id=0, description="Load data", index="test_index")
         sycamore_operator = SycamoreQueryDatabase(context=context, logical_node=logical_node, query_id="test")
+        result = sycamore_operator.execute()
+        # Validate result type
+        assert isinstance(result, DocSet)
+
+        # Validate result
+        taken = result.take_all()
+        assert len(taken) == mock_opensearch_num_docs
+        assert taken[0].properties.get("counter") is not None
+        assert taken[0].properties.get("_original_elements") is None
+
+
+def test_dataloader(mock_sycamore_docsetreader, mock_opensearch_num_docs):
+    with patch("sycamore.reader.DocSetReader", new=mock_sycamore_docsetreader):
+        context = sycamore.init()
+        logical_node = DataLoader(node_id=0, description="Load data", path="path")
+        sycamore_operator = SycamoreDataLoader(context=context, logical_node=logical_node, query_id="test")
         result = sycamore_operator.execute()
         # Validate result type
         assert isinstance(result, DocSet)
@@ -94,7 +115,7 @@ def test_query_database_with_query(mock_sycamore_docsetreader, mock_opensearch_n
         assert result.count() == mock_opensearch_num_docs
 
         # Validate that the correct query would be passed to OpenSearch.
-        assert result.plan._query_params.query == {"query": os_query_plan}
+        assert result.plan.children[0]._query_params.query == {"query": os_query_plan}  # OpensearchReader->Map
 
 
 def test_vector_query_database_with_rerank():
@@ -105,6 +126,7 @@ def test_vector_query_database_with_rerank():
 
         mock_docset = Mock(spec=DocSet)
         mock_docset.count.return_value = 5
+        mock_docset.map.return_value = mock_docset
 
         mock_docset_reader_impl = Mock()
         mock_docset_reader_class.return_value = mock_docset_reader_impl
@@ -145,8 +167,21 @@ def test_vector_query_database_with_rerank():
         # Assert request
         mock_docset_reader_impl.opensearch.assert_called_once_with(
             index_name=context.params["opensearch"]["index_name"],
-            query={"query": {"knn": {"embedding": {"vector": embedding, "k": 500, "filter": os_filter}}}},
+            query={
+                "query": {
+                    "knn": {
+                        "embedding": {
+                            "vector": embedding,
+                            "k": 500,
+                            "filter": os_filter,
+                        }
+                    }
+                }
+            },
             reconstruct_document=True,
+            doc_reconstructor=None,
+            result_filter=None,
+            query_kwargs={"size": 500},
         )
         mock_docset.rerank.assert_called_once()
 
@@ -197,8 +232,21 @@ def test_vector_query_database():
         # Assert request
         mock_docset_reader_impl.opensearch.assert_called_once_with(
             index_name=context.params["opensearch"]["index_name"],
-            query={"query": {"knn": {"embedding": {"vector": embedding, "k": 500, "filter": os_filter}}}},
+            query={
+                "query": {
+                    "knn": {
+                        "embedding": {
+                            "vector": embedding,
+                            "k": 500,
+                            "filter": os_filter,
+                        }
+                    }
+                }
+            },
             reconstruct_document=True,
+            doc_reconstructor=None,
+            result_filter=None,
+            query_kwargs={"size": 500},
         )
         mock_docset.rerank.assert_not_called()
 
@@ -217,9 +265,8 @@ def test_summarize_data():
         mock_impl.assert_called_once_with(
             context=context,
             question=logical_node.question,
-            result_description=logical_node.description,
-            result_data=[load_node],
-            use_elements=True,
+            data_description=logical_node.description,
+            input_data=[load_node],
             **sycamore_operator.get_execute_args(),
         )
 
@@ -240,7 +287,7 @@ def test_llm_filter():
         result = sycamore_operator.execute()
 
         # assert LlmFilterMessagesPrompt called with expected arguments
-        MockLlmFilterMessagesJinjaPrompt.set.assert_called_once_with(
+        MockLlmFilterMessagesJinjaPrompt.fork.assert_called_once_with(
             filter_question=logical_node.question,
         )
 
@@ -306,7 +353,8 @@ def test_count_distinct():
     count_distinct_result = sycamore_operator.execute()
 
     doc_set.count_distinct.assert_called_once_with(
-        field=logical_node_count_distinct.distinct_field, **sycamore_operator.get_execute_args()
+        field=logical_node_count_distinct.distinct_field,
+        **sycamore_operator.get_execute_args(),
     )
 
     assert count_distinct_result == return_value_count_distinct
@@ -324,7 +372,8 @@ def test_count_distinct_primary_field():
     count_distinct_primary_result = sycamore_operator.execute()
 
     doc_set.count_distinct.assert_called_once_with(
-        field=logical_node_count_distinct_primary.distinct_field, **sycamore_operator.get_execute_args()
+        field=logical_node_count_distinct_primary.distinct_field,
+        **sycamore_operator.get_execute_args(),
     )
 
     assert count_distinct_primary_result == return_value_count_distinct_primary
@@ -360,7 +409,11 @@ def test_llm_extract_entity():
         doc_set.extract_entity.return_value = return_doc_set
 
         logical_node = LlmExtractEntity(
-            node_id=0, question="who?", field="properties.counter", new_field="new", new_field_type="str"
+            node_id=0,
+            question="who?",
+            field="properties.counter",
+            new_field="new",
+            new_field_type="str",
         )
         sycamore_operator = SycamoreLlmExtractEntity(context, logical_node, query_id="test", inputs=[doc_set])
         result = sycamore_operator.execute()
@@ -376,6 +429,7 @@ def test_llm_extract_entity():
         # assert OpenAIEntityExtractor called with expected arguments
         MockOpenAIEntityExtractor.assert_called_once_with(
             entity_name=logical_node.new_field,
+            entity_type=logical_node.new_field_type,
             use_elements=True,
             prompt=ANY,
             field=logical_node.field,
@@ -399,7 +453,12 @@ def test_sort():
         doc_set = Mock(spec=DocSet)
         return_doc_set = Mock(spec=DocSet)
         doc_set.sort.return_value = return_doc_set
-        logical_node = Sort(node_id=0, descending=True, field="properties.counter", default_value=default_value)
+        logical_node = Sort(
+            node_id=0,
+            descending=True,
+            field="properties.counter",
+            default_value=default_value,
+        )
         sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[doc_set])
         result = sycamore_operator.execute()
 
@@ -519,7 +578,11 @@ class ValidationTests(unittest.TestCase):
     def test_llm_extract_entity(self):
         context = sycamore.init()
         logical_node = LlmExtractEntity(
-            node_id=0, field="input_field", question="question", new_field="output_field", new_field_type="str"
+            node_id=0,
+            field="input_field",
+            question="question",
+            new_field="output_field",
+            new_field_type="str",
         )
         sycamore_operator = SycamoreLlmExtractEntity(context, logical_node, query_id="test", inputs=[])
         self.assertRaises(AssertionError, sycamore_operator.execute)

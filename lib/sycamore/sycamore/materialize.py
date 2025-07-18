@@ -1,11 +1,11 @@
 import logging
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union, TYPE_CHECKING, cast, Callable
+from typing import Any, Optional, Tuple, Union, TYPE_CHECKING, cast
+import inspect
 
 from sycamore.context import Context
 from sycamore.data import Document, MetadataDocument
-from sycamore.data.docid import docid_to_typed_nanoid, path_to_sha256_docid
-from sycamore.materialize_config import MaterializeSourceMode
+from sycamore.materialize_config import MaterializeSourceMode, RandomNameGroup, MRRNameGroup, MaterializeNameGroup
 from sycamore.plan_nodes import Node, UnaryNode, NodeTraverse
 from sycamore.transforms.base import rename
 
@@ -76,6 +76,7 @@ class MaterializeReadReliability(NodeTraverse):
         self.max_retries = max_retries
         self.cycle_error: Optional[Union[str, Exception]] = ""
         self.iteration = 0
+        self._name_group = MRRNameGroup
 
     def reinit(self, out_mat_path, max_batch, max_retries):
 
@@ -171,8 +172,8 @@ class MaterializeReadReliability(NodeTraverse):
                         node, Materialize
                     ), "The last node should be a materialize node to ensure reliability"
                     logger.info("Overriding doc_to_name, doc_to_binary, clean_root for reliability pipeline")
-                    node._doc_to_name = name_from_docid
-                    node._doc_to_binary = doc_only_to_binary
+                    node._doc_to_name = self._name_group.doc_to_materialize_name
+                    node._name_group = self._name_group
                     node._clean_root = False
                     node._source_mode = MaterializeSourceMode.RECOMPUTE
             elif isinstance(node, BinaryScan):
@@ -182,7 +183,22 @@ class MaterializeReadReliability(NodeTraverse):
                 assert (
                     len(node.children) == 0
                 ), "Only first and last node should be materialize nodes to maintain reliability."
-                node._path_filter = mrr.filter
+                node._name_group = self._name_group
+                node._doc_to_name = self._name_group.doc_to_materialize_name
+                # If there is already a filter on the materialize, we need to
+                # AND it with the MRR filter; which means caching a copy of the
+                # original filter to not end up with recursive expansions ((orig AND mrr) AND mrr)...
+                # -> in the case of no filter on the materialize we cache a noop
+                # filter to act as the original filter
+                if node._path_filter is not None:
+                    if hasattr(node._path_filter, "name_group"):
+                        node._path_filter.name_group = self._name_group
+                    if not hasattr(node, "_original_filter"):
+                        node._original_filter = node._path_filter
+                    node._path_filter = lambda p: (node._original_filter(p) and mrr.filter(p))  # type: ignore
+                else:
+                    node._path_filter = mrr.filter
+                    node._original_filter = lambda p: True
             else:
                 assert (
                     len(node.children) != 0
@@ -201,7 +217,10 @@ class MaterializeReadReliability(NodeTraverse):
 
         files = self.fs.get_file_info(FileSelector(self.path, allow_not_found=True))
         self.seen = {
-            self._path_to_id(Path(f.path)): f.mtime for f in files if self._path_to_id(Path(f.path)) is not None
+            self._name_group.materialize_name_to_docid_safe(str(f.path)): f.mtime
+            for f in files
+            if self._name_group.materialize_name_to_docid_safe(str(f.path)) is not None
+            and not self._name_group.is_metadata_materialize_name(str(f.path))
         }
         logger.info(f"Found {len(self.seen)} already materialized outputs")
         if len(self.seen) == self.prev_seen:
@@ -209,31 +228,28 @@ class MaterializeReadReliability(NodeTraverse):
         else:
             self.retries_count = 0
 
-    @staticmethod
-    def _path_to_id(p: Path) -> Optional[str]:
-        if p.suffix != ".pickle":
-            return None
-        if not p.name.startswith("doc-path-sha256-"):
-            logger.info("Got pickle file which is not in 'doc-path-sha256-' format with reliability pipeline")
-            return None
-        return str(p.stem[4:])
-
     def filter(self, p: str, read_binary: bool = False) -> bool:
         """Filter files for processing, respecting batch size"""
         if self.current_batch >= self.max_batch:
+            print(" - False: over batch size")
             return False
         if not read_binary:
-            id = self._path_to_id(Path(p))
+            id = self._name_group.materialize_name_to_docid_safe(p)
         else:
-            id = path_to_sha256_docid(str(p))
+            id = self._name_group.docpath_to_docid(str(p))
         if id is None:
             logger.debug(f"Got path {p} not in proper format")
             return False
 
         if id in self.seen:
+            print(" - False: already seen")
             return False
 
-        self.current_batch += 1
+        if not self._name_group.is_metadata_materialize_name(p):
+            self.current_batch += 1
+            print(" - True: new, non-metadata")
+            return True
+        print(" - True: metadata")
         return True
 
     def reset_batch(self) -> None:
@@ -256,35 +272,6 @@ class MaterializeReadReliability(NodeTraverse):
             print(f"No errors in previous batch. \nProcessed {len(self.seen)} docs at present.")
 
 
-def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
-    if d.doc_id:
-        assert (
-            len(d.doc_id) == 76
-        ), """This method expects docids to be 76 characters long and used with reliability.
-              Make sure to have docids set using docid_from_path method,
-            """
-        assert d.doc_id.startswith("path-sha256-")
-        if isinstance(d, MetadataDocument):
-            return f"md-{d.doc_id}.pickle"
-        else:
-            return f"doc-{d.doc_id}.pickle"
-    assert False
-
-
-def docid_from_path(d: Document) -> Document:
-
-    if "path" in d.properties:
-        d.doc_id = path_to_sha256_docid(d.properties["path"])
-        return d
-    assert False
-
-
-def doc_only_to_binary(d: Document) -> Optional[bytes]:
-    if isinstance(d, MetadataDocument):
-        return None
-    return d.serialize()
-
-
 def _success_path(base_path: Path) -> Path:
     return base_path / "materialize.success"
 
@@ -304,12 +291,13 @@ class Materialize(UnaryNode):
         self._root = None
         self._path_filter = None
         self._tolerate_input_errors = tolerate_input_errors
+        self._name_group: type[MaterializeNameGroup] = RandomNameGroup
         if path is None:
             pass
         elif isinstance(path, str) or isinstance(path, Path):
             (self._fs, self._root) = self.infer_fs(str(path))
             self._fshelper = _PyArrowFsHelper(self._fs)
-            self._doc_to_name = self.doc_to_name
+            self._doc_to_name = self._name_group.doc_to_materialize_name
             self._doc_to_binary = Document.serialize
             self._clean_root = True
         elif isinstance(path, dict):
@@ -320,10 +308,25 @@ class Materialize(UnaryNode):
             else:
                 (self._fs, self._root) = self.infer_fs(str(path["root"]))
             self._fshelper = _PyArrowFsHelper(self._fs)
-            self._doc_to_name = path.get("name", self.doc_to_name)
-            self._doc_to_binary = path.get("tobin", Document.serialize)
+            namer = path.get("name", None)
+            if inspect.isclass(namer) and issubclass(namer, MaterializeNameGroup):
+                self._name_group = namer
+                self._doc_to_name = namer.doc_to_materialize_name
+            elif callable(namer):
+                self._doc_to_name = namer
+                logger.warn(
+                    "Found floating materialize-file naming function. "
+                    "Some operations (MRR, materialize filter) may not work."
+                )
+            else:
+                assert namer is None, f"Found unexpected value for name field: {namer}"
+                self._doc_to_name = self._name_group.doc_to_materialize_name
             assert callable(self._doc_to_name)
+            self._doc_to_binary = path.get("tobin", Document.serialize)
             self._clean_root = path.get("clean", True)
+            self._path_filter = path.get("filter", None)
+            if hasattr(self._path_filter, "name_group"):
+                self._path_filter.name_group = self._name_group  # type: ignore # doesn't understand hasattr
         else:
             assert False, f"unsupported type ({type(path)}) for path argument, expected str, Path, or dict"
 
@@ -416,7 +419,7 @@ class Materialize(UnaryNode):
                 from ray.data import read_binary_files
                 from ray.data.datasource import PathPartitionFilter, PathPartitionParser
 
-                partition_filter: Optional[Callable[[dict[str, str]], bool]] = None
+                partition_filter = None
                 if self._path_filter is not None:
                     partition_filter = PathPartitionFilter(
                         cast(PathPartitionParser, RayPathParser()), self._path_filter
@@ -519,13 +522,15 @@ class Materialize(UnaryNode):
         logger.info(f"Using {self._orig_path} as cached source of data")
         if not self._fshelper.file_exists(self._success_path()):
             logging.warning(f"materialize.success not found in {self._orig_path}. Returning partial data")
-        from sycamore.utils.sycamore_logger import LoggerFilter
+        from sycamore.utils.sycamore_logger import RateLimitLogger
 
         limited_logger = logging.getLogger(__name__ + ".limited_local_source")
-        limited_logger.addFilter(LoggerFilter())
+        limited_logger.addFilter(RateLimitLogger())
         ret = []
         count = 0
         for fi in self._fshelper.list_files(self._root):
+            if fi.size == 0:
+                continue
             if self._path_filter is not None and not self._path_filter(fi.path):
                 continue
             n = Path(fi.path)
@@ -535,6 +540,35 @@ class Materialize(UnaryNode):
                 f = self._fs.open_input_stream(str(n))
                 ret.append(Document.deserialize(f.read()))
                 f.close()
+        logger.info(f"  read {count} total files")
+
+        return ret
+
+    def load_metadata(self) -> list[MetadataDocument]:
+        self._verify_has_files()
+        if not self._fshelper.file_exists(self._success_path()):
+            logging.warning(f"materialize.success not found in {self._orig_path}. Returning partial data")
+        from sycamore.utils.sycamore_logger import RateLimitLogger
+
+        limited_logger = logging.getLogger(__name__ + ".load_metadata")
+        limited_logger.addFilter(RateLimitLogger())
+        ret = []
+        count = 0
+        for fi in self._fshelper.list_files(self._root):
+            if self._path_filter is not None and not self._path_filter(fi.path):
+                continue
+            n = Path(fi.path)
+            if n.name.startswith("md-") and n.suffix == ".pickle":
+                limited_logger.info(f"  reading file {count} from {str(n)}")
+                count += 1
+                f = self._fs.open_input_stream(str(n))
+                try:
+                    doc = Document.deserialize(f.read())
+                finally:
+                    f.close()
+                assert isinstance(doc, MetadataDocument), f"md-*.pickle file has wrong type {doc}"
+                ret.append(doc)
+
         logger.info(f"  read {count} total files")
 
         return ret
@@ -569,7 +603,7 @@ class Materialize(UnaryNode):
         path = self._root / name
 
         if self._clean_root and self._fshelper.file_exists(path):
-            if self._doc_to_name != self.doc_to_name:
+            if self._doc_to_name != RandomNameGroup.doc_to_materialize_name:
                 # default doc_to_name includes a content based hash, so "duplicate" entries
                 # should only be possible if ray executes the save operation multiple times on
                 # the same content.
@@ -581,22 +615,6 @@ class Materialize(UnaryNode):
             return
         with self._fs.open_output_stream(str(path)) as out:
             out.write(bin)
-
-    @staticmethod
-    def doc_to_name(doc: Document, bin: bytes) -> str:
-        from hashlib import sha256
-
-        hash_id = sha256(bin).hexdigest()
-        doc_id = doc.doc_id or doc.data.get("lineage_id", None)
-        if doc_id is None:
-            logger.warn(f"found document with no doc_id or lineage_id, assigned content based id {hash_id}")
-            doc_id = hash_id
-
-        if isinstance(doc, MetadataDocument):
-            return f"md-{docid_to_typed_nanoid(doc_id)}.{hash_id}.pickle"
-
-        assert isinstance(doc, Document)
-        return f"doc-{docid_to_typed_nanoid(doc_id)}.{hash_id}.pickle"
 
 
 class RayPathParser:
@@ -765,3 +783,44 @@ def clear_materialize(plan: Node, *, path: Optional[Union[Path, str]], clear_non
         n._fshelper.safe_cleanup(n._root)
 
     plan.traverse(visit=clean_dir)
+
+
+# This is a class so Materialize can change the name group post initialize
+class DocIdFilter:
+    """
+    Filter docids in a materialize step. Useful for debugging. Use like so:
+
+     .. code-block::python
+
+        doc_ids = ["list", "of", "docids"]
+        ds = ctx.read.materialize(path={"root": "materializedir", "filter": DocIdFilter(doc_ids)})
+
+    Args:
+        doc_ids: The list of doc ids to read from materialize
+        name_group: The naming scheme for materialize filenames and doc_ids. If using
+            defaults in materialize, this defaults to the correct thing.
+    """
+
+    def __init__(self, doc_ids: list[str], name_group: type[MaterializeNameGroup] = RandomNameGroup):
+        self.doc_id_set = set(doc_ids)
+        self.name_group = name_group
+
+    def filter(self, p: str) -> bool:
+        logger.info(p)
+        did = self.name_group.materialize_name_to_docid_safe(p)
+        if did is None:
+            return False
+        if self.name_group is RandomNameGroup:
+            candidates = [
+                did,
+                did[len("aryn:") :],
+                did[len("d-") :],
+                did[len("aryn:d-") :],
+            ]
+        else:
+            candidates = [did]
+        logger.info(candidates)
+        return any(c in self.doc_id_set for c in candidates)
+
+    def __call__(self, p: str) -> bool:
+        return self.filter(p)

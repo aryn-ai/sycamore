@@ -115,6 +115,16 @@ class Element(UserDict):
 
         return dotted_lookup(self, field)
 
+    def __lt__(self, other) -> bool:
+        sidx = -1 if self.element_index is None else self.element_index
+        oidx = -1 if other.element_index is None else other.element_index
+        return sidx < oidx
+
+    def __gt__(self, other) -> bool:
+        sidx = -1 if self.element_index is None else self.element_index
+        oidx = -1 if other.element_index is None else other.element_index
+        return sidx > oidx
+
 
 class ImageElement(Element):
     def __init__(

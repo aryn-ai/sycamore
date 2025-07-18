@@ -6,7 +6,7 @@ from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 from sycamore.llms import LLM
-from sycamore.llms.prompts import ExtractTablePropertiesPrompt
+from sycamore.llms.prompts.default_prompts import ExtractTablePropertiesPrompt
 from PIL import Image
 from sycamore.functions.document import split_and_convert_to_image
 

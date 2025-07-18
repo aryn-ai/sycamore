@@ -6,7 +6,6 @@ from collections import OrderedDict
 from typing import Optional, Any
 
 import pypdf
-import boto3
 from botocore.exceptions import ClientError
 from textractor import Textractor
 from textractor.data.constants import TextractFeatures
@@ -20,6 +19,7 @@ logger = logging.getLogger("sycamore")
 
 class MissingS3UploadPath(Exception):
     "Raised when an S3 upload path is needed but one wasn't provided"
+
     pass
 
 
@@ -179,6 +179,8 @@ class CachedTextractTableExtractor(TextractTableExtractor):
         return cache_id
 
     def get_textract_result(self, document: Document):
+        import boto3
+
         s3 = boto3.client("s3")
         cache_id = self._cache_id(s3, document.properties["path"])
         try:

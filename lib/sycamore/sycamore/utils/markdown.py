@@ -35,7 +35,7 @@ def escape_str(s: str) -> str:
 def elements_to_markdown(elems: list[Element], opts: Optional[dict[str, Any]] = None) -> str:
     """
     This is the main function of interest.
-    Assumes elements are sorted as per bbox_sort.bbox_sort_document().
+    Assumes elements are in reading order (see element_sort.py)
     """
     skip_types = {"image"}
     if not (opts and opts.get("include_headers")):

@@ -2,22 +2,21 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Optional, Callable, Union, List
-
-from openai import OpenAI as OpenAIClient
-from openai import AzureOpenAI as AzureOpenAIClient
+from typing import Any, Optional, Callable, Union, List, TYPE_CHECKING
 
 from sycamore.data import Document, Element
-from sycamore.llms import OpenAIClientParameters
 from sycamore.utils import choose_device
 
 # from sycamore.llms.llms import AzureOpenAI, OpenAIClientParameters
-from sycamore.llms.openai import OpenAIClientWrapper
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import MapBatch
 from sycamore.utils import batched
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import timetrace
+
+if TYPE_CHECKING:
+    from openai import OpenAI as OpenAIClient
+    from sycamore.llms.openai import OpenAIClientWrapper, OpenAIClientParameters
 
 
 logger = logging.getLogger(__name__)
@@ -50,6 +49,15 @@ class Embedder(ABC):
 
     def __call__(self, doc_batch: list[Document]) -> list[Document]:
         return self.generate_embeddings(doc_batch)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, ex_type, ex_val, ex_tb):
+        self.close()
+
+    def close(self) -> None:
+        pass  # subclasses should override if they need to clean up
 
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
         if self.embed_name:
@@ -206,8 +214,8 @@ class OpenAIEmbedder(Embedder):
         model_batch_size: int = 100,
         pre_process_document: Optional[Callable[[Union[Document, Element]], str]] = None,
         api_key: Optional[str] = None,
-        client_wrapper: Optional[OpenAIClientWrapper] = None,
-        params: Optional[OpenAIClientParameters] = None,
+        client_wrapper: Optional["OpenAIClientWrapper"] = None,
+        params: Optional["OpenAIClientParameters"] = None,
         embed_name: Optional[tuple[str, str]] = None,
         **kwargs,
     ):
@@ -215,6 +223,8 @@ class OpenAIEmbedder(Embedder):
             model_name = model_name.value
 
         if client_wrapper is None:
+            from sycamore.llms.openai import OpenAIClientWrapper
+
             if params is not None:
                 client_wrapper = params
             else:
@@ -226,7 +236,7 @@ class OpenAIEmbedder(Embedder):
                 client_wrapper.api_key = api_key
 
         self.client_wrapper = client_wrapper
-        self._client: Optional[OpenAIClient] = None
+        self._client: Optional["OpenAIClient"] = None
         self.model_name = model_name
 
         super().__init__(
@@ -251,12 +261,20 @@ class OpenAIEmbedder(Embedder):
             self._client = self.client_wrapper.get_client()
 
     def _get_model_batch_size(self) -> int:
+        from openai import AzureOpenAI as AzureOpenAIClient
+
         client = self.client_wrapper.get_client()
         if isinstance(client, AzureOpenAIClient):
             default_batch_size = 16
         else:
             default_batch_size = None
         return Embedder.clamp_batch_size(self.model_batch_size, default_batch_size)
+
+    def close(self) -> None:
+        try:
+            self._client.close()  # type: ignore[union-attr]
+        except (AttributeError, TypeError):
+            pass
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         # TODO: Add some input validation here.

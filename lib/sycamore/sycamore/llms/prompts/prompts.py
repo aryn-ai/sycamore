@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Union, Optional, Callable, TYPE_CHECKING
+from typing_extensions import Self
 import copy
 
 import pydantic
@@ -45,14 +46,26 @@ class RenderedPrompt:
     response_format: ResponseFormat = None
 
     def token_count(self, tokenizer: Tokenizer) -> int:
-        total_text = " ".join(m.content for m in self.messages)
-        return len(tokenizer.tokenize(total_text))
+        if len(self.messages) == 0:
+            return 0
+        return sum(len(tokenizer.tokenize(m.content)) for m in self.messages)
 
 
 class SycamorePrompt:
     """Base class/API for all Sycamore LLM Prompt objects. Sycamore Prompts
     convert sycamore objects (``Document``, ``Element``) into ``RenderedPrompts``
     """
+
+    def render_any(self, **kwargs) -> RenderedPrompt:
+        """Render this prompt, given the input data as context
+
+        Args:
+            **kwargs: key-value pairs of data to include in the prompt
+
+        Returns:
+            A fully rendered prompt that can be sent to an llm for inference
+        """
+        raise NotImplementedError(f"render_any is not implemented for {self.__class__.__name__}")
 
     def render_document(self, doc: Document) -> RenderedPrompt:
         """Render this prompt, given this document as context.
@@ -89,11 +102,12 @@ class SycamorePrompt:
             A fully rendered prompt that can be sent to an LLM for inference"""
         raise NotImplementedError(f"render_multiple_documents is not implemented for {self.__class__.__name__}")
 
-    def set(self, **kwargs) -> "SycamorePrompt":
+    def fork(self, **kwargs: Any) -> Self:
         """Create a new prompt with some fields changed.
 
         Args:
-
+            ignore_none: bool. do not set any kwargs with value `None`. This is not in the
+                method signature because mypy sucks. https://github.com/python/mypy/issues/17642
             **kwargs: any keyword arguments will get set as fields in the
                 resulting prompt
 
@@ -117,8 +131,11 @@ class SycamorePrompt:
                 #     {"role": "user", "content": "bob"}
                 # ]
         """
+        ignore_none = kwargs.pop("ignore_none", False)
         new = copy.deepcopy(self)
         for k, v in kwargs.items():
+            if ignore_none and v is None:
+                continue
             if hasattr(new, "kwargs") and k not in new.__dict__:
                 getattr(new, "kwargs")[k] = v
             else:
@@ -577,7 +594,13 @@ class JinjaPrompt(SycamorePrompt):
     def __reduce__(self):
         # Cannot serialize compiled templates - so force recompilation
         return _deserialize_jinja_prompt, (
-            {"system": self.system, "user": self.user, "class": self.__class__.__name__, **self.kwargs},
+            {
+                "system": self.system,
+                "user": self.user,
+                "class": self.__class__.__name__,
+                "response_format": self.response_format,
+                **self.kwargs,
+            },
         )
 
     def render_document(self, doc: Document) -> RenderedPrompt:
@@ -672,6 +695,7 @@ class JinjaElementPrompt(SycamorePrompt):
                 "system": self.system,
                 "user": self.user,
                 "include_image": self.include_image,
+                "response_format": self.response_format,
                 "class": self.__class__.__name__,
                 **self.kwargs,
             },

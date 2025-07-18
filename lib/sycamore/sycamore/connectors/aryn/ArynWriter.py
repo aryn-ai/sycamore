@@ -20,8 +20,9 @@ class ArynWriterClientParams(BaseDBWriter.ClientParams):
 
 @dataclass
 class ArynWriterTargetParams(BaseDBWriter.TargetParams):
-    def __init__(self, docset_id: Optional[str] = None):
+    def __init__(self, docset_id: Optional[str] = None, update_schema: bool = False):
         self.docset_id = docset_id
+        self.update_schema = update_schema
 
     def compatible_with(self, other: "BaseDBWriter.TargetParams") -> bool:
         return True
@@ -52,14 +53,20 @@ class ArynWriterClient(BaseDBWriter.Client):
         docset_id = target_params.docset_id
 
         headers = {"Authorization": f"Bearer {self.api_key}"}
-
+        update_schema = target_params.update_schema
+        sess = requests.Session()
         for record in records:
             assert isinstance(record, ArynWriterRecord)
             doc = record.doc
             files: Mapping = {"doc": doc.serialize()}
-            requests.post(
-                url=f"{self.aryn_url}/docsets/write", params={"docset_id": docset_id}, files=files, headers=headers
+            sess.post(
+                url=f"{self.aryn_url}/docsets/write",
+                params={"docset_id": docset_id, "update_schema": update_schema},
+                files=files,
+                headers=headers,
             )
+            # For each batch we'll update the Aryn schema with only the first doc of each batch
+            update_schema = False
 
     def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
         pass

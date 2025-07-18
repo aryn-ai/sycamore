@@ -1,5 +1,4 @@
 from datetime import datetime
-from enum import Enum
 import logging
 from typing import Any, Optional, Union
 import asyncio
@@ -8,7 +7,8 @@ import time
 
 from PIL import Image
 
-from sycamore.llms.llms import LLM
+from sycamore.llms.config import AnthropicModels
+from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data
@@ -17,23 +17,6 @@ from sycamore.utils.import_utils import requires_modules
 DEFAULT_MAX_TOKENS = 1000
 INITIAL_BACKOFF = 1
 BATCH_POLL_INTERVAL = 10
-
-
-class AnthropicModels(Enum):
-    """Represents available Claude models."""
-
-    CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest"
-    CLAUDE_3_5_HAIKU = "claude-3-5-haiku-latest"
-    CLAUDE_3_OPUS = "claude-3-opus-latest"
-    CLAUDE_3_SONNET = "claude-3-sonnet-20240229"
-    CLAUDE_3_HAIKU = "claude-3-haiku-20240307"
-
-    @classmethod
-    def from_name(cls, name: str) -> Optional["AnthropicModels"]:
-        for m in iter(cls):
-            if m.value == name:
-                return m
-        return None
 
 
 def rewrite_system_messages(messages: Optional[list[dict]]) -> Optional[list[dict]]:
@@ -112,6 +95,10 @@ def format_image(image: Image.Image) -> dict[str, Any]:
     }
 
 
+def anthropic_deserializer(kwargs):
+    return Anthropic(**kwargs)
+
+
 class Anthropic(LLM):
     """This is an LLM implementation that uses the AWS Claude API to generate text.
 
@@ -124,7 +111,9 @@ class Anthropic(LLM):
     def __init__(
         self,
         model_name: Union[AnthropicModels, str],
+        default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
+        default_llm_kwargs: Optional[dict[str, Any]] = None,
     ):
 
         # We import this here so we can share utility code with the Bedrock
@@ -144,14 +133,21 @@ class Anthropic(LLM):
 
         self._client = AnthropicClient()
         self._async_client = AsyncAnthropicClient()
-        super().__init__(self.model.value, cache)
+        super().__init__(self.model.value, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
     def __reduce__(self):
-        def deserializer(kwargs):
-            return Anthropic(**kwargs)
+        kwargs = {
+            "model_name": self.model_name,
+            "cache": self._cache,
+            "default_mode": self._default_mode,
+            "default_llm_kwargs": self._default_llm_kwargs,
+        }
+        return anthropic_deserializer, (kwargs,)
 
-        kwargs = {"model_name": self.model_name, "cache": self._cache}
-        return deserializer, (kwargs,)
+    def default_mode(self) -> LLMMode:
+        if self._default_mode is not None:
+            return self._default_mode
+        return LLMMode.ASYNC
 
     def is_chat_mode(self) -> bool:
         """Returns True if the LLM is in chat mode, False otherwise."""
@@ -176,6 +172,8 @@ class Anthropic(LLM):
         return ret
 
     def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if isinstance(ret, dict):
             return ret
@@ -196,6 +194,8 @@ class Anthropic(LLM):
 
     async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         from anthropic import RateLimitError, APIConnectionError
+
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if isinstance(ret, dict):
@@ -225,6 +225,8 @@ class Anthropic(LLM):
     def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
         from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
         from anthropic.types.messages.batch_create_params import Request
+
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
         cache_hits = [self._llm_cache_get(p, llm_kwargs) for p in prompts]
 

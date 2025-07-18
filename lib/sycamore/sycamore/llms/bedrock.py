@@ -1,42 +1,17 @@
-from dataclasses import dataclass
 import datetime
-from enum import Enum
-import boto3
 import json
 from typing import Any, Optional, Union
 
 from PIL import Image
 
-from sycamore.llms.llms import LLM
+from sycamore.llms.config import BedrockModel, BedrockModels
+from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.anthropic import format_image, get_generate_kwargs
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 
 DEFAULT_MAX_TOKENS = 1000
 DEFAULT_ANTHROPIC_VERSION = "bedrock-2023-05-31"
-
-
-@dataclass
-class BedrockModel:
-    name: str
-    is_chat: bool = False
-
-
-class BedrockModels(Enum):
-    """Represents available Bedrock models."""
-
-    # Note that the models available on a given Bedrock account may vary.
-    CLAUDE_3_HAIKU = BedrockModel(name="anthropic.claude-3-haiku-20240307-v1:0", is_chat=True)
-    CLAUDE_3_SONNET = BedrockModel(name="anthropic.claude-3-sonnet-20240229-v1:0", is_chat=True)
-    CLAUDE_3_OPUS = BedrockModel(name="anthropic.claude-3-opus-20240229-v1:0", is_chat=True)
-    CLAUDE_3_5_SONNET = BedrockModel(name="anthropic.claude-3-5-sonnet-20240620-v1:0", is_chat=True)
-
-    @classmethod
-    def from_name(cls, name: str):
-        for m in iter(cls):
-            if m.value.name == name:
-                return m
-        return None
 
 
 class Bedrock(LLM):
@@ -51,7 +26,10 @@ class Bedrock(LLM):
         self,
         model_name: Union[BedrockModels, str],
         cache: Optional[Cache] = None,
+        default_llm_kwargs: Optional[dict[str, Any]] = None,
     ):
+        import boto3
+
         self.model_name = model_name
 
         if isinstance(model_name, BedrockModels):
@@ -60,13 +38,13 @@ class Bedrock(LLM):
             self.model = BedrockModel(name=model_name)
 
         self._client = boto3.client(service_name="bedrock-runtime")
-        super().__init__(self.model.name, cache)
+        super().__init__(self.model.name, default_mode=LLMMode.SYNC, cache=cache, default_llm_kwargs=default_llm_kwargs)
 
     def __reduce__(self):
         def deserializer(kwargs):
             return Bedrock(**kwargs)
 
-        kwargs = {"model_name": self.model_name, "cache": self._cache}
+        kwargs = {"model_name": self.model_name, "cache": self._cache, "default_llm_kwargs": self._default_llm_kwargs}
         return deserializer, (kwargs,)
 
     def is_chat_mode(self) -> bool:
@@ -79,6 +57,8 @@ class Bedrock(LLM):
         raise NotImplementedError("Images not supported for non-Anthropic Bedrock models.")
 
     def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+        llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+
         ret = self._llm_cache_get(prompt, llm_kwargs)
         if isinstance(ret, dict):
             print(f"cache return {ret}")

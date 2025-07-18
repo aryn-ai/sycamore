@@ -100,6 +100,27 @@ EntityExtractorFewShotJinjaPrompt = JinjaPrompt(
     num_elements=35,
 )
 
+MetadataExtractorJinjaPrompt = JinjaPrompt(
+    system="""You are a helpful property extractor.
+        You generate JSON objects according to a schema
+        to represent unstructured text data""",
+    user="""You are given a series of elements from a document and each element contains a page number.
+        Your task is to extract the {{ entity_name }} from the document and also record the page number where the property is found.
+        The {{ entity_name }} follows the schema {{ schema }}.
+        The schema includes some description and type hints to help you
+        find them in the document. Make sure to not use comma for number. Do not output these hints.
+        Return all the properties. If a property is not present in the document return null.
+        Output ONLY JSON conforming to this schema, and nothing else, pass it as json between '```json {JSON}```.
+
+        Text:
+        {% for elt in doc.elements %}
+        Page Number {{ elt['properties']['page_number'] }}: {{ elt.text_representation }}
+        {% endfor %}
+
+        Make sure to return the output tuple with square brackets.
+
+        """,
+)
 
 SummarizeImagesJinjaPrompt = JinjaElementPrompt(
     user=textwrap.dedent(
@@ -171,6 +192,18 @@ TextSummarizerGuidancePrompt = ElementPrompt(
     Include as many key details as possible. Do not make up your answer. Only return the summary as part of your answer
     {elt_text}
     """,
+)
+
+TextSummarizerJinjaPrompt = JinjaElementPrompt(
+    system="You are a helpful text summarizer.",
+    user=textwrap.dedent(
+        """\
+    Write a summary of the following. Use only the information provided.
+    Include as many key details as possible. Do not make up your answer. Only return the summary as part of your answer.
+
+    {{ elt.text_representation }}
+    """
+    ),
 )
 
 
@@ -378,7 +411,10 @@ PropertiesZeroShotJinjaPrompt = JinjaPrompt(
 )
 
 PropertiesFromSchemaJinjaPrompt = JinjaPrompt(
-    system="You are given text contents from a document.",
+    system=(
+        "You are a helpful property extractor. You have to return your response as a JSON that"
+        "can be parsed with json.loads(<response>) in Python. Do not return any other text."
+    ),
     user=(
         J_FORMAT_SCHEMA_MACRO
         + """\
@@ -391,7 +427,7 @@ Document text:"""
 
 Don't return extra information.
 If you cannot find a value for a requested property, use the provided default or the value 'None'.
-Return your answers as a valid json dictionary that will be parsed in python.
+Return your answers as a valid json dictionary that will be parsed in python with json.loads(<response>).
 """
     ),
 )
@@ -426,14 +462,14 @@ class EntityExtractorMessagesPrompt(SimplePrompt):
 # TODO: Need to separate the condition when use_elements is True but the field is a property that does not require chunking.
 #       Could save up on time by not scheduling llm calls.
 LlmFilterMessagesJinjaPrompt = JinjaPrompt(
-    system="You are a helpful classifier that generously filters database entries based on questions.",
+    system="You are a helpful classifier that filters database entries based on questions.",
     user=(
         J_FIELD_VALUE_MACRO
         + textwrap.dedent(
             """\
-        Given an entry and a question, you will answer the question relating to the
-        entry. You only response with 0, 1, 2, 3, 4, or 5 based on your confidence
-        level. 0 is the most negative answer and 5 is the most positive answer.
+        Given an entry and a yes or no question, you will answer the question relating
+        to the entry. You only respond with 0, 1, 2, 3, 4, or 5 based on your confidence
+        level. 0 is a confident 'no' and 5 is a confident 'yes'.
         Question: {{ filter_question }}
         Entry: {% if not use_elements -%}
         Field Name: {{ field }}; Field Value: {{ field_value(doc, field, no_field_behavior) }}
@@ -441,6 +477,10 @@ LlmFilterMessagesJinjaPrompt = JinjaPrompt(
         )
         + J_ELEMENT_BATCHED_LIST
         + "{% endif %}"
+        + textwrap.dedent(
+            """\
+            The response should be a value from [0,1,2,3,4,5]. 0 is a confident 'no' and 5 is a confident 'yes'."""
+        )
     ),
 )
 

@@ -16,7 +16,10 @@ from sycamore.llms.prompts.prompts import (
     RenderedPrompt,
     JinjaPrompt,
 )
-from sycamore.llms.prompts.jinja_fragments import J_ELEMENT_BATCHED_LIST, J_ELEMENT_BATCHED_LIST_WITH_METADATA
+from sycamore.llms.prompts.jinja_fragments import (
+    J_ELEMENT_BATCHED_LIST,
+    J_ELEMENT_BATCHED_LIST_WITH_METADATA,
+)
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform, BaseMapTransform
 from sycamore.transforms.base_llm import LLMMap
@@ -55,13 +58,20 @@ class EntityExtractor(ABC):
 
     @abstractmethod
     def as_llm_map(
-        self, child: Optional[Node], context: Optional[Context] = None, llm: Optional[LLM] = None, **kwargs
+        self,
+        child: Optional[Node],
+        context: Optional[Context] = None,
+        llm: Optional[LLM] = None,
+        **kwargs,
     ) -> Node:
         pass
 
     @abstractmethod
     def extract_entity(
-        self, document: Document, context: Optional[Context] = None, llm: Optional[LLM] = None
+        self,
+        document: Document,
+        context: Optional[Context] = None,
+        llm: Optional[LLM] = None,
     ) -> Document:
         pass
 
@@ -104,6 +114,7 @@ class OpenAIEntityExtractor(EntityExtractor):
     def __init__(
         self,
         entity_name: str,
+        entity_type: Optional[str] = None,
         llm: Optional[LLM] = None,
         prompt_template: Optional[str] = None,
         num_of_elements: int = 10,
@@ -118,6 +129,7 @@ class OpenAIEntityExtractor(EntityExtractor):
     ):
         super().__init__(entity_name)
         self._entity_name = entity_name
+        self._entity_type = entity_type
         self._llm = llm
         self._num_of_elements = num_of_elements
         self._prompt_template = prompt_template
@@ -165,12 +177,16 @@ class OpenAIEntityExtractor(EntityExtractor):
 
         if self._prompt is not None:
             if isinstance(self._prompt, SycamorePrompt):
-                return self._prompt.set(**common_params)
+                return self._prompt.fork(**common_params)
             if isinstance(self._prompt, str):
                 return JinjaPrompt(
-                    system=None, user=self._prompt + "\n" + j_elements, response_format=None, **common_params
+                    system=None,
+                    user=self._prompt + "\n" + j_elements,
+                    response_format=None,
+                    **common_params,
                 )
             else:
+
                 system = None
                 if len(self._prompt) > 0 and self._prompt[0]["role"] == "system":
                     system = self._prompt[0]["content"]
@@ -179,9 +195,9 @@ class OpenAIEntityExtractor(EntityExtractor):
                     user = [p["content"] for p in self._prompt] + [j_elements]
                 return JinjaPrompt(system=system, user=user, response_format=None, **common_params)
         elif self._prompt_template is not None:
-            return EntityExtractorFewShotJinjaPrompt.set(examples=self._prompt_template, **common_params)
+            return EntityExtractorFewShotJinjaPrompt.fork(examples=self._prompt_template, **common_params)
         else:
-            return EntityExtractorZeroShotJinjaPrompt.set(**common_params)
+            return EntityExtractorZeroShotJinjaPrompt.fork(**common_params)
 
     def _make_preprocess_fn(self, prompt: SycamorePrompt) -> Callable[[Document], Document]:
         vars = self._get_const_variables()
@@ -238,7 +254,11 @@ class OpenAIEntityExtractor(EntityExtractor):
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def as_llm_map(
-        self, child: Optional[Node], context: Optional[Context] = None, llm: Optional[LLM] = None, **kwargs
+        self,
+        child: Optional[Node],
+        context: Optional[Context] = None,
+        llm: Optional[LLM] = None,
+        **kwargs,
     ) -> Node:
         # represent this EntityExtractor as a CompositeTransform consisting of some
         # preprocessing (set up batches, sort elements, etc), the central LLMMap,
@@ -260,6 +280,17 @@ class OpenAIEntityExtractor(EntityExtractor):
                 return d
             batch = d.properties[vars["batch_key"]][target_club_idx]
             d.properties[vars["source_idx_key"]] = batch
+            if d.properties[self._entity_name] == "None":
+                d.properties[self._entity_name] = None
+            elif self._entity_type is not None and self._entity_type in [
+                "int",
+                "float",
+            ]:
+                try:
+                    conversion_func = {"int": int, "float": float}[self._entity_type]
+                    d.properties[self._entity_name] = conversion_func(d.properties[self._entity_name])
+                except ValueError:
+                    d.properties[self._entity_name] = None
             return d
 
         nodes: list[BaseMapTransform] = []
@@ -300,7 +331,10 @@ class OpenAIEntityExtractor(EntityExtractor):
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     @timetrace("OaExtract")
     def extract_entity(
-        self, document: Document, context: Optional[Context] = None, llm: Optional[LLM] = None
+        self,
+        document: Document,
+        context: Optional[Context] = None,
+        llm: Optional[LLM] = None,
     ) -> Document:
         self._llm = llm or self._llm
         if self._use_elements:
@@ -414,4 +448,9 @@ class ExtractEntity(Map):
         context: Optional[Context] = None,
         **resource_args,
     ):
-        super().__init__(child, f=entity_extractor.extract_entity, kwargs={"context": context}, **resource_args)
+        super().__init__(
+            child,
+            f=entity_extractor.extract_entity,
+            kwargs={"context": context},
+            **resource_args,
+        )

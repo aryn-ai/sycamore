@@ -1,3 +1,4 @@
+import threading
 from typing import Optional, Sequence, Callable, Union
 
 from sycamore.llms.llms import LLM, LLMMode
@@ -13,6 +14,11 @@ async def _infer_prompts_async(prompts: list[RenderedPrompt], llm: LLM) -> list[
     awaitables = [llm.generate_async(prompt=p, llm_kwargs={}) for p in prompts]
     tasks = [el.create_task(aw) for aw in awaitables]
     return await asyncio.gather(*tasks)
+
+
+def _run_new_thread(loop: asyncio.AbstractEventLoop) -> None:
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
 
 
 def _infer_prompts(
@@ -32,8 +38,24 @@ def _infer_prompts(
     elif llm_mode == LLMMode.ASYNC:
         nonempty = [(i, p) for i, p in enumerate(prompts) if len(p.messages) > 0]
         res = [""] * len(prompts)
-        rsps = asyncio.run(_infer_prompts_async([p for _, p in nonempty], llm))
-        for (i, _), rs in zip(nonempty, rsps):
+
+        # Previously we would use asyncio.run here, but that causes issues in
+        # environments like Jupyter notebooks where an event loop is already
+        # running. To workaround this we create a separate event loop on a new
+        # thread and run the tasks there.
+        new_loop = asyncio.new_event_loop()
+        t = threading.Thread(target=_run_new_thread, args=(new_loop,), daemon=True)
+        t.start()
+
+        fut = asyncio.run_coroutine_threadsafe(_infer_prompts_async([p for _, p in nonempty], llm), new_loop)
+
+        responses = fut.result()
+
+        new_loop.call_soon_threadsafe(new_loop.stop)
+        t.join()
+        new_loop.close()
+
+        for (i, _), rs in zip(nonempty, responses):
             res[i] = rs
         return res
     elif llm_mode == LLMMode.BATCH:
@@ -82,7 +104,7 @@ class LLMMap(MapBatch):
         prompt: SycamorePrompt,
         output_field: str,
         llm: LLM,
-        llm_mode: LLMMode = LLMMode.SYNC,
+        llm_mode: Optional[LLMMode] = None,
         iteration_var: Optional[str] = None,
         validate: Callable[[Document], bool] = lambda d: True,
         max_tries: int = 5,
@@ -93,7 +115,7 @@ class LLMMap(MapBatch):
         self._validate_prompt()
         self._output_field = output_field
         self._llm = llm
-        self._llm_mode = llm_mode
+        self._llm_mode = llm_mode if llm_mode is not None else llm.default_mode()
         self._iteration_var = iteration_var
         self._validate = validate
         self._max_tries = max_tries
@@ -183,7 +205,7 @@ class LLMMapElements(MapBatch):
         prompt: SycamorePrompt,
         output_field: str,
         llm: LLM,
-        llm_mode: LLMMode = LLMMode.SYNC,
+        llm_mode: Optional[LLMMode] = None,
         iteration_var: Optional[str] = None,
         validate: Callable[[Element], bool] = lambda e: True,
         max_tries: int = 5,
@@ -194,7 +216,7 @@ class LLMMapElements(MapBatch):
         self._validate_prompt()
         self._output_field = output_field
         self._llm = llm
-        self._llm_mode = llm_mode
+        self._llm_mode = llm_mode if llm_mode is not None else llm.default_mode()
         self._iteration_var = iteration_var
         self._validate = validate
         self._max_tries = max_tries

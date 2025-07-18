@@ -1,17 +1,16 @@
 import logging
 from typing import Any, Callable, Iterable, Optional, Union, TYPE_CHECKING
 
-import numpy as np
-
 from sycamore.data import Document, MetadataDocument
 from sycamore.utils.lineage_utils import update_lineage
 from sycamore.data.document import split_data_metadata
 from sycamore.plan_nodes import Node, UnaryNode
-from sycamore.utils.ray_utils import check_serializable
+from sycamore.utils.ray_utils import handle_serialization_exception
 from sycamore.utils.thread_local import ThreadLocal, ADD_METADATA_TO_OUTPUT
 
 if TYPE_CHECKING:
     from ray.data import Dataset, Datasink
+    import numpy
 
 
 def take_separate(dataset: "Dataset", limit: Optional[int] = None) -> tuple[list[Document], list[MetadataDocument]]:
@@ -110,6 +109,7 @@ class BaseMapTransform(UnaryNode):
         self._constructor_kwargs = constructor_kwargs
         self._enable_auto_metadata = enable_auto_metadata
 
+    @handle_serialization_exception("_f", "_name", "_args", "_kwargs", "_constructor_args", "_constructor_kwargs")
     def execute(
         self,
         write_intermediate_data: bool = False,
@@ -117,12 +117,6 @@ class BaseMapTransform(UnaryNode):
         intermediate_datasink_kwargs: Optional[dict[str, Any]] = None,
         **kwargs,
     ) -> "Dataset":
-        # If serializability fails, the error messages are very confusing. These checks
-        # give a much more sensible error message and give it before ray starts execution.
-        check_serializable(
-            self._f, self._name, self._args, self._kwargs, self._constructor_args, self._constructor_kwargs
-        )
-
         from ray.data import ActorPoolStrategy
 
         if "num_gpus" in self.resource_args:
@@ -157,13 +151,15 @@ class BaseMapTransform(UnaryNode):
             result.write_datasink(intermediate_datasink)
         return result
 
-    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+    def local_execute(self, all_docs: list[Document], drop_metadata: bool = False) -> list[Document]:
         docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
         metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
         extra_metadata: list[MetadataDocument] = []
         with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
             outputs = self._local_process(docs)
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
+        if drop_metadata:
+            return to_docs
         if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
             outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)
@@ -199,7 +195,7 @@ class BaseMapTransform(UnaryNode):
         enable_auto_metadata = self._enable_auto_metadata
 
         @rename(name)
-        def ray_callable(ray_input: dict[str, np.ndarray]) -> dict[str, list]:
+        def ray_callable(ray_input: dict[str, "numpy.ndarray"]) -> dict[str, list]:
             return BaseMapTransform._process_ray(ray_input, name, lambda d: f(d, *args, **kwargs), enable_auto_metadata)
 
         return ray_callable
@@ -214,7 +210,7 @@ class BaseMapTransform(UnaryNode):
         def ray_init(self):
             pass
 
-        def ray_callable(self, ray_input: dict[str, np.ndarray]) -> dict[str, list]:
+        def ray_callable(self, ray_input: dict[str, "numpy.ndarray"]) -> dict[str, list]:
             return BaseMapTransform._process_ray(ray_input, name, lambda d: f(d, *args, **kwargs), enable_auto_metadata)
 
         return type("BaseMapTransformCallable__" + name, (), {"__init__": ray_init, "__call__": ray_callable})
@@ -231,7 +227,7 @@ class BaseMapTransform(UnaryNode):
         def ray_init(self):
             self.base = c(*c_args, **c_kwargs)
 
-        def ray_callable(self, ray_input: dict[str, np.ndarray]) -> dict[str, list]:
+        def ray_callable(self, ray_input: dict[str, "numpy.ndarray"]) -> dict[str, list]:
             return BaseMapTransform._process_ray(
                 ray_input, name, lambda d: self.base(d, *args, **kwargs), enable_auto_metadata
             )
@@ -240,7 +236,7 @@ class BaseMapTransform(UnaryNode):
 
     @staticmethod
     def _process_ray(
-        ray_input: dict[str, np.ndarray],
+        ray_input: dict[str, "numpy.ndarray"],
         name: str,
         f: Callable[[list[Document]], list[Document]],
         enable_auto_metadata: bool,
@@ -275,9 +271,23 @@ class BaseMapTransform(UnaryNode):
 
 
 class CompositeTransform(UnaryNode):
-    def __init__(self, child: Node, base_args: list[dict], enable_auto_metadata=True, **resource_args):
+    def __init__(
+        self,
+        child: Node,
+        base_args: Optional[list[dict]] = None,
+        nodes: Optional[list[BaseMapTransform]] = None,
+        enable_auto_metadata=True,
+        **resource_args,
+    ):
+        assert (base_args is None) ^ (nodes is None), "exactly one of base_args and nodes must be specified"
         super().__init__(child, **resource_args)
-        self.nodes = CompositeTransform.combine(child, base_args, **resource_args)
+        if base_args is not None:
+            self.nodes = CompositeTransform.combine(child, base_args, **resource_args)
+        else:
+            assert (
+                nodes is not None
+            ), "Satisfy mypy. It doesn't understand xor assert + if statement. This should be infallible."
+            self.nodes = nodes
         self._enable_auto_metadata = enable_auto_metadata
 
     @staticmethod
@@ -297,11 +307,13 @@ class CompositeTransform(UnaryNode):
 
         return docs
 
-    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+    def local_execute(self, all_docs: list[Document], drop_metadata: bool = False) -> list[Document]:
         docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
         metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
         outputs = self._local_process(docs)
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
+        if drop_metadata:
+            return to_docs
         if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
             outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)

@@ -1,17 +1,112 @@
 import unittest
+import pytest
 from typing import Optional
+import copy
 
 from sycamore.llms import LLM
+from sycamore.llms.llms import LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.strategy import (
+    LimitLlmOperations,
     RemoveVectorSearchForAnalytics,
     VectorSearchOnlyStrategy,
+    AlwaysSummarize,
+    OnlyRetrieval,
     DefaultQueryPlanStrategy,
     ALL_OPERATORS,
     DefaultPlanValidator,
 )
+
+PLANS = [
+    LogicalPlan.model_validate(
+        {
+            "query": "Question 1",
+            "nodes": {
+                "0": {
+                    "node_type": "QueryDatabase",
+                    "node_id": 0,
+                    "description": "qdb",
+                    "index": "dummy",
+                    "inputs": [],
+                    "query": {"match_all": {}},
+                },
+                "1": {
+                    "node_type": "SummarizeData",
+                    "node_id": 1,
+                    "description": "sum",
+                    "question": "wha",
+                    "inputs": [0],
+                },
+            },
+            "result_node": 1,
+            "llm_prompt": None,
+            "llm_plan": None,
+        }
+    ),
+    LogicalPlan.model_validate(
+        {
+            "query": "Question 2",
+            "nodes": {
+                "0": {
+                    "node_type": "QueryDatabase",
+                    "node_id": 0,
+                    "description": "qdb",
+                    "index": "dummy",
+                    "inputs": [],
+                    "query": {"match_all": {}},
+                },
+                "1": {
+                    "node_type": "Sort",
+                    "node_id": 1,
+                    "description": "sort",
+                    "field": "properties.entity.is.stupid",
+                    "inputs": [0],
+                },
+            },
+            "result_node": 1,
+            "llm_prompt": None,
+            "llm_plan": None,
+        }
+    ),
+    LogicalPlan.model_validate(
+        {
+            "query": "Question 3",
+            "nodes": {
+                "0": {
+                    "node_type": "QueryDatabase",
+                    "node_id": 0,
+                    "description": "qdb",
+                    "index": "dummy",
+                    "inputs": [],
+                    "query": {"match_all": {}},
+                },
+                "1": {
+                    "node_type": "Sort",
+                    "node_id": 1,
+                    "description": "sort",
+                    "field": "properties.entity.is.stupid",
+                    "inputs": [0],
+                },
+                "2": {"node_type": "Limit", "node_id": 2, "description": "lmt", "num_records": 2, "inputs": [1]},
+                "3": {
+                    "node_type": "LlmExtractEntity",
+                    "node_id": 3,
+                    "description": "llex",
+                    "question": "extraction question",
+                    "field": "properties.entity.is.stupid",
+                    "new_field": "properties.entity.is.dumb",
+                    "new_field_type": "string",
+                    "inputs": [2],
+                },
+            },
+            "result_node": 3,
+            "llm_prompt": None,
+            "llm_plan": None,
+        }
+    ),
+]
 
 
 class DummyLLMClient(LLM):
@@ -24,33 +119,66 @@ class DummyLLMClient(LLM):
 
 class TestStrategies(unittest.TestCase):
     def test_default(self):
-        processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model"))
-        strategy = DefaultQueryPlanStrategy(post_processors=[processor])
+        processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model", LLMMode.SYNC))
+        strategy = DefaultQueryPlanStrategy(plan_processors=[processor])
 
-        assert len(strategy.post_processors) == 1
-        assert isinstance(strategy.post_processors[0], RemoveVectorSearchForAnalytics)
+        assert len(strategy.plan_processors) == 1
+        assert isinstance(strategy.plan_processors[0], RemoveVectorSearchForAnalytics)
         assert strategy.operators == ALL_OPERATORS
 
     def test_vector_search_only(self):
-        processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model"))
+        processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model", LLMMode.SYNC))
 
-        strategy = VectorSearchOnlyStrategy(post_processors=[])
-        assert strategy.post_processors == []
+        strategy = VectorSearchOnlyStrategy(plan_processors=[])
+        assert strategy.plan_processors == []
         assert QueryDatabase not in strategy.operators
 
-        strategy = VectorSearchOnlyStrategy(post_processors=[processor])
-        assert strategy.post_processors == [processor]
+        strategy = VectorSearchOnlyStrategy(plan_processors=[processor])
+        assert strategy.plan_processors == [processor]
         assert QueryDatabase not in strategy.operators
+
+
+class TestPlanProcessors:
+    @pytest.mark.parametrize("plan", PLANS)
+    def test_always_summarize(self, plan):
+        assert isinstance(plan, LogicalPlan)
+        proc = AlwaysSummarize()
+        new_plan = proc(copy.deepcopy(plan))
+        assert new_plan.nodes[new_plan.result_node].node_type == "SummarizeData"
+
+    @pytest.mark.parametrize("plan", PLANS)
+    def test_only_retrieval(self, plan):
+        assert isinstance(plan, LogicalPlan)
+        proc = OnlyRetrieval()
+        new_plan = proc(copy.deepcopy(plan))
+        if new_plan.query == "Question 3":
+            assert new_plan.nodes[new_plan.result_node].node_type == "Limit"
+            assert len(new_plan.nodes) == 3
+        else:
+            assert new_plan.nodes[new_plan.result_node].node_type == "QueryDatabase"
+            assert len(new_plan.nodes) == 1
+
+    @pytest.mark.parametrize("plan", PLANS)
+    def test_limit_llm_ops(self, plan):
+        assert isinstance(plan, LogicalPlan)
+        proc = LimitLlmOperations(["SummarizeData", "LlmExtractEntity"], 10)
+        new_plan = proc(copy.deepcopy(plan))
+        if new_plan.query == "Question 1":
+            assert new_plan.nodes[1].node_type == "Limit"
+            assert new_plan.nodes[new_plan.result_node].node_type == "SummarizeData"
+            assert new_plan.result_node == 2
+        else:
+            assert new_plan == plan
 
 
 class TestRemoveVectorSearchForAnalytics(unittest.TestCase):
 
-    processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model"))
+    processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model", default_mode=LLMMode.SYNC))
 
     def test_operators(self):
-        processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model"))
-        strategy = VectorSearchOnlyStrategy(post_processors=[processor])
-        assert strategy.post_processors == [processor]
+        processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model", default_mode=LLMMode.SYNC))
+        strategy = VectorSearchOnlyStrategy(plan_processors=[processor])
+        assert strategy.plan_processors == [processor]
         assert QueryDatabase not in strategy.operators
 
     @staticmethod

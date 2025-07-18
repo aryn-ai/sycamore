@@ -13,7 +13,7 @@ from sycamore.data.document import Document
 from sycamore.tests.config import TEST_DIR
 import weaviate
 from weaviate.classes.config import Property, ReferenceProperty
-from weaviate.client import ConnectionParams
+from weaviate.connect.base import ConnectionParams
 from weaviate.collections.classes.config import Configure, DataType
 from weaviate.exceptions import WeaviateInvalidInputError
 
@@ -279,7 +279,7 @@ class TestWeaviateCrossReferenceClient:
         wcrc = WeaviateCrossReferenceClient(wcl)
         wcrc.create_target_idempotent(wtp)
         wcl.__exit__.assert_called_once()
-        assert wcl.__exit__.call_args.args[0] == ValueError
+        assert wcl.__exit__.call_args.args[0] is ValueError
         assert str(wcl.__exit__.call_args.args[1]) == "some other kind of error"
 
     def test_write_many_cross_references(self, mocker):

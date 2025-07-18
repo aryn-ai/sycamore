@@ -9,6 +9,7 @@ import sycamore
 from sycamore import DocSet, Context
 from sycamore.data import Document, Element
 from sycamore.llms import LLM
+from sycamore.llms.llms import LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
@@ -17,20 +18,23 @@ from sycamore.llms.prompts.default_prompts import (
 from sycamore.transforms import (
     Embedder,
     Embed,
+    Filter,
     Partitioner,
-    Summarize,
     FlatMap,
     Map,
     MapBatch,
     Partition,
-    ExtractBatchSchema,
     Query,
 )
-from sycamore.transforms import Filter
 from sycamore.transforms.base import get_name_from_callable, CompositeTransform
-from sycamore.transforms.base_llm import LLMMap
+from sycamore.transforms.base_llm import LLMMap, LLMMapElements
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
-from sycamore.transforms.extract_schema import SchemaExtractor, LLMPropertyExtractor, LLMSchemaExtractor
+from sycamore.transforms.extract_schema import (
+    ExtractBatchSchema,
+    SchemaExtractor,
+    LLMPropertyExtractor,
+    LLMSchemaExtractor,
+)
 from sycamore.transforms.query import QueryExecutor
 from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.transforms.sort import Sort
@@ -39,13 +43,13 @@ from sycamore.transforms.summarize import LLMElementTextSummarizer
 
 class MockLLM(LLM):
     def __init__(self):
-        super().__init__(model_name="mock_model")
+        super().__init__(model_name="mock_model", default_mode=LLMMode.SYNC)
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         print(prompt)
         if llm_kwargs is None:
             llm_kwargs = {}
-        if prompt.messages[-1].content.endswith("Element_index: 1\nText: third element\n"):
+        if "Element_index: 1\nText: third element\n" in prompt.messages[-1].content:
             return "None"
         if (
             asdict(prompt) == {"messages": [{"role": "user", "content": "Element_index: 1\nText: third element\n"}]}
@@ -67,13 +71,18 @@ class MockLLM(LLM):
             return "4"
         elif prompt.messages[0].content == "test1":
             return "4"
-        elif prompt.messages[-1].content.strip().endswith("test1"):
+        elif "test1" in prompt.messages[-1].content.strip() and "[0,1,2,3,4,5]" in prompt.messages[-1].content.strip():
             return "4"
+        elif (
+            "third element" in prompt.messages[-1].content.strip()
+            and "[0,1,2,3,4,5]" in prompt.messages[-1].content.strip()
+        ):
+            return "1"
         elif asdict(prompt) == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
             return "2"
         elif prompt.messages[0].content == "test2":
             return "2"
-        elif prompt.messages[-1].content.strip().endswith("test2"):
+        elif "test2" in prompt.messages[-1].content.strip() and "[0,1,2,3,4,5]" in prompt.messages[-1].content.strip():
             return "2"
 
         elif prompt.messages[-1].content.endswith('"1, 2, one, two, 1, 3".'):
@@ -245,7 +254,7 @@ class TestDocSet:
         llm = mocker.Mock(spec=LLM)
         docset = DocSet(context, None)
         docset = docset.summarize(llm=llm, summarizer=LLMElementTextSummarizer(llm))
-        assert isinstance(docset.lineage(), Summarize)
+        assert isinstance(docset.lineage(), LLMMapElements)
 
     def test_filter(self, mocker):
         context = mocker.Mock(spec=Context)

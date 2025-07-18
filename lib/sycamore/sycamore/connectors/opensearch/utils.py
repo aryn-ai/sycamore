@@ -12,6 +12,18 @@ logger = logging.getLogger("opensearch")
 
 
 class OpenSearchClientWithLogging(OpenSearch):
+    def __init__(self, *args, **kwargs) -> None:
+        try:
+            hosts = " ".join([f"{d['host']}:{d['port']}" for d in kwargs["hosts"]])
+        except (KeyError, TypeError, ValueError):
+            hosts = None
+        try:
+            user = kwargs["http_auth"][0]
+        except (KeyError, TypeError):
+            user = None
+        logger.info(f"Connecting to OpenSearch as {user} to {hosts}")
+        super().__init__(*args, **kwargs)
+
     def search(self, **kwargs) -> Any:
         """Helper method to execute OpenSearch search queries, and silent errors."""
         response = super().search(**kwargs)
@@ -19,6 +31,11 @@ class OpenSearchClientWithLogging(OpenSearch):
         if shards.get("total") != shards.get("successful"):
             logger.error(f"OpenSearch query skipped shards: {response}")
         return response
+
+    def parallel_bulk(self, record_gen, **kwargs):
+        from opensearchpy.helpers import parallel_bulk
+
+        return parallel_bulk(self, record_gen, **kwargs)
 
 
 @context_params("opensearch")

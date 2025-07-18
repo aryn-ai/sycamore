@@ -70,7 +70,7 @@ def wait_for_write_completion(client: PineconeGRPC, index_name: str, namespace: 
     index = client.Index(index_name)
     while time.time() < deadline:
         try:
-            desc = dict(index.fetch(ids=[doc_id], namespace=namespace)["vectors"]).items()
+            desc = dict(index.fetch(ids=[doc_id], namespace=namespace).vectors).items()
             if len(desc) > 0:
                 return
         except PineconeException:

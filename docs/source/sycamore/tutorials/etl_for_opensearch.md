@@ -42,7 +42,7 @@ docset = docset.partition(partitioner=ArynPartitioner())
 
 ```python
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
-from sycamore.llms import OpenAIModels, OpenAI
+from sycamore.llms.openai import OpenAIModels, OpenAI
 import os
 
 # The following prompt templates will be used to extract the relevant entities

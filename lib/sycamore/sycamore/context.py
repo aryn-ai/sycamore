@@ -1,5 +1,5 @@
 import functools
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Any, Callable, Optional, Union, List
 import inspect
@@ -55,7 +55,7 @@ class Context:
 
 
 def get_val_from_context(
-    context: "Context", val_key: str, param_names: Optional[List[str]] = None, ignore_default: bool = False
+    context: Context, val_key: str, param_names: Optional[List[str]] = None, ignore_default: bool = False
 ) -> Optional[Any]:
     """
     Helper function: Given a Context object, return the possible value for a given val.
@@ -147,6 +147,29 @@ def context_params(*names):
         return decorator(names[0])
     else:
         return decorator
+
+
+def modified_context(context: Context, param_name: str, **overrides) -> Context:
+    """
+    Returns a Context just like the one passed in, but with individual values
+    within params[param_name] changed to values from the overrides kwargs.
+    Use param_name 'default' if unsure.  Avoids deep-copying anything.
+    """
+    if (default := context.params.get("default")) is None:
+        raise ValueError("context params lacks default namespace")
+    for key in overrides.keys():
+        assert key in default, f"key {key} has no default value to override"
+    rv = replace(context)  # shallow copy
+    if overrides:
+        params = rv.params.copy()
+        if (sub := params.get(param_name)) is None:
+            new = overrides.copy()  # not deep
+        else:
+            new = sub.copy()  # not deep
+            new.update(overrides)
+        params[param_name] = new
+        rv.params = params
+    return rv
 
 
 def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, **kwargs) -> Context:

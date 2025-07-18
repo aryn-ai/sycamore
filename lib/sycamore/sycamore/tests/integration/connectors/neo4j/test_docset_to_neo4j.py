@@ -8,7 +8,7 @@ from sycamore.transforms.extract_graph_entities import EntityExtractor
 from sycamore.transforms.extract_graph_relationships import RelationshipExtractor
 
 
-def test_to_neo4j():
+def test_to_neo4j() -> None:
     ## actual test ##
     path = str(TEST_DIR / "resources/data/pdfs/doctor_testimonial.pdf")
     context = sycamore.init()

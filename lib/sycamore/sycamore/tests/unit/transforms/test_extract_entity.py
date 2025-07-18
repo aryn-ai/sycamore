@@ -7,6 +7,7 @@ from sycamore.context import Context, OperationTypes, ExecMode
 from sycamore.data import Document, Element
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import LLM
+from sycamore.llms.llms import LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.tests.unit.test_docset import TestSimilarityScorer, MockTokenizer
 from sycamore.tests.unit.test_docset import MockLLM as docsetMockLLM
@@ -15,7 +16,7 @@ from sycamore.tests.unit.transforms.test_llm_filter import tokenizer_doc
 
 class MockLLM(LLM):
     def __init__(self):
-        super().__init__(model_name="mock_model")
+        super().__init__(model_name="mock_model", default_mode=LLMMode.SYNC)
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         print(prompt)
@@ -45,6 +46,12 @@ class MockLLM(LLM):
         if "title" in usermessage:
             return "title1"
 
+        if "age" in usermessage:
+            return "42"
+
+        if "weight" in usermessage:
+            return "200 pounds"
+
         logging.error(f"{prompt} // {llm_kwargs}")
         assert False, "Make all generate branches explicitly check the arguments"
 
@@ -66,13 +73,25 @@ class TestEntityExtraction:
                     "type": "title",
                     "content": {"binary": None, "text": "text1"},
                     "text_representation": "text1",
-                    "properties": {"coordinates": [(1, 2)], "page_number": 1, "entity": {"author": "Jack Black"}},
+                    "properties": {
+                        "coordinates": [(1, 2)],
+                        "page_number": 1,
+                        "entity": {
+                            "author": "Jack Black",
+                            "age": "42",
+                            "weight": "200 pounds",
+                        },
+                    },
                 },
                 {
                     "type": "table",
                     "content": {"binary": None, "text": "text2"},
                     "text_representation": "text2",
-                    "properties": {"page_name": "name", "coordinates": [(1, 2)], "coordinate_system": "pixel"},
+                    "properties": {
+                        "page_name": "name",
+                        "coordinates": [(1, 2)],
+                        "coordinate_system": "pixel",
+                    },
                 },
             ],
         }
@@ -136,7 +155,10 @@ class TestEntityExtraction:
 
     def test_extract_entity_with_elements_and_messages_prompt(self, mocker):
         llm = MockLLM()
-        prompt_messages = [{"role": "system", "content": "Yo"}, {"role": "user", "content": "ho!"}]
+        prompt_messages = [
+            {"role": "system", "content": "Yo"},
+            {"role": "user", "content": "ho!"},
+        ]
         extractor = OpenAIEntityExtractor("title", llm=llm, use_elements=True, prompt=prompt_messages)
         llm_map = extractor.as_llm_map(None)
         outdocs = llm_map._local_process([self.doc])
@@ -185,7 +207,11 @@ class TestEntityExtraction:
                     Element(properties={"_element_index": 1}, text_representation="test2"),
                 ],
             ),
-            Document(doc_id="doc_4", text_representation="empty elements, maybe an exploded doc", elements=[]),
+            Document(
+                doc_id="doc_4",
+                text_representation="empty elements, maybe an exploded doc",
+                elements=[],
+            ),
         ]
         mock_llm = docsetMockLLM()
         similarity_scorer = TestSimilarityScorer()
@@ -262,3 +288,34 @@ class TestEntityExtraction:
         assert taken[0].elements[2]["properties"]["_autogen_LLMExtractEntityOutput_source_indices"] == [0, 1, 2]
         assert taken[1].elements[0]["properties"]["_autogen_LLMExtractEntityOutput_source_indices"] == [0]
         assert taken[1].elements[1]["properties"]["_autogen_LLMExtractEntityOutput_source_indices"] == [1]
+
+    def test_extract_entity_correct_field_type(self, mocker):
+        llm = MockLLM()
+
+        # Test for int type
+        extractor = OpenAIEntityExtractor("age", entity_type="int", llm=llm, field="properties.entity.age")
+        llm_map = extractor.as_llm_map(None)
+        out_docs = llm_map._local_process([self.doc])
+        print(out_docs[0].properties)
+        assert out_docs[0].properties.get("age") == 42
+
+        # Test for str type
+        extractor = OpenAIEntityExtractor("weight", entity_type="str", llm=llm, field="properties.entity.weight")
+        llm_map = extractor.as_llm_map(None)
+        out_docs = llm_map._local_process([self.doc])
+        print(out_docs[0].properties)
+        assert out_docs[0].properties.get("weight") == "200 pounds"
+
+        # Test for false positive int type
+        extractor = OpenAIEntityExtractor("weight", entity_type="int", llm=llm, field="properties.entity.weight")
+        llm_map = extractor.as_llm_map(None)
+        out_docs = llm_map._local_process([self.doc])
+        print(out_docs[0].properties)
+        assert not out_docs[0].properties.get("weight")
+
+        # Test for entity that is "None"
+        extractor = OpenAIEntityExtractor("returnnone", llm=llm, field="properties.entity.author")
+        llm_map = extractor.as_llm_map(None)
+        out_docs = llm_map._local_process([self.doc])
+        print(out_docs[0].properties)
+        assert not out_docs[0].properties.get("returnnone")

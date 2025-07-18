@@ -343,24 +343,6 @@ def _make_serializeable(obj):
     return obj
 
 
-def _reconstruct(obj):
-    if isinstance(obj, dict):
-        if (_aryn_element_type := obj.get("_aryn_element_type", None)) is not None:
-            if _aryn_element_type == "TableElement":
-                return TableElement(**obj["data"])
-            elif _aryn_element_type == "ImageElement":
-                return ImageElement(**obj["data"])
-            elif _aryn_element_type == "Element":
-                return Element(**obj["data"])
-            else:
-                raise ValueError(f"Unknown element type: {_aryn_element_type}")
-        else:
-            return {k: _reconstruct(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [_reconstruct(v) for v in obj]
-    return obj
-
-
 class MetadataDocument(Document):
     def __init__(self, document=None, **kwargs):
         # Do not pass kwargs to parent; metadata docs take everything into data["metadata"]

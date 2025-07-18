@@ -1,5 +1,6 @@
 import os
 
+
 def guess_opensearch_host():
     # The OpenSearch instance to use.
     if os.path.exists("/.dockerenv"):

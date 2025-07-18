@@ -66,6 +66,7 @@ def get_knn_query(
         query["query"]["knn"]["embedding"]["min_score"] = min_score  # type: ignore
     return query
 
+
 @context_params("opensearch")
 def get_knn_query_vector(
     query_vector: List[float],

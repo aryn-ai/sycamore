@@ -1,6 +1,3 @@
-import ast
-import pickle
-from collections import Counter
 import random
 import numpy as np
 from sklearn.metrics.pairwise import cosine_distances

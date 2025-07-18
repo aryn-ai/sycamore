@@ -277,10 +277,7 @@ class TestDocument:
         """Test that web_deserialize raises ValueError for invalid magic bytes."""
         # Create invalid serialized data
         buffer = io.BytesIO()
-        buffer.write(b"INVALID!")  # Wrong magic bytes
-        buffer.write(struct.pack(">H", 0))  # Version major
-        buffer.write(struct.pack(">H", 1))  # Version minor
-        buffer.write(struct.pack(">I", 0))  # Zero padding
+        buffer.write(struct.pack("!8s2H4x", b"INVALID!", 0, 1))
         buffer.seek(0)
 
         with pytest.raises(ValueError, match="Invalid serialization magic"):
@@ -290,10 +287,7 @@ class TestDocument:
         """Test that web_deserialize raises ValueError for unsupported versions."""
         # Create serialized data with unsupported version
         buffer = io.BytesIO()
-        buffer.write(b"ArynSDoc")  # Correct magic bytes
-        buffer.write(struct.pack(">H", 65535))  # Unsupported major version
-        buffer.write(struct.pack(">H", 65535))  # Minor version
-        buffer.write(struct.pack(">I", 0))  # Zero padding
+        buffer.write(struct.pack("!8s2H4x", b"ArynSDoc", 65535, 65535))
         buffer.seek(0)
 
         with pytest.raises(ValueError, match="Unsupported serialization version: 65535.65535"):
@@ -303,10 +297,7 @@ class TestDocument:
         """Test that web_deserialize handles non-zero padding with a warning."""
         # Create serialized data with non-zero padding
         buffer = io.BytesIO()
-        buffer.write(b"ArynSDoc")  # Correct magic bytes
-        buffer.write(struct.pack("!H", 0))  # Major version
-        buffer.write(struct.pack("!H", 1))  # Minor version
-        buffer.write(struct.pack("!I", 123))  # Non-zero padding
+        buffer.write(struct.pack("!8s2HI", b"ArynSDoc", 0, 1, 123))
         msgpack.pack({}, buffer)
         Element().web_serialize(buffer)
         msgpack.pack("_TERMINATOR", buffer)

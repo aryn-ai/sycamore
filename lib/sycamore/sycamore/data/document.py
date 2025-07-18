@@ -334,7 +334,7 @@ class Document(UserDict):
 
 def _make_serializeable(obj):
     if isinstance(obj, Element):
-        data = {"aryn_element_type": type(obj).__name__, "data": obj.data}
+        data = {"_aryn_element_type": type(obj).__name__, "data": obj.data}
         return data
     elif isinstance(obj, dict):
         return {k: _make_serializeable(v) for k, v in obj.items()}
@@ -345,15 +345,15 @@ def _make_serializeable(obj):
 
 def _reconstruct(obj):
     if isinstance(obj, dict):
-        if (aryn_element_type := obj.get("aryn_element_type", None)) is not None:
-            if aryn_element_type == "TableElement":
+        if (_aryn_element_type := obj.get("_aryn_element_type", None)) is not None:
+            if _aryn_element_type == "TableElement":
                 return TableElement(**obj["data"])
-            elif aryn_element_type == "ImageElement":
+            elif _aryn_element_type == "ImageElement":
                 return ImageElement(**obj["data"])
-            elif aryn_element_type == "Element":
+            elif _aryn_element_type == "Element":
                 return Element(**obj["data"])
             else:
-                raise ValueError(f"Unknown element type: {aryn_element_type}")
+                raise ValueError(f"Unknown element type: {_aryn_element_type}")
         else:
             return {k: _reconstruct(v) for k, v in obj.items()}
     elif isinstance(obj, list):

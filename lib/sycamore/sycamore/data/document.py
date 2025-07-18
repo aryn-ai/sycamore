@@ -211,12 +211,12 @@ class Document(UserDict):
             return Document(data)
 
     @experimental
-    def web_serialize(self, file: BinaryIO) -> None:
+    def web_serialize(self, stream: BinaryIO) -> None:
         kind = type(self)
         if kind != Document:  # MetadataDocument, HierarchicalDocument, SummaryDocument are not yet supported
             raise NotImplementedError(f"web_serialize cannot yet handle type '{kind.__name__}'")
 
-        file.write(
+        stream.write(
             struct.pack(
                 "!8s2H4x",
                 DOCUMENT_SERIALIZATION_MAGIC,
@@ -231,27 +231,27 @@ class Document(UserDict):
         packed_elementless_data = msgpack.packb(elementless_data)
         if not packed_elementless_data:
             raise ValueError("Failed to serialize document")
-        file.write(packed_elementless_data)
+        stream.write(packed_elementless_data)
 
         for element in self.elements:
-            element.web_serialize(file)
-        msgpack.pack("_TERMINATOR", file)
+            element.web_serialize(stream)
+        msgpack.pack("_TERMINATOR", stream)
 
     @experimental
     @staticmethod
-    def web_deserialize(file: BinaryIO) -> "Document":
-        def readmin(file: BinaryIO, size: int):
+    def web_deserialize(stream: BinaryIO) -> "Document":
+        def readmin(stream: BinaryIO, size: int):
             data = bytearray()
             read = 0
             while read < size:
-                to_add = file.read(size - read)
+                to_add = stream.read(size - read)
                 if len(to_add) == 0:
                     break
                 data.extend(to_add)
                 read += len(to_add)
             return data
 
-        header = readmin(file, 16)
+        header = readmin(stream, 16)
         if len(header) != 16:
             raise ValueError("Failed to read document header")
 
@@ -264,7 +264,7 @@ class Document(UserDict):
         ):
             raise ValueError(f"Unsupported serialization version: {version_major}.{version_minor}")
 
-        unpacker = msgpack.Unpacker(file)
+        unpacker = msgpack.Unpacker(stream)
         elementless_data = next(unpacker)
         doc = Document(elementless_data)
         elements = doc.elements

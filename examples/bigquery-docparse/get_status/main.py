@@ -160,9 +160,9 @@ def partition_file_async_result(
     Raises a `PartitionTaskNotFoundError` if the not task with the task_id can be found.
 
     Returns:
-        A dict containing "status" and "status_code". When "status" is "done", the returned dict also contains "result"
-        which contains what would have been returned had `partition_file` been called directly. "status" can be "done"
-        or "pending".
+        A stream with the results. If the response status code is 200, results will be
+        streamed as json, and may be large. For other status codes, the task is still in
+        progress (202) or errored (not 2xx) and no results are coming.
 
         Unlike `partition_file`, this function does not raise an Exception if the partitioning failed.
     """

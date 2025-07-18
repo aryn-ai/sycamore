@@ -55,13 +55,13 @@ class Process:
                     ln = self.clean_uri(ln)
                     if ln == "uri":
                         continue
-                    assert ln.startswith("gs://"), f"bad {ln}"
+                    assert ln.startswith("gs://"), f"Non gs uri: {ln}"
                     bucket, object = ln.removeprefix("gs://").split("/", 1)
                     if self.bucket_client is None:
                         self.bucket = bucket
                         self.bucket_client = storage.Client().bucket(bucket)
                     else:
-                        assert self.bucket == bucket, f"bad {ln}"
+                        assert self.bucket == bucket, f"Wrong bucket: wanted {self.bucket} but got {bucket} from {ln}"
                     dest = f"{self.pdf_prefix}/finals/{object}"
                     if self.exists(dest):
                         pass
@@ -69,8 +69,6 @@ class Process:
                         pass
                     else:
                         self.download(executor, object, dest)
-                    # if self.download_count > 100:
-                    #    break
             done, not_done = wait(self.futures, return_when=ALL_COMPLETED)
             assert len(done) == len(self.futures)
             self.process_done(list(done))

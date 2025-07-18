@@ -16,6 +16,8 @@ def get_objects(uri_prefix: str):
         skip_count = 0
         objects = {}
         for blob in blobs:
+            # Large results can be written back to the same bucket as the input files
+            # assuming you put this in the OVERFLOW_PREFIX secret, it will be auto-skipped.
             if "large-results" in blob.name:
                 skip_count += 1
                 if (skip_count % 1000) == 0:
@@ -46,6 +48,9 @@ def get_existing_uris() -> dict[str, tuple[str, int]]:
 
 
 # If you do this, then trying to manipulate the table gives an error around streaming buffer
+# Left around as an example of what not to do.  It will cost you several hours of waiting
+# for the streaming buffer to clear, or you have to make a copy of the table, and delete the
+# old one and restore back to the original name.
 def bad_insert_uris(uris):
     if not uris:
         print("No new URIs found")

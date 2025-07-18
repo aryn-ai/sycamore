@@ -13,7 +13,7 @@ BEGIN
         WHERE result is null
           AND (err is null or err not like 'Result too large%')
           AND (uri like '%.pdf' or uri like '%.PDF')
-          AND (tries is null or tries < 15) # keep in sync with constant in get_status
+          AND (tries is null or tries < 15) # keep in sync with constant in processing_status
         ORDER BY async_id DESC, processing_order, tries
         LIMIT 50
     );

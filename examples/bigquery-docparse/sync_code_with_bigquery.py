@@ -287,11 +287,8 @@ def get_local_python_as_ddl(function_name: str, sql_params: str, return_type: st
     else:
         raise ValueError(f"Unable to find code for {function_name} in {paths}")
 
-    # Replace the config import line with the actual config contents
-    config_line = 'sys.path.append(os.path.dirname(__file__) + "/..")\nfrom config import configs, get_secret'
-    assert config_line in local_code or "configs" not in local_code, f"Config line not found in {local_code_path}"
-    if config_line in local_code:
-        # Read config.py contents
+    config_pattern = r'sys\.path\.append\(os\.path\.dirname\(__file__\) \+ "/\.\."\)\nfrom config import .*\n'
+    if re.search(config_pattern, local_code):
         config_dir = Path(local_code_path).parent
         if (config_dir / "config.py").exists():
             config_path = config_dir / "config.py"
@@ -301,14 +298,17 @@ def get_local_python_as_ddl(function_name: str, sql_params: str, return_type: st
         assert config_path.exists(), f"Config file {config_path} does not exist"
         with open(config_path, "r") as f:
             config_contents = f.read()
-        local_code = local_code.replace(config_line, config_contents)
+        local_code = re.sub(config_pattern, config_contents, local_code)
+    else:
+        assert "configs" not in local_code, "configs found in local code w/o proper replacement"
 
-    assert "'''" not in local_code
+    assert "'''" not in local_code, "need to use ''' to wrap a string so can't use it in the code. use \"\"\" instead"
     local_code = local_code.removesuffix("\n")
-    packages_str = "[\n    " + ",\n    ".join([f'"{pkg}"' for pkg in packages]) + "]"
     if packages:
         packages_str = ",\n  packages=[\n    " + ",\n    ".join([f'"{pkg}"' for pkg in packages]) + "]"
     else:
+        # The vertext-ai-connection bit is how you make connections to external services.
+        # I have no idea why Google did it that way.
         packages_str = ""
     return f"""CREATE OR REPLACE FUNCTION `{PROJECT_ID}`.{DATASET_ID}.{function_name}({sql_params}) RETURNS {return_type} LANGUAGE python
 WITH CONNECTION `{PROJECT_ID}.us.vertex-ai-connection`

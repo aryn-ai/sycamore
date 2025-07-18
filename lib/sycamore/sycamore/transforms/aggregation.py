@@ -1,5 +1,6 @@
 from typing import Callable, Optional, TYPE_CHECKING, Union
 
+from sycamore.data.document import split_data_metadata
 from sycamore.plan_nodes import UnaryNode, Node
 from sycamore.data import Document, MetadataDocument
 import numpy as np
@@ -127,8 +128,7 @@ class Aggregation(UnaryNode):
     def local_execute(self, all_docs: list[Document], do_combine: bool = True) -> list[Document]:
         import random
 
-        metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
-        documents = [d for d in all_docs if not isinstance(d, MetadataDocument)]
+        documents, metadata = split_data_metadata(all_docs)
         split_docs: dict[str, list] = {}
 
         for d in documents:
@@ -238,10 +238,9 @@ class Reduce(UnaryNode):
 
     def local_execute(self, all_docs: list[Document]) -> list[Document]:
 
-        metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
-        documents = [d for d in all_docs if not isinstance(d, MetadataDocument)]
+        documents, metadata = split_data_metadata(all_docs)
 
-        split_docs = {}
+        split_docs: dict[str, list[Document]] = {}
         for d in documents:
             key = self._group_key_fn(d)
             if (split := split_docs.get(key, None)) is not None:

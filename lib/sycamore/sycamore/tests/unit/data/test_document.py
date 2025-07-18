@@ -1,6 +1,7 @@
 import pytest
 import io
 import struct
+import msgpack
 
 from sycamore.data import BoundingBox, Document, Element, MetadataDocument
 from sycamore.data.element import TableElement
@@ -303,18 +304,26 @@ class TestDocument:
         # Create serialized data with non-zero padding
         buffer = io.BytesIO()
         buffer.write(b"ArynSDoc")  # Correct magic bytes
-        buffer.write(struct.pack(">h", 0))  # Major version
-        buffer.write(struct.pack(">h", 1))  # Minor version
-        buffer.write(struct.pack(">I", 123))  # Non-zero padding
+        buffer.write(struct.pack("!H", 0))  # Major version
+        buffer.write(struct.pack("!H", 1))  # Minor version
+        buffer.write(struct.pack("!I", 123))  # Non-zero padding
+        msgpack.pack({}, buffer)
+        Element().web_serialize(buffer)
+        msgpack.pack("_TERMINATOR", buffer)
         buffer.seek(0)
 
-        # This should not raise an error but log a warning
-        # We can't easily test the warning without more complex setup, so we just verify it doesn't crash
-        try:
+        # This should not raise an error
+        Document.web_deserialize(buffer)
+
+    def test_web_deserialize_terminator_missing(self):
+        """Test that web_deserialize raises ValueError for missing terminator."""
+        buffer = io.BytesIO()
+        buffer.write(struct.pack("!8s2H4x", b"ArynSDoc", 0, 1))
+        Element().web_serialize(buffer)
+        buffer.seek(0)
+
+        with pytest.raises(ValueError, match="Expected _TERMINATOR at end of document"):
             Document.web_deserialize(buffer)
-        except Exception as e:
-            # It's expected to fail due to invalid msgpack data, but not due to padding
-            assert "padding" not in str(e).lower()
 
     def test_web_serialize_deserialize_empty_document(self):
         """Test web_serialize and web_deserialize with minimal document."""

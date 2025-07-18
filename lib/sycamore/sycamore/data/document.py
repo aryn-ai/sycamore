@@ -235,6 +235,7 @@ class Document(UserDict):
 
         for element in self.elements:
             element.web_serialize(file)
+        msgpack.pack("_TERMINATOR", file)
 
     @experimental
     @staticmethod
@@ -267,8 +268,14 @@ class Document(UserDict):
         elementless_data = next(unpacker)
         doc = Document(elementless_data)
         elements = doc.elements
+        saw_terminator = False
         for obj in unpacker:
+            if obj == "_TERMINATOR":
+                saw_terminator = True
+                break
             elements.append(Element.web_deserialize(obj))
+        if not saw_terminator:
+            raise ValueError("Expected _TERMINATOR at end of document")
         return doc
 
     @staticmethod

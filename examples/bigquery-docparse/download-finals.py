@@ -94,6 +94,9 @@ class Process:
         return True
 
     def already(self, object, dest):
+        # This function handles the case where you manually ran a gcs storage sync command
+        # and have the files already under the prefix, but only want the ones that were
+        # finally in the table.
         src = f"{self.pdf_prefix}/{object}"
         if not os.path.exists(src):
             return False

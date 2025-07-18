@@ -224,6 +224,7 @@ def get_status_entrypoint(request):
 
 
 if __name__ == "__main__":
+    # Code below left in for use in manual testing.
     if True:
         print(get_status_tup("4/aryn:t-17i7taigfxcvtq96mk08ucx"))
         # print(get_status_tup("0/aryn:t-9aoh7233tlcemjq1mmnvmvy"))

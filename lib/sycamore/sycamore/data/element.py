@@ -1,12 +1,14 @@
 from collections import UserDict
 from io import BytesIO
 import json
-from typing import Any, Optional
+from typing import Any, Optional, BinaryIO
 
 from PIL import Image
+import msgpack
 
 from sycamore.data.bbox import BoundingBox
 from sycamore.data.table import Table
+from sycamore.decorators import experimental
 
 
 class Element(UserDict):
@@ -124,6 +126,18 @@ class Element(UserDict):
         sidx = -1 if self.element_index is None else self.element_index
         oidx = -1 if other.element_index is None else other.element_index
         return sidx > oidx
+
+    @experimental
+    def web_serialize(self, file: BinaryIO) -> None:
+        if bits := msgpack.packb(self.data):
+            file.write(bits)
+        else:
+            raise RuntimeError("Failed to serialize element")
+
+    @experimental
+    @staticmethod
+    def web_deserialize(obj: dict[str, Any]) -> "Element":
+        return create_element(**obj)
 
 
 class ImageElement(Element):
@@ -256,6 +270,17 @@ class TableElement(Element):
     @text_representation.setter
     def text_representation(self, text_representation: str) -> None:
         self.data["text_representation"] = text_representation
+
+    @experimental
+    def web_serialize(self, file: BinaryIO) -> None:
+        payload = self.data
+        if table := payload.get("table"):
+            payload = payload.copy()
+            payload["table"] = table.to_dict()
+        if bits := msgpack.packb(payload):
+            file.write(bits)
+        else:
+            raise ValueError("Failed to serialize element")
 
 
 def create_element(element_index: Optional[int] = None, **kwargs) -> Element:

@@ -6,7 +6,7 @@ import struct
 import msgpack
 
 from sycamore.data import BoundingBox, Element
-from sycamore.data.element import create_element, TableElement, ImageElement
+from sycamore.data.element import create_element
 from sycamore.data.docid import mkdocid, nanoid36
 from sycamore.decorators import experimental
 

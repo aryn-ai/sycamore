@@ -276,7 +276,7 @@ class Document(UserDict):
                 break
             elements.append(Element.web_deserialize(obj))
         if not saw_terminator:
-            raise ValueError("Expected _TERMINATOR at end of document")
+            raise RuntimeError("Premature end of serialized document stream.")
         return doc
 
     @staticmethod

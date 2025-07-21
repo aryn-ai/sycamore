@@ -331,17 +331,6 @@ class Document(UserDict):
         return dotted_lookup(self, field)
 
 
-def _make_serializeable(obj):
-    if isinstance(obj, Element):
-        data = {"_aryn_element_type": type(obj).__name__, "data": obj.data}
-        return data
-    elif isinstance(obj, dict):
-        return {k: _make_serializeable(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [_make_serializeable(v) for v in obj]
-    return obj
-
-
 class MetadataDocument(Document):
     def __init__(self, document=None, **kwargs):
         # Do not pass kwargs to parent; metadata docs take everything into data["metadata"]

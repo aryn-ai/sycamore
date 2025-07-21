@@ -275,25 +275,25 @@ class TestDocument:
             metadata_doc.web_serialize(buffer)
 
     def test_web_deserialize_invalid_magic(self):
-        """Test that web_deserialize raises ValueError for invalid magic bytes."""
+        """Test that web_deserialize raises RuntimeError for invalid magic bytes."""
         # Create invalid serialized data
         buffer = io.BytesIO()
         buffer.write(struct.pack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, b"INVALID!", 0, 1))
         buffer.seek(0)
 
         with pytest.raises(
-            ValueError, match=r"Input does not appear to be an Aryn serialized document \(Bad magic number\)\."
+            RuntimeError, match=r"Input does not appear to be an Aryn serialized document \(Bad magic number\)\."
         ):
             Document.web_deserialize(buffer)
 
     def test_web_deserialize_unsupported_version(self):
-        """Test that web_deserialize raises ValueError for unsupported versions."""
+        """Test that web_deserialize raises RuntimeError for unsupported versions."""
         # Create serialized data with unsupported version
         buffer = io.BytesIO()
         buffer.write(struct.pack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, b"ArynSDoc", 65535, 65535))
         buffer.seek(0)
 
-        with pytest.raises(ValueError, match="Unsupported serialization version: 65535.65535"):
+        with pytest.raises(RuntimeError, match="Unsupported serialization version: 65535.65535"):
             Document.web_deserialize(buffer)
 
     def test_web_deserialize_non_zero_padding(self):
@@ -310,7 +310,7 @@ class TestDocument:
         Document.web_deserialize(buffer)
 
     def test_web_deserialize_terminator_missing(self):
-        """Test that web_deserialize raises ValueError for missing terminator."""
+        """Test that web_deserialize raises RuntimeError for missing terminator."""
         buffer = io.BytesIO()
         buffer.write(struct.pack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, b"ArynSDoc", 0, 1))
         Element().web_serialize(buffer)

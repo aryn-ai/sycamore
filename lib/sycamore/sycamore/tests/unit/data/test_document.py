@@ -281,7 +281,7 @@ class TestDocument:
         buffer.write(struct.pack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, b"INVALID!", 0, 1))
         buffer.seek(0)
 
-        with pytest.raises(ValueError, match="Invalid serialization magic"):
+        with pytest.raises(ValueError, match=r"Input does not appear to be an Aryn serialized document \(Bad magic number\)."):
             Document.web_deserialize(buffer)
 
     def test_web_deserialize_unsupported_version(self):

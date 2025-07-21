@@ -256,7 +256,7 @@ class Document(UserDict):
         header = read_header(stream)
         magic_bytes, version_major, version_minor = struct.unpack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, header)
         if magic_bytes != DOCUMENT_WEB_SERIALIZATION_MAGIC:
-            raise ValueError("Invalid serialization magic")
+            raise ValueError("Input does not appear to be an Aryn serialized document (Bad magic number).")
         if (
             version_major != DOCUMENT_WEB_SERIALIZATION_VERSION_MAJOR
             or version_minor != DOCUMENT_WEB_SERIALIZATION_VERSION_MINOR

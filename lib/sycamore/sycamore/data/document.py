@@ -248,15 +248,12 @@ class Document(UserDict):
             while got < header_size:
                 to_add = stream.read(header_size - got)
                 if not to_add:
-                    break
+                    raise RuntimeError("Failed to read document header")
                 data.extend(to_add)
                 got += len(to_add)
             return data
 
         header = read_header(stream)
-        if len(header) != 16:
-            raise ValueError("Failed to read document header")
-
         magic_bytes, version_major, version_minor = struct.unpack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, header)
         if magic_bytes != DOCUMENT_WEB_SERIALIZATION_MAGIC:
             raise ValueError("Invalid serialization magic")

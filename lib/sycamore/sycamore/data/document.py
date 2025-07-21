@@ -246,7 +246,7 @@ class Document(UserDict):
             got = 0
             while got < size:
                 to_add = stream.read(size - got)
-                if len(to_add) == 0:
+                if not to_add:
                     break
                 data.extend(to_add)
                 got += len(to_add)

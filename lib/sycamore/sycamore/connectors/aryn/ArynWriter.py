@@ -59,7 +59,7 @@ class ArynWriterClient(BaseDBWriter.Client):
         for record in records:
             assert isinstance(record, ArynWriterRecord)
             doc = record.doc
-            with tempfile.TemporaryFile() as stream:
+            with tempfile.TemporaryFile(prefix="aryn-writer-", suffix=".ArynSDoc") as stream:
                 doc.web_serialize(stream)
                 stream.seek(0)
                 files: Mapping = {"doc": stream}

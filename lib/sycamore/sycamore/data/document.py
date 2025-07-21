@@ -231,7 +231,7 @@ class Document(UserDict):
 
         packed_elementless_data = msgpack.packb(elementless_data)
         if not packed_elementless_data:
-            raise ValueError("Failed to serialize document")
+            raise RuntimeError("Failed to serialize document")
         stream.write(packed_elementless_data)
 
         for element in self.elements:
@@ -256,12 +256,12 @@ class Document(UserDict):
         header = read_header(stream)
         magic_bytes, version_major, version_minor = struct.unpack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, header)
         if magic_bytes != DOCUMENT_WEB_SERIALIZATION_MAGIC:
-            raise ValueError("Input does not appear to be an Aryn serialized document (Bad magic number).")
+            raise RuntimeError("Input does not appear to be an Aryn serialized document (Bad magic number).")
         if (
             version_major != DOCUMENT_WEB_SERIALIZATION_VERSION_MAJOR
             or version_minor != DOCUMENT_WEB_SERIALIZATION_VERSION_MINOR
         ):
-            raise ValueError(f"Unsupported serialization version: {version_major}.{version_minor}")
+            raise RuntimeError(f"Unsupported serialization version: {version_major}.{version_minor}")
 
         unpacker = msgpack.Unpacker(stream)
         elementless_data = next(unpacker)

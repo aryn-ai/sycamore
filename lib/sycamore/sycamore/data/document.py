@@ -241,18 +241,19 @@ class Document(UserDict):
     @experimental
     @staticmethod
     def web_deserialize(stream: BinaryIO) -> "Document":
-        def readmin(stream: BinaryIO, size: int):
+        def read_header(stream: BinaryIO):
+            header_size = struct.calcsize(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT)
             data = bytearray()
             got = 0
-            while got < size:
-                to_add = stream.read(size - got)
+            while got < header_size:
+                to_add = stream.read(header_size - got)
                 if not to_add:
                     break
                 data.extend(to_add)
                 got += len(to_add)
             return data
 
-        header = readmin(stream, 16)
+        header = read_header(stream)
         if len(header) != 16:
             raise ValueError("Failed to read document header")
 

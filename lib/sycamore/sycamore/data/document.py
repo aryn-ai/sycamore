@@ -10,9 +10,9 @@ from sycamore.data.element import create_element
 from sycamore.data.docid import mkdocid, nanoid36
 from sycamore.decorators import experimental
 
-DOCUMENT_SERIALIZATION_MAGIC = b"ArynSDoc"
-DOCUMENT_SERIALIZATION_VERSION_MAJOR = 0
-DOCUMENT_SERIALIZATION_VERSION_MINOR = 1
+DOCUMENT_WEB_SERIALIZATION_MAGIC = b"ArynSDoc"
+DOCUMENT_WEB_SERIALIZATION_VERSION_MAJOR = 0
+DOCUMENT_WEB_SERIALIZATION_VERSION_MINOR = 1
 DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT = "!8s2H4x"
 
 
@@ -220,9 +220,9 @@ class Document(UserDict):
         stream.write(
             struct.pack(
                 DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT,
-                DOCUMENT_SERIALIZATION_MAGIC,
-                DOCUMENT_SERIALIZATION_VERSION_MAJOR,
-                DOCUMENT_SERIALIZATION_VERSION_MINOR,
+                DOCUMENT_WEB_SERIALIZATION_MAGIC,
+                DOCUMENT_WEB_SERIALIZATION_VERSION_MAJOR,
+                DOCUMENT_WEB_SERIALIZATION_VERSION_MINOR,
             )
         )
 
@@ -257,11 +257,11 @@ class Document(UserDict):
             raise ValueError("Failed to read document header")
 
         magic_bytes, version_major, version_minor = struct.unpack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, header)
-        if magic_bytes != DOCUMENT_SERIALIZATION_MAGIC:
+        if magic_bytes != DOCUMENT_WEB_SERIALIZATION_MAGIC:
             raise ValueError("Invalid serialization magic")
         if (
-            version_major != DOCUMENT_SERIALIZATION_VERSION_MAJOR
-            or version_minor != DOCUMENT_SERIALIZATION_VERSION_MINOR
+            version_major != DOCUMENT_WEB_SERIALIZATION_VERSION_MAJOR
+            or version_minor != DOCUMENT_WEB_SERIALIZATION_VERSION_MINOR
         ):
             raise ValueError(f"Unsupported serialization version: {version_major}.{version_minor}")
 

@@ -13,6 +13,7 @@ from sycamore.decorators import experimental
 DOCUMENT_SERIALIZATION_MAGIC = b"ArynSDoc"
 DOCUMENT_SERIALIZATION_VERSION_MAJOR = 0
 DOCUMENT_SERIALIZATION_VERSION_MINOR = 1
+DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT = "!8s2H4x"
 
 
 class DocumentSource:
@@ -218,7 +219,7 @@ class Document(UserDict):
 
         stream.write(
             struct.pack(
-                "!8s2H4x",
+                DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT,
                 DOCUMENT_SERIALIZATION_MAGIC,
                 DOCUMENT_SERIALIZATION_VERSION_MAJOR,
                 DOCUMENT_SERIALIZATION_VERSION_MINOR,
@@ -255,7 +256,7 @@ class Document(UserDict):
         if len(header) != 16:
             raise ValueError("Failed to read document header")
 
-        magic_bytes, version_major, version_minor = struct.unpack("!8s2H4x", header)
+        magic_bytes, version_major, version_minor = struct.unpack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, header)
         if magic_bytes != DOCUMENT_SERIALIZATION_MAGIC:
             raise ValueError("Invalid serialization magic")
         if (

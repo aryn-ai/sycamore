@@ -6,6 +6,7 @@ import msgpack
 from sycamore.data import BoundingBox, Document, Element, MetadataDocument
 from sycamore.data.element import TableElement
 from sycamore.data.table import Table, TableCell
+from sycamore.data.document import DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT
 
 
 class TestElement:
@@ -277,7 +278,7 @@ class TestDocument:
         """Test that web_deserialize raises ValueError for invalid magic bytes."""
         # Create invalid serialized data
         buffer = io.BytesIO()
-        buffer.write(struct.pack("!8s2H4x", b"INVALID!", 0, 1))
+        buffer.write(struct.pack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, b"INVALID!", 0, 1))
         buffer.seek(0)
 
         with pytest.raises(ValueError, match="Invalid serialization magic"):
@@ -287,7 +288,7 @@ class TestDocument:
         """Test that web_deserialize raises ValueError for unsupported versions."""
         # Create serialized data with unsupported version
         buffer = io.BytesIO()
-        buffer.write(struct.pack("!8s2H4x", b"ArynSDoc", 65535, 65535))
+        buffer.write(struct.pack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, b"ArynSDoc", 65535, 65535))
         buffer.seek(0)
 
         with pytest.raises(ValueError, match="Unsupported serialization version: 65535.65535"):
@@ -309,7 +310,7 @@ class TestDocument:
     def test_web_deserialize_terminator_missing(self):
         """Test that web_deserialize raises ValueError for missing terminator."""
         buffer = io.BytesIO()
-        buffer.write(struct.pack("!8s2H4x", b"ArynSDoc", 0, 1))
+        buffer.write(struct.pack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, b"ArynSDoc", 0, 1))
         Element().web_serialize(buffer)
         buffer.seek(0)
 

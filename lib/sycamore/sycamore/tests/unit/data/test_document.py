@@ -314,7 +314,7 @@ class TestDocument:
         Element().web_serialize(buffer)
         buffer.seek(0)
 
-        with pytest.raises(ValueError, match="Expected _TERMINATOR at end of document"):
+        with pytest.raises(RuntimeError, match="Premature end of serialized document stream."):
             Document.web_deserialize(buffer)
 
     def test_web_serialize_deserialize_empty_document(self):

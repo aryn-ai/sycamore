@@ -243,13 +243,13 @@ class Document(UserDict):
     def web_deserialize(stream: BinaryIO) -> "Document":
         def readmin(stream: BinaryIO, size: int):
             data = bytearray()
-            read = 0
-            while read < size:
-                to_add = stream.read(size - read)
+            got = 0
+            while got < size:
+                to_add = stream.read(size - got)
                 if len(to_add) == 0:
                     break
                 data.extend(to_add)
-                read += len(to_add)
+                got += len(to_add)
             return data
 
         header = readmin(stream, 16)

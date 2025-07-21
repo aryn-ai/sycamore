@@ -1,3 +1,4 @@
+import tempfile
 from dataclasses import dataclass
 from typing import Optional, Mapping
 
@@ -58,13 +59,16 @@ class ArynWriterClient(BaseDBWriter.Client):
         for record in records:
             assert isinstance(record, ArynWriterRecord)
             doc = record.doc
-            files: Mapping = {"doc": doc.web_serialize()}
-            sess.post(
-                url=f"{self.aryn_url}/docsets/write",
-                params={"docset_id": docset_id, "update_schema": update_schema},
-                files=files,
-                headers=headers,
-            )
+            with tempfile.TemporaryFile(prefix="aryn-writer-", suffix=".ArynSDoc") as stream:
+                doc.web_serialize(stream)
+                stream.seek(0)
+                files: Mapping = {"doc": stream}
+                sess.post(
+                    url=f"{self.aryn_url}/docsets/write",
+                    params={"docset_id": docset_id, "update_schema": update_schema},
+                    files=files,
+                    headers=headers,
+                )
             # For each batch we'll update the Aryn schema with only the first doc of each batch
             update_schema = False
 

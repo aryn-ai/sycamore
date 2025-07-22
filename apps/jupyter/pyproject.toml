@@ -11,6 +11,7 @@ python = ">=3.10,<3.14"
 sycamore-ai = {extras = ["opensearch"], version = "^0.1.30"}
 
 jupyterlab = "^4.0.11"
+jupyter-core = "^5.8.0"
 jupyter-lsp = "^2.2.2"
 ipywidgets = "^8.1.0"
 notebook = "^7.1.2"

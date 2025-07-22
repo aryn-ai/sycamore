@@ -173,7 +173,7 @@ def test_metadata():
 
 
 def test_default_llm_kwargs():
-    llm = Gemini(GeminiModels.GEMINI_2_FLASH_LITE, default_llm_kwargs={"max_output_tokens": 5})
+    llm = Gemini(GeminiModels.GEMINI_2_5_FLASH_LITE, default_llm_kwargs={"max_output_tokens": 5})
     res = llm.generate_metadata(
         prompt=RenderedPrompt(
             messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]

@@ -117,7 +117,7 @@ nbmake = "^1.4.5"
 [tool.poetry.group.notebook.dependencies]
 jupyterlab = "^4.0.11"
 jupyter-lsp = "^2.2.2"
-jupyter-core = "^5.8.0"
+jupyter-core = "^5.8.1"
 ipywidgets = "^8.1.0"
 matplotlib = "^3.10.0"
 

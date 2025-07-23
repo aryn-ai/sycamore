@@ -3,13 +3,13 @@ from typing import Callable, Optional, TYPE_CHECKING, Union
 from sycamore.data.document import split_data_metadata
 from sycamore.plan_nodes import UnaryNode, Node
 from sycamore.data import Document, MetadataDocument
-import numpy as np
 
 from sycamore.utils.lineage_utils import update_lineage
 from sycamore.utils.thread_local import ADD_METADATA_TO_OUTPUT, ThreadLocal
 
 if TYPE_CHECKING:
     from ray.data import Dataset
+    import numpy as np
 
 
 class AggregationNode(UnaryNode):
@@ -218,7 +218,7 @@ class Reduce(UnaryNode):
             row["key"] = self._group_key_fn(doc)
         return row
 
-    def _group_reduce_ray(self, block: dict[str, np.ndarray]):
+    def _group_reduce_ray(self, block: dict[str, "np.ndarray"]):
         key = block["key"][0]
         assert isinstance(key, str)
         if key.startswith("md-"):

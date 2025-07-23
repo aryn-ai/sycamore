@@ -19,7 +19,7 @@ from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
 from sycamore.llms.llms import LLMMode
 from sycamore.transforms.map import Map
-from sycamore.transforms.aggregation import AggBuilder
+from sycamore.transforms.aggregation import Aggregation
 from sycamore.transforms.base import CompositeTransform, BaseMapTransform
 from sycamore.transforms.base_llm import LLMMapElements, LLMMap, _infer_prompts
 
@@ -636,7 +636,7 @@ class Summarize(NonCPUUser, NonGPUUser, Map):
         super().__init__(child, f=summarizer.summarize, **kwargs)
 
 
-class CollectToSummaryDoc(AggBuilder):
+class CollectToSummaryDoc(Aggregation):
     def __init__(self):
         super().__init__(
             name="collect_to_summary_doc",

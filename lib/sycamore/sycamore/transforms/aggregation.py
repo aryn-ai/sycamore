@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from ray.data import Dataset
 
 
-class Aggregation(UnaryNode):
+class AggregationNode(UnaryNode):
     def __init__(
         self,
         child: Optional[Node],
@@ -58,7 +58,7 @@ class Aggregation(UnaryNode):
         class RayAggregation(AggregateFnV2):
             def __init__(
                 self,
-                syc_agg: Aggregation,
+                syc_agg: AggregationNode,
                 name: str,
                 zero_factory: Callable[[], Document],
             ):
@@ -166,7 +166,7 @@ class Aggregation(UnaryNode):
         return ret
 
 
-class AggBuilder:
+class Aggregation:
     def __init__(
         self,
         name: str,
@@ -181,13 +181,13 @@ class AggBuilder:
         self._finalize = finalize
         self._zero_factory = zero_factory
 
-    def build(self, child: Optional[Node]) -> Aggregation:
-        return Aggregation(
+    def build(self, child: Optional[Node]) -> AggregationNode:
+        return AggregationNode(
             child, self._name, self._accumulate, self._combine, self._finalize, zero_factory=self._zero_factory
         )
 
-    def build_grouped(self, child: Optional[Node], group_key_fn: Callable[[Document], str]) -> Aggregation:
-        return Aggregation(
+    def build_grouped(self, child: Optional[Node], group_key_fn: Callable[[Document], str]) -> AggregationNode:
+        return AggregationNode(
             child,
             self._name,
             self._accumulate,

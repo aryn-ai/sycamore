@@ -4,7 +4,7 @@ import pytest
 import sycamore
 from sycamore.data import Document
 from sycamore.data.document import split_data_metadata
-from sycamore.transforms.aggregation import AggBuilder
+from sycamore.transforms.aggregation import Aggregation
 
 from sycamore.tests.unit.transforms.test_aggregation import Common, assert_lineage
 
@@ -16,7 +16,7 @@ def docset():
 
 class TestAggregation:
     @staticmethod
-    def sum_aggregation() -> AggBuilder:
+    def sum_aggregation() -> Aggregation:
 
         def accumulate(docs: list[Document]) -> Document:
             d = Document(doc_id=".".join([doc.doc_id or "" for doc in docs]))
@@ -33,7 +33,7 @@ class TestAggregation:
         def finalize(doc: Document) -> Document:
             return doc
 
-        return AggBuilder(name="test_sum", accumulate_docs=accumulate, combine_partials=combine, finalize=finalize)
+        return Aggregation(name="test_sum", accumulate_docs=accumulate, combine_partials=combine, finalize=finalize)
 
     def test_aggregation_no_grouping(self, docset):
         agg = self.sum_aggregation()

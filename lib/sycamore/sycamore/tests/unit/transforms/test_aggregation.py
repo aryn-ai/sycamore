@@ -2,7 +2,7 @@ from typing import Union, Callable
 
 from sycamore.data import Document, MetadataDocument
 from sycamore.data.document import split_data_metadata
-from sycamore.transforms.aggregation import AggBuilder, Reduce
+from sycamore.transforms.aggregation import Aggregation, Reduce
 
 
 class CallCounts:
@@ -61,7 +61,7 @@ def assert_lineage(
 
 class TestAggregation:
     @staticmethod
-    def sum_aggregation() -> tuple[AggBuilder, CallCounts]:
+    def sum_aggregation() -> tuple[Aggregation, CallCounts]:
         call_counts = CallCounts()
 
         def accumulate(docs: list[Document]) -> Document:
@@ -83,7 +83,7 @@ class TestAggregation:
             return doc
 
         return (
-            AggBuilder(name="test_sum", accumulate_docs=accumulate, combine_partials=combine, finalize=finalize),
+            Aggregation(name="test_sum", accumulate_docs=accumulate, combine_partials=combine, finalize=finalize),
             call_counts,
         )
 

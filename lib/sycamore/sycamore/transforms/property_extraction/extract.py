@@ -29,7 +29,7 @@ class Extract(MapBatch):
         put_in_properties_dot_entity: bool = True,
     ):
         if put_in_properties_dot_entity:
-            _logger.warning("Really? You're putting the results in properties.entity???")
+            _logger.warning("Extraction results will go in properties.entity")
         super().__init__(node, f=self.extract)
         self._schema = schema
         self._step_through = step_through_strategy

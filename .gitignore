@@ -48,3 +48,4 @@ apps/timetrace/ttviz
 notebooks/pc-tutorial
 notebooks/tmp
 notebooks/data
+pyrightconfig.json

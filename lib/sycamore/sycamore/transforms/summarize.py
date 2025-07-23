@@ -345,6 +345,7 @@ class MultiStepDocumentSummarizer(Summarizer):
                 to_infer.append(base_prompt.render_document(document))
 
         # Invoke the llm and attach summaries
+        # TODO: Use run_coros_threadsafe here instead
         summaries = _infer_prompts(prompts=to_infer, llm=self.llm, llm_mode=self.llm_mode)
         for e, s in zip(final_elements, summaries):
             e.properties["summary"] = s

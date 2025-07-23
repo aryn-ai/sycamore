@@ -1,4 +1,3 @@
-from bs4 import BeautifulSoup, Tag
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any, Optional, TypeVar, Union, List, Sequence, TYPE_CHECKING
@@ -192,6 +191,8 @@ class Table:
         Extracts the first <table>...</table> block from the given HTML string.
         Returns the table block as a Tag.
         """
+        from bs4 import BeautifulSoup
+
         parsed = BeautifulSoup(html_str, "html.parser")
         return parsed.find("table")
 
@@ -208,6 +209,7 @@ class Table:
           html_str: The html string to parse. Must be enclosed in <table></table> tags.
           html_tag: A BeatifulSoup tag corresponding to the table. One of html_str or html_tag must be set.
         """
+        from bs4 import BeautifulSoup, Tag
 
         # TODO: This doesn't account for rowgroup/colgroup handling, which can get quite tricky.
 

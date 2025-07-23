@@ -27,8 +27,10 @@ from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.deprecate import deprecated
+from sycamore.decorators import experimental
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
+from sycamore.schema import Schema
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
@@ -455,6 +457,22 @@ class DocSet:
 
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
+
+    @experimental
+    def extract(self, schema: Schema, llm: LLM) -> "DocSet":
+        from sycamore.transforms.property_extraction.extract import Extract
+        from sycamore.transforms.property_extraction.strategy import OneElementAtATime, NoSchemaSplitting
+        from sycamore.transforms.property_extraction.prompts import _elt_at_a_time_full_schema
+
+        ext = Extract(
+            self.plan,
+            schema=schema,
+            step_through_strategy=OneElementAtATime(),
+            schema_partition_strategy=NoSchemaSplitting(),
+            llm=llm,
+            prompt=_elt_at_a_time_full_schema,
+        )
+        return DocSet(self.context, ext)
 
     def extract_document_structure(self, structure: DocumentStructure, **kwargs):
         """

@@ -1,8 +1,12 @@
 import pytest
+import io
+import struct
+import msgpack
 
 from sycamore.data import BoundingBox, Document, Element, MetadataDocument
 from sycamore.data.element import TableElement
 from sycamore.data.table import Table, TableCell
+from sycamore.data.document import DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT
 
 
 class TestElement:
@@ -142,6 +146,277 @@ class TestDocument:
         d.elements.sort(key=lambda v: v["type"])
         assert d.elements[0]["type"] == "a"
         assert d.elements[1]["type"] == "b"
+
+    def test_web_serialize_deserialize_basic(self):
+        """Test basic web_serialize and web_deserialize functionality."""
+        # Create a simple document
+        doc = Document()
+        doc.doc_id = "test_doc_123"
+        doc.type = "pdf"
+        doc.text_representation = "This is a test document"
+        doc.binary_representation = b"binary content"
+        doc.properties = {"author": "Test Author", "page_count": 5}
+
+        # Serialize to bytes
+        buffer = io.BytesIO()
+        doc.web_serialize(buffer)
+        buffer.seek(0)
+
+        # Deserialize back
+        deserialized_doc = Document.web_deserialize(buffer)
+
+        # Verify all properties are preserved
+        assert deserialized_doc.doc_id == "test_doc_123"
+        assert deserialized_doc.type == "pdf"
+        assert deserialized_doc.text_representation == "This is a test document"
+        assert deserialized_doc.binary_representation == b"binary content"
+        assert deserialized_doc.properties == {"author": "Test Author", "page_count": 5}
+        assert len(deserialized_doc.elements) == 0
+
+    def test_web_serialize_deserialize_with_elements(self):
+        """Test web_serialize and web_deserialize with document elements."""
+        # Create a document with elements
+        doc = Document()
+        doc.doc_id = "test_doc_with_elements"
+        doc.type = "pdf"
+
+        # Create elements
+        element1 = Element()
+        element1.type = "Text"
+        element1.text_representation = "First element"
+        element1.properties = {"font_size": 12}
+
+        element2 = Element()
+        element2.type = "Image"
+        element2.binary_representation = b"image data"
+        element2.properties = {"width": 100, "height": 200}
+
+        doc.elements = [element1, element2]
+
+        # Serialize to bytes
+        buffer = io.BytesIO()
+        doc.web_serialize(buffer)
+        buffer.seek(0)
+
+        # Deserialize back
+        deserialized_doc = Document.web_deserialize(buffer)
+
+        # Verify document properties
+        assert deserialized_doc.doc_id == "test_doc_with_elements"
+        assert deserialized_doc.type == "pdf"
+        assert len(deserialized_doc.elements) == 2
+
+        # Verify first element
+        assert deserialized_doc.elements[0].type == "Text"
+        assert deserialized_doc.elements[0].text_representation == "First element"
+        assert deserialized_doc.elements[0].properties == {"font_size": 12}
+
+        # Verify second element
+        assert deserialized_doc.elements[1].type == "Image"
+        assert deserialized_doc.elements[1].binary_representation == b"image data"
+        assert set(deserialized_doc.elements[1].properties.keys()).issuperset({"width": 100, "height": 200})
+
+    def test_web_serialize_deserialize_with_bbox(self):
+        """Test web_serialize and web_deserialize with bounding box."""
+        doc = Document()
+        doc.doc_id = "test_doc_with_bbox"
+        doc.bbox = BoundingBox(0.105, 0.203, 0.307, 0.401)
+
+        # Serialize to bytes
+        buffer = io.BytesIO()
+        doc.web_serialize(buffer)
+        buffer.seek(0)
+
+        # Deserialize back
+        deserialized_doc = Document.web_deserialize(buffer)
+
+        # Verify bounding box is preserved
+        assert deserialized_doc.bbox is not None
+        assert deserialized_doc.bbox.coordinates == (0.105, 0.203, 0.307, 0.401)
+
+    def test_web_serialize_deserialize_complex_properties(self):
+        """Test web_serialize and web_deserialize with complex property types."""
+        doc = Document()
+        doc.doc_id = "test_doc_complex_props"
+        doc.properties = {
+            "string": "test string",
+            "integer": 42,
+            "float": 3.14159,
+            "boolean": True,
+            "list": [1, 2, 3, "four"],
+            "dict": {"nested": "value", "numbers": [1, 2, 3]},
+            "none": None,
+        }
+
+        # Serialize to bytes
+        buffer = io.BytesIO()
+        doc.web_serialize(buffer)
+        buffer.seek(0)
+
+        # Deserialize back
+        deserialized_doc = Document.web_deserialize(buffer)
+
+        # Verify complex properties are preserved
+        assert deserialized_doc.properties["string"] == "test string"
+        assert deserialized_doc.properties["integer"] == 42
+        assert deserialized_doc.properties["float"] == 3.14159
+        assert deserialized_doc.properties["boolean"] is True
+        assert deserialized_doc.properties["list"] == [1, 2, 3, "four"]
+        assert deserialized_doc.properties["dict"] == {"nested": "value", "numbers": [1, 2, 3]}
+        assert deserialized_doc.properties["none"] is None
+
+    def test_web_serialize_unsupported_document_types(self):
+        """Test that web_serialize raises NotImplementedError for unsupported document types."""
+        # Create a MetadataDocument (which is not supported)
+        metadata_doc = MetadataDocument(test_prop="test_value")
+
+        buffer = io.BytesIO()
+        with pytest.raises(NotImplementedError, match="web_serialize cannot yet handle type 'MetadataDocument'"):
+            metadata_doc.web_serialize(buffer)
+
+    def test_web_deserialize_invalid_magic(self):
+        """Test that web_deserialize raises RuntimeError for invalid magic bytes."""
+        # Create invalid serialized data
+        buffer = io.BytesIO()
+        buffer.write(struct.pack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, b"INVALID!", 0, 1))
+        buffer.seek(0)
+
+        with pytest.raises(
+            RuntimeError, match=r"Input does not appear to be an Aryn serialized document \(Bad magic number\)\."
+        ):
+            Document.web_deserialize(buffer)
+
+    def test_web_deserialize_unsupported_version(self):
+        """Test that web_deserialize raises RuntimeError for unsupported versions."""
+        # Create serialized data with unsupported version
+        buffer = io.BytesIO()
+        buffer.write(struct.pack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, b"ArynSDoc", 65535, 65535))
+        buffer.seek(0)
+
+        with pytest.raises(RuntimeError, match="Unsupported serialization version: 65535.65535"):
+            Document.web_deserialize(buffer)
+
+    def test_web_deserialize_non_zero_padding(self):
+        """Test that web_deserialize handles non-zero padding with a warning."""
+        # Create serialized data with non-zero padding
+        buffer = io.BytesIO()
+        buffer.write(struct.pack("!8s2HI", b"ArynSDoc", 0, 1, 123))
+        msgpack.pack({}, buffer)
+        Element().web_serialize(buffer)
+        msgpack.pack("_TERMINATOR", buffer)
+        buffer.seek(0)
+
+        # This should not raise an error
+        Document.web_deserialize(buffer)
+
+    def test_web_deserialize_terminator_missing(self):
+        """Test that web_deserialize raises RuntimeError for missing terminator."""
+        buffer = io.BytesIO()
+        buffer.write(struct.pack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, b"ArynSDoc", 0, 1))
+        Element().web_serialize(buffer)
+        buffer.seek(0)
+
+        with pytest.raises(RuntimeError, match="Premature end of serialized document stream."):
+            Document.web_deserialize(buffer)
+
+    def test_web_serialize_deserialize_empty_document(self):
+        """Test web_serialize and web_deserialize with minimal document."""
+        doc = Document()
+
+        # Serialize to bytes
+        buffer = io.BytesIO()
+        doc.web_serialize(buffer)
+        buffer.seek(0)
+
+        # Deserialize back
+        deserialized_doc = Document.web_deserialize(buffer)
+
+        # Verify basic structure is preserved
+        assert deserialized_doc.doc_id is None
+        assert deserialized_doc.type is None
+        assert deserialized_doc.text_representation is None
+        assert deserialized_doc.binary_representation is None
+        assert deserialized_doc.elements == []
+        assert deserialized_doc.properties == {}
+        # lineage_id should be generated
+        assert deserialized_doc.lineage_id is not None
+
+    def test_web_serialize_deserialize_with_table_element(self):
+        """Test web_serialize and web_deserialize with TableElement."""
+        # Create a table
+        table = Table(
+            [
+                TableCell(content="Header1", rows=[0], cols=[0], is_header=True),
+                TableCell(content="Header2", rows=[0], cols=[1], is_header=True),
+                TableCell(content="Data1", rows=[1], cols=[0], is_header=False),
+                TableCell(content="Data2", rows=[1], cols=[1], is_header=False),
+            ]
+        )
+
+        # Create document with table element
+        doc = Document()
+        doc.doc_id = "test_doc_with_table"
+
+        table_element = TableElement()
+        table_element.table = table
+        table_element.properties = {"title": "Test Table"}
+
+        doc.elements = [table_element]
+
+        # Serialize to bytes
+        buffer = io.BytesIO()
+        doc.web_serialize(buffer)
+        buffer.seek(0)
+
+        # Deserialize back
+        deserialized_doc = Document.web_deserialize(buffer)
+
+        # Verify table element is preserved
+        assert len(deserialized_doc.elements) == 1
+        assert isinstance(deserialized_doc.elements[0], TableElement)
+        assert deserialized_doc.elements[0].properties["title"] == "Test Table"
+        assert deserialized_doc.elements[0].text_representation == "Header1,Header2\nData1,Data2\n"
+
+    def test_web_serialize_deserialize_roundtrip_consistency(self):
+        """Test that multiple serialize/deserialize cycles maintain consistency."""
+        # Create a complex document
+        doc = Document()
+        doc.doc_id = "roundtrip_test"
+        doc.type = "pdf"
+        doc.text_representation = "Original text"
+        doc.binary_representation = b"original binary"
+        doc.embedding = [0.1, 0.2, 0.3]
+        doc.properties = {"test": "value", "numbers": [1, 2, 3]}
+
+        element = Element()
+        element.type = "text"
+        element.text_representation = "Element text"
+        element.properties = {"element_prop": "element_value"}
+        doc.elements = [element]
+
+        # First roundtrip
+        buffer1 = io.BytesIO()
+        doc.web_serialize(buffer1)
+        buffer1.seek(0)
+        doc1 = Document.web_deserialize(buffer1)
+
+        # Second roundtrip
+        buffer2 = io.BytesIO()
+        doc1.web_serialize(buffer2)
+        buffer2.seek(0)
+        doc2 = Document.web_deserialize(buffer2)
+
+        # Verify consistency
+        assert doc2.doc_id == "roundtrip_test"
+        assert doc2.type == "pdf"
+        assert doc2.text_representation == "Original text"
+        assert doc2.binary_representation == b"original binary"
+        assert doc2.embedding == [0.1, 0.2, 0.3]
+        assert doc2.properties == {"test": "value", "numbers": [1, 2, 3]}
+        assert len(doc2.elements) == 1
+        assert doc2.elements[0].type == "text"
+        assert doc2.elements[0].text_representation == "Element text"
+        assert doc2.elements[0].properties == {"element_prop": "element_value"}
 
 
 class TestMetadataDocument:

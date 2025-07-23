@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sycamore-ai"
-version = "0.1.32"
+version = "0.1.33"
 description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
 authors = ["aryn.ai <opensource@aryn.ai>"]
 readme = "README.md"
@@ -40,7 +40,7 @@ rich = "^13.7.1"
 jinja2 = "^3.1.6"
 fsspec = "2024.2.0" # See poetry-lock/pyproject.toml
 
-aiohttp = "^3.11.18"
+aiohttp = "^3.12.14"
 fasteners = "^0.19"
 pydantic = "^2.8.2"
 
@@ -97,6 +97,7 @@ nltk = { version = "^3.9.0", optional = true }
 anthropic = { version = "^0.42.0", optional = true }
 google-genai = {version = "^1.14.0", optional = true}
 tiktoken = "^0.8.0"
+msgpack = "^1.1.1"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
@@ -116,6 +117,7 @@ nbmake = "^1.4.5"
 [tool.poetry.group.notebook.dependencies]
 jupyterlab = "^4.0.11"
 jupyter-lsp = "^2.2.2"
+jupyter-core = "^5.8.1"
 ipywidgets = "^8.1.0"
 matplotlib = "^3.10.0"
 

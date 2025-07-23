@@ -140,4 +140,4 @@ We have seen this happen on MacOS for two reasons:
 
 You may also want to reset the configuration entirely, although in all the cases where we have seen these problems, no persistent state existed to be reset.
 
-Reach out for help via email or on the Sycamore Slack channel
+Reach out for help via email or on the Aryn Community Slack channel

@@ -1,5 +1,4 @@
 from typing import Optional, Any
-import threading
 import asyncio
 import logging
 
@@ -10,35 +9,10 @@ from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import SchemaPartitionStrategy, StepThroughStrategy
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
-from sycamore.transforms.base_llm import _run_new_thread
 from sycamore.utils.extract_json import extract_json
-from sycamore.utils.thread_local import ThreadLocal, ADD_METADATA_TO_OUTPUT, ThreadLocalAccess
+from sycamore.utils.threading import run_coros_threadsafe
 
 _logger = logging.getLogger(__name__)
-
-
-def _run_coros_threadsafe(coros):
-    new_loop = asyncio.new_event_loop()
-    t = threading.Thread(target=_run_new_thread, args=(new_loop,), daemon=True)
-    t.start()
-
-    metadata = []
-
-    async def _gather_coros(coros):
-        # Exfiltrate metadata documents from inner thread
-        with ThreadLocal(ADD_METADATA_TO_OUTPUT, metadata):
-            tasks = [new_loop.create_task(c) for c in coros]
-            return await asyncio.gather(*tasks)
-
-    fut = asyncio.run_coroutine_threadsafe(_gather_coros(coros), loop=new_loop)
-    results = fut.result()
-    new_loop.call_soon_threadsafe(new_loop.stop)
-    t.join()
-    new_loop.close()
-    tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
-    if tls.present():
-        tls.get().extend(metadata)
-    return results
 
 
 class Extract(MapBatch):
@@ -69,7 +43,7 @@ class Extract(MapBatch):
     def extract(self, documents: list[Document]) -> list[Document]:
         schema_parts = self._schema_partition.partition_schema(self._schema)
         coros = [self.extract_schema_partition(documents, sp) for sp in schema_parts]
-        results = _run_coros_threadsafe(coros)
+        results = run_coros_threadsafe(coros)
         assert all(isinstance(r, dict) for result_set in results for r in result_set)
         for partial_result in results:
             for props, doc in zip(partial_result, documents):

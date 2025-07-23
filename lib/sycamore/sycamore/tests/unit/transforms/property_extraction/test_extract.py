@@ -1,32 +1,12 @@
-import random
 from typing import Optional
 
-from sycamore.data.document import MetadataDocument, Document
+from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
-from sycamore.transforms.property_extraction.extract import Extract, _run_coros_threadsafe
+from sycamore.transforms.property_extraction.extract import Extract
 from sycamore.transforms.property_extraction.strategy import NoSchemaSplitting, OneElementAtATime
-from sycamore.utils.thread_local import ThreadLocal, ThreadLocalAccess, ADD_METADATA_TO_OUTPUT
 from sycamore.schema import Schema, SchemaField
-
-
-def test_run_coros():
-    async def sometimes_recurse(n: int, tries: int = 0) -> int:
-        if random.random() < 0.5:
-            ThreadLocalAccess(ADD_METADATA_TO_OUTPUT).get().append(MetadataDocument(tries=tries))
-            return n
-        else:
-            return await sometimes_recurse(n, tries + 1)
-
-    nums = list(range(10))
-    coros = [sometimes_recurse(n) for n in nums]
-    meta = []
-    with ThreadLocal(ADD_METADATA_TO_OUTPUT, meta):
-        results = _run_coros_threadsafe(coros)
-
-    assert results == nums
-    assert len(meta) == 10
 
 
 class FakeExtractionPrompt(SycamorePrompt):

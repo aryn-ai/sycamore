@@ -101,7 +101,7 @@ class SchemaExtract(MapBatch):
         results = run_coros_threadsafe(coros)
         assert all(isinstance(r, dict) for r in results)
 
-        fake_doc = Document() # to store the schema
+        fake_doc = Document()  # to store the schema
 
         if not results:
             _logger.warning("No schema fields extracted, returning empty schema.")

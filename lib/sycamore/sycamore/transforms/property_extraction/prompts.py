@@ -10,6 +10,7 @@ from sycamore.llms.prompts.prompts import (
 )
 from sycamore.llms.prompts.jinja_fragments import J_FORMAT_SCHEMA_MACRO
 from sycamore.schema import Schema
+import textwrap
 
 
 class ExtractionJinjaPrompt(SycamorePrompt):
@@ -91,4 +92,32 @@ _elt_at_a_time_full_schema = ExtractionJinjaPrompt(
 schema as JSON. If a field is not present in the element, output `null` in the output result.""",
     element_template="Element: {{ elt.text_representation }}",
     user_post_elements=J_FORMAT_SCHEMA_MACRO + "Schema: {{ format_schema(schema) }}",
+)
+
+_schema_extraction_prompt = ExtractionJinjaPrompt(
+    system="You are a helpful entity extractor. You only return a JSON list of entities. Return only the relevant entities; for example, if it's a form, you might want to return several entities whereas if it's an article, you might want to return only the relevant entities. Be very careful about what entities you return.",
+    user_pre_elements=textwrap.dedent(
+        """\
+        Extract a flat JSON list of entities from the following document text.
+
+        Each entity must have:
+        - `name`: lowercase, underscore-separated string representing the name of the entity. The name should be descriptive and concise. It should describe the kind of entity, **not its value**. 
+        - `value`: the value of the entity extracted from the document
+        - `type`: one of: "string", "integer", "float", "date", "datetime".
+        - `description`: a brief human-readable explanation of what the entity represents
+
+        Guidelines:
+        - Use a flat schema (no nested properties)
+        - Do not return any explanation or extra text outside the JSON
+        - Entity of type "date" should be in ISO format (YYYY-MM-DD)
+        - Entity of type "datetime" should be in ISO format (YYYY-MM-DDTHH:MM:SS)
+
+        Example output:
+        [
+            {"name": "company_name", "value": "Acme Corp", "type": "string", "description": "The name of the company"},
+            {"name": "ceo", "value": "Jane Doe", "type": "string", "description": "The CEO of the company"}
+        ]
+        """
+    ),
+    element_template="Element {{ elt.element_index }}: {{ elt.text_representation }}",
 )

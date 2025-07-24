@@ -4,7 +4,7 @@ import logging
 
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node
-from sycamore.schema import Schema
+from sycamore.schema import Schema, SchemaField
 from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import SchemaPartitionStrategy, StepThroughStrategy
 from sycamore.llms.llms import LLM
@@ -77,4 +77,89 @@ class Extract(MapBatch):
         for sf in schema_part.fields:
             if sf.default is not None and sf.name not in result_dict:
                 result_dict[sf.name] = sf.default
+        return result_dict
+
+
+class SchemaExtract(MapBatch):
+    def __init__(
+        self,
+        node: Optional[Node],
+        *,
+        step_through_strategy: StepThroughStrategy,
+        llm: LLM,
+        prompt: SycamorePrompt,
+    ):
+        super().__init__(node, f=self.extract_schema)
+        self._step_through = step_through_strategy
+        self._llm = llm
+        self._prompt = prompt
+        # Try calling the render method I need at constructor to make sure it's implemented
+        self._prompt.render_multiple_elements(elts=[], doc=Document())
+
+    def extract_schema(self, documents: list[Document]) -> Schema:
+        coros = [self.extract_schema_from_document(doc) for doc in documents]
+        results = run_coros_threadsafe(coros)
+        assert all(isinstance(r, dict) for r in results)
+
+        if not results:
+            _logger.warning("No schema fields extracted, returning empty schema.")
+            return Schema(fields=[])
+
+        if len(results) == 1:
+            return Schema(fields=[SchemaField(**field) for _, field in results[0].items()])
+
+        # Merge fields from all results by taking an intersection of field names from each item in results
+        merged_fields = {}
+        field_names = []
+        for result in results:
+            temp = []
+            for name, field in result.items():
+                temp.append(name)
+                if name not in merged_fields:
+                    merged_fields[name] = field
+                else:
+                    if field["type"] != merged_fields[name]["type"]:
+                        continue
+                    merged_fields[name]["examples"].extend(field["examples"])
+            if temp:
+                field_names.append(temp)
+        common_field_names = set.intersection(*map(set, field_names))
+
+        schema = Schema(
+            fields=[
+                SchemaField(
+                    name=name,
+                    field_type=merged_fields[name]["type"],
+                    description=merged_fields[name]["description"],
+                    examples=list(set(merged_fields[name]["examples"])),
+                )
+                for name in common_field_names
+            ]
+        )
+        return schema
+
+    async def extract_schema_from_document(self, document: Document) -> dict[str, Any]:
+        result_dict = dict()
+        for elements in self._step_through.step_through(document):
+            rendered = self._prompt.render_multiple_elements(elements, document)
+            result = await self._llm.generate_async(prompt=rendered)
+            rd = {ii["name"]: ii for ii in extract_json(result)}
+            for k, v in rd.items():
+                example = v.get("value", None)
+                v_type = v.get("type", "string")  # Default to "string" if not specified
+                if k not in result_dict:
+                    v["examples"] = [example] if example is not None else []
+                    v["type"] = v_type
+                    v.pop("value", None)
+                    result_dict[k] = v
+                else:
+                    # Only append if type matches and value is not None and not already present
+                    if example is not None and v_type == result_dict[k]["type"]:
+                        if example not in result_dict[k]["examples"]:
+                            result_dict[k]["examples"].append(example)
+                    elif v_type != result_dict[k]["type"]:
+                        _logger.warning(
+                            f"Type mismatch for field '{k}': {v_type} vs {result_dict[k]['type']}. "
+                            "Skipping this field."
+                        )
         return result_dict

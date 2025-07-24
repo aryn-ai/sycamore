@@ -131,7 +131,7 @@ class SchemaExtract(MapBatch):
                     name=name,
                     field_type=merged_fields[name]["type"],
                     description=merged_fields[name]["description"],
-                    examples=list(set(merged_fields[name]["examples"])),
+                    examples=list(set(merged_fields[name]["examples"]))[:5],
                 )
                 for name in common_field_names
             ]

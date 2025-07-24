@@ -96,17 +96,21 @@ class SchemaExtract(MapBatch):
         # Try calling the render method I need at constructor to make sure it's implemented
         self._prompt.render_multiple_elements(elts=[], doc=Document())
 
-    def extract_schema(self, documents: list[Document]) -> Schema:
+    def extract_schema(self, documents: list[Document]) -> list[Document]:
         coros = [self.extract_schema_from_document(doc) for doc in documents]
         results = run_coros_threadsafe(coros)
         assert all(isinstance(r, dict) for r in results)
 
+        fake_doc = Document() # to store the schema
+
         if not results:
             _logger.warning("No schema fields extracted, returning empty schema.")
-            return Schema(fields=[])
+            fake_doc.properties["_schema"] = Schema(fields=[])
+            return [fake_doc]
 
         if len(results) == 1:
-            return Schema(fields=[SchemaField(**field) for _, field in results[0].items()])
+            fake_doc.properties["_schema"] = Schema(fields=[SchemaField(**field) for _, field in results[0].items()])
+            return [fake_doc]
 
         # Merge fields from all results by taking an intersection of field names from each item in results
         merged_fields = {}
@@ -136,7 +140,9 @@ class SchemaExtract(MapBatch):
                 for name in common_field_names
             ]
         )
-        return schema
+        fake_doc.properties["_schema"] = schema
+
+        return [fake_doc]
 
     async def extract_schema_from_document(self, document: Document) -> dict[str, Any]:
         result_dict = dict()

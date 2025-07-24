@@ -486,7 +486,10 @@ class DocSet:
             llm=llm,
             prompt=_schema_extraction_prompt,
         )
-        return DocSet(self.context, schema_ext)
+        ds = DocSet(self.context, schema_ext)
+        schema = ds.take()[0].properties.get("_schema", Schema(fields=[]))
+        
+        return schema
 
     def extract_document_structure(self, structure: DocumentStructure, **kwargs):
         """

@@ -1322,15 +1322,17 @@ class DocSet:
             plan = DropIfMissingField(plan, field)
         return DocSet(self.context, Sort(plan, descending, field, default_val))
 
-    def aggregate(self, agg: Aggregation, **kwargs) -> "DocSet":
-        aggregation = agg.build(self.plan)
-        return DocSet(self.context, aggregation)
+    def aggregate(self, agg: Aggregation) -> "DocSet":
+        return DocSet(self.context, agg.build(self.plan))
 
-    def reduce(self, reduce_fn: Callable[[list[Document]], Document], **kwargs) -> "DocSet":
+    def reduce(
+        self,
+        reduce_fn: Callable[[list[Document]], Document],
+        group_key_fn: Callable[[Document], str] = lambda d: "single_group",
+    ) -> "DocSet":
         from sycamore.transforms.aggregation import Reduce
 
-        reduction = Reduce(self.plan, reduce_fn)
-        return DocSet(self.context, reduction)
+        return DocSet(self.context, Reduce(reduce_fn).build_grouped(self.plan, group_key_fn))
 
     def groupby_count(self, field: str, unique_field: Optional[str] = None, **kwargs) -> "DocSet":
         """

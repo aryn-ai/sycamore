@@ -9,27 +9,18 @@ from sycamore.utils.thread_local import ADD_METADATA_TO_OUTPUT, ThreadLocal
 
 if TYPE_CHECKING:
     from ray.data import Dataset
-    import numpy as np
 
 
 class AggregationNode(UnaryNode):
     def __init__(
         self,
         child: Optional[Node],
-        name: str,
-        accumulate_docs: Callable[[list[Document]], Document],
-        combine_partials: Callable[[Document, Document], Document],
-        finalize: Callable[[Document], Document],
-        group_key_fn: Callable[[Document], str] = lambda d: "nogrouping",
-        zero_factory: Callable[[], Document] = Document,
+        aggregation: "Aggregation",
+        group_key_fn: Callable[[Document], str] = lambda d: "single_group",
     ):
         super().__init__(child)
-        self._name = name
-        self._accumulate = accumulate_docs
-        self._combine = combine_partials
-        self._finalize = finalize
+        self._agg = aggregation
         self._group_key_fn = group_key_fn
-        self._zero_factory = zero_factory
 
     def _to_key_val(self, row):
         doc = Document.from_row(row)
@@ -42,15 +33,15 @@ class AggregationNode(UnaryNode):
     def _unpack(self, row):
         import pickle
 
-        doc_n_meta = row[self._name]
+        doc_n_meta = row[self._agg._name]
         doc = doc_n_meta["doc"]
         meta = pickle.loads(doc_n_meta["meta"])
         return [{"doc": doc}] + [m.to_row() for m in meta]
 
     def execute(self, **kwargs) -> "Dataset":
         from ray.data.aggregate import AggregateFnV2
-        import pyarrow as pa
-        import pandas as pd
+        import pyarrow
+        import pandas
         import pickle
 
         dataset = self.child().execute()
@@ -58,19 +49,18 @@ class AggregationNode(UnaryNode):
         class RayAggregation(AggregateFnV2):
             def __init__(
                 self,
-                syc_agg: AggregationNode,
-                name: str,
-                zero_factory: Callable[[], Document],
+                syc_agg: Aggregation,
             ):
-                # Idk why I couldn't do super().__init__(...)
                 def real_zero_factory():
-                    return {"doc": zero_factory(), "meta": pickle.dumps([])}
+                    return {"doc": syc_agg.zero_factory(), "meta": pickle.dumps([])}
 
-                AggregateFnV2.__init__(self, name, real_zero_factory, on=None, ignore_nulls=True)
                 self._syc_agg = syc_agg
+                super().__init__(self._syc_agg._name, real_zero_factory, on=None, ignore_nulls=True)
 
-            def aggregate_block(self, block: Union[pa.Table, pd.DataFrame]):
+            def aggregate_block(self, block: Union[pyarrow.Table, pandas.DataFrame]):
                 docs = [
+                    # I don't control how ray chooses to represent a block of data internally,
+                    # so handle either case.
                     Document.deserialize(
                         dbytes.as_py() if hasattr(dbytes, "as_py") else dbytes
                     )  # ^^ if pyarrow BinaryScalar convert to python bytes
@@ -85,7 +75,7 @@ class AggregationNode(UnaryNode):
                 ), "Found mixed accumuation between Documents and Metadata"
                 extra_metadata: list[MetadataDocument] = []
                 with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
-                    partial_result = self._syc_agg._accumulate(docs)
+                    partial_result = self._syc_agg.accumulate(docs)
                 meta = update_lineage(from_docs=docs, to_docs=[partial_result])
                 meta.extend(extra_metadata)
                 return {"doc": partial_result.serialize(), "key": key, "meta": pickle.dumps(meta)}
@@ -101,7 +91,7 @@ class AggregationNode(UnaryNode):
                 meta = pickle.loads(current_accumulator["meta"]) + pickle.loads(new["meta"])
                 extra_metadata: list[MetadataDocument] = []
                 with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
-                    combined = self._syc_agg._combine(doc1, doc2)
+                    combined = self._syc_agg.combine(doc1, doc2)
                 meta.extend(update_lineage(from_docs=[doc1, doc2], to_docs=[combined]))
                 meta.extend(extra_metadata)
 
@@ -115,13 +105,13 @@ class AggregationNode(UnaryNode):
                     return accumulator
                 extra_metadata: list[MetadataDocument] = []
                 with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
-                    final_doc = self._syc_agg._finalize(doc)
+                    final_doc = self._syc_agg.finalize(doc)
                 final_doc["key"] = accumulator["key"]
                 meta.extend(update_lineage(from_docs=[doc], to_docs=[final_doc]))
                 meta.extend(extra_metadata)
                 return {"doc": final_doc.serialize(), "meta": pickle.dumps(meta)}
 
-        ray_agg = RayAggregation(self, self._name, self._zero_factory)
+        ray_agg = RayAggregation(self._agg)
         ds = dataset.map(self._to_key_val).groupby("key").aggregate(ray_agg).flat_map(self._unpack)
         return ds
 
@@ -129,37 +119,42 @@ class AggregationNode(UnaryNode):
         import random
 
         documents, metadata = split_data_metadata(all_docs)
-        split_docs: dict[str, list] = {}
+        key_to_docs: dict[str, list] = {}
 
         for d in documents:
             key = self._group_key_fn(d)
-            if (split := split_docs.get(key, None)) is not None:
-                split.append(d)
+            if (docs := key_to_docs.get(key, None)) is not None:
+                docs.append(d)
             else:
-                split_docs[key] = [d]
+                key_to_docs[key] = [d]
 
         ret: list[Union[Document, MetadataDocument]] = metadata  # type: ignore
         extra_metadata: list[MetadataDocument] = []
         with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
-            for key, split in split_docs.items():
-                if do_combine and len(split) > 1:
-                    # This path is mostly for testing. Otherwise combine is not exercised
-                    # in local mode. We also combine in a random order because if
-                    # we're testing we're trying to break your assumptions.
-                    documents_beginning = split[: len(split) // 2]
-                    documents_end = split[len(split) // 2 :]
-                    partial_beginning = self._accumulate(documents_beginning)
+            for key, docs in key_to_docs.items():
+                if do_combine and len(docs) > 1:
+                    # This path is mostly for testing. Otherwise combine is not exercised in local mode.
+                    # Determinism requires that combine is commutative, associative, and has a zero; and that accumulate is order independent.
+                    # Non-crashiness requires it to handle those orders without failing.
+                    # We check a subset of the conditions here and will expand over time.
+                    # TODO: check that the result of combine(a, b) == combine(b, a);
+                    #       that combine(a, combine(b, c)) = combine(combine(a, b), c);
+                    #       and that combine(a, zero) == a ==  combine(zero, a)
+                    # TODO: check that accumulate(docs) == accumulate(shuffle(docs))
+                    documents_beginning = docs[: len(docs) // 2]
+                    documents_end = docs[len(docs) // 2 :]
+                    partial_beginning = self._agg.accumulate(documents_beginning)
                     ret.extend(update_lineage(from_docs=documents_beginning, to_docs=[partial_beginning]))
-                    partial_end = self._accumulate(documents_end)
+                    partial_end = self._agg.accumulate(documents_end)
                     ret.extend(update_lineage(from_docs=documents_end, to_docs=[partial_end]))
                     if random.random() < 0.5:
                         partial_beginning, partial_end = partial_end, partial_beginning
-                    partial = self._combine(partial_beginning, partial_end)
+                    partial = self._agg.combine(partial_beginning, partial_end)
                     ret.extend(update_lineage(from_docs=[partial_beginning, partial_end], to_docs=[partial]))
                 else:
-                    partial = self._accumulate(split)
-                    ret.extend(update_lineage(from_docs=split, to_docs=[partial]))
-                final = self._finalize(partial)
+                    partial = self._agg.accumulate(docs)
+                    ret.extend(update_lineage(from_docs=docs, to_docs=[partial]))
+                final = self._agg.finalize(partial)
                 ret.extend(update_lineage(from_docs=[partial], to_docs=[final]))
                 ret.append(final)
         ret.extend(extra_metadata)
@@ -170,10 +165,10 @@ class Aggregation:
     def __init__(
         self,
         name: str,
-        accumulate_docs: Callable[[list[Document]], Document],
-        combine_partials: Callable[[Document, Document], Document],
-        finalize: Callable[[Document], Document],
-        zero_factory: Callable[[], Document] = Document,
+        accumulate_docs: Optional[Callable[[list[Document]], Document]] = None,
+        combine_partials: Optional[Callable[[Document, Document], Document]] = None,
+        finalize: Optional[Callable[[Document], Document]] = None,
+        zero_factory: Optional[Callable[[], Document]] = None,
     ):
         self._name = name
         self._accumulate = accumulate_docs
@@ -181,79 +176,68 @@ class Aggregation:
         self._finalize = finalize
         self._zero_factory = zero_factory
 
+    # Syntax: the / in the param list tells python that docs is positional only.
+    # this allows using Callable-typed arguments to override them through the constructor.
+    def accumulate(self, docs: list[Document]) -> Document:
+        if self._accumulate is not None:
+            return self._accumulate(docs)
+        raise NotImplementedError("accumulate is not implemented in base aggregation")
+
+    def combine(self, doc1: Document, doc2: Document) -> Document:
+        if self._combine is not None:
+            return self._combine(doc1, doc2)
+        raise NotImplementedError("combine is not implemented in base aggregation")
+
+    def finalize(self, doc: Document) -> Document:
+        if self._finalize is not None:
+            return self._finalize(doc)
+        return doc
+
+    def zero_factory(self) -> Document:
+        if self._zero_factory is not None:
+            return self._zero_factory()
+        return Document()
+
     def build(self, child: Optional[Node]) -> AggregationNode:
-        return AggregationNode(
-            child, self._name, self._accumulate, self._combine, self._finalize, zero_factory=self._zero_factory
-        )
+        return AggregationNode(child, self)
 
     def build_grouped(self, child: Optional[Node], group_key_fn: Callable[[Document], str]) -> AggregationNode:
         return AggregationNode(
             child,
-            self._name,
-            self._accumulate,
-            self._combine,
-            self._finalize,
+            self,
             group_key_fn=group_key_fn,
-            zero_factory=self._zero_factory,
         )
 
 
-class Reduce(UnaryNode):
-
+class Reduce(Aggregation):
     def __init__(
         self,
-        child: Optional[Node],
         reduce_fn: Callable[[list[Document]], Document],
-        group_key_fn: Callable[[Document], str] = lambda d: "nogrouping",
     ):
-        super().__init__(child)
-        self._reduce_fn = reduce_fn
-        self._group_key_fn = group_key_fn
+        super().__init__(name="reduce")
+        self.reduce_fn = reduce_fn
 
-    def _to_key_val(self, row):
-        doc = Document.from_row(row)
-        if isinstance(doc, MetadataDocument):
-            row["key"] = f"md-{doc.doc_id}"
-        else:
-            row["key"] = self._group_key_fn(doc)
-        return row
+    def accumulate(self, docs: list[Document]) -> Document:
+        from sycamore.transforms.summarize import SummaryDocument
 
-    def _group_reduce_ray(self, block: dict[str, "np.ndarray"]):
-        key = block["key"][0]
-        assert isinstance(key, str)
-        if key.startswith("md-"):
-            return block
-        docs = [Document.deserialize(d) for d in block["doc"]]
-        extra_metadata: list[MetadataDocument] = []
-        with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
-            reduced = self._reduce_fn(docs)
-        extra_metadata.extend(update_lineage(from_docs=docs, to_docs=[reduced]))
+        return SummaryDocument(sub_docs=docs)
 
-        return {"doc": [reduced.serialize()] + [m.serialize() for m in extra_metadata]}
+    def combine(self, doc1: Document, doc2: Document) -> Document:
+        from sycamore.transforms.summarize import SummaryDocument
 
-    def execute(self, **kwargs) -> "Dataset":
-        dataset = self.child().execute()
+        assert isinstance(doc1, SummaryDocument)
+        assert isinstance(doc2, SummaryDocument)
+        doc1.sub_docs.extend(doc2.sub_docs)
+        return doc1
 
-        return dataset.map(self._to_key_val).groupby("key").map_groups(self._group_reduce_ray, batch_format="numpy")
+    def finalize(self, doc: Document) -> Document:
+        from sycamore.transforms.summarize import SummaryDocument
 
-    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+        assert isinstance(doc, SummaryDocument)
+        doc.sub_docs.sort(key=lambda d: d.doc_id or "")
+        return self.reduce_fn(doc.sub_docs)
 
-        documents, metadata = split_data_metadata(all_docs)
+    def zero_factory(self) -> Document:
+        from sycamore.transforms.summarize import SummaryDocument
 
-        split_docs: dict[str, list[Document]] = {}
-        for d in documents:
-            key = self._group_key_fn(d)
-            if (split := split_docs.get(key, None)) is not None:
-                split.append(d)
-            else:
-                split_docs[key] = [d]
-
-        ret: list[Union[Document, MetadataDocument]] = metadata  # type: ignore
-        extra_metadata: list[MetadataDocument] = []
-        with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
-            for key, split in split_docs.items():
-                reduced = self._reduce_fn(split)
-                ret.append(reduced)
-                ret.extend(update_lineage(from_docs=split, to_docs=[reduced]))
-        ret.extend(extra_metadata)
-        return ret
+        return SummaryDocument()

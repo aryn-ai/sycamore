@@ -103,7 +103,7 @@ class TestAggregation:
         assert any("keep" in md.metadata for md in meta_out)
         assert_lineage(from_docs=Common.docs, to_docs=real_out[0], metadata=meta_out)
 
-    def test_aggregation_gouping(self):
+    def test_aggregation_grouping(self):
         agg, counts = self.sum_aggregation()
         agg_node = agg.build_grouped(None, lambda d: d.properties["key"])
         out_docs = agg_node.local_execute(Common.docs)
@@ -148,7 +148,7 @@ class TestReduce:
 
     def test_reduction_no_grouping(self):
         red_fn, counts = self.sum_reduction()
-        reduce = Reduce(None, red_fn)
+        reduce = Reduce(red_fn).build(None)
         out_docs = reduce.local_execute(Common.docs)
 
         assert counts.acc_calls == 1
@@ -162,7 +162,7 @@ class TestReduce:
 
     def test_reduction_grouping(self):
         red_fn, counts = self.sum_reduction()
-        reduce = Reduce(None, red_fn, group_key_fn=lambda d: d.properties["key"])
+        reduce = Reduce(red_fn).build_grouped(None, group_key_fn=lambda d: d.properties["key"])
         out_docs = reduce.local_execute(Common.docs)
 
         assert counts.acc_calls == 3

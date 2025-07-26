@@ -111,5 +111,5 @@ class GroupedData:
         def group_key_fn(doc: Document) -> str:
             return str(doc.field_to_value(self._grouped_key))
 
-        reduction = Reduce(self._docset.plan, reduce_fn, group_key_fn)
+        reduction = Reduce(reduce_fn).build_grouped(self._docset.plan, group_key_fn)
         return DocSet(self._docset.context, reduction)

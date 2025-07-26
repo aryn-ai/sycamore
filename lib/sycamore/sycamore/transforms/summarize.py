@@ -24,6 +24,8 @@ from sycamore.transforms.base import CompositeTransform, BaseMapTransform
 from sycamore.transforms.base_llm import LLMMapElements, LLMMap, _infer_prompts
 
 
+# TODO: Rename this to DocumentListDocument or something less stupid-looking
+#       and move it somewhere more generally available
 class SummaryDocument(Document):
     def __init__(self, document=None, **kwargs):
         if "elements" in kwargs:
@@ -639,22 +641,21 @@ class Summarize(NonCPUUser, NonGPUUser, Map):
 
 class CollectToSummaryDoc(Aggregation):
     def __init__(self):
-        super().__init__(
-            name="collect_to_summary_doc",
-            accumulate_docs=self._accumulate,
-            combine_partials=self._combine,
-            finalize=self._finalize,
-            zero_factory=SummaryDocument,
-        )
+        super().__init__(name="collect_to_summary_doc")
 
-    def _accumulate(self, docs: list[Document]) -> SummaryDocument:
+    def accumulate(self, docs: list[Document]) -> Document:
         return SummaryDocument(sub_docs=docs)
 
-    def _combine(self, doc1: Document, doc2: Document) -> SummaryDocument:
+    def combine(self, doc1: Document, doc2: Document) -> Document:
         assert isinstance(doc1, SummaryDocument)
         assert isinstance(doc2, SummaryDocument)
         doc1.sub_docs.extend(doc2.sub_docs)
         return doc1
 
-    def _finalize(self, doc: Document) -> Document:
+    def finalize(self, doc: Document) -> Document:
+        assert isinstance(doc, SummaryDocument)
+        doc.sub_docs.sort(key=lambda d: d.doc_id or "")
         return doc
+
+    def zero_factory(self) -> Document:
+        return SummaryDocument()

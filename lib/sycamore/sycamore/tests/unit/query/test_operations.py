@@ -182,7 +182,7 @@ class TestOperations:
         )
         captured = llm.capture
         # Number of messages changes depending on the order of the docs.
-        assert len(captured) in (47, 48)
+        assert len(captured) == 49
         assert response == "merged summary"
 
     def test_get_text_for_summarize_data_non_docset(self, words_and_ids_docset):

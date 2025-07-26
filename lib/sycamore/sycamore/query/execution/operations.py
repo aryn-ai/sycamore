@@ -148,9 +148,6 @@ def summarize_data_docsets(
     if len(input_data) == 0:
         return []
 
-    docset = input_data[0]
-    agged = docset.aggregate(CollectToSummaryDoc())
-    summed = agged.summarize(docset_summarizer)
-    sum_doc = summed.take_all()
+    sum_doc = input_data[0].aggregate(CollectToSummaryDoc()).summarize(docset_summarizer).take_all()
     text = [sum_doc[0].properties["summary"]]
     return text + summarize_data_docsets(llm, question, input_data[1:], docset_summarizer, data_description)

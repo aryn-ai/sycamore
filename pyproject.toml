@@ -19,6 +19,7 @@ repository = "https://github.com/aryn-ai/sycamore.git"
 python = ">=3.10,<3.14"
 
 sycamore-ai = "^0.1.32"
+aryn-sdk = ">=0.2.8" # filename support added
 
 # Dependencies for building docs. Defined as an extra
 # so they can be installed using pip on RTD.
@@ -64,6 +65,7 @@ devtools = "^0.12"
 [tool.poetry.group.notebook.dependencies]
 jupyterlab = "^4.0.11"
 jupyter-lsp = "^2.2.2"
+jupyter-core = "^5.8.1"
 ipywidgets = "^8.1.0"
 notebook = "^7.1.2"
 s3contents = "^0.11"

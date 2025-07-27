@@ -19,10 +19,13 @@ from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
 from sycamore.llms.llms import LLMMode
 from sycamore.transforms.map import Map
+from sycamore.transforms.aggregation import Aggregation
 from sycamore.transforms.base import CompositeTransform, BaseMapTransform
 from sycamore.transforms.base_llm import LLMMapElements, LLMMap, _infer_prompts
 
 
+# TODO: Rename this to DocumentListDocument or something less stupid-looking
+#       and move it somewhere more generally available
 class SummaryDocument(Document):
     def __init__(self, document=None, **kwargs):
         if "elements" in kwargs:
@@ -345,6 +348,7 @@ class MultiStepDocumentSummarizer(Summarizer):
                 to_infer.append(base_prompt.render_document(document))
 
         # Invoke the llm and attach summaries
+        # TODO: Use run_coros_threadsafe here instead
         summaries = _infer_prompts(prompts=to_infer, llm=self.llm, llm_mode=self.llm_mode)
         for e, s in zip(final_elements, summaries):
             e.properties["summary"] = s
@@ -633,3 +637,25 @@ class Summarize(NonCPUUser, NonGPUUser, Map):
 
     def __init__(self, child: Node, summarizer: Summarizer, **kwargs):
         super().__init__(child, f=summarizer.summarize, **kwargs)
+
+
+class CollectToSummaryDoc(Aggregation):
+    def __init__(self):
+        super().__init__(name="collect_to_summary_doc")
+
+    def accumulate(self, docs: list[Document]) -> Document:
+        return SummaryDocument(sub_docs=docs)
+
+    def combine(self, doc1: Document, doc2: Document) -> Document:
+        assert isinstance(doc1, SummaryDocument)
+        assert isinstance(doc2, SummaryDocument)
+        doc1.sub_docs.extend(doc2.sub_docs)
+        return doc1
+
+    def finalize(self, doc: Document) -> Document:
+        assert isinstance(doc, SummaryDocument)
+        doc.sub_docs.sort(key=lambda d: d.doc_id or "")
+        return doc
+
+    def zero_factory(self) -> Document:
+        return SummaryDocument()

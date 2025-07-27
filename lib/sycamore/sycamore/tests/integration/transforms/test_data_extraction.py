@@ -8,6 +8,7 @@ from sycamore.llms.anthropic import Anthropic, AnthropicModels
 from sycamore.transforms.extract_schema import LLMPropertyExtractor
 from sycamore.transforms.embed import OpenAIEmbedder
 from sycamore.llms.llms import LLMMode
+from sycamore.data.document import split_data_metadata
 
 
 def get_docs():
@@ -155,3 +156,59 @@ def test_extract_properties_from_schema(llm):
     assert taken[4].metadata["usage"]["completion_tokens"] > 0
     assert taken[5].metadata["usage"]["prompt_tokens"] > 0
     assert taken[5].metadata["usage"]["completion_tokens"] > 0
+
+
+@pytest.mark.parametrize("llm", llms)
+def test_extract(llm):
+    docs = get_docs()
+    for d in docs:
+        d.elements = [Element(d)]
+
+    schema = Schema(
+        fields=[
+            SchemaField(
+                name="name",
+                field_type="str",
+                description="This is the name of an entity",
+                examples=["Mark", "Ollie", "Winston"],
+                default="null",
+            ),
+            SchemaField(name="age", field_type="int", default=999),
+            SchemaField(
+                name="date", field_type="str", description="Any date in the doc, extracted in YYYY-MM-DD format"
+            ),
+            SchemaField(
+                name="from_location",
+                field_type="str",
+                description="This is the location the entity is from. "
+                "If it's a US location and explicitly states a city and state, format it as 'City, State' "
+                "The state is abbreviated in it's standard 2 letter form.",
+                examples=["Ann Arbor, MI", "Seattle, WA", "New Delhi"],
+            ),
+        ]
+    )
+    ctx = sycamore.init(exec_mode=ExecMode.RAY)
+    docs = ctx.read.document(docs)
+    docs = docs.extract(schema, llm)
+
+    taken = docs.take_all(include_metadata=True)
+
+    real, meta = split_data_metadata(taken)
+    real.sort(key=lambda d: d.doc_id or "")
+    assert len(real) == 2
+    assert real[0].properties["entity"]["name"] == "Vinayak"
+    assert real[0].properties["entity"]["age"] == 74
+    assert real[0].properties["entity"]["from_location"] == "Honolulu, HI", "Invalid location extracted or formatted"
+    assert real[0].properties["entity"]["date"] == "1923-02-24"
+
+    assert "name" not in real[1].properties["entity"]
+    assert real[1].properties["entity"]["age"] == 999, "Default value not being used correctly"
+    assert real[1].properties["entity"]["from_location"] == "New Delhi"
+    assert real[1].properties["entity"]["date"] == "2014-01-11"
+
+    llm_meta = [m for m in meta if "lineage_links" not in m.metadata]
+    assert len(llm_meta) == 2
+    assert llm_meta[0].metadata["usage"]["prompt_tokens"] > 0
+    assert llm_meta[0].metadata["usage"]["completion_tokens"] > 0
+    assert llm_meta[1].metadata["usage"]["prompt_tokens"] > 0
+    assert llm_meta[1].metadata["usage"]["completion_tokens"] > 0

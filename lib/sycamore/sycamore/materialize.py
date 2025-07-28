@@ -49,6 +49,8 @@ class MaterializeReadReliability(NodeTraverse):
     A node traversal rule that implements reliable materialization for document pipelines.
     This class handles batch processing, automatic retries, and progress tracking to ensure
     robust data materialization even in the presence of failures.
+    The pipeline needs to start with either a read.binary or a read.materialize, must end with
+    a .materialize and must not have any other materializes along the way. 
 
     Args:
         max_batch (int): Maximum number of documents to process in a single batch. Default: 200
@@ -231,7 +233,7 @@ class MaterializeReadReliability(NodeTraverse):
     def filter(self, p: str, read_binary: bool = False) -> bool:
         """Filter files for processing, respecting batch size"""
         if self.current_batch >= self.max_batch:
-            print(" - False: over batch size")
+            #print(" - False: over batch size")
             return False
         if not read_binary:
             id = self._name_group.materialize_name_to_docid_safe(p)
@@ -242,14 +244,14 @@ class MaterializeReadReliability(NodeTraverse):
             return False
 
         if id in self.seen:
-            print(" - False: already seen")
+            #print(" - False: already seen")
             return False
 
         if not self._name_group.is_metadata_materialize_name(p):
             self.current_batch += 1
-            print(" - True: new, non-metadata")
+            #print(" - True: new, non-metadata")
             return True
-        print(" - True: metadata")
+        #print(" - True: metadata")
         return True
 
     def reset_batch(self) -> None:

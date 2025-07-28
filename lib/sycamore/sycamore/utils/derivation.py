@@ -30,9 +30,36 @@ class UnitConverter:
                     queue.append((neighbor, current_factor * factor))
         raise ValueError(f"No conversion path found between {from_unit} and {to_unit}")
 
-    def convert(self, value, from_unit, to_unit):
+    def _calculate_rounding_factor(self, value, additional_digits=1):
+        """Calculate rounding factor based on input value precision."""
+        s = str(value)  # Use Python's choice for precision
+        if "." in s:  # digits beyond decimal point
+            factor = 1
+            for i in range(1, len(s) + 1):
+                if s[-i] == '.':
+                    break
+                factor /= 10
+        else:  # no digits beyond decimal point
+            factor = 1
+            for i in range(1, len(s) + 1):
+                if s[-i] != '0':
+                    break
+                factor *= 10
+        factor /= 10**additional_digits
+        return factor
+
+    def convert_exact(self, value, from_unit, to_unit):
+        """Convert value without any rounding."""
         rate = self.find_conversion_rate(from_unit, to_unit)
-        return round(value * rate, 6)
+        return value * rate
+
+    def convert(self, value, from_unit, to_unit, additional_digits=1):
+        """Convert value with precision-aware rounding."""
+        rate = self.find_conversion_rate(from_unit, to_unit)
+        exact_value = value * rate
+        factor = self._calculate_rounding_factor(value, additional_digits)
+        rounded_value = factor * round(exact_value / factor, 0)
+        return rounded_value
 
     def check(self, from_unit, to_unit, value1, value2):
         converted_value = self.convert(value1, from_unit, to_unit)
@@ -40,7 +67,7 @@ class UnitConverter:
 
 
 class UnitDerivation:
-    def __init__(self, properties, metadata, unitConverter: UnitConverter, unit_map=None):
+    def __init__(self, properties, metadata, unitConverter: UnitConverter, unit_map: dict[str, str]=None):
         self.properties = properties
         self.metadata = metadata
         self.unitConverter = unitConverter
@@ -189,6 +216,7 @@ def main():
     ud = PropertyDerivation(properties, unit_map=unit_map)
     ud.add_conversion("m", "cm", 100.0)
     ud.add_conversion("cm", "mm", 10.0)
+    ud.add_conversion("m", "ft", 3.28084)  # Add meter to feet conversion
 
     ud.unit_group(["airdistance", "airdistance_m"])
     ud.unit_group(["altitude", "altitude_cm"])
@@ -196,6 +224,13 @@ def main():
     ud.fill_from_formula("airPerAl = airspeed_m / altitude_m")
 
     print(ud.properties, ud.metadata)
+    
+    # Test the new precision-aware conversion
+    print("\nTesting precision-aware conversion:")
+    print(f"1000m -> {ud.convert(1000, 'm', 'ft')}ft (with precision-aware rounding)")
+    print(f"1000m -> {ud.convert_exact(1000, 'm', 'ft')}ft (exact conversion)")
+    print(f"100.5m -> {ud.convert(100.5, 'm', 'ft')}ft (with precision-aware rounding)")
+    print(f"100.5m -> {ud.convert_exact(100.5, 'm', 'ft')}ft (exact conversion)")
 
 
 if __name__ == "__main__":

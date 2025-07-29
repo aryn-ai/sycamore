@@ -38,6 +38,10 @@ def intersection_of_fields(docs: list[Document]) -> Document:
                 merged_fields[name]["examples"].extend(field.examples)
         if temp:
             field_names.append(temp)
+    if not field_names:
+        _logger.warning("No fields found in any document, returning empty schema.")
+        fake_doc.properties["_schema"] = Schema(fields=[])
+        return fake_doc
     common_field_names = set.intersection(*field_names)
 
     if not common_field_names:

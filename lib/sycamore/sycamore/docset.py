@@ -480,6 +480,7 @@ class DocSet:
         from sycamore.transforms.property_extraction.extract import SchemaExtract
         from sycamore.transforms.property_extraction.strategy import BatchElements
         from sycamore.transforms.property_extraction.prompts import _schema_extraction_prompt
+        from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields
 
         schema_ext = SchemaExtract(
             self.plan,
@@ -487,7 +488,7 @@ class DocSet:
             llm=llm,
             prompt=_schema_extraction_prompt,
         )
-        ds = DocSet(self.context, schema_ext)
+        ds = DocSet(self.context, schema_ext).reduce(intersection_of_fields)
         schema = ds.take()[0].properties.get("_schema", Schema(fields=[]))
 
         return schema

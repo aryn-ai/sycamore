@@ -99,52 +99,29 @@ class SchemaExtract(MapBatch):
     def extract_schema(self, documents: list[Document]) -> list[Document]:
         coros = [self.extract_schema_from_document(doc) for doc in documents]
         results = run_coros_threadsafe(coros)
-        assert all(isinstance(r, dict) for r in results)
+        assert all(isinstance(r, list) for r in results)
 
-        fake_doc = Document()  # to store the schema
+        # Create one schema document per schema
+        for result, doc in zip(results, documents):
+            if not result:
+                _logger.warning("No schema fields extracted, returning empty schema.")
+                doc.properties["_schema"] = Schema(fields=[])
+                continue
+            doc.properties["_schema"] = Schema(
+                fields=[
+                    SchemaField(
+                        name=field["name"],
+                        field_type=field["type"], 
+                        description=field.get("description", None),
+                        examples=field["examples"],  
+                    )
+                    for field in result
+                ]
+            )
 
-        if not results:
-            _logger.warning("No schema fields extracted, returning empty schema.")
-            fake_doc.properties["_schema"] = Schema(fields=[])
-            return [fake_doc]
+        return documents
 
-        if len(results) == 1:
-            fake_doc.properties["_schema"] = Schema(fields=[SchemaField(**field) for _, field in results[0].items()])
-            return [fake_doc]
-
-        # Merge fields from all results by taking an intersection of field names from each item in results
-        merged_fields = {}
-        field_names = []
-        for result in results:
-            temp = []
-            for name, field in result.items():
-                temp.append(name)
-                if name not in merged_fields:
-                    merged_fields[name] = field
-                else:
-                    if field["type"] != merged_fields[name]["type"]:
-                        continue
-                    merged_fields[name]["examples"].extend(field["examples"])
-            if temp:
-                field_names.append(temp)
-        common_field_names = set.intersection(*map(set, field_names))
-
-        schema = Schema(
-            fields=[
-                SchemaField(
-                    name=name,
-                    field_type=merged_fields[name]["type"],
-                    description=merged_fields[name]["description"],
-                    examples=list(set(merged_fields[name]["examples"]))[:5],
-                )
-                for name in common_field_names
-            ]
-        )
-        fake_doc.properties["_schema"] = schema
-
-        return [fake_doc]
-
-    async def extract_schema_from_document(self, document: Document) -> dict[str, Any]:
+    async def extract_schema_from_document(self, document: Document) -> list[dict[str, Any]]:
         result_dict = dict()
         for elements in self._step_through.step_through(document):
             rendered = self._prompt.render_multiple_elements(elements, document)
@@ -168,4 +145,4 @@ class SchemaExtract(MapBatch):
                             f"Type mismatch for field '{k}': {v_type} vs {result_dict[k]['type']}. "
                             "Skipping this field."
                         )
-        return result_dict
+        return list(result_dict.values())

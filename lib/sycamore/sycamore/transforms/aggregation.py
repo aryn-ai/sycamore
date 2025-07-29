@@ -97,7 +97,7 @@ class AggregationNode(UnaryNode):
 
                 return {"doc": combined.serialize(), "key": new["key"], "meta": pickle.dumps(meta)}
 
-            def _finalize(self, accumulator):
+            def finalize(self, accumulator):
                 row = {"doc": accumulator["doc"]}
                 doc = Document.from_row(row)
                 meta = pickle.loads(accumulator["meta"])

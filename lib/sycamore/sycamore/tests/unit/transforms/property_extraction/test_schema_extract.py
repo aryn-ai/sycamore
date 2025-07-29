@@ -15,8 +15,10 @@ from sycamore.transforms.property_extraction.merge_schemas import intersection_o
 class FakeExtractionPrompt(SycamorePrompt):
     def render_multiple_elements(self, elts: list[Element], doc: Document) -> RenderedPrompt:
         schema = doc.properties.get("_schema_temp")
-        if not schema:
-            return
+        if (
+            not schema
+        ):  # The SchemaExtract init method calls this method with an empty Document so we need to handle that case
+            return RenderedPrompt(messages=[])
         return RenderedPrompt(
             messages=[RenderedMessage(role="user", content=f"field={field.model_dump()}") for field in schema.fields]
         )

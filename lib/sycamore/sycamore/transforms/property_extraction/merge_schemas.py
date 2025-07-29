@@ -12,11 +12,11 @@ def intersection_of_fields(docs: list[Document]) -> Document:
     if not docs:
         _logger.warning("Empty list of documents provided, returning empty schema.")
         fake_doc.properties["_schema"] = Schema(fields=[])
-        return [fake_doc]
+        return fake_doc
 
     if len(docs) == 1:
         fake_doc.properties["_schema"] = docs[0].properties.get("_schema", Schema(fields=[]))
-        return [fake_doc]
+        return fake_doc
 
     # Merge fields from all results by taking an intersection of field names from each item in results
     merged_fields = {}
@@ -53,4 +53,4 @@ def intersection_of_fields(docs: list[Document]) -> Document:
     )
     fake_doc.properties["_schema"] = schema
 
-    return [fake_doc]
+    return fake_doc

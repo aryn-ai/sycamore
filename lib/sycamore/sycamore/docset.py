@@ -461,16 +461,16 @@ class DocSet:
     @experimental
     def extract(self, schema: Schema, llm: LLM) -> "DocSet":
         from sycamore.transforms.property_extraction.extract import Extract
-        from sycamore.transforms.property_extraction.strategy import OneElementAtATime, NoSchemaSplitting
-        from sycamore.transforms.property_extraction.prompts import _elt_at_a_time_full_schema
+        from sycamore.transforms.property_extraction.strategy import default_stepthrough, default_schema_partition
+        from sycamore.transforms.property_extraction.prompts import default_prompt
 
         ext = Extract(
             self.plan,
             schema=schema,
-            step_through_strategy=OneElementAtATime(),
-            schema_partition_strategy=NoSchemaSplitting(),
+            step_through_strategy=default_stepthrough,
+            schema_partition_strategy=default_schema_partition,
             llm=llm,
-            prompt=_elt_at_a_time_full_schema,
+            prompt=default_prompt,
         )
         return DocSet(self.context, ext)
 

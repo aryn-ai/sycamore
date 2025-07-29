@@ -18,7 +18,9 @@ from sycamore.utils.thread_local import ThreadLocalAccess
 def test_get_metadata():
     llm = FakeLLM()
     wall_latency = datetime.timedelta(seconds=1)
-    metadata = llm.get_metadata({"prompt": "Hello", "temperature": 0.7}, "Test output", wall_latency, 10, 5)
+    metadata = llm.get_metadata(
+        {"prompt": "Hello", "temperature": 0.7}, "Test output", wall_latency, in_tokens=5, out_tokens=10
+    )
     assert metadata["model"] == llm._model_name
     assert metadata["usage"] == {
         "completion_tokens": 10,

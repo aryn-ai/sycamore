@@ -39,6 +39,17 @@ class NPagesAtATime(StepThroughStrategy):
             yield batch
 
 
+class BatchElements(StepThroughStrategy):
+    def __init__(self, batch_size: int = 10):
+        self._batch_size = batch_size
+
+    def step_through(self, document: Document) -> Iterable[list[Element]]:
+        for i in range(0, len(document.elements), self._batch_size):
+            batch = document.elements[i : i + self._batch_size]
+            if batch:
+                yield batch
+
+
 class SchemaPartitionStrategy(ABC):
     @abstractmethod
     def partition_schema(self, schema: Schema) -> list[Schema]:

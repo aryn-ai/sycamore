@@ -475,6 +475,24 @@ class DocSet:
         )
         return DocSet(self.context, ext)
 
+    @experimental
+    def suggest_schema(self, llm: LLM) -> "Schema":
+        from sycamore.transforms.property_extraction.extract import SchemaExtract
+        from sycamore.transforms.property_extraction.strategy import BatchElements
+        from sycamore.transforms.property_extraction.prompts import _schema_extraction_prompt
+        from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields
+
+        schema_ext = SchemaExtract(
+            self.plan,
+            step_through_strategy=BatchElements(batch_size=50),
+            llm=llm,
+            prompt=_schema_extraction_prompt,
+        )
+        ds = DocSet(self.context, schema_ext).reduce(intersection_of_fields)
+        schema = ds.take()[0].properties.get("_schema", Schema(fields=[]))
+
+        return schema
+
     def extract_document_structure(self, structure: DocumentStructure, **kwargs):
         """
         Represents documents as Hierarchical documents organized by their structure.

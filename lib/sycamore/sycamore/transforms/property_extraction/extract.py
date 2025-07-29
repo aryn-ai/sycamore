@@ -4,7 +4,7 @@ import logging
 
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node
-from sycamore.schema import Schema
+from sycamore.schema import Schema, SchemaField
 from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,
@@ -96,3 +96,71 @@ class Extract(MapBatch):
             if sf.default is not None and sf.name not in result_dict:
                 result_dict[sf.name] = RichProperty(name=sf.name, type=sf.field_type, value=sf.default)
         return result_dict
+
+
+class SchemaExtract(MapBatch):
+    def __init__(
+        self,
+        node: Optional[Node],
+        *,
+        step_through_strategy: StepThroughStrategy,
+        llm: LLM,
+        prompt: SycamorePrompt,
+    ):
+        super().__init__(node, f=self.extract_schema)
+        self._step_through = step_through_strategy
+        self._llm = llm
+        self._prompt = prompt
+        # Try calling the render method I need at constructor to make sure it's implemented
+        self._prompt.render_multiple_elements(elts=[], doc=Document())
+
+    def extract_schema(self, documents: list[Document]) -> list[Document]:
+        coros = [self.extract_schema_from_document(doc) for doc in documents]
+        results = run_coros_threadsafe(coros)
+        assert all(isinstance(r, list) for r in results)
+
+        # Create one schema document per schema
+        for result, doc in zip(results, documents):
+            if not result:
+                _logger.warning("No schema fields extracted, returning empty schema.")
+                doc.properties["_schema"] = Schema(fields=[])
+                continue
+            doc.properties["_schema"] = Schema(
+                fields=[
+                    SchemaField(
+                        name=field["name"],
+                        field_type=field["type"],
+                        description=field.get("description", None),
+                        examples=field["examples"],
+                    )
+                    for field in result
+                ]
+            )
+
+        return documents
+
+    async def extract_schema_from_document(self, document: Document) -> list[dict[str, Any]]:
+        result_dict = dict()
+        for elements in self._step_through.step_through(document):
+            rendered = self._prompt.render_multiple_elements(elements, document)
+            result = await self._llm.generate_async(prompt=rendered)
+            rd = {ii["name"]: ii for ii in extract_json(result)}
+            for k, v in rd.items():
+                example = v.get("value", None)
+                v_type = v.get("type", "string")  # Default to "string" if not specified
+                if k not in result_dict:
+                    v["examples"] = [example] if example is not None else []
+                    v["type"] = v_type
+                    v.pop("value", None)
+                    result_dict[k] = v
+                else:
+                    # Only append if type matches and value is not None and not already present
+                    if example is not None and v_type == result_dict[k]["type"]:
+                        if example not in result_dict[k]["examples"]:
+                            result_dict[k]["examples"].append(example)
+                    elif v_type != result_dict[k]["type"]:
+                        _logger.warning(
+                            f"Type mismatch for field '{k}': {v_type} vs {result_dict[k]['type']}. "
+                            "Skipping this field."
+                        )
+        return list(result_dict.values())

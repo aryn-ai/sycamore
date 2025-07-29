@@ -81,8 +81,8 @@ def compute_llm_usage(ds: "DocSet") -> dict[str, dict[str, int | float]]:
     from sycamore.materialize import Materialize
     from sycamore.plan_nodes import NodeTraverseOrder
 
-    m = ds.plan.get_plan_nodes(Materialize, order=NodeTraverseOrder.BEFORE)[0]
-    mds = m.load_metadata()
+    mat = ds.plan.get_plan_nodes(Materialize, order=NodeTraverseOrder.BEFORE)[0]
+    mds = mat.load_metadata()
     llm_mds = [m for m in mds if "model" in m.metadata]
 
     total_usage_per_model = {}

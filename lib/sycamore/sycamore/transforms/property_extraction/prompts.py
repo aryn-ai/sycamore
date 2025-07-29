@@ -142,4 +142,4 @@ as JSON. If a field is not present on the page, output `null` in the output resu
     image_mode=ImageMode.PAGE,
 )
 
-default_prompt = _page_image_full_schema
+default_prompt = _elt_at_a_time_full_schema

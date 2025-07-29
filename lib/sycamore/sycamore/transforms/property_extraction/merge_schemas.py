@@ -4,6 +4,7 @@ from sycamore.schema import Schema, SchemaField
 
 _logger = logging.getLogger(__name__)
 
+
 def intersection_of_fields(docs: list[Document]) -> Document:
 
     fake_doc = Document()  # to store the schema

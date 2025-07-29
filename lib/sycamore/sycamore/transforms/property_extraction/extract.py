@@ -111,9 +111,9 @@ class SchemaExtract(MapBatch):
                 fields=[
                     SchemaField(
                         name=field["name"],
-                        field_type=field["type"], 
+                        field_type=field["type"],
                         description=field.get("description", None),
-                        examples=field["examples"],  
+                        examples=field["examples"],
                     )
                     for field in result
                 ]

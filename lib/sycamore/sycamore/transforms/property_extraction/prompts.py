@@ -14,8 +14,39 @@ from sycamore.llms.prompts.prompts import (
     compile_templates,
 )
 from sycamore.llms.prompts.jinja_fragments import J_FORMAT_SCHEMA_MACRO
-from sycamore.schema import Schema
+from sycamore.schema import ArrayProperty, ChoiceProperty, ObjectProperty, Schema, SchemaV2, Property, DataType
 from sycamore.utils.pdf_utils import get_element_image, select_pdf_pages
+
+
+def format_property(prop: Property, indent=0) -> str:
+    indent_spaces = " " * indent
+    if prop.type == DataType.ARRAY:
+        assert isinstance(prop, ArrayProperty)
+        return f"{indent_spaces}array [\n{format_property(prop.item_type, indent=indent + 2)}\n{indent_spaces}]"
+    if prop.type == DataType.OBJECT:
+        assert isinstance(prop, ObjectProperty)
+        prop_strs = [(p.name, format_property(p.type, indent=indent + 4)) for p in prop.properties]
+        return (
+            f"{indent_spaces}object {{\n"
+            + ",\n".join([f"{indent_spaces}  {n}: {p}" for n, p in prop_strs])
+            + f"\n{indent_spaces}}}"
+        )
+    if prop.type == DataType.CHOICE:
+        assert isinstance(prop, ChoiceProperty)
+        return 'enum { "' + '", "'.join(map(str, prop.choices)) + '" }'
+    basic_str = f"{{ type: {prop.type.value}"
+    if prop.description is not None:
+        basic_str += f", description: {prop.description}"
+    if prop.extraction_instructions is not None:
+        basic_str += f", extraction_instructions: {prop.extraction_instructions}"
+    if prop.examples is not None:
+        basic_str += f", examples: {prop.examples}"
+    return basic_str + " }"
+
+
+def format_schema_v2(schema: SchemaV2) -> str:
+    prop_strs = [(prop.name, format_property(prop.type)) for prop in schema.properties]
+    return ",\n".join([f"{n}: {p}" for n, p in prop_strs])
 
 
 class ImageMode(Enum):

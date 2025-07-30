@@ -71,7 +71,7 @@ class Property(BaseModel):
     # Not clear how to declare the type for this without explicitly
     # enumerating all the values of DataType.
     type: Literal[str]  # type: ignore
-    """Type type of the property."""
+    """The type of the property."""
 
     required: bool = False
     """Whether the property is required."""
@@ -210,7 +210,7 @@ class SchemaV2(BaseModel):
     """Represents the schema of a DocSet."""
 
     properties: list[Annotated[NamedProperty, WrapValidator(_validate_new_schema)]] = Field(
-        description="A list of properties belong to this schema.",
+        description="A list of properties belonging to this schema.",
         validation_alias=AliasChoices("properties", "fields"),
     )
 

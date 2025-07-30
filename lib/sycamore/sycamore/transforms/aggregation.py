@@ -111,6 +111,10 @@ class AggregationNode(UnaryNode):
                 meta.extend(extra_metadata)
                 return {"doc": final_doc.serialize(), "meta": pickle.dumps(meta)}
 
+            def _finalize(self, accumulator):
+                # In earlier ray versions you need _finalize, in later you need finalize.
+                return self.finalize(accumulator)
+
         ray_agg = RayAggregation(self._agg)
         ds = dataset.map(self._to_key_val).groupby("key").aggregate(ray_agg).flat_map(self._unpack)
         return ds

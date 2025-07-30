@@ -77,10 +77,10 @@ class TestExtract:
         )
 
         extracted = extract.run(docs)
-        assert extracted[0].field_to_value("properties.entity.doc_id") == docs[0].doc_id
-        assert extracted[0].field_to_value("properties.entity.telts") == 3
-        assert extracted[0].field_to_value("properties.entity.missing") == "Missing"
+        assert extracted[0].field_to_value("properties.entity.doc_id").value == docs[0].doc_id
+        assert extracted[0].field_to_value("properties.entity.telts").value == 3
+        assert extracted[0].field_to_value("properties.entity.missing").value == "Missing"
 
-        assert extracted[1].field_to_value("properties.entity.doc_id") == docs[1].doc_id
-        assert extracted[1].field_to_value("properties.entity.telts") == 2
-        assert extracted[1].field_to_value("properties.entity.missing") == "Missing"
+        assert extracted[1].field_to_value("properties.entity.doc_id").value == docs[1].doc_id
+        assert extracted[1].field_to_value("properties.entity.telts").value == 2
+        assert extracted[1].field_to_value("properties.entity.missing").value == "Missing"

@@ -388,7 +388,7 @@ class OpenAI(LLM):
             response_text = completion.choices[0].text
 
         completion_tokens, prompt_tokens = self.validate_tokens(completion)
-        self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
+        self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens)
         if not response_text:
             raise ValueError("OpenAI returned empty response")
         return response_text
@@ -404,7 +404,7 @@ class OpenAI(LLM):
                 completion_tokens, prompt_tokens = self.validate_tokens(completion)
                 wall_latency = datetime.now() - starttime
                 response_text = completion.choices[0].message.content
-                self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
+                self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens)
             else:
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
                 # completion = self.client_wrapper.get_client().beta.completions.parse(model=self._model_name, **kwargs)
@@ -467,7 +467,7 @@ class OpenAI(LLM):
             completion_tokens = 0
             prompt_tokens = 0
 
-        self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
+        self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens)
         return response_text
 
     async def _generate_awaitable_using_openai_structured(
@@ -486,7 +486,7 @@ class OpenAI(LLM):
             response_text = completion.choices[0].message.content
             assert response_text is not None, "OpenAI refused to respond to the query"
             completion_tokens, prompt_tokens = self.validate_tokens(completion)
-            self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
+            self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens)
             return response_text
         except Exception as e:
             # OpenAI will not respond in two scenarios:
@@ -535,7 +535,7 @@ class OpenAI(LLM):
                 response_text = cc.choices[0].message.content
                 ct, pt = self.validate_tokens(cc)
                 kws = call["body"]
-                self.add_llm_metadata(kws, response_text, wall_latency, ct, pt)
+                self.add_llm_metadata(kws, response_text, wall_latency, pt, ct)
                 cache_hits[id] = response_text
                 self._llm_cache_set(prompts[id], llm_kwargs, response_text)
             return cache_hits

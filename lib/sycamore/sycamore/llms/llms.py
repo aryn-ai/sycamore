@@ -210,8 +210,8 @@ class LLM(ABC):
             "model": self._model_name,
             "temperature": kwargs.get("temperature", None),
             "usage": {
-                "completion_tokens": in_tokens,
-                "prompt_tokens": out_tokens,
+                "completion_tokens": out_tokens,
+                "prompt_tokens": in_tokens,
                 "total_tokens": in_tokens + out_tokens,
             },
             "wall_latency": wall_latency,

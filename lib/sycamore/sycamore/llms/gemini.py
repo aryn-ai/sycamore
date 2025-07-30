@@ -4,7 +4,7 @@ from typing import Any, Optional, Union
 import os
 import io
 
-from google.api_core import retry
+from google.api_core import retry, retry_async
 
 from sycamore.llms.config import GeminiModel, GeminiModels
 from sycamore.llms.llms import LLM, LLMMode
@@ -169,7 +169,7 @@ class Gemini(LLM):
     def generate_content(self, model, contents, config):
         return self._client.models.generate_content(model=model, contents=contents, config=config)
 
-    @retry.Retry(
+    @retry_async.AsyncRetry(
         predicate=retry.if_transient_error,
         initial=1.0,
         maximum=60.0,

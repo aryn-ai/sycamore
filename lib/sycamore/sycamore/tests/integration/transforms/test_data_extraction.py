@@ -171,7 +171,6 @@ def test_extract(llm):
                 field_type="str",
                 description="This is the name of an entity",
                 examples=["Mark", "Ollie", "Winston"],
-                default="null",
             ),
             SchemaField(name="age", field_type="int", default=999),
             SchemaField(
@@ -196,15 +195,17 @@ def test_extract(llm):
     real, meta = split_data_metadata(taken)
     real.sort(key=lambda d: d.doc_id or "")
     assert len(real) == 2
-    assert real[0].properties["entity"]["name"] == "Vinayak"
-    assert real[0].properties["entity"]["age"] == 74
-    assert real[0].properties["entity"]["from_location"] == "Honolulu, HI", "Invalid location extracted or formatted"
-    assert real[0].properties["entity"]["date"] == "1923-02-24"
+    assert real[0].properties["entity"]["name"].value == "Vinayak"
+    assert real[0].properties["entity"]["age"].value == 74
+    assert (
+        real[0].properties["entity"]["from_location"].value == "Honolulu, HI"
+    ), "Invalid location extracted or formatted"
+    assert real[0].properties["entity"]["date"].value == "1923-02-24"
 
     assert "name" not in real[1].properties["entity"]
-    assert real[1].properties["entity"]["age"] == 999, "Default value not being used correctly"
-    assert real[1].properties["entity"]["from_location"] == "New Delhi"
-    assert real[1].properties["entity"]["date"] == "2014-01-11"
+    assert real[1].properties["entity"]["age"].value == 999, "Default value not being used correctly"
+    assert real[1].properties["entity"]["from_location"].value == "New Delhi"
+    assert real[1].properties["entity"]["date"].value == "2014-01-11"
 
     llm_meta = [m for m in meta if "lineage_links" not in m.metadata]
     assert len(llm_meta) == 2

@@ -387,8 +387,10 @@ class Table:
         assert isinstance(df, DataFrame), "Expected `to_pandas` to return a DataFrame"
         return df.to_csv(**pandas_kwargs)
 
-    def to_html(self, pretty=False, wrap_in_html=False, style=DEFAULT_HTML_STYLE):
-        """Converts this table to an HTML string.
+    def to_html(
+        self, pretty=False, wrap_in_html=False, style=DEFAULT_HTML_STYLE, parent_element=None, return_element=False
+    ):
+        """Converts this table to an HTML string or returns the table element.
 
         Cells with is_header=True will be converted to th tags. Cells spanning
         multiple rows or columns will have the rowspan or colspan attributes,
@@ -402,6 +404,9 @@ class Table:
             style: The CSS style to use if wrap_in_html is True. This will be included inline in a <style> tag
                  in the HTML header. The default applies some basic formatting and sets <th> cells to
                  have a grey background.
+            parent_element: If provided, the table will be created as a child of this element.
+            return_element: If True, returns the table element directly instead of the HTML string.
+                 Default is False to preserve current behavior.
         """
 
         if wrap_in_html:
@@ -411,19 +416,47 @@ class Table:
             style_tag.text = style
             body = ET.SubElement(root, "body")
             table = ET.SubElement(body, "table")
-        else:
+        elif parent_element is None:
             table = ET.Element("table")
             root = table
+        else:
+            table = ET.SubElement(parent_element, "table")
+            root = parent_element
+
+        table_caption_text = self.caption
+        if isinstance(table_caption_text, str) and table_caption_text.strip():
+            caption_el = ET.SubElement(table, "caption")
+            caption_el.text = table_caption_text
+
+        cells = self.cells
+        if not cells:
+            if return_element:
+                return table
+            if pretty:
+                ET.indent(root)
+            return ET.tostring(root, encoding="unicode")
+
+        # Find all row nums containing cells marked as headers.
+        header_rows = sorted(set((row_num for cell in cells for row_num in cell.rows if cell.is_header)))
+
+        # Find the number of initial rows that are header rows (consecutive from row 0)
+        max_header_prefix_row = -1
+        for i in range(len(header_rows)):
+            if header_rows[i] != i:
+                break
+            max_header_prefix_row = i
+
+        # Create thead and tbody sections if we have headers
+        has_headers = max_header_prefix_row >= 0
+        if has_headers:
+            thead = ET.SubElement(table, "thead")
+            tbody = ET.SubElement(table, "tbody")
 
         curr_row = -1
         row = None
+        current_section = None
 
-        if self.caption is not None:
-            caption_cell = ET.SubElement(table, "caption")
-            caption_cell.text = self.caption
-
-        # TODO: We should eventually put these in <thead> and <tbody> tags.
-        for cell in self.cells:
+        for cell in cells:
             cell_attribs = {}
 
             rowspan = len(cell.rows)
@@ -436,10 +469,19 @@ class Table:
 
             if cell.rows[0] > curr_row:
                 curr_row = cell.rows[0]
-                row = ET.SubElement(table, "tr")
+                # Determine which section this row belongs to
+                if has_headers:
+                    current_section = thead if curr_row <= max_header_prefix_row else tbody
+                    row = ET.SubElement(current_section, "tr")
+                else:
+                    row = ET.SubElement(table, "tr")
 
+            assert row is not None
             tcell = ET.SubElement(row, "th" if cell.is_header else "td", attrib=cell_attribs)
             tcell.text = cell.content
+
+        if return_element:
+            return table
 
         if pretty:
             ET.indent(root)

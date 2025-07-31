@@ -423,10 +423,10 @@ class Table:
             table = ET.SubElement(parent_element, "table")
             root = parent_element
 
-        table_caption_text = self.caption
-        if isinstance(table_caption_text, str) and table_caption_text.strip():
+        caption = self.caption
+        if isinstance(caption, str) and caption.strip():
             caption_el = ET.SubElement(table, "caption")
-            caption_el.text = table_caption_text
+            caption_el.text = caption
 
         cells = self.cells
         if not cells:

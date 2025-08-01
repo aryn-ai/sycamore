@@ -131,7 +131,7 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
         in_obj_spec: ObjectProperty | SchemaV2,
         new_fields: dict[str, RichProperty],
         existing_fields: dict[str, RichProperty],
-    ) -> tuple[dict[str, RichProperty], ObjectProperty]:
+    ) -> tuple[dict[str, RichProperty], Optional[ObjectProperty]]:
         updated_specs = []
         updated_values = {}
         for inner_prop in in_obj_spec.properties:
@@ -150,7 +150,8 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
 
                 updated_obj, updated_spec = self._update_object(inner_prop.type, new_obj, existing_obj)
                 updated_obj = RichProperty(name=name, type=DataType.OBJECT, value=updated_obj)
-                updated_specs.append(NamedProperty(name=name, type=updated_spec))
+                if updated_spec is not None:
+                    updated_specs.append(NamedProperty(name=name, type=updated_spec))
                 updated_values[name] = updated_obj
                 continue
 
@@ -182,7 +183,9 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
 
             updated_specs.append(inner_prop)
 
-        return existing_fields | updated_values, ObjectProperty(properties=updated_specs)
+        if len(updated_specs) > 0:
+            return existing_fields | updated_values, ObjectProperty(properties=updated_specs)
+        return existing_fields | updated_values, None
 
     def _update_array(
         self, in_arr_spec: ArrayProperty, new_fields: list[RichProperty], existing_fields: list[RichProperty]
@@ -196,7 +199,10 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
         existing_fields: dict[str, RichProperty] = dict(),
     ) -> SchemaUpdateResult:
         out_fields, out_schema_obj = self._update_object(in_schema, new_fields, existing_fields)
-        out_schema = SchemaV2(properties=out_schema_obj.properties)
+        if out_schema_obj is None:
+            out_schema = SchemaV2(properties=[])
+        else:
+            out_schema = SchemaV2(properties=out_schema_obj.properties)
         return SchemaUpdateResult(
             out_schema=out_schema,
             out_fields=out_fields,

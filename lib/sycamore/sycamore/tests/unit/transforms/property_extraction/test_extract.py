@@ -6,7 +6,7 @@ from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
 from sycamore.transforms.property_extraction.extract import Extract
 from sycamore.transforms.property_extraction.strategy import NoSchemaSplitting, OneElementAtATime
-from sycamore.schema import Schema, SchemaField
+from sycamore.schema import IntProperty, NamedProperty, SchemaV2, StringProperty
 
 
 class FakeExtractionPrompt(SycamorePrompt):
@@ -59,11 +59,11 @@ class TestExtract:
             ),
         ]
 
-        schema = Schema(
-            fields=[
-                SchemaField(name="doc_id", field_type="str"),
-                SchemaField(name="missing", field_type="str", default="Missing"),
-                SchemaField(name="telts", field_type="int"),
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(name="doc_id", type=StringProperty()),
+                NamedProperty(name="missing", type=StringProperty()),
+                NamedProperty(name="telts", type=IntProperty()),
             ]
         )
 
@@ -79,8 +79,8 @@ class TestExtract:
         extracted = extract.run(docs)
         assert extracted[0].field_to_value("properties.entity.doc_id").value == docs[0].doc_id
         assert extracted[0].field_to_value("properties.entity.telts").value == 3
-        assert extracted[0].field_to_value("properties.entity.missing").value == "Missing"
+        assert extracted[0].field_to_value("properties.entity.missing") is None
 
         assert extracted[1].field_to_value("properties.entity.doc_id").value == docs[1].doc_id
         assert extracted[1].field_to_value("properties.entity.telts").value == 2
-        assert extracted[1].field_to_value("properties.entity.missing").value == "Missing"
+        assert extracted[1].field_to_value("properties.entity.missing") is None

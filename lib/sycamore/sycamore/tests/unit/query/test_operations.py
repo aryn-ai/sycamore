@@ -27,10 +27,11 @@ class MockLLM(LLM):
     def __init__(self):
         super().__init__(model_name="mock_model", default_mode=LLMMode.SYNC)
         self.capture = []
+        self.traces = []
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         self.capture.append(prompt)
-        logging.info(traceback.format_exc(limit=5))
+        self.traces.append(traceback.format_exc(limit=10))
         if prompt.messages[0].content.endswith('"1, 2, one, two, 1, 3".'):
             return '{"groups": ["group1", "group2", "group3"]}'
         if (
@@ -185,7 +186,7 @@ class TestOperations:
         )
         captured = llm.capture
         # Number of messages changes depending on the order of the docs.
-        assert len(captured) == 49
+        assert len(captured) == 49, llm.traces
         assert response == "merged summary"
 
     def test_get_text_for_summarize_data_non_docset(self, words_and_ids_docset):

@@ -17,7 +17,7 @@ def create_named_property(prop_data: dict[str, Any], n_examples: Optional[int] =
     if n_examples is not None:
         prop_data["examples"] = list(set(prop_data.get("examples", [])))[:n_examples]
 
-    prop_type = TypeAdapter(PropertyType).validate_python(prop_data)
+    prop_type: PropertyType = TypeAdapter(PropertyType).validate_python(prop_data)
 
     return NamedProperty(
         name=name,

@@ -120,11 +120,16 @@ class SchemaExtract(MapBatch):
     def _cast_to_type(val: Any, val_type: str) -> Any:
         if val is None:
             return None
-        conversion_f = {"int": int, "float": float, "bool": lambda x: x.lower() == "true"}
+        conversion_f = {"int": int, "float": float}
         if val_type in conversion_f:
             try:
                 return conversion_f[val_type](val)
             except ValueError:
+                return None
+        if val_type == "bool":
+            try:
+                return val.lower() == "true"
+            except AttributeError:
                 return None
         return val
 

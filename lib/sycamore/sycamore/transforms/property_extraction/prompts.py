@@ -14,7 +14,7 @@ from sycamore.llms.prompts.prompts import (
     compile_templates,
 )
 from sycamore.llms.prompts.jinja_fragments import J_FORMAT_SCHEMA_MACRO
-from sycamore.schema import ArrayProperty, ChoiceProperty, ObjectProperty, Schema, SchemaV2, Property, DataType
+from sycamore.schema import ArrayProperty, ChoiceProperty, ObjectProperty, SchemaV2, Property, DataType
 from sycamore.utils.pdf_utils import get_element_image, select_pdf_pages
 
 
@@ -58,7 +58,7 @@ class ImageMode(Enum):
 class ExtractionJinjaPrompt(SycamorePrompt):
     def __init__(
         self,
-        schema: Optional[Schema] = None,
+        schema: Optional[SchemaV2] = None,
         system: Optional[str] = None,
         user_pre_elements: Optional[str] = None,
         element_template: Optional[str] = None,
@@ -122,7 +122,8 @@ class ExtractionJinjaPrompt(SycamorePrompt):
 
         # assert self._elt_template is not None, "Unreachable, type narrowing"
         render_args = copy.deepcopy(self.kwargs)
-        render_args["schema"] = self.schema
+        if self.schema is not None:
+            render_args["schema"] = format_schema_v2(self.schema)
         render_args["doc"] = doc
 
         messages = []
@@ -163,14 +164,14 @@ _elt_at_a_time_full_schema = ExtractionJinjaPrompt(
     user_pre_elements="""You are provided some elements of a document and a schema. Extract all the fields in the
 schema as JSON. If a field is not present in the element, output `null` in the output result.""",
     element_template="Element: {{ elt.text_representation }}",
-    user_post_elements=J_FORMAT_SCHEMA_MACRO + "Schema: {{ format_schema(schema) }}",
+    user_post_elements="Schema: \n{{ schema }}",
 )
 
 _page_image_full_schema = ExtractionJinjaPrompt(
     system="You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is a valid dict, i.e. numbers greater than 1000 don't have commas, quotes are properly escaped, etc.",
     user_pre_elements="""You are provided a page of a document and a schema. Extract all the fields in the schema
 as JSON. If a field is not present on the page, output `null` in the output result.""",
-    user_post_elements=J_FORMAT_SCHEMA_MACRO + "Schema: {{ format_schema(schema) }}",
+    user_post_elements="Schema: \n{{ schema }}",
     image_mode=ImageMode.PAGE,
 )
 

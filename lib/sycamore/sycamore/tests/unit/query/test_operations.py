@@ -119,7 +119,7 @@ class TestOperations:
         import random
         from copy import deepcopy
 
-        words = ["some", "words", "are", "too", "long"]
+        words = ["each", "word", "uses", "four", "char"]
         docs = words_and_ids_docset.take_all()
         big_docs = []
         for i in range(5):

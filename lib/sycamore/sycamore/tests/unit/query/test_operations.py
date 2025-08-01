@@ -1,3 +1,5 @@
+import logging
+import traceback
 from typing import Callable, Dict, List, Any, Optional
 
 import pytest
@@ -28,6 +30,7 @@ class MockLLM(LLM):
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         self.capture.append(prompt)
+        logging.info(traceback.format_exc(limit=5))
         if prompt.messages[0].content.endswith('"1, 2, one, two, 1, 3".'):
             return '{"groups": ["group1", "group2", "group3"]}'
         if (

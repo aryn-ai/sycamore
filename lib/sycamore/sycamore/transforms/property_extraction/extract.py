@@ -4,7 +4,8 @@ import logging
 
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node
-from sycamore.schema import Schema, SchemaField
+from sycamore.schema import Schema
+from sycamore.schema import SchemaV2
 from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,
@@ -17,6 +18,7 @@ from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe
+from sycamore.transforms.property_extraction.utils import create_named_property
 
 _logger = logging.getLogger(__name__)
 
@@ -114,6 +116,18 @@ class SchemaExtract(MapBatch):
         # Try calling the render method I need at constructor to make sure it's implemented
         self._prompt.render_multiple_elements(elts=[], doc=Document())
 
+    @staticmethod
+    def _cast_to_type(val: Any, val_type: str) -> Any:
+        if val is None:
+            return None
+        conversion_f = {"int": int, "float": float, "bool": lambda x: x.lower() == "true"}
+        if val_type in conversion_f:
+            try:
+                return conversion_f[val_type](val)
+            except ValueError:
+                return None
+        return val
+
     def extract_schema(self, documents: list[Document]) -> list[Document]:
         coros = [self.extract_schema_from_document(doc) for doc in documents]
         results = run_coros_threadsafe(coros)
@@ -123,31 +137,27 @@ class SchemaExtract(MapBatch):
         for result, doc in zip(results, documents):
             if not result:
                 _logger.warning("No schema fields extracted, returning empty schema.")
-                doc.properties["_schema"] = Schema(fields=[])
+                doc.properties["_schema"] = SchemaV2(properties=[])
                 continue
-            doc.properties["_schema"] = Schema(
-                fields=[
-                    SchemaField(
-                        name=field["name"],
-                        field_type=field["type"],
-                        description=field.get("description", None),
-                        examples=field["examples"],
-                    )
-                    for field in result
-                ]
-            )
+            doc.properties["_schema"] = SchemaV2(properties=[create_named_property(prop) for prop in result])
 
         return documents
 
     async def extract_schema_from_document(self, document: Document) -> list[dict[str, Any]]:
+
         result_dict = dict()
+
         for elements in self._step_through.step_through(document):
+
             rendered = self._prompt.render_multiple_elements(elements, document)
             result = await self._llm.generate_async(prompt=rendered)
             rd = {ii["name"]: ii for ii in extract_json(result)}
+
             for k, v in rd.items():
-                example = v.get("value", None)
+
                 v_type = v.get("type", "string")  # Default to "string" if not specified
+                example = self._cast_to_type(v.get("value", None), v_type)
+
                 if k not in result_dict:
                     v["examples"] = [example] if example is not None else []
                     v["type"] = v_type
@@ -163,4 +173,5 @@ class SchemaExtract(MapBatch):
                             f"Type mismatch for field '{k}': {v_type} vs {result_dict[k]['type']}. "
                             "Skipping this field."
                         )
+
         return list(result_dict.values())

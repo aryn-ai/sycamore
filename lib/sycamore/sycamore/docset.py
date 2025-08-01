@@ -31,7 +31,7 @@ from sycamore.utils.deprecate import deprecated
 from sycamore.decorators import experimental
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
-from sycamore.schema import Schema
+from sycamore.schema import Schema, SchemaV2
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
@@ -476,7 +476,7 @@ class DocSet:
         return DocSet(self.context, ext)
 
     @experimental
-    def suggest_schema(self, llm: LLM) -> "Schema":
+    def suggest_schema(self, llm: LLM) -> "SchemaV2":
         from sycamore.transforms.property_extraction.extract import SchemaExtract
         from sycamore.transforms.property_extraction.strategy import BatchElements
         from sycamore.transforms.property_extraction.prompts import _schema_extraction_prompt
@@ -489,7 +489,7 @@ class DocSet:
             prompt=_schema_extraction_prompt,
         )
         ds = DocSet(self.context, schema_ext).reduce(intersection_of_fields)
-        schema = ds.take()[0].properties.get("_schema", Schema(fields=[]))
+        schema = ds.take()[0].properties.get("_schema", SchemaV2(properties=[]))
 
         return schema
 

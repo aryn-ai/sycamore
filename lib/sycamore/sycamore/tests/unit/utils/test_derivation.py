@@ -27,9 +27,9 @@ class TestUnitConverter(unittest.TestCase):
     def test_same_unit_shortcut(self):
         self.assertEqual(self.conv.convert(123.456, "SF", "SF"), 123.456)
 
-    def test_missing_route_raises(self):
-        with self.assertRaises(ValueError):
-            self.conv.convert(1, "SF", "kg")
+    def test_missing_route_returns_none(self):
+        result = self.conv.convert(1, "SF", "kg")
+        self.assertIsNone(result)
 
     def test_callable_converter(self):
         """Test that the converter is callable"""
@@ -91,10 +91,25 @@ class TestPropertyDerivation(unittest.TestCase):
         self.assertEqual(self.properties["height_cm"], 123)  # untouched
 
     # ---------------------------------------------------------------- formula handling
-    def test_fill_from_formula_when_target_missing(self):
+    def test_fill_from_formula_when_target_missing_multiply(self):
         self.properties.update({"a": 4, "b": 5, "c": None})
         self.deriver.fill_from_formula("c = a * b")
         self.assertEqual(self.properties["c"], 20)
+
+    def test_fill_from_formula_when_target_missing_add(self):
+        self.properties.update({"a": 4, "b": 5, "c": None})
+        self.deriver.fill_from_formula("c = a + b")
+        self.assertEqual(self.properties["c"], 9)
+
+    def test_fill_from_formula_when_target_missing_subtract(self):
+        self.properties.update({"a": 4, "b": 5, "c": None})
+        self.deriver.fill_from_formula("c = a - b")
+        self.assertEqual(self.properties["c"], -1)
+
+    def test_fill_from_formula_when_target_missing_divide(self):
+        self.properties.update({"a": 4, "b": 1, "c": None})
+        self.deriver.fill_from_formula("c = a / b")
+        self.assertEqual(self.properties["c"], 4)
 
     def test_fill_from_formula_when_operand_missing(self):
         self.properties.update({"a": None, "b": 5, "c": 20})

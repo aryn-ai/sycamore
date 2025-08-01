@@ -1,7 +1,7 @@
 import unittest
 
 # Adapt this import to the real location of the production code
-from sycamore.utils.derivation_utils import UnitConverter, PropertyDerivation
+from sycamore.utils.derivation import UnitConverter, PropertyDerivation
 
 
 class TestUnitConverter(unittest.TestCase):
@@ -11,17 +11,17 @@ class TestUnitConverter(unittest.TestCase):
     # ------------------------------------------------------------------ basic routing
     def test_direct_conversion(self):
         """100 Square-Feet → Square-Metre (direct edge)"""
-        result = self.conv.convert(100, "SF", "SM")
+        result = self.conv.convert_exact(100, "SF", "SM")
         self.assertAlmostEqual(result, 9.2903, places=2)
 
     def test_inverse_conversion(self):
         """inverse edge (SM → SF)"""
-        result = self.conv.convert(9.2903, "SM", "SF")
+        result = self.conv.convert_exact(9.2903, "SM", "SF")
         self.assertAlmostEqual(result, 100.0, places=0)
 
     def test_multi_hop_conversion(self):
         """acre → SF → SM   (BFS multi-hop)"""
-        result = self.conv.convert(1, "acre", "SM")
+        result = self.conv.convert_exact(1, "acre", "SM")
         self.assertAlmostEqual(result, 4046.856, places=0)
 
     def test_same_unit_shortcut(self):
@@ -30,6 +30,11 @@ class TestUnitConverter(unittest.TestCase):
     def test_missing_route_raises(self):
         with self.assertRaises(ValueError):
             self.conv.convert(1, "SF", "kg")
+
+    def test_callable_converter(self):
+        """Test that the converter is callable"""
+        result = self.conv.convert_exact(100, "SF", "SM")
+        self.assertAlmostEqual(result, 9.2903, places=2)
 
     # ------------------------------------------------------------------ helper :check
     def test_check_method(self):
@@ -53,7 +58,7 @@ class TestPropertyDerivation(unittest.TestCase):
             "b": None,
             "c": None,
         }
-        self.deriver = PropertyDerivation(self.properties, unit_map=self.unit_map)
+        self.deriver = PropertyDerivation(self.properties, property_to_unit=self.unit_map)
         self.deriver.add_conversion("m", "cm", 100)
 
     # --------------------------------------------------------------- conversion groups
@@ -61,6 +66,17 @@ class TestPropertyDerivation(unittest.TestCase):
         self.deriver.unit_group(["dist_cm", "dist_m"])  # only dist_cm present
         self.assertAlmostEqual(self.properties["dist_m"], 2.5)  # 250 cm → 2.5 m
         self.assertEqual(self.deriver.metadata["dist_m"], ["dist_cm"])
+
+    def test_unit_group_asserts_missing_units(self):
+        """Test that unit_group raises AssertionError for properties without units"""
+        with self.assertRaises(AssertionError):
+            self.deriver.unit_group(["dist_cm", "unknown_property"])
+
+    def test_unit_group_skips_existing_values(self):
+        """Test that unit_group doesn't overwrite existing values"""
+        self.properties["dist_m"] = 999  # existing value
+        self.deriver.unit_group(["dist_cm", "dist_m"])
+        self.assertEqual(self.properties["dist_m"], 999)  # should remain unchanged
 
     # ---------------------------------------------------------------- derive_conversion
     def test_explicit_derive_conversion(self):

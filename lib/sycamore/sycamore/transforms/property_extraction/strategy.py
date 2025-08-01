@@ -152,10 +152,10 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                 new_obj = self._get_field_or(new_fields, name, {})
 
                 updated_obj, updated_spec = self._update_object(inner_prop.type, new_obj, existing_obj)
-                updated_obj = RichProperty(name=name, type=DataType.OBJECT, value=updated_obj)
+                updated_obj_p = RichProperty(name=name, type=DataType.OBJECT, value=updated_obj)
                 if updated_spec is not None:
                     updated_specs.append(NamedProperty(name=name, type=updated_spec))
-                updated_values[name] = updated_obj
+                updated_values[name] = updated_obj_p
                 continue
 
             if inner_prop.type.type == DataType.ARRAY:

@@ -6,10 +6,11 @@ from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
-from sycamore.schema import Schema, SchemaField
+from sycamore.schema import SchemaV2
 from sycamore.transforms.property_extraction.extract import SchemaExtract
 from sycamore.transforms.property_extraction.strategy import BatchElements
 from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields
+from sycamore.transforms.property_extraction.utils import create_named_property
 
 
 class FakeExtractionPrompt(SycamorePrompt):
@@ -20,7 +21,7 @@ class FakeExtractionPrompt(SycamorePrompt):
         ):  # The SchemaExtract init method calls this method with an empty Document so we need to handle that case
             return RenderedPrompt(messages=[])
         return RenderedPrompt(
-            messages=[RenderedMessage(role="user", content=f"field={field.model_dump()}") for field in schema.fields]
+            messages=[RenderedMessage(role="user", content=f"property={property}") for property in schema]
         )
 
 
@@ -32,12 +33,12 @@ class FakeLLM(LLM):
         return True
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        temp = [ast.literal_eval(msg.content[6:]) for msg in prompt.messages]
+        temp = [ast.literal_eval(msg.content[9:]) for msg in prompt.messages]
         ret_val = [
             {
                 "name": ii["name"],
                 "value": ii["examples"][0],
-                "type": ii["field_type"],
+                "type": ii["type"],
                 "description": ii["description"],
             }
             for ii in temp
@@ -53,33 +54,48 @@ class TestSchemaExtract:
         doc_0 = Document(
             doc_id="0", elements=[Element(text_representation="d0e0"), Element(text_representation="d0e1")]
         )
-        doc_0.properties["_schema_temp"] = Schema(
-            fields=[
-                SchemaField(
-                    name="company_name", field_type="string", description="Name of the company", examples=["Acme Corp"]
-                ),
-                SchemaField(name="ceo", field_type="string", description="CEO name", examples=["Jane Doe"]),
-            ]
-        )
+        doc_0.properties["_schema_temp"] = [
+            {
+                "name": "company_name",
+                "type": "string",
+                "description": "Name of the company",
+                "examples": ["Acme Corp"],
+            },
+            {
+                "name": "ceo",
+                "type": "string",
+                "description": "CEO name",
+                "examples": ["Jane Doe"],
+            },
+        ]
+
         doc_1 = Document(
             doc_id="1", elements=[Element(text_representation="d1e0"), Element(text_representation="d1e1")]
         )
-        doc_1.properties["_schema_temp"] = Schema(
-            fields=[
-                SchemaField(
-                    name="company_name", field_type="string", description="Name of the company", examples=["Beta LLC"]
-                ),
-                SchemaField(name="revenue", field_type="float", description="Annual revenue", examples=[1000000.0]),
-            ]
-        )
+        doc_1.properties["_schema_temp"] = [
+            {
+                "name": "company_name",
+                "type": "string",
+                "description": "Name of the company",
+                "examples": ["Beta LLC"],
+            },
+            {
+                "name": "revenue",
+                "type": "float",
+                "description": "Annual revenue",
+                "examples": [1000000.0],
+            },
+        ]
 
-        agg_schema_true = Schema(
-            fields=[
-                SchemaField(
-                    name="company_name",
-                    field_type="string",
-                    description="Name of the company",
-                    examples=["Beta LLC", "Acme Corp"],
+        agg_schema_true = SchemaV2(
+            properties=[
+                create_named_property(
+                    {
+                        "name": "company_name",
+                        "type": "string",
+                        "description": "Name of the company",
+                        "examples": ["Beta LLC", "Acme Corp"],
+                    },
                 )
             ]
         )
@@ -94,17 +110,17 @@ class TestSchemaExtract:
         extracted_docs = schema_ext.run(docs)
         context = sycamore.init(exec_mode=sycamore.EXEC_LOCAL)
         ds = context.read.document(extracted_docs).reduce(intersection_of_fields)
-        agg_schema_pred = ds.take()[0].properties.get("_schema", Schema(fields=[]))
+        agg_schema_pred = ds.take()[0].properties.get("_schema", SchemaV2(properties=[]))
 
         assert (
-            agg_schema_pred.fields[0].name == agg_schema_true.fields[0].name
-        ), f"Expected name {agg_schema_true.fields[0].name}, got {agg_schema_pred.fields[0].name}"
+            agg_schema_pred.properties[0].name == agg_schema_true.properties[0].name
+        ), f"Expected name {agg_schema_true.properties[0].name}, got {agg_schema_pred.properties[0].name}"
         assert (
-            agg_schema_pred.fields[0].field_type == agg_schema_true.fields[0].field_type
-        ), f"Expected type {agg_schema_true.fields[0].field_type}, got {agg_schema_pred.fields[0].field_type}"
+            agg_schema_pred.properties[0].type.type.value == agg_schema_true.properties[0].type.type.value
+        ), f"Expected type {agg_schema_true.properties[0].type.type.value}, got {agg_schema_pred.properties[0].type.type.value}"
         assert (
-            agg_schema_pred.fields[0].description == agg_schema_true.fields[0].description
-        ), f"Expected description {agg_schema_true.fields[0].description}, got {agg_schema_pred.fields[0].description}"
-        assert set(agg_schema_pred.fields[0].examples) == set(
-            agg_schema_true.fields[0].examples
-        ), f"Expected examples {agg_schema_true.fields[0].examples}, got {agg_schema_pred.fields[0].examples}"
+            agg_schema_pred.properties[0].type.description == agg_schema_true.properties[0].type.description
+        ), f"Expected description {agg_schema_true.properties[0].type.description}, got {agg_schema_pred.properties[0].type.description}"
+        assert set(agg_schema_pred.properties[0].type.examples) == set(
+            agg_schema_true.properties[0].type.examples
+        ), f"Expected examples {agg_schema_true.properties[0].type.examples}, got {agg_schema_pred.properties[0].type.examples}"

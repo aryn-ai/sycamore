@@ -13,7 +13,6 @@ from sycamore.llms.prompts.prompts import (
     RenderedPrompt,
     compile_templates,
 )
-from sycamore.llms.prompts.jinja_fragments import J_FORMAT_SCHEMA_MACRO
 from sycamore.schema import ArrayProperty, ChoiceProperty, ObjectProperty, SchemaV2, Property, DataType
 from sycamore.utils.pdf_utils import get_element_image, select_pdf_pages
 
@@ -186,12 +185,13 @@ _schema_extraction_prompt = ExtractionJinjaPrompt(
         Each entity must have:
         - `name`: lowercase, underscore-separated string representing the name of the entity. The name should be descriptive and concise. It should describe the kind of entity, **not its value**.
         - `value`: the value of the entity extracted from the document
-        - `type`: one of: "string", "integer", "float", "date", "datetime".
+        - `type`: one of: "bool", "int", "float", "string", "date", "datetime".
         - `description`: a brief human-readable explanation of what the entity represents
 
         Guidelines:
         - Use a flat schema (no nested properties)
         - Do not return any explanation or extra text outside the JSON
+        - Entity of type "bool" should be either `true` or `false`
         - Entity of type "date" should be in ISO format (YYYY-MM-DD)
         - Entity of type "datetime" should be in ISO format (YYYY-MM-DDTHH:MM:SS)
 

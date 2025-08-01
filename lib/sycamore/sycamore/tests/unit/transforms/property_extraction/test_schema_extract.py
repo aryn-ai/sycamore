@@ -54,26 +54,6 @@ class TestSchemaExtract:
         doc_0 = Document(
             doc_id="0", elements=[Element(text_representation="d0e0"), Element(text_representation="d0e1")]
         )
-        # doc_0.properties["_schema_temp"] = SchemaV2(
-        #     properties=[
-        #         create_named_property(
-        #             {
-        #                 "name": "company_name",
-        #                 "type": "string",
-        #                 "description": "Name of the company",
-        #                 "examples": ["Acme Corp"],
-        #             },
-        #         ),
-        #         create_named_property(
-        #             {
-        #                 "name": "ceo",
-        #                 "type": "string",
-        #                 "description": "CEO name",
-        #                 "examples": ["Jane Doe"],
-        #             },
-        #         ),
-        #     ]
-        # )
         doc_0.properties["_schema_temp"] = [
             {
                 "name": "company_name",
@@ -92,26 +72,6 @@ class TestSchemaExtract:
         doc_1 = Document(
             doc_id="1", elements=[Element(text_representation="d1e0"), Element(text_representation="d1e1")]
         )
-        # doc_1.properties["_schema_temp"] = SchemaV2(
-        #     properties=[
-        #         create_named_property(
-        #             {
-        #                 "name": "company_name",
-        #                 "type": "string",
-        #                 "description": "Name of the company",
-        #                 "examples": ["Beta LLC"],
-        #             },
-        #         ),
-        #         create_named_property(
-        #             {
-        #                 "name": "revenue",
-        #                 "type": "float",
-        #                 "description": "Annual revenue",
-        #                 "examples": [1000000.0],
-        #             },
-        #         ),
-        #     ]
-        # )
         doc_1.properties["_schema_temp"] = [
             {
                 "name": "company_name",

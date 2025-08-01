@@ -31,7 +31,7 @@ from sycamore.utils.deprecate import deprecated
 from sycamore.decorators import experimental
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
-from sycamore.schema import Schema, SchemaV2
+from sycamore.schema import SchemaV2
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
@@ -460,7 +460,7 @@ class DocSet:
         return DocSet(self.context, embeddings)
 
     @experimental
-    def extract(self, schema: Schema, llm: LLM) -> "DocSet":
+    def extract(self, schema: SchemaV2, llm: LLM) -> "DocSet":
         from sycamore.transforms.property_extraction.extract import Extract
         from sycamore.transforms.property_extraction.strategy import default_stepthrough, default_schema_partition
         from sycamore.transforms.property_extraction.prompts import default_prompt

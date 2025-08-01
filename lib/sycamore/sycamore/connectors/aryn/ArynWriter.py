@@ -22,10 +22,10 @@ class ArynWriterClientParams(BaseDBWriter.ClientParams):
 @dataclass
 class ArynWriterTargetParams(BaseDBWriter.TargetParams):
     def __init__(
-            self,
-            docset_id: Optional[str] = None,
-            update_schema: bool = False,
-            update_keys: Optional[list[str]] = None,
+        self,
+        docset_id: Optional[str] = None,
+        update_schema: bool = False,
+        update_keys: Optional[list[str]] = None,
     ):
         self.docset_id = docset_id
         self.update_schema = update_schema
@@ -66,13 +66,16 @@ class ArynWriterClient(BaseDBWriter.Client):
         for record in records:
             assert isinstance(record, ArynWriterRecord)
             doc = record.doc
+            print(doc)
             with tempfile.TemporaryFile(prefix="aryn-writer-", suffix=".ArynSDoc") as stream:
-                doc.web_serialize(stream)
-                stream.seek(0)
-                files: Mapping = {"doc": stream}
                 params: dict[str, Any] = {"docset_id": docset_id, "update_schema": update_schema}
                 if update_keys:
                     params["update_keys"] = update_keys
+                    # Reduce payload size by removing elements if not updating schema only.
+                    del doc.elements
+                doc.web_serialize(stream)
+                stream.seek(0)
+                files: Mapping = {"doc": stream}
                 sess.post(
                     url=f"{self.aryn_url}/docsets/write",
                     params=params,

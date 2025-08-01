@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Iterable, Any, Optional
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from sycamore.data.document import Document
 from sycamore.data.element import Element
-from sycamore.schema import Schema
+from sycamore.schema import ObjectProperty, ArrayProperty, NamedProperty, SchemaV2, DataType
 from sycamore.llms.prompts.prompts import RenderedPrompt
 
 
@@ -52,19 +52,19 @@ class BatchElements(StepThroughStrategy):
 
 class SchemaPartitionStrategy(ABC):
     @abstractmethod
-    def partition_schema(self, schema: Schema) -> list[Schema]:
+    def partition_schema(self, schema: SchemaV2) -> list[SchemaV2]:
         pass
 
 
 class NoSchemaSplitting(SchemaPartitionStrategy):
-    def partition_schema(self, schema: Schema) -> list[Schema]:
+    def partition_schema(self, schema: SchemaV2) -> list[SchemaV2]:
         return [schema]
 
 
 class RichProperty(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    name: str
+    name: Optional[str]
     # TODO: Any -> DataType
     type: Any
     # TODO: Any -> Union[DataType.types]
@@ -72,15 +72,46 @@ class RichProperty(BaseModel):
 
     is_valid: bool = True
 
-    attribution: list[int] = []
+    attribution: list[int] = Field(default=[], repr=False)
     # TODO: Any -> Union[DataType.types]
     invalid_guesses: list[Any] = []
 
     llm_prompt: Optional[RenderedPrompt] = None
 
+    @staticmethod
+    def from_prediction(
+        prediction: Any, attributable_elements: list[Element], name: Optional[str] = None
+    ) -> "RichProperty":
+        if isinstance(prediction, dict):
+            v_dict: dict[str, RichProperty] = {}
+            for k, v in prediction.items():
+                v_dict[k] = RichProperty.from_prediction(v, attributable_elements, name=k)
+            return RichProperty(
+                name=name,
+                type=DataType.OBJECT,
+                value=v_dict,
+                attribution=[e.element_index for e in attributable_elements if e.element_index is not None],
+            )
+        if isinstance(prediction, list):
+            v_list: list[RichProperty] = []
+            for x in prediction:
+                v_list.append(RichProperty.from_prediction(x, attributable_elements))
+            return RichProperty(
+                name=name,
+                type=DataType.ARRAY,
+                value=v_list,
+                attribution=[e.element_index for e in attributable_elements if e.element_index is not None],
+            )
+        return RichProperty(
+            name=name,
+            type=type(prediction).__name__,
+            value=prediction,
+            attribution=[e.element_index for e in attributable_elements if e.element_index is not None],
+        )
+
 
 class SchemaUpdateResult(BaseModel):
-    out_schema: Schema
+    out_schema: SchemaV2
     out_fields: dict[str, RichProperty]
     completed: bool
 
@@ -88,32 +119,89 @@ class SchemaUpdateResult(BaseModel):
 class SchemaUpdateStrategy(ABC):
     @abstractmethod
     def update_schema(
-        self, in_schema: Schema, new_fields: dict[str, RichProperty], existing_fields: dict[str, RichProperty] = dict()
+        self,
+        in_schema: SchemaV2,
+        new_fields: dict[str, RichProperty],
+        existing_fields: dict[str, RichProperty] = dict(),
     ) -> SchemaUpdateResult:
         pass
 
 
 class TakeFirstTrimSchema(SchemaUpdateStrategy):
+
+    def _get_field_or(self, fields: dict[str, RichProperty], name: str, default: Any) -> Any:
+        ret = fields.get(name)
+        if isinstance(ret, RichProperty):
+            ret = ret.value
+        if ret is None:
+            ret = default
+        return ret
+
+    def _update_object(
+        self,
+        in_obj_spec: ObjectProperty | SchemaV2,
+        new_fields: dict[str, RichProperty],
+        existing_fields: dict[str, RichProperty],
+    ) -> tuple[dict[str, RichProperty], Optional[ObjectProperty]]:
+        updated_specs = []
+        updated_values = {}
+        for inner_prop in in_obj_spec.properties:
+            name = inner_prop.name
+            if inner_prop.type.type == DataType.OBJECT:
+                existing_obj = self._get_field_or(existing_fields, name, {})
+                new_obj = self._get_field_or(new_fields, name, {})
+
+                updated_obj, updated_spec = self._update_object(inner_prop.type, new_obj, existing_obj)
+                updated_obj_p = RichProperty(name=name, type=DataType.OBJECT, value=updated_obj)
+                if updated_spec is not None:
+                    updated_specs.append(NamedProperty(name=name, type=updated_spec))
+                updated_values[name] = updated_obj_p
+                continue
+
+            if inner_prop.type.type == DataType.ARRAY:
+                existing_arr = self._get_field_or(existing_fields, name, [])
+                new_arr = self._get_field_or(new_fields, name, [])
+
+                assert isinstance(inner_prop.type, ArrayProperty)
+                updated_arr = self._update_array(inner_prop.type, new_arr, existing_arr)
+                updated_values[name] = RichProperty(name=name, type=DataType.ARRAY, value=updated_arr)
+                updated_specs.append(inner_prop)
+                continue
+
+            if (v := existing_fields.get(name)) is not None and v.value is not None:
+                updated_values[name] = v
+                continue
+
+            if (v := new_fields.get(name)) is not None and v.value is not None:
+                updated_values[name] = v
+                continue
+
+            updated_specs.append(inner_prop)
+
+        if len(updated_specs) > 0:
+            return existing_fields | updated_values, ObjectProperty(properties=updated_specs)
+        return existing_fields | updated_values, None
+
+    def _update_array(
+        self, in_arr_spec: ArrayProperty, new_fields: list[RichProperty], existing_fields: list[RichProperty]
+    ) -> list[RichProperty]:
+        return existing_fields + new_fields
+
     def update_schema(
-        self, in_schema: Schema, new_fields: dict[str, RichProperty], existing_fields: dict[str, RichProperty] = dict()
+        self,
+        in_schema: SchemaV2,
+        new_fields: dict[str, RichProperty],
+        existing_fields: dict[str, RichProperty] = dict(),
     ) -> SchemaUpdateResult:
-        expected_fields = set(f.name for f in in_schema.fields)
-        arrays = set(sf.name for sf in in_schema.fields if sf.field_type == "array")
-        for k, v in new_fields.items():
-            if v.value is not None and k in expected_fields:
-                if k not in existing_fields:
-                    existing_fields[k] = v
-                elif k in arrays:
-                    existing_fields[k].value.extend(v.value)
-                    existing_fields[k].attribution.extend(v.attribution)
-
-        missing_fields = expected_fields - set(existing_fields.keys())
-        out_schema = Schema(fields=[sf for sf in in_schema.fields if sf.name in missing_fields | arrays])
-
+        out_fields, out_schema_obj = self._update_object(in_schema, new_fields, existing_fields)
+        if out_schema_obj is None:
+            out_schema = SchemaV2(properties=[])
+        else:
+            out_schema = SchemaV2(properties=out_schema_obj.properties)
         return SchemaUpdateResult(
             out_schema=out_schema,
-            out_fields=existing_fields,
-            completed=len(out_schema.fields) == 0 and len(arrays) == 0,
+            out_fields=out_fields,
+            completed=len(out_schema.properties) == 0,
         )
 
 

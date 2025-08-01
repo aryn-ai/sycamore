@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, Any, Optional, Self
+from typing import Iterable, Any, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from sycamore.data.document import Document
@@ -79,7 +79,9 @@ class RichProperty(BaseModel):
     llm_prompt: Optional[RenderedPrompt] = None
 
     @staticmethod
-    def from_prediction(prediction: Any, attributable_elements: list[Element], name: Optional[str] = None) -> Self:
+    def from_prediction(
+        prediction: Any, attributable_elements: list[Element], name: Optional[str] = None
+    ) -> "RichProperty":
         if isinstance(prediction, dict):
             v_dict: dict[str, RichProperty] = {}
             for k, v in prediction.items():
@@ -126,6 +128,15 @@ class SchemaUpdateStrategy(ABC):
 
 
 class TakeFirstTrimSchema(SchemaUpdateStrategy):
+
+    def _get_field_or(self, fields: dict[str, RichProperty], name: str, default: Any) -> Any:
+        ret = fields.get(name)
+        if isinstance(ret, RichProperty):
+            ret = ret.value
+        if ret is None:
+            ret = default
+        return ret
+
     def _update_object(
         self,
         in_obj_spec: ObjectProperty | SchemaV2,
@@ -137,16 +148,8 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
         for inner_prop in in_obj_spec.properties:
             name = inner_prop.name
             if inner_prop.type.type == DataType.OBJECT:
-                existing_obj = existing_fields.get(name)
-                if isinstance(existing_obj, RichProperty):
-                    existing_obj = existing_obj.value
-                if existing_obj is None:
-                    existing_obj = {}
-                new_obj = new_fields.get(name)
-                if isinstance(new_obj, RichProperty):
-                    new_obj = new_obj.value
-                if new_obj is None:
-                    new_obj = {}
+                existing_obj = self._get_field_or(existing_fields, name, {})
+                new_obj = self._get_field_or(new_fields, name, {})
 
                 updated_obj, updated_spec = self._update_object(inner_prop.type, new_obj, existing_obj)
                 updated_obj = RichProperty(name=name, type=DataType.OBJECT, value=updated_obj)
@@ -156,16 +159,8 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                 continue
 
             if inner_prop.type.type == DataType.ARRAY:
-                new_arr = new_fields.get(name)
-                if isinstance(new_arr, RichProperty):
-                    new_arr = new_arr.value
-                if new_arr is None:
-                    new_arr = []
-                existing_arr = existing_fields.get(name)
-                if isinstance(existing_arr, RichProperty):
-                    existing_arr = existing_arr.value
-                if existing_arr is None:
-                    existing_arr = []
+                existing_arr = self._get_field_or(existing_fields, name, [])
+                new_arr = self._get_field_or(new_fields, name, [])
 
                 assert isinstance(inner_prop.type, ArrayProperty)
                 updated_arr = self._update_array(inner_prop.type, new_arr, existing_arr)

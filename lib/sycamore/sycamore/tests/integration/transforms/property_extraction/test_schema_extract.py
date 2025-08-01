@@ -108,7 +108,7 @@ class TestSchemaExtract:
             prompt=FakeExtractionPrompt(),
         )
         extracted_docs = schema_ext.run(docs)
-        context = sycamore.init(exec_mode=sycamore.EXEC_LOCAL)
+        context = sycamore.init()
         ds = context.read.document(extracted_docs).reduce(intersection_of_fields)
         agg_schema_pred = ds.take()[0].properties.get("_schema", SchemaV2(properties=[]))
 

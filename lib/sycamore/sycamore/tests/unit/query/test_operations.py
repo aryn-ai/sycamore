@@ -183,9 +183,6 @@ class TestOperations:
         )
         captured = llm.capture
         # Number of messages changes depending on the order of the docs.
-        if len(captured) != 49:
-            for stack in llm.traces:
-                traceback.print_list(stack)
         assert len(captured) == 49
         assert response == "merged summary"
 

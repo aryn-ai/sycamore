@@ -821,6 +821,7 @@ class DocSetWriter:
         aryn_api_key: Optional[str] = None,
         aryn_url: Optional[str] = None,
         update_schema: bool = True,
+        update_keys: Optional[list[str]] = None,
         **kwargs,
     ) -> Optional["DocSet"]:
         """
@@ -858,7 +859,7 @@ class DocSetWriter:
                 logger.error(f"Error creating new docset: {e}")
                 raise e
         client_params = ArynWriterClientParams(aryn_url, aryn_api_key)
-        target_params = ArynWriterTargetParams(docset_id, update_schema)
+        target_params = ArynWriterTargetParams(docset_id, update_schema, update_keys)
         writer: Node = ArynWriter(self.plan, client_params=client_params, target_params=target_params, **kwargs)
 
         return self._maybe_execute(writer, True)

@@ -30,7 +30,7 @@ class MockLLM(LLM):
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         self.capture.append(prompt)
-        self.traces.append(traceback.format_exc(limit=10))
+        self.traces.append(traceback.extract_stack())
         if prompt.messages[0].content.endswith('"1, 2, one, two, 1, 3".'):
             return '{"groups": ["group1", "group2", "group3"]}'
         if (
@@ -185,7 +185,10 @@ class TestOperations:
         )
         captured = llm.capture
         # Number of messages changes depending on the order of the docs.
-        assert len(captured) == 49, llm.traces
+        if len(captured) != 49:
+            for stack in llm.traces:
+                traceback.print_list(stack)
+        assert len(captured) == 49
         assert response == "merged summary"
 
     def test_get_text_for_summarize_data_non_docset(self, words_and_ids_docset):

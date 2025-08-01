@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from bs4 import BeautifulSoup
 import pytest
 import re
+import xml.etree.ElementTree as ET
 
 from sycamore.data.bbox import BoundingBox
 from sycamore.data.table import Table, TableCell
@@ -89,14 +90,18 @@ class SimpleTableWithHeader(TableFormatTestCase):
     def canonical_html(self) -> str:
         return """
         <table>
-          <tr>
-            <th>head1</th>
-            <th>head2</th>
-          </tr>
-          <tr>
-            <td>3</td>
-            <td>4</td>
-          </tr>
+          <thead>
+            <tr>
+              <th>head1</th>
+              <th>head2</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>3</td>
+              <td>4</td>
+            </tr>
+          </tbody>
         </table>
         """
 
@@ -164,20 +169,24 @@ class SimpleTableMultiColHeader(TableFormatTestCase):
     def canonical_html(self) -> str:
         return """
         <table>
-          <tr>
-            <th colspan="2">multi head</th>
-            <th>head2</th>
-          </tr>
-          <tr>
-            <td>1</td>
-            <td>2</td>
-            <td>3</td>
-          </tr>
-          <tr>
-            <td>4</td>
-            <td>5</td>
-            <td>6</td>
-          </tr>
+          <thead>
+            <tr>
+              <th colspan="2">multi head</th>
+              <th>head2</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>2</td>
+              <td>3</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>5</td>
+              <td>6</td>
+            </tr>
+          </tbody>
         </table>
         """
 
@@ -246,21 +255,25 @@ class SimpleTableMultiRowHeader(TableFormatTestCase):
     def canonical_html(self) -> str:
         return """
         <table>
-          <tr>
-            <th rowspan="2">multi head</th>
-            <th>head2_1</th>
-          </tr>
-          <tr>
-            <th>head2_2</th>
-          </tr>
-          <tr>
-            <td>1</td>
-            <td>2</td>
-          </tr>
-          <tr>
-            <td>3</td>
-            <td>4</td>
-          </tr>
+          <thead>
+            <tr>
+              <th rowspan="2">multi head</th>
+              <th>head2_1</th>
+            </tr>
+            <tr>
+              <th>head2_2</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>2</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>4</td>
+            </tr>
+          </tbody>
         </table>
         """
 
@@ -285,23 +298,27 @@ class SimpleTableMultiRowColHeader(TableFormatTestCase):
     def canonical_html(self) -> str:
         return """
         <table>
-          <tr>
-            <th rowspan="2" colspan="2">multi head</th>
-            <th>head2_1</th>
-          </tr>
-          <tr>
-            <th>head2_2</th>
-          </tr>
-          <tr>
-            <td>1</td>
-            <td>2</td>
-            <td>3</td>
-          </tr>
-          <tr>
-            <td>4</td>
-            <td>5</td>
-            <td>6</td>
-          </tr>
+          <thead>
+            <tr>
+              <th rowspan="2" colspan="2">multi head</th>
+              <th>head2_1</th>
+            </tr>
+            <tr>
+              <th>head2_2</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>2</td>
+              <td>3</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>5</td>
+              <td>6</td>
+            </tr>
+          </tbody>
         </table>
         """
 
@@ -330,41 +347,45 @@ class SmithsonianSampleTable(TableFormatTestCase):
         <table>
          <caption>Specification values: Steel, Castings,
          Ann. A.S.T.M. A27-16, Class B;* P max. 0.06; S max. 0.05.</caption>
-         <tr>
-          <th rowspan="2">Grade.</th>
-          <th rowspan="2">Yield Point.</th>
-          <th colspan="2">Ultimate tensile strength</th>
-          <th rowspan="2">Per cent elong. 50.8 mm or 2 in.</th>
-          <th rowspan="2">Per cent reduct. area.</th>
-         </tr>
-         <tr>
-          <th>kg/mm2</th>
-          <th>lb/in2</th>
-         </tr>
-         <tr>
-          <td>Hard</td>
-          <td>0.45 ultimate</td>
-          <td>56.2</td>
-          <td>80,000</td>
-          <td>15</td>
-          <td>20</td>
-         </tr>
-         <tr>
-          <td>Medium</td>
-          <td>0.45 ultimate</td>
-          <td>49.2</td>
-          <td>70,000</td>
-          <td>18</td>
-          <td>25</td>
-         </tr>
-         <tr>
-          <td>Soft</td>
-          <td>0.45 ultimate</td>
-          <td>42.2</td>
-          <td>60,000</td>
-          <td>22</td>
-          <td>30</td>
-         </tr>
+         <thead>
+          <tr>
+           <th rowspan="2">Grade.</th>
+           <th rowspan="2">Yield Point.</th>
+           <th colspan="2">Ultimate tensile strength</th>
+           <th rowspan="2">Per cent elong. 50.8 mm or 2 in.</th>
+           <th rowspan="2">Per cent reduct. area.</th>
+          </tr>
+          <tr>
+           <th>kg/mm2</th>
+           <th>lb/in2</th>
+          </tr>
+         </thead>
+         <tbody>
+          <tr>
+           <td>Hard</td>
+           <td>0.45 ultimate</td>
+           <td>56.2</td>
+           <td>80,000</td>
+           <td>15</td>
+           <td>20</td>
+          </tr>
+          <tr>
+           <td>Medium</td>
+           <td>0.45 ultimate</td>
+           <td>49.2</td>
+           <td>70,000</td>
+           <td>18</td>
+           <td>25</td>
+          </tr>
+          <tr>
+           <td>Soft</td>
+           <td>0.45 ultimate</td>
+           <td>42.2</td>
+           <td>60,000</td>
+           <td>22</td>
+           <td>30</td>
+          </tr>
+         </tbody>
         </table>
         """
 
@@ -559,3 +580,72 @@ def test_from_html(test_case):
         for other_html in test_case.other_html():
             actual = Table.from_html(html_str=other_html)
             assert actual == expected
+
+
+def test_return_element_functionality():
+    """Test return_element parameter and thead/tbody structure."""
+    # Test return_element=False vs True
+    table = SimpleTable().table()
+    html_str = table.to_html()
+    element = table.to_html(return_element=True)
+
+    assert isinstance(html_str, str) and html_str.startswith("<table>")
+    assert isinstance(element, ET.Element) and element.tag == "table"
+    assert _remove_whitespace(ET.tostring(element, encoding="unicode")) == _remove_whitespace(html_str)
+
+
+def test_thead_tbody_structure():
+    """Test thead/tbody generation based on headers."""
+
+    # Table with headers gets thead/tbody
+    header_table = SimpleTableWithHeader().table()
+    header_element = header_table.to_html(return_element=True)
+    children = list(header_element)
+
+    assert len(children) == 2 and children[0].tag == "thead" and children[1].tag == "tbody"
+    assert len(list(children[0])) == 1  # 1 header row
+    assert len(list(children[1])) == 1  # 1 data row
+
+    # Table without headers gets direct tr children
+    no_header_table = SimpleTable().table()
+    no_header_element = no_header_table.to_html(return_element=True)
+    no_header_children = list(no_header_element)
+
+    assert len(no_header_children) == 2
+    assert all(child.tag == "tr" for child in no_header_children)
+    assert not any(child.tag in ["thead", "tbody"] for child in no_header_children)
+
+
+def test_multi_row_headers_and_parent_element():
+    """Test multi-row headers and parent_element with return_element."""
+    # Multi-row headers should have correct thead/tbody structure
+    multi_row_table = SimpleTableMultiRowHeader().table()
+    element = multi_row_table.to_html(return_element=True)
+    children = list(element)
+
+    assert children[0].tag == "thead" and len(list(children[0])) == 2  # 2 header rows
+    assert children[1].tag == "tbody" and len(list(children[1])) == 2  # 2 data rows
+
+    # Test with parent_element parameter
+    parent = ET.Element("div")
+    table_element = SimpleTable().table().to_html(parent_element=parent, return_element=True)
+
+    assert isinstance(table_element, ET.Element) and table_element.tag == "table"
+    assert len(list(parent)) == 1 and list(parent)[0] == table_element
+
+
+def test_complex_table_structure():
+    """Test complex table with caption and spanning cells."""
+    # Test Smithsonian table with caption and complex headers
+    complex_table = SmithsonianSampleTable().table()
+    element = complex_table.to_html(return_element=True)
+    children = list(element)
+
+    # Should have caption, thead, tbody
+    assert children[0].tag == "caption"
+    assert children[1].tag == "thead" and len(list(children[1])) == 2  # 2 header rows
+    assert children[2].tag == "tbody" and len(list(children[2])) == 3  # 3 data rows
+
+    # Check that spanning attributes are preserved
+    html_str = complex_table.to_html()
+    assert 'rowspan="2"' in html_str and 'colspan="2"' in html_str

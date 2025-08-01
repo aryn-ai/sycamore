@@ -26,11 +26,9 @@ class MockLLM(LLM):
     def __init__(self):
         super().__init__(model_name="mock_model", default_mode=LLMMode.SYNC)
         self.capture = []
-        self.traces = []
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         self.capture.append(prompt)
-        self.traces.append(traceback.extract_stack())
         if prompt.messages[0].content.endswith('"1, 2, one, two, 1, 3".'):
             return '{"groups": ["group1", "group2", "group3"]}'
         if (

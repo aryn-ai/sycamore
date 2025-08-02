@@ -2,6 +2,7 @@ from typing import Optional
 import ast
 import json
 import sycamore
+from sycamore.docset import DocSet
 from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.llms.llms import LLM, LLMMode
@@ -101,15 +102,15 @@ class TestSchemaExtract:
         )
 
         docs = [doc_0, doc_1]
+        context = sycamore.init()
+        read_ds = context.read.document(docs)
         schema_ext = SchemaExtract(
-            None,
+            read_ds.plan,
             step_through_strategy=BatchElements(batch_size=50),
             llm=FakeLLM(),
             prompt=FakeExtractionPrompt(),
         )
-        extracted_docs = schema_ext.run(docs)
-        context = sycamore.init()
-        ds = context.read.document(extracted_docs).reduce(intersection_of_fields)
+        ds = DocSet(context, schema_ext).reduce(intersection_of_fields)
         agg_schema_pred = ds.take()[0].properties.get("_schema", SchemaV2(properties=[]))
 
         assert (

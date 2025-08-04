@@ -109,7 +109,7 @@ class SchemaExtract(MapBatch):
 
     @staticmethod
     def _cast_to_type(val: Any, val_type: str) -> Any:
-        if val is None:
+        if not val or val in ["null", "None"]:
             return None
         conversion_f = {"int": int, "float": float}
         if val_type in conversion_f:

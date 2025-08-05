@@ -24,6 +24,17 @@ class DuckDBReaderQueryParams(BaseDBReader.QueryParams):
     query: Optional[str]
     create_hnsw_table: Optional[str]
 
+    def compatible_with(self, other: "BaseDBReader.QueryParams") -> bool:
+        if not isinstance(other, DuckDBReaderQueryParams):
+            raise ValueError(f"Incompatible query parameters: Expected DuckDBReaderQueryParams, found {type(other)}")
+        if self.table_name != other.table_name:
+            raise ValueError(f"Incompatible table names: Expected {self.table_name}, found {other.table_name}")
+        if self.query != other.query:
+            raise ValueError(f"Incompatible queries: Expected {self.query}, found {other.query}")
+        if self.create_hnsw_table != other.create_hnsw_table:
+            raise ValueError(f"Incompatible HNSW table creation queries: Expected {self.create_hnsw_table}, found {other.create_hnsw_table}")
+        return True
+
 
 class DuckDBReaderClient(BaseDBReader.Client):
     def __init__(self, client: "DuckDBPyConnection"):

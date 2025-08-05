@@ -1,8 +1,10 @@
 from typing import Optional, Any, Union
 
 from sycamore.data import Element, Document
+from sycamore.llms.prompts.prompts import JinjaPrompt, ElementListPrompt, JinjaElementPrompt, JinjaTableMergerPrompt
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
+from sycamore.transforms.base_llm import LLMMapElements, LLMMap
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 from jinja2.sandbox import SandboxedEnvironment
@@ -55,7 +57,7 @@ class LLMTextQueryAgent:
         self._output_property = output_property
         self._llm_kwargs = llm_kwargs
         self._per_element = per_element
-        self._format_kwargs = format_kwargs
+        self._format_kwargs = format_kwargs if format_kwargs else {}
         self._number_of_elements = number_of_elements
         self._element_type = element_type
         self._table_cont = table_cont
@@ -124,6 +126,74 @@ class LLMTextQueryAgent:
             else:
                 object["properties"][self._output_property] = llm_resp
         return object
+
+    def get_element_prompt(self):
+        if self._table_cont:
+            prompt = (
+                self._prompt
+                + "\n"
+                + "{% if prev %}"
+                + "ELEMENT 1: \n"
+                + "{prev}"
+                + "\n\n"
+                + "ELEMENT 2: \n"
+                + "{elt}"
+                + "{% else %}"
+                + "{elt}"
+                + "{% endif %}"
+            )
+            return JinjaTableMergerPrompt(system=None, user=prompt, **self._format_kwargs)
+        else:
+            if self._format_kwargs:
+                return JinjaElementPrompt(system=None, user=self._prompt, **self._format_kwargs)
+            else:
+                return JinjaElementPrompt(system=None, user=self._prompt + "\n" + "{{elt}}")
+
+    def get_document_prompt(self):
+        if self._number_of_elements:
+
+            def selector(elts: list[Element]):
+                elts = [elt for elt in elts if elt.type == self._element_type]
+                if self._number_of_elements:
+                    elts = elts[: self._number_of_elements]
+                return elts
+
+            return ElementListPrompt(
+                system=None,
+                user=self._prompt,
+                element_select=selector,
+                element_list_constructor=lambda elts: "\n".join([elt.text_representation for elt in elts]),
+                **self._format_kwargs,
+            )
+        else:
+            if self._format_kwargs:
+                return JinjaPrompt(system=None, user=self._prompt, **self._format_kwargs)
+            else:
+                return JinjaPrompt(system=None, user=self._prompt + "\n" + "{{doc}}", **self._format_kwargs)
+
+    def as_llm_map(self, child) -> Node:
+        if self._per_element:
+
+            def element_filter(e: Element):
+                return not self._element_type or e.type == self._element_type
+
+            prompt = self.get_element_prompt()
+            llm_map_elements = LLMMapElements(
+                child,
+                prompt=prompt,
+                output_field=self._output_property,
+                llm=self._llm,
+                filter=element_filter,
+                number_of_elements=self._number_of_elements,
+                **self._llm_kwargs,
+            )
+            return llm_map_elements
+        else:
+            prompt = self.get_document_prompt()
+            llm_map = LLMMap(
+                child, prompt=prompt, output_field=self._output_property, llm=self._llm, **self._llm_kwargs
+            )
+            return llm_map
 
 
 class LLMQuery(NonCPUUser, NonGPUUser, Map):

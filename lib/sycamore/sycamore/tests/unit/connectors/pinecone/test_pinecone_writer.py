@@ -193,3 +193,5 @@ def test_wait_on_index_timeout(mock_pinecone_grpc, mocker):
     mocker.patch("sycamore.connectors.pinecone.pinecone_writer.time.time", side_effect=ft.time)
     with pytest.raises(RuntimeError, match="Pinecone failed to create index in 30 seconds"):
         wait_on_index(client, "index1")
+    # 31 because waiting for > deadline
+    assert ft.now == 31

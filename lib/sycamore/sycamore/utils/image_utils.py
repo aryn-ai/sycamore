@@ -175,14 +175,14 @@ def try_draw_boxes(
 
     Args:
         target: The Image or ImageDraw instance on which to draw the boxes.
-        boxes: Sequence of boxes to draw on the target. The box can be specfiied in a variety of ways,
+        boxes: Sequence of boxes to draw on the target. The box can be specified in a variety of ways,
             and will be interpreted by the methods passed in below.
         coord_fn: Function that takes a box and returns a tuple of coordinates in the form (x1, y1, x2, y2).
             The default attempts to infer the coordinates from a variety of list/dict formats.
         text_fn: Function that takes a box and returns text to display next to each bounding box.
             If text_fn returns None, no text will be rendered.
         color_fn: Function that takes a box and returns the color to draw the box.
-        font_path: Path to a TrueType font for rendering text. Deafults to PIL's default font.
+        font_path: Path to a TrueType font for rendering text. Defaults to PIL's default font.
     """
 
     if isinstance(target, ImageDraw.ImageDraw):
@@ -204,7 +204,7 @@ def try_draw_boxes(
         try:
             raw_coords = coord_fn(box)
         except Exception:
-            logging.warn(f"Could not extract bbox coords from {box}")
+            logging.warning(f"Could not extract bbox coords from {box}")
             continue
 
         # If the coordinates are all less than or equal to 1.0, then we treat them
@@ -279,7 +279,7 @@ def extract_image_from_element(
 ) -> ImageElement:
     """Extracts the image from an element."""
     assert element.bbox is not None, "Element must have a bounding box"
-    cropped_image = crop_to_bbox(page_image, element.bbox).convert("RGB")
+    cropped_image = crop_to_bbox(page_image, element.bbox, padding=0).convert("RGB")
     resolved_format = None if extract_image_format == "PPM" else extract_image_format
     element.binary_representation = image_to_bytes(cropped_image, format=resolved_format)
     element.image_mode = cropped_image.mode

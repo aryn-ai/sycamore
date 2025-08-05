@@ -86,7 +86,7 @@ class Neo4jWriterClient:
             if os.path.exists(path):
                 os.remove(path)
             else:
-                logger.warn(f"ERROR: {path} does not exist, cannot delete")
+                logger.warning(f"ERROR: {path} does not exist, cannot delete")
 
     def _write_relationships_neo4j(self, relationships: list[tuple[str, str]], session: "Session"):
         for relationship_type in relationships:
@@ -119,7 +119,7 @@ class Neo4jWriterClient:
             if os.path.exists(path):
                 os.remove(path)
             else:
-                logger.warn(f"ERROR: {path} does not exist, cannot delete")
+                logger.warning(f"ERROR: {path} does not exist, cannot delete")
 
     def _write_constraints_neo4j(self, labels: list[str], session: "Session"):
         for node_label in labels:

@@ -252,7 +252,7 @@ class BaseMapTransform(UnaryNode):
         with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
             outputs = f(docs)
         if outputs is None:
-            logging.warn(f"Function {name} returned nothing. If it has no outputs it should return an empty list")
+            logging.warning(f"Function {name} returned nothing. If it has no outputs it should return an empty list")
             outputs = []
         elif isinstance(outputs, Document):
             outputs = [outputs]

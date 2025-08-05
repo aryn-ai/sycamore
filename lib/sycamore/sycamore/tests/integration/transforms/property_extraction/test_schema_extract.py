@@ -102,7 +102,7 @@ class TestSchemaExtract:
         )
 
         docs = [doc_0, doc_1]
-        context = sycamore.init(exec_mode=sycamore.EXEC_LOCAL)
+        context = sycamore.init()
         read_ds = context.read.document(docs)
         schema_ext = SchemaExtract(
             read_ds.plan,

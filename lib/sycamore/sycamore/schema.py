@@ -1,4 +1,7 @@
+import datetime
 from enum import Enum
+import json
+import logging
 from typing import Annotated, Any, Literal, Optional, TypeAlias
 from pydantic import (
     AliasChoices,
@@ -10,6 +13,9 @@ from pydantic import (
     WrapValidator,
     ValidationError,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class SchemaField(BaseModel):
@@ -53,6 +59,33 @@ class DataType(str, Enum):
     @classmethod
     def values(cls):
         return set(map(lambda c: c.value, cls))
+
+    @classmethod
+    def from_python(cls, python_val: Any) -> "DataType":
+        return cls.from_python_type(type(python_val))
+
+    @classmethod
+    def from_python_type(cls, python_type: type) -> "DataType":
+        """Convert a Python type to a DataType."""
+        if python_type is bool:
+            return cls.BOOL
+        elif python_type is int:
+            return cls.INT
+        elif python_type is float:
+            return cls.FLOAT
+        elif python_type is str:
+            return cls.STRING
+        elif python_type is datetime.date:
+            return cls.DATE
+        elif python_type is datetime.datetime:
+            return cls.DATETIME
+        elif python_type is list:
+            return cls.ARRAY
+        elif python_type is dict:
+            return cls.OBJECT
+        else:
+            logger.warning(f"Unsupported Python type: {python_type}. Defaulting to string.")
+            return cls.STRING
 
 
 class PropertyValidator(BaseModel):
@@ -174,6 +207,15 @@ PropertyType: TypeAlias = Annotated[
 ]
 
 
+def make_property(**kwargs) -> PropertyType:
+    return TypeAdapter(PropertyType).validate_python(kwargs)
+
+
+def make_named_property(name: str, **kwargs) -> NamedProperty:
+    """Create a NamedProperty with the given name and property type."""
+    return NamedProperty(name=name, type=make_property(**kwargs))
+
+
 def _convert_to_named_property(schema_prop: SchemaField) -> NamedProperty:
     """Convert a SchemaProperty to a NamedProperty."""
 
@@ -188,11 +230,9 @@ def _convert_to_named_property(schema_prop: SchemaField) -> NamedProperty:
         prop_type_dict["custom_type"] = declared_type
         prop_type_dict["type"] = DataType.CUSTOM
 
-    prop_type: PropertyType = TypeAdapter(PropertyType).validate_python(prop_type_dict)
-
     return NamedProperty(
         name=schema_prop.name,
-        type=prop_type,
+        type=make_property(**prop_type_dict),
     )
 
 
@@ -218,3 +258,32 @@ class SchemaV2(BaseModel):
     def fields(self) -> list[NamedProperty]:
         """Alias for properties."""
         return self.properties
+
+    def flatten(self) -> "SchemaV2":
+        """Flatten the schema by removing nested properties."""
+
+        def flatten_object(prefix: str, props: list[NamedProperty], out_props: list[NamedProperty]) -> None:
+            """Flatten an ObjectProperty into its properties."""
+            for p in props:
+                if p.type.type == DataType.ARRAY:
+                    continue
+                elif p.type.type == DataType.OBJECT:
+                    # Flatten nested object properties
+                    new_prefix = f"{prefix}.{p.name}" if prefix else p.name
+                    flatten_object(new_prefix, p.type.properties, out_props)
+                else:
+                    new_p = p.model_copy(deep=True)
+                    if len(prefix) > 0:
+                        new_p.name = f"{prefix}.{p.name}"
+                    out_props.append(new_p)
+
+        flattened_properties = []
+        flatten_object("", self.properties, flattened_properties)
+        return SchemaV2(properties=flattened_properties)
+
+    def render_flattened(self) -> str:
+        flattened = self.flatten()
+        props = [
+            {"name": p.name, **p.type.model_dump(exclude_unset=True, exclude_none=True)} for p in flattened.properties
+        ]
+        return json.dumps({"properties": props}, indent=2)

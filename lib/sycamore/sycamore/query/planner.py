@@ -1,16 +1,15 @@
 import logging
 import typing
 from abc import abstractmethod
-from typing import List, Optional, Union
+from typing import List, Optional
 
-from sycamore.schema import Schema
+from sycamore.schema import SchemaV2 as Schema
 
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.planner_prompt import PlannerPrompt, PlannerExample, PLANNER_EXAMPLES
-from sycamore.query.schema import OpenSearchSchema
 from sycamore.query.strategy import QueryPlanStrategy, ALL_OPERATORS
 from sycamore.utils.extract_json import extract_json
 
@@ -53,7 +52,7 @@ class LlmPlanner(Planner):
     def __init__(
         self,
         index: str,
-        data_schema: Union[OpenSearchSchema, Schema],
+        data_schema: Schema,
         os_config: Optional[dict[str, str]] = None,
         os_client: Optional["OpenSearch"] = None,
         strategy: QueryPlanStrategy = QueryPlanStrategy(ALL_OPERATORS, []),
@@ -71,10 +70,7 @@ class LlmPlanner(Planner):
         self._examples = PLANNER_EXAMPLES if examples is None else examples
         self._natural_language_response = natural_language_response
         self._prompt = prompt
-
-        self._data_schema: Schema = (
-            data_schema.to_schema() if isinstance(data_schema, OpenSearchSchema) else data_schema
-        )
+        self._data_schema = data_schema
 
     def generate_prompt(self, question: str, **kwargs) -> RenderedPrompt:
         if self._prompt is None:

@@ -2,7 +2,7 @@ import logging
 import typing
 from typing import Dict, Optional
 from pydantic import BaseModel
-from sycamore.schema import Schema, SchemaField
+from sycamore.schema import DataType, make_named_property, Schema, SchemaField, SchemaV2
 
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.data import OpenSearchQuery
@@ -47,7 +47,7 @@ class OpenSearchSchemaFetcher:
         self._index = index
         self._query_executor = query_executor
 
-    def get_schema(self) -> OpenSearchSchema:
+    def get_schema(self) -> SchemaV2:
         """Return a mapping from schema field name to a tuple (type, examples) where "type"
         is the type of the field and "examples" is a list of example values for that field."""
 
@@ -64,13 +64,12 @@ class OpenSearchSchemaFetcher:
         }
         random_sample = self._query_executor.query(query)["result"]["hits"]["hits"]
 
-        result = OpenSearchSchema(
-            fields={
-                "text_representation": OpenSearchSchemaField(
-                    field_type="<class 'str'>", description="Can be assumed to have all other details"
-                )
-            }
+        text_rep = make_named_property(
+            name="text_representation",
+            type=DataType.STRING,
+            description="A text representation of the document. Can be assumed to have all other details.",
         )
+        result = SchemaV2(properties=[text_rep])
 
         # Get type and example values for each field.
         one_schema = next(iter(schema.values()))  # in case index is an alias
@@ -126,7 +125,20 @@ class OpenSearchSchemaFetcher:
 
                 if len(samples) > 0:
                     logger.debug(f"  Got samples for {key} of type {sample_type}")
-                    result.fields[key] = OpenSearchSchemaField(field_type=str(sample_type), examples=list(samples))
+                    sample_list = list(samples)
+
+                    kwargs = {
+                        "name": key,
+                        "type": DataType.from_python_type(sample_type),
+                        "examples": sample_list,
+                    }
+
+                    # TODO: Handle merging types
+                    if sample_type is list:
+                        nested_type = {"type": DataType.from_python(sample_list[0])}
+                        kwargs["item_type"] = nested_type
+
+                    result.properties.append(make_named_property(**kwargs))
                 else:
                     logger.debug(f"  No samples for {key}; ignoring key")
             except KeyError:

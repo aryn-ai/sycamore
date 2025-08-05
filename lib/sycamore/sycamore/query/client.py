@@ -18,7 +18,7 @@ import structlog
 import yaml
 from rich.console import Console
 
-from sycamore.schema import Schema
+from sycamore.schema import SchemaV2 as Schema
 
 import sycamore
 from sycamore import Context, ExecMode
@@ -30,7 +30,7 @@ from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.planner import LlmPlanner, PlannerExample, Planner
 from sycamore.query.result import SycamoreQueryResult
-from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaFetcher
+from sycamore.query.schema import OpenSearchSchemaFetcher
 from sycamore.query.strategy import DefaultQueryPlanStrategy, QueryPlanStrategy
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.query import OpenSearchQueryExecutor
@@ -177,13 +177,13 @@ class SycamoreQueryClient:
         from opensearchpy.client.indices import IndicesClient
 
         schema_provider = OpenSearchSchemaFetcher(IndicesClient(self._os_client), index, self._os_query_executor)
-        return schema_provider.get_schema().to_schema()
+        return schema_provider.get_schema()
 
     def generate_plan(
         self,
         query: str,
         index: str,
-        schema: Union[Schema, OpenSearchSchema, None] = None,
+        schema: Optional[Schema] = None,
         examples: Optional[List[PlannerExample]] = None,
         natural_language_response: bool = False,
         **kwargs,

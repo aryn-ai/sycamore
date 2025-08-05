@@ -112,6 +112,9 @@ class Property(BaseModel):
     description: Optional[str] = None
     """A brief description of the property."""
 
+    default: Optional[Any] = None
+    """The default value for the property."""
+
     extraction_instructions: Optional[str] = None
     """Additional instructions (prompts) to use when extracting the property."""
 
@@ -277,7 +280,7 @@ class SchemaV2(BaseModel):
                         new_p.name = f"{prefix}.{p.name}"
                     out_props.append(new_p)
 
-        flattened_properties = []
+        flattened_properties: list[NamedProperty] = []
         flatten_object("", self.properties, flattened_properties)
         return SchemaV2(properties=flattened_properties)
 

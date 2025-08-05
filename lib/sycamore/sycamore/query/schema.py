@@ -129,7 +129,7 @@ class OpenSearchSchemaFetcher:
 
                     kwargs = {
                         "name": key,
-                        "type": DataType.from_python_type(sample_type),
+                        "type": DataType.from_python_type(sample_type or str),
                         "examples": sample_list,
                     }
 

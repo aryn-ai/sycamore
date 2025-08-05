@@ -1,7 +1,7 @@
 from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 from sycamore.tests.integration.query.conftest import OS_CLIENT_ARGS, OS_CONFIG
 from sycamore.query.planner import LlmPlanner
-from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
+from sycamore.schema import SchemaV2 as Schema, make_named_property
 
 
 def test_simple_llm_planner(query_integration_test_index: str):
@@ -11,11 +11,11 @@ def test_simple_llm_planner(query_integration_test_index: str):
     """
     os_client = OpenSearchClientWithLogging(OS_CLIENT_ARGS)
 
-    schema = OpenSearchSchema(
-        fields={
-            "location": OpenSearchSchemaField(field_type="string", examples=["New York", "Seattle"]),
-            "airplaneType": OpenSearchSchemaField(field_type="string", examples=["Boeing 747", "Airbus A380"]),
-        }
+    schema = Schema(
+        properties=[
+            make_named_property(name="location", type="string", examples=["New York", "Seattle"]),
+            make_named_property(name="airplaneType", type="string", examples=["Boeing 747", "Airbus A380"]),
+        ]
     )
     planner = LlmPlanner(query_integration_test_index, data_schema=schema, os_config=OS_CONFIG, os_client=os_client)
     plan = planner.plan("How many locations did incidents happen in?")

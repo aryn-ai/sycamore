@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Optional, Union, List
+from typing import Any, Callable, Optional, Union, List
 import json
 import sycamore
 import logging
 from sycamore import ExecMode
 from sycamore.data import Element, Document
-from sycamore.schema import SchemaV2 as Schema
+from sycamore.schema import SchemaV2 as Schema, NamedProperty
 from sycamore.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
     PropertiesZeroShotJinjaPrompt,
@@ -25,11 +25,21 @@ from sycamore.llms.prompts.default_prompts import MetadataExtractorJinjaPrompt
 import math
 
 
+def _named_prop_to_dict(named_prop: NamedProperty) -> dict[str, Any]:
+    return {
+        "name": named_prop.name,
+        "type": named_prop.type.type,
+        "description": named_prop.type.description,
+        "default": named_prop.type.default,
+        "examples": named_prop.type.examples,
+    }
+
+
 def cluster_schema_json(schema: Schema, cluster_size: int, embedder: Optional[Embedder] = None) -> List[Document]:
     field_docs: List[Document] = []
-    for fld in schema.fields:
-        txt = f"Field: {fld.name}\nDescription: {fld.description or ''}"
-        field_docs.append(Document(text_representation=txt, **fld.__dict__))
+    for named_prop in schema.properties:
+        txt = f"Field: {named_prop.name}\nDescription: {named_prop.type.description or ''}"
+        field_docs.append(Document(text_representation=txt, **_named_prop_to_dict(named_prop)))
 
     ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
     embeddings = ctx.read.document(field_docs).embed(embedder)
@@ -56,7 +66,7 @@ def batch_schema_json(schema: Schema, batch_size: int) -> List[Document]:
 
     for field_num in range(field_count):
         batch = field_num % batch_size
-        groups[batch].elements.append(Element(**schema.properties[field_num].model_dump()))
+        groups[batch].elements.append(Element(**_named_prop_to_dict(schema.properties[field_num])))
     return list(groups.values())
 
 
@@ -250,11 +260,9 @@ class LLMPropertyExtractor(PropertyExtractor):
             "array": list,  # TODO: Handle array types properly
         }
 
-        for field in self._schema.fields:
+        for field in self._schema.properties:
             value = fields.get(field.name)
-            print(f"field: {field}")
-
-            if value is None and field.default is None:
+            if value is None and field.type.default is None:
                 result[field.name] = None
             else:
                 result[field.name] = type_cast_functions.get(field.type.type, lambda x: x)(value)

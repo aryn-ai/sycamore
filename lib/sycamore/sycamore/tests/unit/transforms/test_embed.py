@@ -2,6 +2,8 @@ import pickle
 import pytest
 import ray.data
 import os
+from unittest.mock import patch, MagicMock
+import numpy as np
 
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
@@ -14,26 +16,37 @@ class TestEmbedding:
     def check_sentence_transformer(
         self, model_name, dimension, texts, use_documents: bool = False, use_elements: bool = False
     ):
-        input_batch = []
-        for text in texts:
-            doc = Document()
-            if use_documents:
-                doc.text_representation = text
-            if use_elements:
-                element = Element()
-                element.text_representation = text
-                doc.elements = [element]
-            input_batch.append(doc)
-        embedder = SentenceTransformerEmbedder(model_name)
-        output_batch = embedder(doc_batch=input_batch)
-        for doc in output_batch:
-            if use_documents:
-                assert doc.embedding is not None
-                assert len(doc.embedding) == dimension
-            if use_elements:
-                for element in doc.elements:
-                    assert element.embedding is not None
-                    assert len(element.embedding) == dimension
+        with patch("sentence_transformers.SentenceTransformer") as mock_transformer:
+            # Mock the SentenceTransformer to prevent model downloads
+            mock_transformer_instance = MagicMock()
+
+            # Generate fake embeddings with the correct dimension
+            def mock_encode(texts_to_encode, **kwargs):
+                return np.random.rand(len(texts_to_encode), dimension)
+
+            mock_transformer_instance.encode = mock_encode
+            mock_transformer.return_value = mock_transformer_instance
+
+            input_batch = []
+            for text in texts:
+                doc = Document()
+                if use_documents:
+                    doc.text_representation = text
+                if use_elements:
+                    element = Element()
+                    element.text_representation = text
+                    doc.elements = [element]
+                input_batch.append(doc)
+            embedder = SentenceTransformerEmbedder(model_name)
+            output_batch = embedder(doc_batch=input_batch)
+            for doc in output_batch:
+                if use_documents:
+                    assert doc.embedding is not None
+                    assert len(doc.embedding) == dimension
+                if use_elements:
+                    for element in doc.elements:
+                        assert element.embedding is not None
+                        assert len(element.embedding) == dimension
 
     """Test data is sampled from different captions for the same image from
     the Flickr30k dataset"""
@@ -83,55 +96,97 @@ class TestEmbedding:
         self.check_sentence_transformer(model_name, dimension, texts, use_documents=True)
 
     def check_sentence_transformer_embedding(self, mocker, use_documents: bool = False, use_elements: bool = False):
-        node = mocker.Mock(spec=Node)
-        embedding = Embed(
-            node,
-            embedder=SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100),
-        )
-        texts = ["Members of a strike at Yale University.", "A woman is speaking at a podium outdoors."]
-        elements = [
-            {"_element_index": 1, "text_representation": texts[0], "embedding": None},
-            {
-                "_element_index": 2,
-                "text_representation": texts[1],
-                "embedding": None,
-            },
-        ]
-        dicts = [
-            {
-                "doc_id": 1,
-                "text_representation": texts[0] if use_documents else None,
-                "embedding": None,
-                "elements": elements if use_elements else [],
-            },
-            {"doc_id": 2, "text_representation": texts[1] if use_documents else None, "embedding": None},
-        ]
-        input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
-        execute = mocker.patch.object(node, "execute")
-        execute.return_value = input_dataset
-        input_dataset.show()
-        output_dataset = embedding.execute()
-        output_dataset.show()
+        with patch("sentence_transformers.SentenceTransformer") as mock_transformer:
+            # Mock the SentenceTransformer to prevent model downloads
+            mock_transformer_instance = MagicMock()
+
+            # Generate fake embeddings with 384 dimensions (for all-MiniLM-L6-v2)
+            def mock_encode(texts_to_encode, **kwargs):
+                return np.random.rand(len(texts_to_encode), 384)
+
+            mock_transformer_instance.encode = mock_encode
+            mock_transformer.return_value = mock_transformer_instance
+
+            node = mocker.Mock(spec=Node)
+            embedding = Embed(
+                node,
+                embedder=SentenceTransformerEmbedder(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100
+                ),
+            )
+            texts = ["Members of a strike at Yale University.", "A woman is speaking at a podium outdoors."]
+            elements = [
+                {"_element_index": 1, "text_representation": texts[0], "embedding": None},
+                {
+                    "_element_index": 2,
+                    "text_representation": texts[1],
+                    "embedding": None,
+                },
+            ]
+            dicts = [
+                {
+                    "doc_id": 1,
+                    "text_representation": texts[0] if use_documents else None,
+                    "embedding": None,
+                    "elements": elements if use_elements else [],
+                },
+                {"doc_id": 2, "text_representation": texts[1] if use_documents else None, "embedding": None},
+            ]
+            input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
+            execute = mocker.patch.object(node, "execute")
+            execute.return_value = input_dataset
+            input_dataset.show()
+            output_dataset = embedding.execute()
+            output_dataset.show()
 
     def test_sentence_transformer_embedding(self, mocker):
         self.check_sentence_transformer_embedding(mocker, use_documents=True, use_elements=True)
         self.check_sentence_transformer_embedding(mocker, use_elements=True)
         self.check_sentence_transformer_embedding(mocker, use_documents=True)
 
-    def test_openai_embedder_pickle(self):
+    @patch("openai.OpenAI")
+    def test_openai_embedder_pickle(self, mock_openai_client):
+        # Mock the OpenAI client to prevent external API calls
+        mock_openai_instance = MagicMock()
+        mock_openai_client.return_value = mock_openai_instance
+
         obj = OpenAIEmbedder()
         obj._client = obj.client_wrapper.get_client()
 
         pickle.dumps(obj)
         assert True
 
-    def test_openai_embedder_no_key(self):
-        oaik = os.environ.pop("OPENAI_API_KEY")
+    @patch("openai.OpenAI")
+    def test_openai_embedder_no_key(self, mock_openai_client):
+        # Mock the OpenAI client to prevent external API calls
+        mock_openai_instance = MagicMock()
+        mock_openai_client.return_value = mock_openai_instance
+
+        oaik = os.environ.pop("OPENAI_API_KEY", None)
         obj = OpenAIEmbedder()
-        os.environ.update({"OPENAI_API_KEY": oaik})
+        if oaik is not None:
+            os.environ.update({"OPENAI_API_KEY": oaik})
         assert obj
 
-    def test_sentence_transformer_batch_size(self):
+    @patch("sentence_transformers.SentenceTransformer")
+    @patch("openai.OpenAI")
+    @patch("boto3.client")
+    def test_sentence_transformer_batch_size(self, mock_boto3_client, mock_openai_client, mock_transformer):
+        # Mock all external dependencies
+        mock_transformer_instance = MagicMock()
+
+        def mock_encode(texts_to_encode, **kwargs):
+            return np.random.rand(len(texts_to_encode), 384)
+
+        mock_transformer_instance.encode = mock_encode
+        mock_transformer.return_value = mock_transformer_instance
+
+        mock_openai_instance = MagicMock()
+        mock_openai_client.return_value = mock_openai_instance
+
+        mock_boto3_instance = MagicMock()
+        mock_boto3_client.return_value = mock_boto3_instance
+
         embedder = SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2")
         assert embedder._get_model_batch_size() == 100
 
@@ -156,11 +211,11 @@ class TestEmbedding:
             OpenAIEmbedder(model_batch_size=2),
         ]
         for embedder in embedders:
-            original_embed_texts = embedder.embed_texts
 
             def mock_embed_texts(text_batch):
                 assert len(text_batch) == 2, "All batches should be size 2"
-                return original_embed_texts(text_batch)
+                # Return fake embeddings instead of calling original function
+                return [[0.1] * 384 for _ in text_batch]
 
             embedder.embed_texts = mock_embed_texts
 

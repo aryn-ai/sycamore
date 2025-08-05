@@ -31,7 +31,7 @@ from sycamore.utils.deprecate import deprecated
 from sycamore.decorators import experimental
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
-from sycamore.schema import Schema
+from sycamore.schema import SchemaV2
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
@@ -460,20 +460,38 @@ class DocSet:
         return DocSet(self.context, embeddings)
 
     @experimental
-    def extract(self, schema: Schema, llm: LLM) -> "DocSet":
+    def extract(self, schema: SchemaV2, llm: LLM) -> "DocSet":
         from sycamore.transforms.property_extraction.extract import Extract
-        from sycamore.transforms.property_extraction.strategy import OneElementAtATime, NoSchemaSplitting
-        from sycamore.transforms.property_extraction.prompts import _elt_at_a_time_full_schema
+        from sycamore.transforms.property_extraction.strategy import default_stepthrough, default_schema_partition
+        from sycamore.transforms.property_extraction.prompts import default_prompt
 
         ext = Extract(
             self.plan,
             schema=schema,
-            step_through_strategy=OneElementAtATime(),
-            schema_partition_strategy=NoSchemaSplitting(),
+            step_through_strategy=default_stepthrough,
+            schema_partition_strategy=default_schema_partition,
             llm=llm,
-            prompt=_elt_at_a_time_full_schema,
+            prompt=default_prompt,
         )
         return DocSet(self.context, ext)
+
+    @experimental
+    def suggest_schema(self, llm: LLM) -> "SchemaV2":
+        from sycamore.transforms.property_extraction.extract import SchemaExtract
+        from sycamore.transforms.property_extraction.strategy import BatchElements
+        from sycamore.transforms.property_extraction.prompts import _schema_extraction_prompt
+        from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields
+
+        schema_ext = SchemaExtract(
+            self.plan,
+            step_through_strategy=BatchElements(batch_size=50),
+            llm=llm,
+            prompt=_schema_extraction_prompt,
+        )
+        ds = DocSet(self.context, schema_ext).reduce(intersection_of_fields)
+        schema = ds.take()[0].properties.get("_schema", SchemaV2(properties=[]))
+
+        return schema
 
     def extract_document_structure(self, structure: DocumentStructure, **kwargs):
         """

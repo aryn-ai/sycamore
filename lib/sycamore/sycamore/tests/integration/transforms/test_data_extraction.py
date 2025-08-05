@@ -2,7 +2,7 @@ import pytest
 import sycamore
 from sycamore import ExecMode
 from sycamore.data import Document, Element
-from sycamore.schema import Schema, SchemaField
+from sycamore.schema import NamedProperty, Schema, SchemaField, SchemaV2, StringProperty, IntProperty, DateProperty
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.llms.anthropic import Anthropic, AnthropicModels
 from sycamore.transforms.extract_schema import LLMPropertyExtractor
@@ -164,26 +164,24 @@ def test_extract(llm):
     for d in docs:
         d.elements = [Element(d)]
 
-    schema = Schema(
-        fields=[
-            SchemaField(
+    schema = SchemaV2(
+        properties=[
+            NamedProperty(
                 name="name",
-                field_type="str",
-                description="This is the name of an entity",
-                examples=["Mark", "Ollie", "Winston"],
-                default="null",
+                type=StringProperty(description="This is the name of an entity", examples=["Mark", "Ollie", "Winston"]),
             ),
-            SchemaField(name="age", field_type="int", default=999),
-            SchemaField(
-                name="date", field_type="str", description="Any date in the doc, extracted in YYYY-MM-DD format"
+            NamedProperty(name="age", type=IntProperty()),
+            NamedProperty(
+                name="date", type=DateProperty(description="Any date in the doc, extracted in YYYY-MM-DD format")
             ),
-            SchemaField(
+            NamedProperty(
                 name="from_location",
-                field_type="str",
-                description="This is the location the entity is from. "
-                "If it's a US location and explicitly states a city and state, format it as 'City, State' "
-                "The state is abbreviated in it's standard 2 letter form.",
-                examples=["Ann Arbor, MI", "Seattle, WA", "New Delhi"],
+                type=StringProperty(
+                    description="This is the location the entity is from. "
+                    "If it's a US location and explicitly states a city and state, format it as 'City, State' "
+                    "The state is abbreviated in it's standard 2 letter form.",
+                    examples=["Ann Arbor, MI", "Seattle, WA", "New Delhi"],
+                ),
             ),
         ]
     )
@@ -196,15 +194,17 @@ def test_extract(llm):
     real, meta = split_data_metadata(taken)
     real.sort(key=lambda d: d.doc_id or "")
     assert len(real) == 2
-    assert real[0].properties["entity"]["name"] == "Vinayak"
-    assert real[0].properties["entity"]["age"] == 74
-    assert real[0].properties["entity"]["from_location"] == "Honolulu, HI", "Invalid location extracted or formatted"
-    assert real[0].properties["entity"]["date"] == "1923-02-24"
+    assert real[0].properties["entity"]["name"].value == "Vinayak"
+    assert real[0].properties["entity"]["age"].value == 74
+    assert (
+        real[0].properties["entity"]["from_location"].value == "Honolulu, HI"
+    ), "Invalid location extracted or formatted"
+    assert real[0].properties["entity"]["date"].value == "1923-02-24"
 
     assert "name" not in real[1].properties["entity"]
-    assert real[1].properties["entity"]["age"] == 999, "Default value not being used correctly"
-    assert real[1].properties["entity"]["from_location"] == "New Delhi"
-    assert real[1].properties["entity"]["date"] == "2014-01-11"
+    assert "age" not in real[1].properties["entity"]
+    assert real[1].properties["entity"]["from_location"].value == "New Delhi"
+    assert real[1].properties["entity"]["date"].value == "2014-01-11"
 
     llm_meta = [m for m in meta if "lineage_links" not in m.metadata]
     assert len(llm_meta) == 2

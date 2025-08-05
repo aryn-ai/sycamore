@@ -11,13 +11,14 @@ from sycamore.transforms.property_extraction.strategy import (
     SchemaUpdateStrategy,
     StepThroughStrategy,
     TakeFirstTrimSchema,
-    RichProperty,
 )
+from sycamore.transforms.property_extraction.types import RichProperty
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe
 from sycamore.transforms.property_extraction.utils import create_named_property
+from sycamore.transforms.property_extraction.attribution import refine_attribution
 
 _logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class Extract(MapBatch):
             rd = extract_json(result)
             new_fields = dict()
             for k, v in rd.items():
-                new_fields[k] = RichProperty.from_prediction(v, elements, name=k)
+                new_fields[k] = refine_attribution(RichProperty.from_prediction(v, elements, name=k), document)
             update = self._schema_update.update_schema(
                 in_schema=schema_part, new_fields=new_fields, existing_fields=result_dict
             )

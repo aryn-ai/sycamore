@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Iterable, Any, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
 
 from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.schema import ObjectProperty, ArrayProperty, NamedProperty, SchemaV2, DataType
-from sycamore.llms.prompts.prompts import RenderedPrompt
+from sycamore.transforms.property_extraction.types import RichProperty
 
 
 class StepThroughStrategy(ABC):
@@ -59,55 +59,6 @@ class SchemaPartitionStrategy(ABC):
 class NoSchemaSplitting(SchemaPartitionStrategy):
     def partition_schema(self, schema: SchemaV2) -> list[SchemaV2]:
         return [schema]
-
-
-class RichProperty(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    name: Optional[str]
-    # TODO: Any -> DataType
-    type: Any
-    # TODO: Any -> Union[DataType.types]
-    value: Any
-
-    is_valid: bool = True
-
-    attribution: list[int] = Field(default=[], repr=False)
-    # TODO: Any -> Union[DataType.types]
-    invalid_guesses: list[Any] = []
-
-    llm_prompt: Optional[RenderedPrompt] = None
-
-    @staticmethod
-    def from_prediction(
-        prediction: Any, attributable_elements: list[Element], name: Optional[str] = None
-    ) -> "RichProperty":
-        if isinstance(prediction, dict):
-            v_dict: dict[str, RichProperty] = {}
-            for k, v in prediction.items():
-                v_dict[k] = RichProperty.from_prediction(v, attributable_elements, name=k)
-            return RichProperty(
-                name=name,
-                type=DataType.OBJECT,
-                value=v_dict,
-                attribution=[e.element_index for e in attributable_elements if e.element_index is not None],
-            )
-        if isinstance(prediction, list):
-            v_list: list[RichProperty] = []
-            for x in prediction:
-                v_list.append(RichProperty.from_prediction(x, attributable_elements))
-            return RichProperty(
-                name=name,
-                type=DataType.ARRAY,
-                value=v_list,
-                attribution=[e.element_index for e in attributable_elements if e.element_index is not None],
-            )
-        return RichProperty(
-            name=name,
-            type=type(prediction).__name__,
-            value=prediction,
-            attribution=[e.element_index for e in attributable_elements if e.element_index is not None],
-        )
 
 
 class SchemaUpdateResult(BaseModel):

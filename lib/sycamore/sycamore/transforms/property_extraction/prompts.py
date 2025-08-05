@@ -21,15 +21,11 @@ def format_property(prop: Property, indent=0) -> str:
     indent_spaces = " " * indent
     if prop.type == DataType.ARRAY:
         assert isinstance(prop, ArrayProperty)
-        return f"{indent_spaces}array [\n{format_property(prop.item_type, indent=indent + 2)}\n{indent_spaces}]"
+        return f"array [\n{indent_spaces}  {format_property(prop.item_type, indent=indent + 2)}\n{indent_spaces}]"
     if prop.type == DataType.OBJECT:
         assert isinstance(prop, ObjectProperty)
-        prop_strs = [(p.name, format_property(p.type, indent=indent + 4)) for p in prop.properties]
-        return (
-            f"{indent_spaces}object {{\n"
-            + ",\n".join([f"{indent_spaces}  {n}: {p}" for n, p in prop_strs])
-            + f"\n{indent_spaces}}}"
-        )
+        prop_strs = [(p.name, format_property(p.type, indent=indent + 2)) for p in prop.properties]
+        return "object {\n" + ",\n".join([f"{indent_spaces}  {n}: {p}" for n, p in prop_strs]) + f"\n{indent_spaces}}}"
     if prop.type == DataType.CHOICE:
         assert isinstance(prop, ChoiceProperty)
         return 'enum { "' + '", "'.join(map(str, prop.choices)) + '" }'
@@ -46,6 +42,7 @@ def format_property(prop: Property, indent=0) -> str:
 
 
 def format_schema_v2(schema: SchemaV2) -> str:
+    return format_property(ObjectProperty(properties=schema.properties)).lstrip("object ")
     prop_strs = [(prop.name, format_property(prop.type)) for prop in schema.properties]
     return ",\n".join([f"{n}: {p}" for n, p in prop_strs])
 

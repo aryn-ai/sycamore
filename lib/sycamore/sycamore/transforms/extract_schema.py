@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Optional, Union, List
+from typing import Any, Callable, Optional, Union, List
 import json
 import sycamore
 import logging
 from sycamore import ExecMode
 from sycamore.data import Element, Document
-from sycamore.schema import Schema
+from sycamore.schema import SchemaV2 as Schema, NamedProperty
 from sycamore.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
     PropertiesZeroShotJinjaPrompt,
@@ -17,6 +17,7 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.map import Map
 from sycamore.transforms.base_llm import LLMMap
+from sycamore.transforms.property_extraction.prompts import format_schema_v2
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.time_trace import timetrace
 from sycamore.transforms.embed import Embedder
@@ -24,16 +25,26 @@ from sycamore.llms.prompts.default_prompts import MetadataExtractorJinjaPrompt
 import math
 
 
+def _named_prop_to_dict(named_prop: NamedProperty) -> dict[str, Any]:
+    return {
+        "name": named_prop.name,
+        "type": named_prop.type.type,
+        "description": named_prop.type.description,
+        "default": named_prop.type.default,
+        "examples": named_prop.type.examples,
+    }
+
+
 def cluster_schema_json(schema: Schema, cluster_size: int, embedder: Optional[Embedder] = None) -> List[Document]:
     field_docs: List[Document] = []
-    for fld in schema.fields:
-        txt = f"Field: {fld.name}\nDescription: {fld.description or ''}"
-        field_docs.append(Document(text_representation=txt, **fld.__dict__))
+    for named_prop in schema.properties:
+        txt = f"Field: {named_prop.name}\nDescription: {named_prop.type.description or ''}"
+        field_docs.append(Document(text_representation=txt, **_named_prop_to_dict(named_prop)))
 
     ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
     embeddings = ctx.read.document(field_docs).embed(embedder)
 
-    centroids = embeddings.kmeans(K=cluster_size or round(math.sqrt(len(schema.fields))), iterations=40)
+    centroids = embeddings.kmeans(K=cluster_size or round(math.sqrt(len(schema.properties))), iterations=40)
     clds = embeddings.clustering(centroids, cluster_field_name="cluster")
 
     clusters_docs = clds.take_all()
@@ -55,7 +66,7 @@ def batch_schema_json(schema: Schema, batch_size: int) -> List[Document]:
 
     for field_num in range(field_count):
         batch = field_num % batch_size
-        groups[batch].elements.append(Element(**schema.fields[field_num].__dict__))
+        groups[batch].elements.append(Element(**_named_prop_to_dict(schema.properties[field_num])))
     return list(groups.values())
 
 
@@ -242,20 +253,19 @@ class LLMPropertyExtractor(PropertyExtractor):
         type_cast_functions: dict[str, Callable] = {
             "int": int,
             "float": float,
-            "str": str,
             "string": str,
             "bool": bool,
             "date": lambda x: dateparser.parse(x),
             "datetime": lambda x: dateparser.parse(x),
-            "list": list,
+            "array": list,  # TODO: Handle array types properly
         }
 
-        for field in self._schema.fields:
+        for field in self._schema.properties:
             value = fields.get(field.name)
-            if value is None and field.default is None:
+            if value is None and field.type.default is None:
                 result[field.name] = None
             else:
-                result[field.name] = type_cast_functions.get(field.field_type, lambda x: x)(value)
+                result[field.name] = type_cast_functions.get(field.type.type, lambda x: x)(value)
 
         # Include additional fields not defined in the schema
         for key, value in fields.items():
@@ -284,7 +294,7 @@ class LLMPropertyExtractor(PropertyExtractor):
                 for field in field_doc.elements:
                     schema[field["name"]] = {
                         "description": field["description"],
-                        "type": field["field_type"],
+                        "type": field["type"],
                         "default": field.get("default"),
                         "examples": field.get("examples"),
                     }
@@ -324,7 +334,9 @@ class LLMPropertyExtractor(PropertyExtractor):
 
         if isinstance(self._schema, Schema):
             prompt = PropertiesFromSchemaJinjaPrompt
-            prompt = prompt.fork(schema=self._schema, response_format=self._schema.model_dump())
+            prompt = prompt.fork(
+                schema_string=format_schema_v2(self._schema), response_format=self._schema.model_dump()
+            )
         else:
             prompt = PropertiesZeroShotJinjaPrompt
             if self._schema is not None:

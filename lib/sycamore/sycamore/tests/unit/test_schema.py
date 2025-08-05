@@ -43,7 +43,7 @@ custom_type_schema_new = {"properties": [custom_type_dict_new]}
 def test_read_old_schema():
     schema = SchemaV2.model_validate(single_property_schema_old)
     assert (
-        schema.model_dump(exclude_unset=True) == single_property_schema_new
+        schema.model_dump(exclude_unset=True, exclude_none=True) == single_property_schema_new
     ), "Old schema should match the new schema format"
 
 

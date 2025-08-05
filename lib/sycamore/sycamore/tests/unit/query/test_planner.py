@@ -6,7 +6,7 @@ from sycamore.query.operators.count import Count
 from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.planner import LlmPlanner
 from sycamore.query.planner_prompt import PlannerPrompt
-from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
+from sycamore.schema import SchemaV2 as Schema, make_named_property
 
 
 @pytest.fixture
@@ -25,12 +25,12 @@ def mock_llm_client():
 
 
 @pytest.fixture
-def mock_schema() -> OpenSearchSchema:
-    return OpenSearchSchema(
-        fields={
-            "incidentId": OpenSearchSchemaField(field_type="str", examples=["A1234, B1234, C1234"]),
-            "date": OpenSearchSchemaField(field_type="str", examples=["2022-01-01", "2024-02-10"]),
-        }
+def mock_schema() -> Schema:
+    return Schema(
+        properties=[
+            make_named_property(name="incidentId", type="string", examples=["A1234, B1234, C1234"]),
+            make_named_property(name="date", type="string", examples=["2022-01-01", "2024-02-10"]),
+        ]
     )
 
 

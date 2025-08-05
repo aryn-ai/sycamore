@@ -2,7 +2,14 @@ import pytest
 import sycamore
 from sycamore import ExecMode
 from sycamore.data import Document, Element
-from sycamore.schema import NamedProperty, Schema, SchemaField, SchemaV2, StringProperty, IntProperty, DateProperty
+from sycamore.schema import (
+    NamedProperty,
+    SchemaV2,
+    StringProperty,
+    IntProperty,
+    DateProperty,
+    make_named_property,
+)
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.llms.anthropic import Anthropic, AnthropicModels
 from sycamore.transforms.extract_schema import LLMPropertyExtractor
@@ -62,21 +69,25 @@ def test_extract_properties_from_dict_schema(llm):
 def test_extract_metadata(llm):
     docs = get_docs()[:1]
 
-    field1 = SchemaField(
-        name="person_name",
-        field_type="string",
-        description="name of the person, return a tuple with value and pagenumber",
+    schema = SchemaV2(
+        properties=[
+            make_named_property(
+                name="person_name",
+                type="string",
+                description="name of the person, return a tuple with value and pagenumber",
+            ),
+            make_named_property(
+                name="profession",
+                type="string",
+                description="profession of the person, return a tuple of value and pagenumber",
+            ),
+        ]
     )
-    field2 = SchemaField(
-        name="profession",
-        field_type="string",
-        description="profession of the person, return a tuple of value and pagenumber",
-    )
+
     llm = OpenAI(OpenAIModels.GPT_4_1)
     embedder = OpenAIEmbedder("text-embedding-3-small")
 
     # Create schema
-    schema = Schema(fields=[field1, field2])
     property_extractor = LLMPropertyExtractor(
         llm,
         schema=schema,
@@ -110,22 +121,22 @@ def test_extract_metadata(llm):
 def test_extract_properties_from_schema(llm):
     docs = get_docs()
 
-    schema = Schema(
-        fields=[
-            SchemaField(
+    schema = SchemaV2(
+        properties=[
+            make_named_property(
                 name="name",
-                field_type="str",
+                type="string",
                 description="This is the name of an entity",
                 examples=["Mark", "Ollie", "Winston"],
                 default="null",
             ),
-            SchemaField(name="age", field_type="int", default=999),
-            SchemaField(
-                name="date", field_type="str", description="Any date in the doc, extracted in YYYY-MM-DD format"
+            make_named_property(name="age", type="int", default=999),
+            make_named_property(
+                name="date", type="string", description="Any date in the doc, extracted in YYYY-MM-DD format"
             ),
-            SchemaField(
+            make_named_property(
                 name="from_location",
-                field_type="str",
+                type="string",
                 description="This is the location the entity is from. "
                 "If it's a US location and explicitly states a city and state, format it as 'City, State' "
                 "The state is abbreviated in it's standard 2 letter form.",

@@ -13,7 +13,6 @@ from sycamore.llms.prompts.prompts import (
 from sycamore.llms.prompts.jinja_fragments import (
     J_DYNAMIC_DOC_TEXT,
     J_FIELD_VALUE_MACRO,
-    J_FORMAT_SCHEMA_MACRO,
     J_SET_ENTITY,
     J_SET_SCHEMA,
     J_ELEMENT_BATCHED_LIST,
@@ -415,11 +414,10 @@ PropertiesFromSchemaJinjaPrompt = JinjaPrompt(
         "You are a helpful property extractor. You have to return your response as a JSON that"
         "can be parsed with json.loads(<response>) in Python. Do not return any other text."
     ),
-    user=(
-        J_FORMAT_SCHEMA_MACRO
-        + """\
+    user=textwrap.dedent(
+        """\
 Extract values for the following fields:
-{{ format_schema(schema) }}
+{{ schema_string }}
 
 Document text:"""
         + J_DYNAMIC_DOC_TEXT

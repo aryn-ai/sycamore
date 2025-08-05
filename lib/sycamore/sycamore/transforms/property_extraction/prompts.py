@@ -34,6 +34,8 @@ def format_property(prop: Property, indent=0) -> str:
         assert isinstance(prop, ChoiceProperty)
         return 'enum { "' + '", "'.join(map(str, prop.choices)) + '" }'
     basic_str = f"{{ type: {prop.type.value}"
+    if prop.default is not None:
+        basic_str += f", default={prop.default}"
     if prop.description is not None:
         basic_str += f", description: {prop.description}"
     if prop.extraction_instructions is not None:

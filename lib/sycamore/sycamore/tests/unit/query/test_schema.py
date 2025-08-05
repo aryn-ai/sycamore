@@ -2,7 +2,8 @@ import logging
 
 from unittest.mock import MagicMock
 
-from sycamore.query.schema import OpenSearchSchemaFetcher, OpenSearchSchemaField
+from sycamore.query.schema import OpenSearchSchemaFetcher
+from sycamore.schema import make_named_property
 
 logging.getLogger("sycamore.query.schema").setLevel(logging.DEBUG)
 
@@ -155,40 +156,52 @@ def test_opensearch_schema():
 
     fetcher = OpenSearchSchemaFetcher(mock_client, "test_index", mock_query_executor)
     got = fetcher.get_schema()
-    assert got.fields["text_representation"] == OpenSearchSchemaField(
-        field_type="<class 'str'>", description="Can be assumed to have all other details"
+    properties_map = {p.name: p for p in got.properties}
+
+    assert properties_map["text_representation"] == make_named_property(
+        name="text_representation",
+        type="string",
+        description="A text representation of the document. Can be assumed to have all other details.",
     )
-    assert got.fields["properties.entity.day"].field_type == "<class 'str'>"
-    assert set(got.fields["properties.entity.day"].examples) == {"2021-01-01", "2021-01-02"}
-    assert got.fields["properties.entity.aircraft"].field_type == "<class 'str'>"
-    assert set(got.fields["properties.entity.aircraft"].examples) == {"Boeing 747", "Airbus A380", "Flight b741"}
-    assert got.fields["properties.entity.weather"] == OpenSearchSchemaField(
-        field_type="<class 'str'>", examples=["Sunny"]
+
+    assert properties_map["properties.entity.day"].type.type == "string"
+    assert set(properties_map["properties.entity.day"].type.examples) == {"2021-01-01", "2021-01-02"}
+    assert properties_map["properties.entity.aircraft"].type.type == "string"
+    assert set(properties_map["properties.entity.aircraft"].type.examples) == {
+        "Boeing 747",
+        "Airbus A380",
+        "Flight b741",
+    }
+    assert properties_map["properties.entity.weather"] == make_named_property(
+        name="properties.entity.weather", type="string", examples=["Sunny"]
     )
 
     # A mix of lists and singletons gets promoted to a list.
-    assert got.fields["properties.entity.colors"].field_type == "<class 'list'>"
-    assert set(got.fields["properties.entity.colors"].examples) == {"['red', 'blue']", "[]", "['yellow']"}
 
-    assert got.fields["properties.entity.test_prop"].field_type == "<class 'str'>"
-    assert set(got.fields["properties.entity.test_prop"].examples) == {
+    assert properties_map["properties.entity.colors"].type.type == "array"
+    assert set(properties_map["properties.entity.colors"].type.examples) == {"['red', 'blue']", "[]", "['yellow']"}
+
+    assert properties_map["properties.entity.test_prop"].type.type == "string"
+    assert set(properties_map["properties.entity.test_prop"].type.examples) == {
         str(i) for i in range(OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES)
     }
 
     # Ints get promoted to floats when there is a mix of sample values.
-    assert got.fields["properties.entity.airspeed"].field_type == "<class 'float'>"
-    assert set(got.fields["properties.entity.airspeed"].examples) == {"41.5", "42", "48", "74.1"}
+    assert properties_map["properties.entity.airspeed"].type.type == "float"
+    assert set(properties_map["properties.entity.airspeed"].type.examples) == {"41.5", "42", "48", "74.1"}
 
     # Ints stay ints when there is no mix.
-    assert got.fields["properties.entity.count"].field_type == "<class 'int'>"
-    assert set(got.fields["properties.entity.count"].examples) == {"3", "0", "67"}
+    assert properties_map["properties.entity.count"].type.type == "int"
+    assert set(properties_map["properties.entity.count"].type.examples) == {"3", "0", "67"}
 
     # Mixed type gets promoted to string.
-    assert got.fields["properties.entity.weird"].field_type == "<class 'str'>"
-    assert set(got.fields["properties.entity.weird"].examples) == {"500", "True", "alphabetical"}
+    assert properties_map["properties.entity.weird"].type.type == "string"
+    assert set(properties_map["properties.entity.weird"].type.examples) == {"500", "True", "alphabetical"}
 
     # Check that fields with a single sample are retained.
-    assert got.fields["properties.happiness"] == OpenSearchSchemaField(field_type="<class 'str'>", examples=["yes"])
+    assert properties_map["properties.happiness"] == make_named_property(
+        name="properties.happiness", type="string", examples=["yes"]
+    )
 
     # Check that fields with no samples are ignored.
-    assert "properties.entity.location" not in got.fields
+    assert "properties.entity.location" not in properties_map

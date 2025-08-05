@@ -29,8 +29,8 @@ class RichProperty(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     name: Optional[str]
-    # TODO: Any -> DataType
-    type: Any
+
+    type: DataType
     # TODO: Any -> Union[DataType.types]
     value: Any
 
@@ -66,7 +66,7 @@ class RichProperty(BaseModel):
             )
         return RichProperty(
             name=name,
-            type=type(prediction).__name__,
+            type=DataType.from_python(prediction),
             value=prediction,
             attribution=AttributionValue(
                 element_indices=[e.element_index for e in attributable_elements if e.element_index is not None]

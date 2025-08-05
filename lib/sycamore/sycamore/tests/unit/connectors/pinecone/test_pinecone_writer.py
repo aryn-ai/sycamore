@@ -30,6 +30,16 @@ def mock_pinecone_exception():
         yield mock_exception
 
 
+class FakeTime:
+    now = 0
+
+    def time(self):
+        return self.now
+
+    def sleep(self, dur):
+        self.now += dur
+
+
 def test_pinecone_writer_target_params_compatible_with():
     params1 = PineconeWriterTargetParams(index_name="index1", dimensions=128)
     params2 = PineconeWriterTargetParams(index_name="index1", dimensions=128)
@@ -165,15 +175,21 @@ def test_narrow_list_of_pinecone_records():
     assert _narrow_list_of_pinecone_records(records)
 
 
-def test_wait_on_index(mock_pinecone_grpc):
+def test_wait_on_index(mock_pinecone_grpc, mocker):
     client = mock_pinecone_grpc.return_value
     client.describe_index.return_value = {"status": {"ready": True}}
+    ft = FakeTime()
+    mocker.patch("sycamore.connectors.pinecone.pinecone_writer.time.sleep", side_effect=ft.sleep)
+    mocker.patch("sycamore.connectors.pinecone.pinecone_writer.time.time", side_effect=ft.time)
     wait_on_index(client, "index1")
     client.describe_index.assert_called_with("index1")
 
 
-def test_wait_on_index_timeout(mock_pinecone_grpc):
+def test_wait_on_index_timeout(mock_pinecone_grpc, mocker):
     client = mock_pinecone_grpc.return_value
     client.describe_index.return_value = {"status": {"ready": False}}
+    ft = FakeTime()
+    mocker.patch("sycamore.connectors.pinecone.pinecone_writer.time.sleep", side_effect=ft.sleep)
+    mocker.patch("sycamore.connectors.pinecone.pinecone_writer.time.time", side_effect=ft.time)
     with pytest.raises(RuntimeError, match="Pinecone failed to create index in 30 seconds"):
         wait_on_index(client, "index1")

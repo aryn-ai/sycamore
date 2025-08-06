@@ -4,7 +4,7 @@ import logging
 
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node
-from sycamore.schema import SchemaV2
+from sycamore.schema import SchemaV2, DataType
 from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,
@@ -17,7 +17,7 @@ from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe
-from sycamore.transforms.property_extraction.utils import create_named_property
+from sycamore.transforms.property_extraction.utils import create_named_property, stitch_together_objects
 from sycamore.transforms.property_extraction.attribution import refine_attribution
 
 _logger = logging.getLogger(__name__)
@@ -58,20 +58,33 @@ class Extract(MapBatch):
         for partial_result in results:
             for props, doc in zip(partial_result, documents):
                 if self._pipde:
-                    if "entity" not in doc.properties:
-                        doc.properties["entity"] = props
+                    if "entity_metadata" not in doc.properties:
+                        doc.properties["entity_metadata"] = props
                     else:
-                        doc.properties["entity"].update(props)
+                        meta = doc.properties["entity_metadata"]
+                        rp = RichProperty(type=DataType.OBJECT, value=props)
+                        rm = RichProperty(type=DataType.OBJECT, value=meta)
+                        stitched = stitch_together_objects(rm, rp)
+                        doc.properties["entity_metadata"] = stitched.value
                 else:
                     doc.properties.update(props)
-
+        if self._pipde:
+            for doc in documents:
+                em = doc.properties["entity_metadata"]
+                doc.properties.setdefault("entity", {})
+                for k, v in em.items():
+                    doc.properties["entity"][k] = v.to_python()
         return documents
 
-    async def extract_schema_partition(self, documents: list[Document], schema_part: SchemaV2) -> list[dict[str, Any]]:
+    async def extract_schema_partition(
+        self, documents: list[Document], schema_part: SchemaV2
+    ) -> list[dict[str, RichProperty]]:
         coros = [self.extract_schema_partition_from_document(d, schema_part) for d in documents]
         return await asyncio.gather(*coros)
 
-    async def extract_schema_partition_from_document(self, document: Document, schema_part: SchemaV2) -> dict[str, Any]:
+    async def extract_schema_partition_from_document(
+        self, document: Document, schema_part: SchemaV2
+    ) -> dict[str, RichProperty]:
         prompt = self._prompt.fork(schema=schema_part)
         result_dict: dict[str, RichProperty] = dict()
         for elements in self._step_through.step_through(document):

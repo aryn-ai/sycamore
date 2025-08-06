@@ -4,7 +4,7 @@ import logging
 import struct
 from dataclasses import dataclass
 from time import time
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Optional
 
 import httpx
 
@@ -22,6 +22,25 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class DocFilter:
+    doc_ids: Optional[list[str]] = None
+    sample_ratio: Optional[float] = None
+    seed: Optional[int] = None
+
+    def select(self, doc_list: list[str]) -> list[str]:
+        if self.doc_ids is not None:
+            return [doc_id for doc_id in doc_list if doc_id in self.doc_ids]
+        elif self.sample_ratio is not None:
+            if self.seed is not None:
+                import random
+
+                random.seed(self.seed)
+            return random.sample(doc_list, int(len(doc_list) * self.sample_ratio))
+        else:
+            return doc_list
+
+
+@dataclass
 class ArynClientParams(BaseDBReader.ClientParams):
     def __init__(self, aryn_url: str, api_key: str, **kwargs):
         self.aryn_url = aryn_url
@@ -33,8 +52,9 @@ class ArynClientParams(BaseDBReader.ClientParams):
 
 @dataclass
 class ArynQueryParams(BaseDBReader.QueryParams):
-    def __init__(self, docset_id: str):
+    def __init__(self, docset_id: str, doc_filter: Optional[DocFilter] = None):
         self.docset_id = docset_id
+        self.doc_filter = doc_filter
 
 
 class ArynQueryResponse(BaseDBReader.QueryResponse):
@@ -170,8 +190,9 @@ class ArynReader(BaseDBReader):
         client = self.Client.from_client_params(self._client_params)
         aryn_client = client._client
 
-        # TODO paginate
         docs = aryn_client.list_docs(self._query_params.docset_id)
+        if self._query_params.doc_filter is not None:
+            docs = self._query_params.doc_filter.select(docs)
         logger.debug(f"Found {len(docs)} docs in docset: {self._query_params.docset_id}")
 
         from ray.data import from_items

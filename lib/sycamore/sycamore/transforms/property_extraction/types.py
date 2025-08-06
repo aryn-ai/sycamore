@@ -72,3 +72,12 @@ class RichProperty(BaseModel):
                 element_indices=[e.element_index for e in attributable_elements if e.element_index is not None]
             ),
         )
+
+    def to_python(self):
+        if self.type == DataType.ARRAY:
+            assert isinstance(self.value, list)
+            return [v.to_python() for v in self.value]
+        if self.type == DataType.OBJECT:
+            assert isinstance(self.value, dict)
+            return {k: v.to_python() for k, v in self.value.items()}
+        return self.value

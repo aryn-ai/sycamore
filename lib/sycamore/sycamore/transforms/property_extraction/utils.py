@@ -5,6 +5,7 @@ from sycamore.schema import (
     DataType,
     PropertyType,
 )
+from sycamore.transforms.property_extraction.types import RichProperty
 
 
 def create_named_property(prop_data: dict[str, Any], n_examples: Optional[int] = None) -> NamedProperty:
@@ -23,3 +24,26 @@ def create_named_property(prop_data: dict[str, Any], n_examples: Optional[int] =
         name=name,
         type=prop_type,
     )
+
+
+def stitch_together_objects(ob1: RichProperty, ob2: RichProperty) -> RichProperty:
+    if ob1.type == DataType.ARRAY and ob2.type == DataType.ARRAY:
+        ret = ob1.model_copy()
+        ret.value += ob2.value
+        return ret
+
+    if ob1.type == DataType.OBJECT and ob2.type == DataType.OBJECT:
+        rd = {}
+        for k in ob1.value.keys():
+            if k in ob2.value:
+                rd[k] = stitch_together_objects(ob1.value[k], ob2.value[k])
+            else:
+                rd[k] = ob1.value[k]
+        for k in ob2.value.keys():
+            if k not in rd:
+                rd[k] = ob2.value[k]
+        ret = ob1.model_copy()
+        ret.value = rd
+        return ret
+
+    raise NotImplementedError(f"Cannot stitch together objects with types {ob1.type} and {ob2.type}")

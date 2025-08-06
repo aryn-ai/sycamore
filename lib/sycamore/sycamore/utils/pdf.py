@@ -1,6 +1,7 @@
 import logging
 
 from io import BytesIO
+import os
 from PIL import Image
 from pathlib import Path
 from queue import Queue
@@ -171,9 +172,13 @@ def pdf_to_image_files(pdf_path: str, file_dir: Path, resolution: int = 200) -> 
                 continue
 
             out_path = file_dir / f"image.{image_num}.ppm"
-            with open(out_path, "wb") as file:
+            tmp_path = file_dir / f"image.{image_num}.tmp.ppm"
+            with open(tmp_path, "wb") as file:
                 file.write(data[0:need_bytes])
+                file.flush()
+            os.rename(tmp_path, out_path)
             q.put(out_path)
+            logging.info(f"Write file into {out_path}")
 
             image_num = image_num + 1
 

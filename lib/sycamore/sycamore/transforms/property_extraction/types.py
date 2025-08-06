@@ -66,7 +66,7 @@ class RichProperty(BaseModel):
             )
         return RichProperty(
             name=name,
-            type=DataType.from_python(prediction),
+            type=DataType.from_python(prediction) if prediction is not None else DataType.STRING,
             value=prediction,
             attribution=AttributionValue(
                 element_indices=[e.element_index for e in attributable_elements if e.element_index is not None]

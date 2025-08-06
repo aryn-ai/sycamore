@@ -7,7 +7,6 @@ import pickle
 import base64
 from PIL import Image
 from typing import Any, Optional
-import pydantic
 from sycamore.utils.cache import Cache
 from sycamore.utils.thread_local import ThreadLocalAccess, ADD_METADATA_TO_OUTPUT
 from sycamore.data.metadata import add_metadata
@@ -125,6 +124,8 @@ class LLM(ABC):
 
     @staticmethod
     def _pickleable_response_format(prompt: RenderedPrompt) -> Any:
+        import pydantic
+
         if inspect.isclass(prompt.response_format) and issubclass(prompt.response_format, pydantic.BaseModel):
             return prompt.response_format.model_json_schema()
         else:

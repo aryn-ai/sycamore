@@ -44,5 +44,6 @@ def stitch_together_objects(ob1: RichProperty, ob2: RichProperty) -> RichPropert
                 rd[k] = ob2.value[k]
         ret = ob1.model_copy()
         ret.value = rd
+        return ret
 
     raise NotImplementedError(f"Cannot stitch together objects with types {ob1.type} and {ob2.type}")

@@ -4,7 +4,7 @@ import logging
 
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node
-from sycamore.schema import SchemaV2, DataType
+from sycamore.schema import SchemaV2 as Schema, DataType
 from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,
@@ -29,7 +29,7 @@ class Extract(MapBatch):
         self,
         node: Optional[Node],
         *,
-        schema: SchemaV2,
+        schema: Schema,
         step_through_strategy: StepThroughStrategy,
         schema_partition_strategy: SchemaPartitionStrategy,
         llm: LLM,
@@ -77,13 +77,13 @@ class Extract(MapBatch):
         return documents
 
     async def extract_schema_partition(
-        self, documents: list[Document], schema_part: SchemaV2
+        self, documents: list[Document], schema_part: Schema
     ) -> list[dict[str, RichProperty]]:
         coros = [self.extract_schema_partition_from_document(d, schema_part) for d in documents]
         return await asyncio.gather(*coros)
 
     async def extract_schema_partition_from_document(
-        self, document: Document, schema_part: SchemaV2
+        self, document: Document, schema_part: Schema
     ) -> dict[str, RichProperty]:
         prompt = self._prompt.fork(schema=schema_part)
         result_dict: dict[str, RichProperty] = dict()
@@ -149,9 +149,9 @@ class SchemaExtract(MapBatch):
         for result, doc in zip(results, documents):
             if not result:
                 _logger.warning("No schema fields extracted, returning empty schema.")
-                doc.properties["_schema"] = SchemaV2(properties=[])
+                doc.properties["_schema"] = Schema(properties=[])
                 continue
-            doc.properties["_schema"] = SchemaV2(properties=[create_named_property(prop) for prop in result])
+            doc.properties["_schema"] = Schema(properties=[create_named_property(prop) for prop in result])
 
         return documents
 

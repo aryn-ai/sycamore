@@ -62,8 +62,8 @@ class Extract(MapBatch):
                         doc.properties["entity_metadata"] = props
                     else:
                         meta = doc.properties["entity_metadata"]
-                        rp = RichProperty(type=DataType.OBJECT, value=props)
-                        rm = RichProperty(type=DataType.OBJECT, value=meta)
+                        rp = RichProperty(name=None, type=DataType.OBJECT, value=props)
+                        rm = RichProperty(name=None, type=DataType.OBJECT, value=meta)
                         stitched = stitch_together_objects(rm, rp)
                         doc.properties["entity_metadata"] = stitched.value
                 else:

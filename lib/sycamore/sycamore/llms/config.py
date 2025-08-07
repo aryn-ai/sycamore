@@ -103,6 +103,10 @@ class OpenAIModels(Enum):
     O4_MINI = OpenAIModel(name="o4-mini", is_chat=True)
     O3 = OpenAIModel(name="o3", is_chat=True)
 
+    GPT_5 = OpenAIModel(name="gpt-5", is_chat=True)
+    GPT_5_MINI = OpenAIModel(name="gpt-5-mini", is_chat=True)
+    GPT_5_NANO = OpenAIModel(name="gpt-5-nano", is_chat=True)
+
     @classmethod
     def from_name(cls, name: str):
         for m in iter(cls):

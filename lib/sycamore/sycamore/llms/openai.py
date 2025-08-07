@@ -322,7 +322,7 @@ class OpenAI(LLM):
             **(llm_kwargs or {}),
         }
 
-        if not self.model.name.startswith("o"):
+        if not self.model.name.startswith("o") and not self.model.name.startswith("gpt-5"):
             kwargs["temperature"] = 0
 
         if "SYCAMORE_OPENAI_USER" in os.environ:

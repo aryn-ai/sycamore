@@ -3,6 +3,7 @@ import json
 import logging
 import struct
 from dataclasses import dataclass
+import random
 from time import time
 from typing import Any, TYPE_CHECKING, Optional
 
@@ -27,15 +28,20 @@ class DocFilter:
     sample_ratio: Optional[float] = None
     seed: Optional[int] = None
 
+    def __post_init__(self):
+        if self.doc_ids is not None and self.sample_ratio is not None:
+            raise ValueError("Cannot specify both doc_ids and sample_ratio")
+        if self.sample_ratio is not None and (self.sample_ratio < 0 or self.sample_ratio > 1):
+            raise ValueError("sample_ratio must be between 0 and 1")
+
     def select(self, doc_list: list[str]) -> list[str]:
         if self.doc_ids is not None:
             return [doc_id for doc_id in doc_list if doc_id in self.doc_ids]
         elif self.sample_ratio is not None:
             if self.seed is not None:
-                import random
-
                 random.seed(self.seed)
-            return random.sample(doc_list, int(len(doc_list) * self.sample_ratio))
+            sample_size = max(1, int(len(doc_list) * self.sample_ratio))
+            return random.sample(doc_list, sample_size)
         else:
             return doc_list
 

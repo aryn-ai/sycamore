@@ -157,8 +157,16 @@ class ExtractionJinjaPrompt(SycamorePrompt):
         return RenderedPrompt(messages=messages, response_format=self.response_format)
 
 
+extract_system = """\
+You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is valid.
+
+- Numerical values must not contain any delimiters between digits; e.g. 2,301.6 should be returned as 3201.6
+- Values must not contain any mathematical expressions. If necessary, preform the calculation yourself.
+- Quotes in strings must be properly escaped.
+"""
+
 _elt_at_a_time_full_schema = ExtractionJinjaPrompt(
-    system="You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is a valid dict, i.e. numbers greater than 1000 don't have commas, quotes are properly escaped, etc.",
+    system=extract_system,
     user_pre_elements="""You are provided some elements of a document and a schema. Extract all the fields in the
 schema as JSON. If a field is not present in the element, output `null` in the output result.""",
     element_template="Element: {{ elt.text_representation }}",
@@ -166,7 +174,7 @@ schema as JSON. If a field is not present in the element, output `null` in the o
 )
 
 _page_image_full_schema = ExtractionJinjaPrompt(
-    system="You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is a valid dict, i.e. numbers greater than 1000 don't have commas, quotes are properly escaped, etc.",
+    system=extract_system,
     user_pre_elements="""You are provided a page of a document and a schema. Extract all the fields in the schema
 as JSON. If a field is not present on the page, output `null` in the output result.""",
     user_post_elements="Schema: \n{{ schema }}",

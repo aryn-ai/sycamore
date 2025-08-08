@@ -15,6 +15,7 @@ import re
 import time
 import os
 import sys
+import copy
 
 OPENSEARCH_URL = "https://localhost:9200"
 ARYN_STATUSDIR = Path("/usr/share/opensearch/data/aryn_status")
@@ -26,6 +27,14 @@ if int(os.environ.get("DEBUG", 0)) > 0:
     logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 else:
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+
+
+def redact_credentials(body):
+    if isinstance(body, dict) and "credential" in body:
+        redacted_body = copy.deepcopy(body)
+        redacted_body["credential"] = "REDACTED"
+        return redacted_body
+    return body
 
 
 def opensearch_request(endpoint: str, log_name: str, body=None, method="GET"):
@@ -41,7 +50,7 @@ def opensearch_request(endpoint: str, log_name: str, body=None, method="GET"):
         logging.debug(f"{method} {endpoint}")
         conn = urllib.request.urlopen(url=urllib.request.Request(url=url, method=method), context=SSL_CTX)
     else:
-        logging.debug(f"{method} {endpoint} {body}")
+        logging.debug(f"{method} {endpoint} {redact_credentials(body)}")
         conn = urllib.request.urlopen(
             url=urllib.request.Request(
                 url=url,
@@ -56,7 +65,7 @@ def opensearch_request(endpoint: str, log_name: str, body=None, method="GET"):
     with open(ARYN_STATUSDIR / f"request.{log_name}", "w") as f:
         f.write(f"{method} {endpoint}\n")
         if body is not None:
-            f.write(json.dumps(body, indent=2) + "\n")
+            f.write(json.dumps(redact_credentials(body), indent=2) + "\n")
         f.write(json.dumps(response, indent=2) + "\n")
     return response
 

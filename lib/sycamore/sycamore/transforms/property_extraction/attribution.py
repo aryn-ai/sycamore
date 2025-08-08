@@ -29,10 +29,12 @@ def refine_attribution(prop: RichProperty, doc: Document) -> RichProperty:
     att = prop.attribution
     if att is None:
         return prop
+
+    eid_map = {e.element_index: i for i, e in enumerate(doc.elements)}
     if len(att.element_indices) == 0:
         elts_to_check = doc.elements
     else:
-        elts_to_check = [doc.elements[i] for i in att.element_indices]
+        elts_to_check = [doc.elements[eid_map[i]] for i in att.element_indices]
 
     # Check all elements for an exact match before looking for a fuzzy match
     winner = -1.0, (-1, -1), -1
@@ -62,11 +64,11 @@ def refine_attribution(prop: RichProperty, doc: Document) -> RichProperty:
     score, (begin, end), idx = winner
     if score > 0:
         att.element_indices = [idx]
-        att.page = doc.elements[idx].properties.get("page_number")
-        att.bbox = doc.elements[idx].bbox
+        att.page = doc.elements[eid_map[idx]].properties.get("page_number")
+        att.bbox = doc.elements[eid_map[idx]].bbox
         att.text_span = begin, end
         att.text_match_score = score
-        att.text_snippet = (doc.elements[idx].text_representation or "")[begin:end]
+        att.text_snippet = (doc.elements[eid_map[idx]].text_representation or "")[begin:end]
     return prop
 
 

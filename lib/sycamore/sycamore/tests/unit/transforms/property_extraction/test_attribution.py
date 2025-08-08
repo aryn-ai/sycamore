@@ -36,7 +36,7 @@ def test_refine_attribution():
 
     doc = Document(
         elements=[
-            Element(text_representation=t, properties={"page_number": i, "_element_index": i})
+            Element(text_representation=t, properties={"page_number": i, "_element_index": i * 5})
             for i, t in enumerate(element_texts)
         ]
     )
@@ -47,7 +47,7 @@ def test_refine_attribution():
 
     atta = refine_attribution(richprops["a"], doc).attribution
     assert atta is not None
-    assert atta.element_indices == [1]
+    assert atta.element_indices == [5]
     assert atta.page == 1
     assert atta.text_snippet == "colorful hydrangeas"
     assert atta.text_match_score == 1.0
@@ -55,7 +55,7 @@ def test_refine_attribution():
 
     attb = refine_attribution(richprops["b"], doc).attribution
     assert attb is not None
-    assert attb.element_indices == [2]
+    assert attb.element_indices == [10]
     assert attb.page == 2
     assert attb.text_snippet == "95,000"
     assert attb.text_match_score is not None
@@ -68,7 +68,7 @@ def test_refine_attribution():
     pd = pc.value["d"]
     attd = pd.attribution
     assert attd is not None
-    assert attd.element_indices == [1]
+    assert attd.element_indices == [5]
     assert attd.page == 1
     assert attd.text_snippet == "colorful hydrangeas"
     assert attd.text_match_score == 1.0
@@ -104,7 +104,7 @@ def test_refine_attribution():
     pf2 = pf.value[2]
     attf2 = pf2.attribution
     assert attf2 is not None
-    assert attf2.element_indices == [2]
+    assert attf2.element_indices == [10]
     assert attf2.page == 2
     assert attf2.text_snippet == "95,000"
     assert attf2.text_match_score is not None

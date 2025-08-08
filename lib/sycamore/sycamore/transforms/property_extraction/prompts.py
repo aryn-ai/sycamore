@@ -163,6 +163,8 @@ You are a helpful metadata extraction agent. You output only JSON. Make sure the
 - Numerical values must not contain any delimiters between digits; e.g. 2,301.6 should be returned as 3201.6
 - Values must not contain any mathematical expressions. If necessary, preform the calculation yourself.
 - Quotes in strings must be properly escaped.
+
+For array fields, extract **every** instance of the type described in the array.
 """
 
 _elt_at_a_time_full_schema = ExtractionJinjaPrompt(

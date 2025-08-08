@@ -160,7 +160,7 @@ class ExtractionJinjaPrompt(SycamorePrompt):
 extract_system = """\
 You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is valid.
 
-- Numerical values must not contain any delimiters between digits; e.g. 2,301.6 should be returned as 3201.6
+- Numerical values must not contain any delimiters between digits; e.g. 3,201.6 should be returned as 3201.6
 - Values must not contain any mathematical expressions. If necessary, preform the calculation yourself.
 - Quotes in strings must be properly escaped.
 

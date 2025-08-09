@@ -92,7 +92,7 @@ def test_update_doc_properties():
             docset_id=docset_id,
             aryn_url=aryn_url,
             api_key=api_key,
-            update_keys=["properties"],
+            only_properties=True,
         )
     )
 
@@ -140,7 +140,7 @@ def test_update_doc_properties():
             docset_id=docset_id,
             aryn_url=aryn_url,
             api_key=api_key,
-            update_keys=["properties"],
+            only_properties=True,
         )
     )
 

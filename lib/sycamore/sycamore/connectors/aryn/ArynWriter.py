@@ -25,11 +25,11 @@ class ArynWriterTargetParams(BaseDBWriter.TargetParams):
         self,
         docset_id: Optional[str] = None,
         update_schema: bool = False,
-        update_keys: Optional[list[str]] = None,
+        only_properties: bool = False,
     ):
         self.docset_id = docset_id
         self.update_schema = update_schema
-        self.update_keys = update_keys
+        self.only_properties = only_properties
 
     def compatible_with(self, other: "BaseDBWriter.TargetParams") -> bool:
         return True
@@ -61,16 +61,19 @@ class ArynWriterClient(BaseDBWriter.Client):
 
         headers = {"Authorization": f"Bearer {self.api_key}"}
         update_schema = target_params.update_schema
-        update_keys = target_params.update_keys
+        only_properties = target_params.only_properties
         sess = requests.Session()
         for record in records:
             assert isinstance(record, ArynWriterRecord)
             doc = record.doc
             print(doc)
             with tempfile.TemporaryFile(prefix="aryn-writer-", suffix=".ArynSDoc") as stream:
-                params: dict[str, Any] = {"docset_id": docset_id, "update_schema": update_schema}
-                if update_keys:
-                    params["update_keys"] = update_keys
+                params: dict[str, Any] = {
+                    "docset_id": docset_id,
+                    "update_schema": update_schema,
+                    "only_properties": only_properties,
+                }
+                if only_properties:
                     # Reduce payload size by removing elements if not updating schema only.
                     del doc.elements
                 doc.web_serialize(stream)

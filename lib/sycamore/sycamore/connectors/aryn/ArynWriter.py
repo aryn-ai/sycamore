@@ -24,6 +24,7 @@ class ArynWriterTargetParams(BaseDBWriter.TargetParams):
     def __init__(
         self,
         docset_id: Optional[str] = None,
+        *,
         update_schema: bool = False,
         only_properties: bool = False,
     ):

@@ -87,7 +87,6 @@ class ArynWriterClient(BaseDBWriter.Client):
                 )
             # For each batch we'll update the Aryn schema with only the first doc of each batch
             update_schema = False
-            update_keys = None
 
     def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
         pass

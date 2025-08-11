@@ -101,3 +101,66 @@ class TestExtract:
         assert extracted[1].field_to_value("properties.entity_metadata.telts").value == 2
         assert extracted[1].field_to_value("properties.entity.missing") is None
         assert extracted[1].field_to_value("properties.entity_metadata.missing") is None
+
+    def test_extract_to_nonpydantic(self):
+        docs = [
+            Document(
+                doc_id="0",
+                elements=[
+                    Element(text_representation="d0e0"),
+                    Element(text_representation="d0e1"),
+                    Element(text_representation="d0e2"),
+                ],
+                properties={
+                    "entity": {"doc_id": "flarglhavn"},
+                    "entity_metadata": {
+                        "doc_id": {
+                            "name": "doc_id",
+                            "type": DataType.STRING,
+                            "value": "flarglhavn",
+                            "attribution": {"element_indices": [0], "page": 0, "bbox": [0, 0, 1, 1]},
+                        }
+                    },
+                },
+            ),
+            Document(
+                doc_id="1",
+                elements=[
+                    Element(text_representation="d1e0"),
+                    Element(text_representation="d1e1"),
+                ],
+            ),
+        ]
+
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(name="doc_id", type=StringProperty()),
+                NamedProperty(name="missing", type=StringProperty()),
+                NamedProperty(name="telts", type=IntProperty()),
+            ]
+        )
+
+        extract = Extract(
+            None,
+            schema=schema,
+            step_through_strategy=OneElementAtATime(),
+            schema_partition_strategy=NoSchemaSplitting(),
+            llm=FakeLLM(),
+            prompt=FakeExtractionPrompt(),
+            output_pydantic_models=False,
+        )
+
+        extracted = extract.run(docs)
+        assert extracted[0].field_to_value("properties.entity.doc_id") == "flarglhavn"
+        assert extracted[0].field_to_value("properties.entity_metadata.doc_id.value") == "flarglhavn"
+        assert extracted[0].field_to_value("properties.entity.telts") == 3
+        assert extracted[0].field_to_value("properties.entity_metadata.telts.value") == 3
+        assert extracted[0].field_to_value("properties.entity.missing") is None
+        assert extracted[0].field_to_value("properties.entity_metadata.missing.value") is None
+
+        assert extracted[1].field_to_value("properties.entity.doc_id") == docs[1].doc_id
+        assert extracted[1].field_to_value("properties.entity_metadata.doc_id.value") == docs[1].doc_id
+        assert extracted[1].field_to_value("properties.entity.telts") == 2
+        assert extracted[1].field_to_value("properties.entity_metadata.telts.value") == 2
+        assert extracted[1].field_to_value("properties.entity.missing") is None
+        assert extracted[1].field_to_value("properties.entity_metadata.missing.value") is None

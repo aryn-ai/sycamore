@@ -101,3 +101,13 @@ class RichProperty(BaseModel):
             for k, x in v.value.items():
                 v.value[k] = cls.validate_recursive(x)
         return v
+
+    def dump_recursive(self) -> Any:
+        v = self.model_dump()
+        if isinstance(v["value"], list):
+            for i, x in enumerate(v["value"]):
+                v["value"][i] = x.dump_recursive()
+        elif isinstance(v["value"], dict):
+            for k, x in v["value"].items():
+                v["value"][k] = x.dump_recursive()
+        return v

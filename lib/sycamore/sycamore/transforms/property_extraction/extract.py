@@ -36,6 +36,7 @@ class Extract(MapBatch):
         prompt: SycamorePrompt,
         put_in_properties_dot_entity: bool = True,
         schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchema(),
+        output_pydantic_models: bool = True,
     ):
         if put_in_properties_dot_entity:
             _logger.warning("Extraction results will go in properties.entity")
@@ -49,6 +50,7 @@ class Extract(MapBatch):
         # Try calling the render method I need at constructor to make sure it's implemented
         self._prompt.render_multiple_elements(elts=[], doc=Document(binary_representation=b""))
         self._pipde = put_in_properties_dot_entity
+        self._output_pydantic = output_pydantic_models
 
     def extract(self, documents: list[Document]) -> list[Document]:
         schema_parts = self._schema_partition.partition_schema(self._schema)
@@ -77,6 +79,9 @@ class Extract(MapBatch):
                         doc.properties["entity"][k] = v.to_python()
                     else:
                         pass  # This property has already been added and de-pydanticized
+                if not self._output_pydantic:
+                    for k, v in em.items():
+                        em[k] = v.dump_recursive()
         return documents
 
     async def extract_schema_partition(

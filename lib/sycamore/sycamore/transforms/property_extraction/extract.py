@@ -90,7 +90,7 @@ class Extract(MapBatch):
     ) -> dict[str, RichProperty]:
         prompt = self._prompt.fork(schema=schema_part)
         if self._pipde:
-            em = document.properties["entity_metadata"]
+            em = document.properties.get("entity_metadata", {})
             result_dict = {k: RichProperty.validate_recursive(v) for k, v in em.items()}
             update = self._schema_update.update_schema(
                 in_schema=schema_part, new_fields={}, existing_fields=result_dict

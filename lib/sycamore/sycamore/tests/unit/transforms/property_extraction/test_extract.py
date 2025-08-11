@@ -6,7 +6,7 @@ from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
 from sycamore.transforms.property_extraction.extract import Extract
 from sycamore.transforms.property_extraction.strategy import NoSchemaSplitting, OneElementAtATime
-from sycamore.schema import IntProperty, NamedProperty, SchemaV2, StringProperty
+from sycamore.schema import IntProperty, NamedProperty, SchemaV2, StringProperty, DataType
 
 
 class FakeExtractionPrompt(SycamorePrompt):
@@ -49,6 +49,17 @@ class TestExtract:
                     Element(text_representation="d0e1"),
                     Element(text_representation="d0e2"),
                 ],
+                properties={
+                    "entity": {"doc_id": "flarglhavn"},
+                    "entity_metadata": {
+                        "doc_id": {
+                            "name": "doc_id",
+                            "type": DataType.STRING,
+                            "value": "flarglhavn",
+                            "attribution": {"element_indices": [0], "page": 0, "bbox": [0, 0, 1, 1]},
+                        }
+                    },
+                },
             ),
             Document(
                 doc_id="1",
@@ -77,8 +88,8 @@ class TestExtract:
         )
 
         extracted = extract.run(docs)
-        assert extracted[0].field_to_value("properties.entity.doc_id") == docs[0].doc_id
-        assert extracted[0].field_to_value("properties.entity_metadata.doc_id").value == docs[0].doc_id
+        assert extracted[0].field_to_value("properties.entity.doc_id") == "flarglhavn"
+        assert extracted[0].field_to_value("properties.entity_metadata.doc_id").value == "flarglhavn"
         assert extracted[0].field_to_value("properties.entity.telts") == 3
         assert extracted[0].field_to_value("properties.entity_metadata.telts").value == 3
         assert extracted[0].field_to_value("properties.entity.missing") is None

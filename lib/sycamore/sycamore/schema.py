@@ -229,6 +229,10 @@ def _convert_to_named_property(schema_prop: SchemaField) -> NamedProperty:
         "examples": schema_prop.examples,
     }
 
+    # Convert common type names to corresponding DataType
+    if prop_type_dict["type"] == "str":
+        prop_type_dict["type"] = DataType.STRING
+
     if (declared_type := prop_type_dict["type"]) not in DataType.values():
         prop_type_dict["custom_type"] = declared_type
         prop_type_dict["type"] = DataType.CUSTOM

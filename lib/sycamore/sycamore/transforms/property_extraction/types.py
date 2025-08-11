@@ -1,6 +1,7 @@
 from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.functional_serializers import field_serializer
+from pydantic.functional_validators import field_validator
 
 from sycamore.data.bbox import BoundingBox
 from sycamore.data.element import Element
@@ -23,6 +24,14 @@ class AttributionValue(BaseModel):
         if bb is None:
             return []
         return [bb.x1, bb.y1, bb.x2, bb.y2]
+
+    @field_validator("bbox", mode="before")
+    @classmethod
+    def validate_bb(cls, value: Any) -> Any:
+        if isinstance(value, (list, tuple)):
+            assert len(value) == 4
+            return BoundingBox(*value)
+        return value
 
 
 class RichProperty(BaseModel):
@@ -81,3 +90,14 @@ class RichProperty(BaseModel):
             assert isinstance(self.value, dict)
             return {k: v.to_python() for k, v in self.value.items()}
         return self.value
+
+    @classmethod
+    def validate_recursive(cls, obj: Any) -> "RichProperty":
+        v = cls.model_validate(obj)
+        if isinstance(v.value, list):
+            for i, x in enumerate(v.value):
+                v.value[i] = cls.validate_recursive(x)
+        elif isinstance(v.value, dict):
+            for k, x in v.value.items():
+                v.value[k] = cls.validate_recursive(x)
+        return v

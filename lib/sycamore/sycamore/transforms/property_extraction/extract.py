@@ -73,7 +73,10 @@ class Extract(MapBatch):
                 em = doc.properties["entity_metadata"]
                 doc.properties.setdefault("entity", {})
                 for k, v in em.items():
-                    doc.properties["entity"][k] = v.to_python()
+                    if isinstance(v, RichProperty):
+                        doc.properties["entity"][k] = v.to_python()
+                    else:
+                        pass  # This property has already been added and de-pydanticized
         return documents
 
     async def extract_schema_partition(
@@ -86,7 +89,18 @@ class Extract(MapBatch):
         self, document: Document, schema_part: Schema
     ) -> dict[str, RichProperty]:
         prompt = self._prompt.fork(schema=schema_part)
-        result_dict: dict[str, RichProperty] = dict()
+        if self._pipde:
+            em = document.properties["entity_metadata"]
+            result_dict = {k: RichProperty.validate_recursive(v) for k, v in em.items()}
+            update = self._schema_update.update_schema(
+                in_schema=schema_part, new_fields={}, existing_fields=result_dict
+            )
+            result_dict = update.out_fields
+            schema_part = update.out_schema
+            if update.completed:
+                return result_dict
+        else:
+            result_dict = dict()
         for elements in self._step_through.step_through(document):
             rendered = prompt.render_multiple_elements(elements, document)
             result = await self._llm.generate_async(prompt=rendered)

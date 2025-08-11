@@ -163,6 +163,7 @@ You are a helpful metadata extraction agent. You output only JSON. Make sure the
 - Numerical values must not contain any delimiters between digits; e.g. 3,201.6 should be returned as 3201.6
 - Values must not contain any mathematical expressions. If necessary, preform the calculation yourself.
 - Quotes in strings must be properly escaped.
+- Always output an object type at the root level, e.g. {"key": "value"}, not a list.
 
 For array fields, extract **every** instance of the type described in the array.
 """

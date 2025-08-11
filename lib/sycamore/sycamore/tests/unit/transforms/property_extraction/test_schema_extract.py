@@ -10,7 +10,7 @@ from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, Render
 from sycamore.schema import SchemaV2
 from sycamore.transforms.property_extraction.extract import SchemaExtract
 from sycamore.transforms.property_extraction.strategy import BatchElements
-from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields
+from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields, union_of_fields
 from sycamore.transforms.property_extraction.utils import create_named_property
 
 
@@ -51,7 +51,7 @@ class FakeLLM(LLM):
 
 
 class TestSchemaExtract:
-    def test_schema_extract(self):
+    def test_intersection(self):
         doc_0 = Document(
             doc_id="0", elements=[Element(text_representation="d0e0"), Element(text_representation="d0e1")]
         )
@@ -125,3 +125,103 @@ class TestSchemaExtract:
         assert set(agg_schema_pred.properties[0].type.examples) == set(
             agg_schema_true.properties[0].type.examples
         ), f"Expected examples {agg_schema_true.properties[0].type.examples}, got {agg_schema_pred.properties[0].type.examples}"
+
+    def test_union(self):
+        doc_0 = Document(
+            doc_id="0", elements=[Element(text_representation="d0e0"), Element(text_representation="d0e1")]
+        )
+        doc_0.properties["_schema_temp"] = [
+            {
+                "name": "company_name",
+                "type": "string",
+                "description": "Name of the company",
+                "examples": ["Acme Corp"],
+            },
+            {
+                "name": "ceo",
+                "type": "string",
+                "description": "CEO name",
+                "examples": ["Jane Doe"],
+            },
+        ]
+
+        doc_1 = Document(
+            doc_id="1", elements=[Element(text_representation="d1e0"), Element(text_representation="d1e1")]
+        )
+        doc_1.properties["_schema_temp"] = [
+            {
+                "name": "company_name",
+                "type": "string",
+                "description": "Name of the company",
+                "examples": ["Beta LLC"],
+            },
+            {
+                "name": "revenue",
+                "type": "float",
+                "description": "Annual revenue",
+                "examples": [1000000.0],
+            },
+        ]
+
+        agg_schema_true = SchemaV2(
+            properties=[
+                create_named_property(
+                    {
+                        "name": "company_name",
+                        "type": "string",
+                        "description": "Name of the company",
+                        "examples": ["Beta LLC", "Acme Corp"],
+                    },
+                ),
+                create_named_property(
+                    {
+                        "name": "ceo",
+                        "type": "string",
+                        "description": "CEO name",
+                        "examples": ["Jane Doe"],
+                    },
+                ),
+                create_named_property(
+                    {
+                        "name": "revenue",
+                        "type": "float",
+                        "description": "Annual revenue",
+                        "examples": [1000000.0],
+                    },
+                ),
+            ]
+        )
+
+        docs = [doc_0, doc_1]
+        context = sycamore.init(exec_mode=sycamore.EXEC_LOCAL)
+        read_ds = context.read.document(docs)
+        schema_ext = SchemaExtract(
+            read_ds.plan,
+            step_through_strategy=BatchElements(batch_size=50),
+            llm=FakeLLM(),
+            prompt=FakeExtractionPrompt(),
+        )
+        ds = DocSet(context, schema_ext).reduce(union_of_fields)
+        agg_schema_pred = ds.take()[0].properties.get("_schema", SchemaV2(properties=[]))
+
+        assert len(agg_schema_pred.properties) == len(
+            agg_schema_true.properties
+        ), f"Expected {len(agg_schema_true.properties)} properties, got {len(agg_schema_pred.properties)}"
+        assert set(p.name for p in agg_schema_pred.properties) == set(
+            p.name for p in agg_schema_true.properties
+        ), f"Expected property names {set(p.name for p in agg_schema_true.properties)}, got {set(p.name for p in agg_schema_pred.properties)}"
+        for true_prop in agg_schema_true.properties:
+            pred_prop = next((p for p in agg_schema_pred.properties if p.name == true_prop.name), None)
+            assert pred_prop is not None, f"Property {true_prop.name} not found in predicted schema"
+            print(f"Checking property {true_prop.name}")
+            print(f"True property: {true_prop}")
+            print(f"Predicted property: {pred_prop}")
+            assert (
+                pred_prop.type.type.value == true_prop.type.type.value
+            ), f"Expected type {true_prop.type.type.value} for property {true_prop.name}, got {pred_prop.type.type.value}"
+            assert (
+                pred_prop.type.description == true_prop.type.description
+            ), f"Expected description {true_prop.type.description} for property {true_prop.name}, got {pred_prop.type.description}"
+            assert set(pred_prop.type.examples) == set(
+                true_prop.type.examples
+            ), f"Expected examples {true_prop.type.examples} for property {true_prop.name}, got {pred_prop.type.examples}"

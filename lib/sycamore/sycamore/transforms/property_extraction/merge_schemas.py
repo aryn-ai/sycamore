@@ -1,3 +1,4 @@
+from typing import Callable
 import logging
 from sycamore.data.document import Document
 from sycamore.schema import SchemaV2
@@ -6,7 +7,18 @@ from sycamore.transforms.property_extraction.utils import create_named_property
 _logger = logging.getLogger(__name__)
 
 
-def intersection_of_fields(docs: list[Document]) -> Document:
+def _process_schema_fields(docs: list[Document], combine_fields_fn: Callable[[list[set[str]]], set[str]]) -> Document:
+    """
+    Common logic for processing schema fields from documents.
+
+    Args:
+        docs: List of documents with schemas to process
+        combine_fields_fn: Function that determines how to combine field sets from different documents
+                         (e.g., intersection or union)
+
+    Returns:
+        A document with the processed schema
+    """
 
     fake_doc = Document()  # to store the schema
 
@@ -46,7 +58,8 @@ def intersection_of_fields(docs: list[Document]) -> Document:
         fake_doc.properties["_schema"] = SchemaV2(properties=[])
         return fake_doc
 
-    common_field_names = set.intersection(*field_names)
+    # Apply the combining function to determine which fields to keep
+    common_field_names = combine_fields_fn(field_names)
     if not common_field_names:
         _logger.warning("No common fields found across documents, returning empty schema.")
         fake_doc.properties["_schema"] = SchemaV2(properties=[])
@@ -58,3 +71,31 @@ def intersection_of_fields(docs: list[Document]) -> Document:
     fake_doc.properties["_schema"] = schema
 
     return fake_doc
+
+
+def intersection_of_fields(docs: list[Document]) -> Document:
+    """
+    Creates an intersection of schema fields from all documents.
+    Only fields present in all documents are included.
+
+    Args:
+        docs: List of documents with _schema properties to merge
+
+    Returns:
+        A document with a merged schema containing only common fields
+    """
+    return _process_schema_fields(docs, lambda fields: set.intersection(*fields) if fields else set())
+
+
+def union_of_fields(docs: list[Document]) -> Document:
+    """
+    Creates a union of schema fields from all documents.
+    All unique fields from any document are included.
+
+    Args:
+        docs: List of documents with _schema properties to merge
+
+    Returns:
+        A document with a merged schema containing all unique fields
+    """
+    return _process_schema_fields(docs, lambda fields: set.union(*fields) if fields else set())

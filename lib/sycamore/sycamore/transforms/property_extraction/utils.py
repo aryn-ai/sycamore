@@ -27,6 +27,12 @@ def create_named_property(prop_data: dict[str, Any], n_examples: Optional[int] =
 
 
 def stitch_together_objects(ob1: RichProperty, ob2: RichProperty) -> RichProperty:
+    if not isinstance(ob1, RichProperty):
+        # Reachable by document.properties.entity_metadata not
+        # containing pydantic rich properties (dicts instead)
+        ob1 = RichProperty.validate_recursive(ob1)
+    if not isinstance(ob2, RichProperty):
+        ob2 = RichProperty.validate_recursive(ob2)
     if ob1.type == DataType.ARRAY and ob2.type == DataType.ARRAY:
         ret = ob1.model_copy()
         ret.value += ob2.value
@@ -45,5 +51,8 @@ def stitch_together_objects(ob1: RichProperty, ob2: RichProperty) -> RichPropert
         ret = ob1.model_copy()
         ret.value = rd
         return ret
+
+    if ob1 == ob2:
+        return ob1
 
     raise NotImplementedError(f"Cannot stitch together objects with types {ob1.type} and {ob2.type}")

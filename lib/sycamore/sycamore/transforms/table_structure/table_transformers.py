@@ -1220,54 +1220,9 @@ def structure_to_cells(table_structure, tokens, union_tokens):
         cell["cell text"] = extract_text_from_spans(cell_spans, remove_integer_superscripts=False)
         cell["spans"] = cell_spans
 
-    # Adjust the row, column, and cell bounding boxes to reflect the extracted text
-    num_rows = len(rows)
     rows = sort_objects_top_to_bottom(rows)
-
-    num_columns = len(columns)
     columns = sort_objects_left_to_right(columns)
 
-    min_y_values_by_row = defaultdict(list)
-    max_y_values_by_row = defaultdict(list)
-    min_x_values_by_column = defaultdict(list)
-    max_x_values_by_column = defaultdict(list)
-    for cell in cells:
-        min_row = min(cell["row_nums"])
-        max_row = max(cell["row_nums"])
-        min_column = min(cell["column_nums"])
-        max_column = max(cell["column_nums"])
-        for span in cell["spans"]:
-            min_x_values_by_column[min_column].append(span["bbox"][0])
-            min_y_values_by_row[min_row].append(span["bbox"][1])
-            max_x_values_by_column[max_column].append(span["bbox"][2])
-            max_y_values_by_row[max_row].append(span["bbox"][3])
-    for row_num, row in enumerate(rows):
-        if len(min_x_values_by_column[0]) > 0:
-            row["bbox"][0] = min(min_x_values_by_column[0])
-        if len(min_y_values_by_row[row_num]) > 0:
-            row["bbox"][1] = min(min_y_values_by_row[row_num])
-        if len(max_x_values_by_column[num_columns - 1]) > 0:
-            row["bbox"][2] = max(max_x_values_by_column[num_columns - 1])
-        if len(max_y_values_by_row[row_num]) > 0:
-            row["bbox"][3] = max(max_y_values_by_row[row_num])
-    for column_num, column in enumerate(columns):
-        if len(min_x_values_by_column[column_num]) > 0:
-            column["bbox"][0] = min(min_x_values_by_column[column_num])
-        if len(min_y_values_by_row[0]) > 0:
-            column["bbox"][1] = min(min_y_values_by_row[0])
-        if len(max_x_values_by_column[column_num]) > 0:
-            column["bbox"][2] = max(max_x_values_by_column[column_num])
-        if len(max_y_values_by_row[num_rows - 1]) > 0:
-            column["bbox"][3] = max(max_y_values_by_row[num_rows - 1])
-    for cell in cells:
-        row_rect = BoundingBox.from_union(BoundingBox(*rows[row_num]["bbox"]) for row_num in cell["row_nums"])
-        column_rect = BoundingBox.from_union(
-            BoundingBox(*columns[column_num]["bbox"]) for column_num in cell["column_nums"]
-        )
-
-        cell_rect = row_rect.intersect(column_rect)
-        if cell_rect.area > 0:
-            cell["bbox"] = cell_rect.to_list()
     if union_tokens:
         dropped_tokens = [
             token for token, package_assignment in zip(tokens, package_assignments) if not package_assignment

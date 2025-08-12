@@ -69,7 +69,7 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
     with LogTime("convert_to_image"):
         # If we don't do this, then if the stderr buffer fills up we could get stuck.
         # Popen.communicate() reads the entire strings.
-        args = ["pdftoppm", "-r", "200", pdf_path]
+        args = ["pdftoppm", "-png", "-r", "200", pdf_path]
         proc = Popen(args, stdout=PIPE, stderr=PIPE)
         q: Queue = Queue(4)
         t_out = Thread(
@@ -146,44 +146,39 @@ def pdf_to_image_files(pdf_path: str, file_dir: Path, resolution: int = 200) -> 
         q.put(finish_msg)
 
     def read_stdout(fh, q):
-        HEADER_BYTES = 40
-        need_bytes = HEADER_BYTES
-        data = b""
+        PNG_SIG = b"\x89PNG\r\n\x1a\n"
         image_num = 0
+        buf = b""
+
         while True:
-            if need_bytes > len(data):
-                logging.debug(f"reading. have {len(data)}/{need_bytes}")
-                part = fh.read(need_bytes - len(data))
-                if part == b"":  # Eof
-                    assert len(data) == 0  # nothing left
-                    break
-                data = data + part
-            else:
-                logging.debug(f"no reading. have {len(data)}/{need_bytes}")
+            chunk = fh.read(8192)
+            if chunk == b"":
+                break
+            buf += chunk
 
-            if len(data) < need_bytes:
-                continue
+            while True:
+                start_idx = buf.find(PNG_SIG)
+                if start_idx == -1:
+                    break  # no PNG start yet
 
-            code, size, rgb = tuple(data[0:HEADER_BYTES].split(b"\n")[0:3])
-            size_x, size_y = tuple(size.split(b" "))
-            need_bytes = len(code) + len(size) + len(rgb) + 3 + int(size_x) * int(size_y) * 3
+                iend_idx = buf.find(b"IEND", start_idx)
+                if iend_idx == -1:
+                    break  # PNG not complete yet
 
-            if len(data) < need_bytes:
-                continue
+                # IEND chunk is 12 bytes total after 'IEND' text
+                png_end = iend_idx + 8
+                png_data = buf[start_idx:png_end]
 
-            out_path = file_dir / f"image.{image_num}.ppm"
-            tmp_path = file_dir / f"image.{image_num}.tmp.ppm"
-            with open(tmp_path, "wb") as file:
-                file.write(data[0:need_bytes])
-                file.flush()
-            os.rename(tmp_path, out_path)
-            q.put(out_path)
-            logging.info(f"Write file into {out_path}")
+                out_path = file_dir / f"image.{image_num}.png"
+                tmp_path = file_dir / f"image.{image_num}.tmp.png"
+                with open(tmp_path, "wb") as f:
+                    f.write(png_data)
+                os.rename(tmp_path, out_path)
+                logging.info(f"Write file into {out_path}")
+                q.put(out_path)
 
-            image_num = image_num + 1
-
-            data = data[need_bytes:]
-            need_bytes = HEADER_BYTES
+                image_num += 1
+                buf = buf[png_end:]  # drop processed PNG
 
     def read_stderr(fh, q):
         while True:
@@ -198,7 +193,7 @@ def pdf_to_image_files(pdf_path: str, file_dir: Path, resolution: int = 200) -> 
     with LogTime("convert_to_image"):
         # If we don't have the separate threads for reading stdout/stderr,
         # then if the stderr buffer fills up we could get stuck.
-        args = ["pdftoppm", "-r", str(resolution), pdf_path]
+        args = ["pdftoppm", "-png", "-r", str(resolution), pdf_path]
         proc = Popen(args, stdout=PIPE, stderr=PIPE)
         q: Queue = Queue(1)
         t_out = Thread(

@@ -24,7 +24,7 @@ class SchemaField(BaseModel):
     name: str
     """The name of the field."""
 
-    field_type: str
+    field_type: str = Field(validation_alias=AliasChoices("field_type", "property_type"))
     """The type of the field."""
 
     default: Optional[Any] = None

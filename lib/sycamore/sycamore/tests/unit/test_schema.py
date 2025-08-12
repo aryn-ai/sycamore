@@ -9,6 +9,16 @@ single_property_dict_old = {
 
 single_property_schema_old = {"fields": [single_property_dict_old]}
 
+single_property_dict_old_property = {
+    "name": "state",
+    "property_type": "string",
+    "description": "Two-letter state code",
+    "examples": ["NC"],
+}
+
+single_property_schema_old_properties = {"properties": [single_property_dict_old_property]}
+
+
 single_property_dict_new = {
     "name": "state",
     "type": {
@@ -45,6 +55,13 @@ def test_read_old_schema():
     assert (
         schema.model_dump(exclude_unset=True, exclude_none=True) == single_property_schema_new
     ), "Old schema should match the new schema format"
+
+
+def test_read_old_schema_properties():
+    schema = SchemaV2.model_validate(single_property_schema_old_properties)
+    assert (
+        schema.model_dump(exclude_unset=True, exclude_none=True) == single_property_schema_new
+    ), "Old schema with properties should match the new schema format"
 
 
 def test_read_new_schema():

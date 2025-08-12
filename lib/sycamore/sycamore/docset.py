@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from sycamore.transforms.embed import Embedder
     from sycamore.transforms.extract_table import TableExtractor
     from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
-
+from sycamore.transforms.property_extraction.strategy import StepThroughStrategy, SchemaPartitionStrategy
 logger = logging.getLogger(__name__)
 
 
@@ -460,7 +460,7 @@ class DocSet:
         return DocSet(self.context, embeddings)
 
     @experimental
-    def extract(self, schema: SchemaV2, llm: LLM) -> "DocSet":
+    def extract(self, schema: SchemaV2, llm: LLM, step_through_strategy: StepThroughStrategy, schema_partition_strategy: SchemaPartitionStrategy, prompt: SycamorePrompt) -> "DocSet":
         from sycamore.transforms.property_extraction.extract import Extract
         from sycamore.transforms.property_extraction.strategy import default_stepthrough, default_schema_partition
         from sycamore.transforms.property_extraction.prompts import default_prompt
@@ -468,10 +468,10 @@ class DocSet:
         ext = Extract(
             self.plan,
             schema=schema,
-            step_through_strategy=default_stepthrough,
-            schema_partition_strategy=default_schema_partition,
+            step_through_strategy=step_through_strategy,
+            schema_partition_strategy=schema_partition_strategy,
             llm=llm,
-            prompt=default_prompt,
+            prompt=prompt,
         )
         return DocSet(self.context, ext)
 

@@ -61,6 +61,32 @@ class NoSchemaSplitting(SchemaPartitionStrategy):
         return [schema]
 
 
+class SplitByPropertyCount(SchemaPartitionStrategy):
+    def __init__(self, max_properties_per_partition: int = 5):
+        """
+        Split schema into partitions with a maximum number of properties each.
+        
+        Args:
+            max_properties_per_partition: Maximum number of properties per schema partition
+        """
+        if max_properties_per_partition <= 0:
+            raise ValueError("max_properties_per_partition must be positive")
+        self._max_properties = max_properties_per_partition
+
+    def partition_schema(self, schema: SchemaV2) -> list[SchemaV2]:
+        if not schema.properties:
+            return [schema]
+        
+        # Split properties into chunks
+        partitions = []
+        for i in range(0, len(schema.properties), self._max_properties):
+            chunk_properties = schema.properties[i:i + self._max_properties]
+            partition_schema = SchemaV2(properties=chunk_properties)
+            partitions.append(partition_schema)
+        
+        return partitions
+
+
 class RichProperty(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

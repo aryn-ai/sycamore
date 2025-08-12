@@ -159,18 +159,18 @@ class ExtractionJinjaPrompt(SycamorePrompt):
 
 
 _elt_at_a_time_full_schema = ExtractionJinjaPrompt(
-    system="You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is a valid dict, i.e. numbers greater than 1000 don't have commas, quotes are properly escaped, etc.",
+    system="You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is a valid dict, i.e. numbers greater than 1000 don't have commas, quotes are properly escaped, all values should be literals and not math expressions, etc. CRITICAL: All numeric values must be computed and provided as literal numbers, never as mathematical expressions (e.g., use null instead of 6.90 / 12). Do not include any calculations, formulas, or expressions in the JSON output.",
     user_pre_elements="""You are provided some elements of a document and a schema. Extract all the fields in the
 schema as JSON. If a field is not present in the element, output `null` in the output result.""",
     element_template="Element: {{ elt.text_representation }}",
-    user_post_elements="Schema: \n{{ schema }}",
+    user_post_elements="Schema: \n{{ schema }} You output only valid JSON. ",
 )
 
 _page_image_full_schema = ExtractionJinjaPrompt(
-    system="You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is a valid dict, i.e. numbers greater than 1000 don't have commas, quotes are properly escaped, etc.",
+    system="You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is a valid dict, i.e. numbers greater than 1000 don't have commas, quotes are properly escaped, all values should be literals and not math expressions, etc. CRITICAL: All numeric values must be computed and provided as literal numbers, never as mathematical expressions (e.g., use null instead of 6.90 / 12). Do not include any calculations, formulas, or expressions in the JSON output.",
     user_pre_elements="""You are provided a page of a document and a schema. Extract all the fields in the schema
 as JSON. If a field is not present on the page, output `null` in the output result.""",
-    user_post_elements="Schema: \n{{ schema }}",
+    user_post_elements="Schema: \n{{ schema }} You output only valid JSON.",
     image_mode=ImageMode.PAGE,
 )
 

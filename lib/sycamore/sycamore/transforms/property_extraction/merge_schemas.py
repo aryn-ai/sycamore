@@ -102,7 +102,7 @@ def union_of_fields(docs: list[Document]) -> Document:
     return _process_schema_fields(docs, lambda fields: set.union(*fields) if fields else set())
 
 
-def make_freq_filter_fn(min_occurence_ratio: float = 0.5) -> Callable[[list[set[str]]], set[str]]:
+def make_freq_filter_fn(min_occurence_ratio: float = 0.5) -> Callable[[list[Document]], Document]:
     """
     Creates a frequency-based field filtering function.
 

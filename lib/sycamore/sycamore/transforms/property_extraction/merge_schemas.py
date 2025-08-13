@@ -1,4 +1,5 @@
 from typing import Callable
+from collections import Counter
 import logging
 from sycamore.data.document import Document
 from sycamore.schema import SchemaV2
@@ -122,15 +123,13 @@ def frequency_filtered_fields(docs: list[Document]) -> Document:
             return set()
 
         # Calculate field frequencies
-        total_docs = len(fields)
-        field_count = {}
+        field_count = Counter()
         for field_set in fields:
-            for field in field_set:
-                field_count[field] = field_count.get(field, 0) + 1
+            field_count.update(field_set)
 
         # Default threshold: fields must appear in at least 50% of documents
         min_occurence_rate = 0.5
-        min_docs = max(1, int(total_docs * min_occurence_rate))
+        min_docs = max(1, int(len(fields) * min_occurence_rate))
 
         # Include fields that meet the threshold
         return {field for field, count in field_count.items() if count >= min_docs}

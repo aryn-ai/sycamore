@@ -292,27 +292,27 @@ class TestStructureToCells:
             "spanning cells": [],
             "column headers": [],
         }
-        
+
         tokens = [
             {"text": "Header 1", "bbox": [5, 5, 45, 15], "span_num": 0, "line_num": 0, "block_num": 0},
             {"text": "Header 2", "bbox": [55, 5, 95, 15], "span_num": 1, "line_num": 0, "block_num": 0},
             {"text": "Data 1", "bbox": [5, 25, 45, 35], "span_num": 2, "line_num": 1, "block_num": 0},
             {"text": "Data 2", "bbox": [55, 25, 95, 35], "span_num": 3, "line_num": 1, "block_num": 0},
         ]
-        
+
         cells, confidence_score = structure_to_cells(table_structure, tokens, union_tokens=False)
-        
+
         assert len(cells) == 6, f"Expected 6 cells, got {len(cells)}"
         assert confidence_score > 0
-        
+
         # Test specific cells
         header_cells = [cell for cell in cells if cell["column header"]]
         assert len(header_cells) == 2
-        
+
         header_cell_1 = next(cell for cell in header_cells if cell["row_nums"] == [0] and cell["column_nums"] == [0])
         assert header_cell_1["cell text"] == "Header 1"
         assert header_cell_1["bbox"] == [0, 0, 50, 20]
-        
+
         data_cell_1 = next(cell for cell in cells if cell["row_nums"] == [1] and cell["column_nums"] == [0])
         assert data_cell_1["cell text"] == "Data 1"
         assert data_cell_1["bbox"] == [0, 20, 50, 40]
@@ -339,32 +339,32 @@ class TestStructureToCells:
             ],
             "column headers": [],
         }
-        
+
         tokens = [
             {"text": "Wide Header", "bbox": [5, 5, 95, 15], "span_num": 0, "line_num": 0, "block_num": 0},
             {"text": "Data 1", "bbox": [5, 25, 45, 35], "span_num": 1, "line_num": 1, "block_num": 0},
         ]
-        
+
         cells, confidence_score = structure_to_cells(table_structure, tokens, union_tokens=False)
-        
+
         # With spanning cell covering first row, we expect:
         # - 1 spanning cell (covers row 0, columns 0,1)
         # - 2 regular cells (row 1, columns 0 and 1)
         assert len(cells) == 3, f"Expected 3 cells (1 spanning + 2 regular), got {len(cells)}"
-        
+
         spanning_cells = [cell for cell in cells if len(cell["column_nums"]) > 1]
         assert len(spanning_cells) == 1
-        
+
         spanning_cell = spanning_cells[0]
         assert spanning_cell["column_nums"] == [0, 1]
         assert spanning_cell["row_nums"] == [0]
         assert spanning_cell["cell text"] == "Wide Header"
         assert spanning_cell["column header"] is True
-        
+
         # Check that regular cells exist for the second row
         regular_cells = [cell for cell in cells if len(cell["column_nums"]) == 1 and len(cell["row_nums"]) == 1]
         assert len(regular_cells) == 2, f"Expected 2 regular cells, got {len(regular_cells)}"
-        
+
         # Check the data cell
         data_cell = next(cell for cell in cells if cell["row_nums"] == [1] and cell["column_nums"] == [0])
         assert data_cell["cell text"] == "Data 1"
@@ -373,26 +373,29 @@ class TestStructureToCells:
     def test_table_with_union_tokens(self):
         """Test table structure with union_tokens=True."""
         table_structure = {
-            "rows": [{"bbox": [0, 0, 100, 20], "column header": False}, {"bbox": [0, 20, 100, 40], "column header": False}],
+            "rows": [
+                {"bbox": [0, 0, 100, 20], "column header": False},
+                {"bbox": [0, 20, 100, 40], "column header": False},
+            ],
             "columns": [{"bbox": [0, 0, 50, 40]}, {"bbox": [50, 0, 100, 40]}],
             "spanning cells": [],
             "column headers": [],
         }
-        
+
         tokens = [
             {"text": "Cell 1", "bbox": [5, 5, 45, 15], "span_num": 0, "line_num": 0, "block_num": 0},
             {"text": "Cell 2", "bbox": [55, 5, 95, 15], "span_num": 1, "line_num": 0, "block_num": 0},
             {"text": "Dropped Token", "bbox": [10, 25, 90, 35], "span_num": 2, "line_num": 1, "block_num": 0},
         ]
-        
+
         cells, confidence_score = structure_to_cells(table_structure, tokens, union_tokens=True)
-        
+
         assert len(cells) >= 4
-        
+
         cell_1 = next(cell for cell in cells if cell["row_nums"] == [0] and cell["column_nums"] == [0])
         assert cell_1["cell text"] == "Cell 1"
         assert cell_1["bbox"] == [0, 0, 50, 20]
-        
+
         dropped_token_cells = [cell for cell in cells if "Dropped Token" in cell["cell text"]]
         assert len(dropped_token_cells) > 0
 
@@ -403,17 +406,20 @@ class TestStructureToCells:
         cells, confidence_score = structure_to_cells(empty_structure, [], union_tokens=False)
         assert len(cells) == 0
         assert confidence_score == 0
-        
+
         # Table with no tokens
         no_token_structure = {
-            "rows": [{"bbox": [0, 0, 100, 20], "column header": False}, {"bbox": [0, 20, 100, 40], "column header": False}],
+            "rows": [
+                {"bbox": [0, 0, 100, 20], "column header": False},
+                {"bbox": [0, 20, 100, 40], "column header": False},
+            ],
             "columns": [{"bbox": [0, 0, 50, 40]}, {"bbox": [50, 0, 100, 40]}],
             "spanning cells": [],
             "column headers": [],
         }
         cells, confidence_score = structure_to_cells(no_token_structure, [], union_tokens=False)
         assert len(cells) == 4
-        
+
         cell_00 = next(cell for cell in cells if cell["row_nums"] == [0] and cell["column_nums"] == [0])
         assert cell_00["bbox"] == [0, 0, 50, 20]
         assert cell_00["cell text"] == ""
@@ -422,7 +428,10 @@ class TestStructureToCells:
     def test_projected_row_headers_and_complex_spanning(self):
         """Test projected row headers and complex spanning cells."""
         table_structure = {
-            "rows": [{"bbox": [0, 0, 100, 20], "column header": False}, {"bbox": [0, 20, 100, 40], "column header": False}],
+            "rows": [
+                {"bbox": [0, 0, 100, 20], "column header": False},
+                {"bbox": [0, 20, 100, 40], "column header": False},
+            ],
             "columns": [{"bbox": [0, 0, 50, 40]}, {"bbox": [50, 0, 100, 40]}],
             "spanning cells": [
                 {
@@ -434,17 +443,17 @@ class TestStructureToCells:
             ],
             "column headers": [],
         }
-        
+
         tokens = [
             {"text": "Row Header", "bbox": [5, 5, 45, 35], "span_num": 0, "line_num": 0, "block_num": 0},
             {"text": "Data", "bbox": [55, 5, 95, 15], "span_num": 1, "line_num": 0, "block_num": 0},
         ]
-        
+
         cells, confidence_score = structure_to_cells(table_structure, tokens, union_tokens=False)
-        
+
         projected_headers = [cell for cell in cells if cell.get("projected row header", False)]
         assert len(projected_headers) > 0
-        
+
         for header in projected_headers:
             assert len(header["row_nums"]) > 1
             assert header["row_nums"] == [0, 1]
@@ -452,10 +461,13 @@ class TestStructureToCells:
             assert header["projected row header"] is True
             assert header["cell text"] == "Row Header"
             assert header["bbox"] == [0, 0, 50, 40]
-        
+
         # Test complex spanning cells
         complex_structure = {
-            "rows": [{"bbox": [0, 0, 100, 20], "column header": True}, {"bbox": [0, 20, 100, 40], "column header": False}],
+            "rows": [
+                {"bbox": [0, 0, 100, 20], "column header": True},
+                {"bbox": [0, 20, 100, 40], "column header": False},
+            ],
             "columns": [{"bbox": [0, 0, 33, 40]}, {"bbox": [33, 0, 66, 40]}, {"bbox": [66, 0, 100, 40]}],
             "spanning cells": [
                 {
@@ -467,12 +479,12 @@ class TestStructureToCells:
             ],
             "column headers": [],
         }
-        
+
         complex_tokens = [{"text": "Wide Header", "bbox": [5, 5, 60, 15], "span_num": 0, "line_num": 0, "block_num": 0}]
         cells, confidence_score = structure_to_cells(complex_structure, complex_tokens, union_tokens=False)
-        
+
         assert len(cells) == 5  # 1 spanning + 4 regular
-        
+
         header_spanning = next(cell for cell in cells if cell["row_nums"] == [0] and len(cell["column_nums"]) > 1)
         assert header_spanning["column_nums"] == [0, 1]
         assert header_spanning["bbox"] == [0, 0, 66, 20]

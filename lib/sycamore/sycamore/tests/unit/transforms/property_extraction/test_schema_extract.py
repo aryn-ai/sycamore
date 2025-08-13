@@ -13,7 +13,7 @@ from sycamore.transforms.property_extraction.strategy import BatchElements
 from sycamore.transforms.property_extraction.merge_schemas import (
     intersection_of_fields,
     union_of_fields,
-    frequency_filtered_fields,
+    make_freq_filter_fn,
 )
 from sycamore.transforms.property_extraction.utils import create_named_property
 
@@ -333,7 +333,7 @@ class TestSchemaExtract:
             llm=FakeLLM(),
             prompt=FakeExtractionPrompt(),
         )
-        ds = DocSet(context, schema_ext).reduce(frequency_filtered_fields)
+        ds = DocSet(context, schema_ext).reduce(make_freq_filter_fn(min_occurence_ratio=0.5))
         agg_schema_pred = ds.take()[0].properties.get("_schema", SchemaV2(properties=[]))
 
         assert len(agg_schema_pred.properties) == len(

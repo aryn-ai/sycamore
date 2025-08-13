@@ -102,36 +102,50 @@ def union_of_fields(docs: list[Document]) -> Document:
     return _process_schema_fields(docs, lambda fields: set.union(*fields) if fields else set())
 
 
-def frequency_filtered_fields(docs: list[Document]) -> Document:
+def make_freq_filter_fn(min_occurence_ratio: float = 0.5) -> Callable[[list[set[str]]], set[str]]:
     """
-    Creates a schema with fields filtered by occurrence frequency.
-    Includes fields present in at least 50% of documents.
-
-    This is a middle ground between intersection (all documents) and
-    union (any document).
+    Creates a frequency-based field filtering function.
 
     Args:
-        docs: List of documents with _schema properties to merge
+        min_occurence_ratio: Minimum ratio of documents that must contain a field (0.0-1.0)
 
     Returns:
-        A document with a merged schema containing fields that appear in at least
-        len(docs) * min_occurence_rate documents (default 50%).
+        A function that filters fields based on their occurrence frequency
     """
 
-    def filter_by_frequency(fields: list[set[str]]) -> set[str]:
-        if not fields:
-            return set()
+    if not (0.0 <= min_occurence_ratio <= 1.0):
+        raise ValueError("min_occurence_ratio must be between 0.0 and 1.0")
 
-        # Calculate field frequencies
-        field_count = Counter()  # type: ignore
-        for field_set in fields:
-            field_count.update(field_set)
+    def frequency_filtered_fields(docs: list[Document]) -> Document:
+        """
+        Creates a schema with fields filtered by occurrence frequency.
+        Includes fields present in at least 50% of documents.
 
-        # Default threshold: fields must appear in at least 50% of documents
-        min_occurence_rate = 0.5
-        min_docs = max(1, int(len(fields) * min_occurence_rate))
+        This is a middle ground between intersection (all documents) and
+        union (any document).
 
-        # Include fields that meet the threshold
-        return {field for field, count in field_count.items() if count >= min_docs}
+        Args:
+            docs: List of documents with _schema properties to merge
 
-    return _process_schema_fields(docs, filter_by_frequency)
+        Returns:
+            A document with a merged schema containing fields that appear in at least
+            len(docs) * min_occurence_rate documents (default 50%).
+        """
+
+        def filter_by_frequency(fields: list[set[str]]) -> set[str]:
+            if not fields:
+                return set()
+
+            # Calculate field frequencies
+            field_count = Counter()  # type: ignore
+            for field_set in fields:
+                field_count.update(field_set)
+
+            min_docs = max(1, int(len(fields) * min_occurence_ratio))
+
+            # Include fields that meet the threshold
+            return {field for field, count in field_count.items() if count >= min_docs}
+
+        return _process_schema_fields(docs, filter_by_frequency)
+
+    return frequency_filtered_fields

@@ -99,3 +99,40 @@ def union_of_fields(docs: list[Document]) -> Document:
         A document with a merged schema containing all unique fields
     """
     return _process_schema_fields(docs, lambda fields: set.union(*fields) if fields else set())
+
+
+def frequency_filtered_fields(docs: list[Document]) -> Document:
+    """
+    Creates a schema with fields filtered by occurrence frequency.
+    Includes fields present in at least 50% of documents.
+
+    This is a middle ground between intersection (all documents) and
+    union (any document).
+
+    Args:
+        docs: List of documents with _schema properties to merge
+
+    Returns:
+        A document with a merged schema containing fields that appear in at least
+        len(docs) * min_occurence_rate documents (default 50%).
+    """
+
+    def filter_by_frequency(fields: list[set[str]]) -> set[str]:
+        if not fields:
+            return set()
+
+        # Calculate field frequencies
+        total_docs = len(fields)
+        field_count = {}
+        for field_set in fields:
+            for field in field_set:
+                field_count[field] = field_count.get(field, 0) + 1
+
+        # Default threshold: fields must appear in at least 50% of documents
+        min_occurence_rate = 0.5
+        min_docs = max(1, int(total_docs * min_occurence_rate))
+
+        # Include fields that meet the threshold
+        return {field for field, count in field_count.items() if count >= min_docs}
+
+    return _process_schema_fields(docs, filter_by_frequency)

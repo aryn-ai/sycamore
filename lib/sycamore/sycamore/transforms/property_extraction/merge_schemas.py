@@ -123,7 +123,7 @@ def frequency_filtered_fields(docs: list[Document]) -> Document:
             return set()
 
         # Calculate field frequencies
-        field_count = Counter()
+        field_count = Counter()  # type: ignore
         for field_set in fields:
             field_count.update(field_set)
 

@@ -320,7 +320,7 @@ class SchemaV2(BaseModel):
             fields.append(
                 {
                     "name": p.name,
-                    "property_type": p.type.custom_type if p.type.type == DataType.CUSTOM else p.type.type,
+                    "property_type": p.type.custom_type if p.type.type == DataType.CUSTOM else p.type.type.value,
                     "default": p.type.default,
                     "description": p.type.description,
                     "examples": p.type.examples,

@@ -133,7 +133,6 @@ def objects_to_table(
     structures = objects_to_structures(objects, tokens=tokens, class_thresholds=structure_class_thresholds)
 
     if len(structures) == 0:
-
         if not tokens:
             return None
 
@@ -157,7 +156,6 @@ def objects_to_table(
 
     table_cells = []
     for cell in cells:
-
         rows = sorted(cell["row_nums"])
         rows = list(range(rows[0], rows[-1] + 1))
 
@@ -175,7 +173,6 @@ def objects_to_table(
         )
 
     if len(table_cells) == 0:
-
         if not tokens:
             return None
 
@@ -966,7 +963,7 @@ def _find_or_create_row_for_token(token_rect, rows, cells, columns):
             ]
         }
         rows.insert(insert_idx, new_row)
-        
+
         # Update cell row numbers
         for cell in cells:
             for i, row_num in enumerate(cell["row_nums"]):
@@ -1082,6 +1079,7 @@ def _find_or_create_column_for_token(token_rect, columns, cells, rows):
         row["bbox"][2] = max(row["bbox"][2], new_col_right)
 
     return [new_idx]
+
 
 def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
     """

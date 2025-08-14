@@ -4,7 +4,6 @@ from sycamore.transforms.table_structure.table_transformers import (
     resolve_overlaps_func,
     structure_to_cells,
 )
-import pytest
 import torch
 import numpy as np
 import copy

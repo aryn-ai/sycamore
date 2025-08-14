@@ -913,6 +913,9 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
         ):
             return [idx]
 
+    # Sanity check that the structures are sorted
+    assert cur_structs[0]["bbox"][start_coord_idx] <= cur_structs[-1]["bbox"][start_coord_idx]
+
     # Find the best position to insert new structure
     insert_idx = 0
 
@@ -1001,20 +1004,13 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
 
         new_idx = insert_idx
 
-    if is_row:
-        # For rows, ensure all columns extend to cover the new row's vertical span
-        new_row_top = new_struct["bbox"][1]
-        new_row_bottom = new_struct["bbox"][3]
-        for col in other_structs:
-            col["bbox"][1] = min(col["bbox"][1], new_row_top)
-            col["bbox"][3] = max(col["bbox"][3], new_row_bottom)
-    else:
-        # For columns, ensure all rows extend to cover the new column's horizontal span
-        new_col_left = new_struct["bbox"][0]
-        new_col_right = new_struct["bbox"][2]
-        for row in other_structs:
-            row["bbox"][0] = min(row["bbox"][0], new_col_left)
-            row["bbox"][2] = max(row["bbox"][2], new_col_right)
+    # Update other structures to cover the new structure
+    new_start_coord = new_struct["bbox"][start_coord_idx]
+    new_end_coord = new_struct["bbox"][end_coord_idx]
+
+    for other_struct in other_structs:
+        other_struct["bbox"][start_coord_idx] = min(other_struct["bbox"][start_coord_idx], new_start_coord)
+        other_struct["bbox"][end_coord_idx] = max(other_struct["bbox"][end_coord_idx], new_end_coord)
 
     return [new_idx]
 

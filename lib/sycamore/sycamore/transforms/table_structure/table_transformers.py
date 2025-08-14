@@ -884,199 +884,128 @@ def _add_token_to_intersecting_cell(cells, token):
     return False
 
 
-def _find_or_create_row_for_token(token_rect, rows, cells, columns):
-    """
-    Find existing row for token or create a new one and keep table structures consistent.
+def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row):
+    if is_row:
+        start_coord_idx, end_coord_idx = 1, 3
+        cur_structs = rows
+        other_structs = columns
+        cell_struct_nums_key = "row_nums"
+    else:
+        start_coord_idx, end_coord_idx = 0, 2
+        cur_structs = columns
+        other_structs = rows
+        cell_struct_nums_key = "column_nums"
 
-    Side effects:
-    - May insert a new row into `rows` and update existing cells' `row_nums` indices
-    - Ensures every column's bbox spans the new row's vertical bounds
-
-    Returns: [row_index]
-
-    Args:
-        token_rect: BoundingBox of the token
-        rows: List of row dictionaries
-        cells: List of existing cells
-        columns: List of column dictionaries
-    """
-    y_top, y_bottom = token_rect.y1, token_rect.y2
-
-    # Check if token's y-coordinates fall within any existing row's y-range
-    for idx, row in enumerate(rows):
-        row_rect = BoundingBox(*row["bbox"])
-        if row_rect.y1 <= y_top and y_bottom <= row_rect.y2:
+    for idx, struct in enumerate(cur_structs):
+        struct_bbox = struct["bbox"]
+        if (
+            struct_bbox[start_coord_idx] <= token_bbox[start_coord_idx]
+            and struct_bbox[end_coord_idx] >= token_bbox[end_coord_idx]
+        ):
             return [idx]
 
-    # Find the best position to insert new row
+    # Find the best position to insert new structure
     insert_idx = 0
 
-    if y_bottom < rows[0]["bbox"][1]:
+    if token_bbox[start_coord_idx] < cur_structs[0]["bbox"][start_coord_idx]:
         insert_idx = 0
-    elif y_top > rows[-1]["bbox"][3]:
-        insert_idx = len(rows)
+    elif token_bbox[end_coord_idx] > cur_structs[-1]["bbox"][end_coord_idx]:
+        insert_idx = len(cur_structs)
     else:
-        # Find position between existing rows
-        for idx in range(len(rows) - 1):
-            current_row = rows[idx]
-            next_row = rows[idx + 1]
-
-            if current_row["bbox"][3] < y_top and y_bottom < next_row["bbox"][1]:
+        for idx in range(len(cur_structs) - 1):
+            current_struct = cur_structs[idx]
+            next_struct = cur_structs[idx + 1]
+            if (
+                current_struct["bbox"][end_coord_idx] < token_bbox[start_coord_idx]
+                and token_bbox[end_coord_idx] < next_struct["bbox"][start_coord_idx]
+            ):
                 insert_idx = idx + 1
                 break
 
-    # Create the new row and update related structures
-    # Compute table horizontal bounds from columns to ensure consistency
-    table_left = min(col["bbox"][0] for col in columns)
-    table_right = max(col["bbox"][2] for col in columns)
+    # Create the new structure and update related structures
+    # Compute table bounds from other structures to ensure consistency
+    if is_row:
+        # For rows, use horizontal bounds from columns
+        table_left = min(col["bbox"][0] for col in other_structs)
+        table_right = max(col["bbox"][2] for col in other_structs)
+    else:
+        # For columns, use vertical bounds from rows
+        table_top = min(row["bbox"][1] for row in other_structs)
+        table_bottom = max(row["bbox"][3] for row in other_structs)
 
     if insert_idx == 0:
         # Insert at beginning
-        new_row = {"bbox": [table_left, y_top, table_right, rows[0]["bbox"][1]]}
-        rows.insert(0, new_row)
+        if is_row:
+            new_struct = {"bbox": [table_left, token_bbox[1], table_right, cur_structs[0]["bbox"][1]]}
+        else:
+            new_struct = {"bbox": [token_bbox[0], table_top, cur_structs[0]["bbox"][0], table_bottom]}
+        cur_structs.insert(0, new_struct)
 
-        # Update all existing cell row numbers
+        # Update all existing cell indices
         for cell in cells:
-            for i, row_num in enumerate(cell["row_nums"]):
-                cell["row_nums"][i] = row_num + 1
+            for i, num in enumerate(cell[cell_struct_nums_key]):
+                cell[cell_struct_nums_key][i] = num + 1
 
         new_idx = 0
 
-    elif insert_idx == len(rows):
+    elif insert_idx == len(cur_structs):
         # Insert at end
-        new_row = {"bbox": [table_left, rows[-1]["bbox"][3], table_right, y_bottom]}
-        rows.append(new_row)
+        if is_row:
+            new_struct = {"bbox": [table_left, cur_structs[-1]["bbox"][3], table_right, token_bbox[3]]}
+        else:
+            new_struct = {"bbox": [cur_structs[-1]["bbox"][2], table_top, token_bbox[2], table_bottom]}
+        cur_structs.append(new_struct)
 
-        new_idx = len(rows) - 1
+        new_idx = len(cur_structs) - 1
 
     else:
-        # Insert between existing rows
-        current_row = rows[insert_idx - 1]
-        next_row = rows[insert_idx]
+        # Insert between existing structures
+        current_struct = cur_structs[insert_idx - 1]
+        next_struct = cur_structs[insert_idx]
 
-        new_row = {
-            "bbox": [
-                table_left,
-                current_row["bbox"][3],
-                table_right,
-                next_row["bbox"][1],
-            ]
-        }
-        rows.insert(insert_idx, new_row)
+        if is_row:
+            new_struct = {
+                "bbox": [
+                    table_left,
+                    current_struct["bbox"][3],
+                    table_right,
+                    next_struct["bbox"][1],
+                ]
+            }
+        else:
+            new_struct = {
+                "bbox": [
+                    current_struct["bbox"][2],
+                    table_top,
+                    next_struct["bbox"][0],
+                    table_bottom,
+                ]
+            }
 
-        # Update cell row numbers
+        cur_structs.insert(insert_idx, new_struct)
+
+        # Update cell indices
         for cell in cells:
-            for i, row_num in enumerate(cell["row_nums"]):
-                if row_num >= insert_idx:
-                    cell["row_nums"][i] = row_num + 1
+            for i, num in enumerate(cell[cell_struct_nums_key]):
+                if num >= insert_idx:
+                    cell[cell_struct_nums_key][i] = num + 1
 
         new_idx = insert_idx
 
-    # Ensure all columns extend to cover the new row's vertical span
-    new_row_top = new_row["bbox"][1]
-    new_row_bottom = new_row["bbox"][3]
-    for col in columns:
-        col["bbox"][1] = min(col["bbox"][1], new_row_top)
-        col["bbox"][3] = max(col["bbox"][3], new_row_bottom)
-
-    return [new_idx]
-
-
-def _find_or_create_column_for_token(token_rect, columns, cells, rows):
-    """
-    Find existing column for token or create a new one and keep table structures consistent.
-
-    Side effects:
-    - May insert a new column into `columns` and update existing cells' `column_nums` indices
-    - Ensures every row's bbox spans the new column's horizontal bounds
-
-    Returns: [column_index]
-
-    Args:
-        token_rect: BoundingBox of the token
-        columns: List of column dictionaries
-        cells: List of existing cells
-        rows: List of row dictionaries
-    """
-    x_left, x_right = token_rect.x1, token_rect.x2
-
-    # Check if token's x-coordinates fall within any existing column's x-range
-    for idx, col in enumerate(columns):
-        col_rect = BoundingBox(*col["bbox"])
-        if col_rect.x1 <= x_left and x_right <= col_rect.x2:
-            return [idx]
-
-    # Find the best position to insert new column
-    insert_idx = 0
-
-    if x_right < columns[0]["bbox"][0]:
-        insert_idx = 0
-    elif x_left > columns[-1]["bbox"][2]:
-        insert_idx = len(columns)
+    if is_row:
+        # For rows, ensure all columns extend to cover the new row's vertical span
+        new_row_top = new_struct["bbox"][1]
+        new_row_bottom = new_struct["bbox"][3]
+        for col in other_structs:
+            col["bbox"][1] = min(col["bbox"][1], new_row_top)
+            col["bbox"][3] = max(col["bbox"][3], new_row_bottom)
     else:
-        # Find position between existing columns
-        for idx in range(len(columns) - 1):
-            current_col = columns[idx]
-            next_col = columns[idx + 1]
-
-            if current_col["bbox"][2] < x_left and x_right < next_col["bbox"][0]:
-                insert_idx = idx + 1
-                break
-
-    # Create the new column and update related structures
-    # Compute table vertical bounds from rows to ensure consistency
-    table_top = min(row["bbox"][1] for row in rows)
-    table_bottom = max(row["bbox"][3] for row in rows)
-
-    if insert_idx == 0:
-        # Insert at beginning
-        new_col = {"bbox": [x_left, table_top, columns[0]["bbox"][0], table_bottom]}
-        columns.insert(0, new_col)
-
-        # Update all existing cell column numbers
-        for cell in cells:
-            for i, col_num in enumerate(cell["column_nums"]):
-                cell["column_nums"][i] = col_num + 1
-
-        new_idx = 0
-
-    elif insert_idx == len(columns):
-        # Insert at end
-        new_col = {"bbox": [columns[-1]["bbox"][2], table_top, x_right, table_bottom]}
-        columns.append(new_col)
-
-        new_idx = len(columns) - 1
-
-    else:
-        # Insert between existing columns
-        current_col = columns[insert_idx - 1]
-        next_col = columns[insert_idx]
-
-        new_col = {
-            "bbox": [
-                current_col["bbox"][2],
-                table_top,
-                next_col["bbox"][0],
-                table_bottom,
-            ]
-        }
-
-        columns.insert(insert_idx, new_col)
-
-        # Update cell column numbers
-        for cell in cells:
-            for i, col_num in enumerate(cell["column_nums"]):
-                if col_num >= insert_idx:
-                    cell["column_nums"][i] = col_num + 1
-
-        new_idx = insert_idx
-
-    # Ensure all rows extend to cover the new column's horizontal span
-    new_col_left = new_col["bbox"][0]
-    new_col_right = new_col["bbox"][2]
-    for row in rows:
-        row["bbox"][0] = min(row["bbox"][0], new_col_left)
-        row["bbox"][2] = max(row["bbox"][2], new_col_right)
+        # For columns, ensure all rows extend to cover the new column's horizontal span
+        new_col_left = new_struct["bbox"][0]
+        new_col_right = new_struct["bbox"][2]
+        for row in other_structs:
+            row["bbox"][0] = min(row["bbox"][0], new_col_left)
+            row["bbox"][2] = max(row["bbox"][2], new_col_right)
 
     return [new_idx]
 
@@ -1091,16 +1020,16 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
         return cells
 
     for token in dropped_tokens:
-        # First check if token intersects with existing cells
+        # Check if token intersects with existing cells
         if _add_token_to_intersecting_cell(cells, token):
             continue
 
         # If no intersection found, create new cell
-        token_rect = BoundingBox(*token["bbox"])
+        token_bbox = token["bbox"]
 
         # Find or create rows and columns for the token
-        token_rows = _find_or_create_row_for_token(token_rect, rows, cells, columns)
-        token_columns = _find_or_create_column_for_token(token_rect, columns, cells, rows)
+        token_rows = _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row=True)
+        token_columns = _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row=False)
 
         # Create the new cell
         row_rect = BoundingBox.from_union(BoundingBox(*rows[row_idx]["bbox"]) for row_idx in token_rows)

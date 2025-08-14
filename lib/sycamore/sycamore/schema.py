@@ -314,7 +314,7 @@ class SchemaV2(BaseModel):
                 return nxt(self)
 
             set_fields = p.type.model_fields_set
-            if not set_fields.issubset({"type", "default", "description", "examples"}):
+            if not set_fields.issubset({"type", "custom_type", "default", "description", "examples"}):
                 return nxt(self)
 
             fields.append(

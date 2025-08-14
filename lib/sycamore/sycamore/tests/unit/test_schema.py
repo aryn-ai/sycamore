@@ -272,3 +272,11 @@ def test_serialize_not_backwards_compat_param():
     assert res["properties"][0]["name"] == "state"
     assert res["properties"][0]["type"]["type"] == "string"
     assert res["properties"][0]["type"]["extraction_instructions"] == "May be present in an address."
+
+
+def test_serialize_custom_type():
+    schema = SchemaV2.model_validate(custom_type_schema_new)
+    res = schema.model_dump()
+    res["properties"][0]["name"] == "email_address"
+    res["properties"][0]["property_type"] == "email"
+    res["properties"][0]["description"] == "Email address of the user"

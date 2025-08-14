@@ -874,13 +874,22 @@ def align_supercells(supercells, rows, columns):
 
 
 def _add_token_to_intersecting_cell(cells, token):
-    """Add token text to the first cell it intersects with. Returns True if intersection found."""
+    """Add token text to the cell it overlaps with the most. Returns True if overlap found."""
     token_rect = BoundingBox(*token["bbox"])
+    max_overlap = 0
+    max_overlap_cell = None
+
     for cell in cells:
         cell_rect = BoundingBox(*cell["bbox"])
-        if cell_rect.intersect(token_rect).area > 0:
-            cell["cell text"] = cell.get("cell text", "") + extract_text_from_spans([token])
-            return True
+        overlap = cell_rect.intersect(token_rect).area
+        if overlap > max_overlap:
+            max_overlap = overlap
+            max_overlap_cell = cell
+
+    if max_overlap_cell:
+        max_overlap_cell["cell text"] = max_overlap_cell.get("cell text", "") + extract_text_from_spans([token])
+        return True
+
     return False
 
 

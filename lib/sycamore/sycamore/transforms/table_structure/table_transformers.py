@@ -1047,6 +1047,7 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
             "row_nums": token_rows,
             "column header": False,
             "cell text": token["text"],
+            "spans": [token],
         }
         cells.append(cell)
 

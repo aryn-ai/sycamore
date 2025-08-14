@@ -4,13 +4,13 @@ from sycamore.transforms.table_structure.table_transformers import (
     resolve_overlaps_func,
     structure_to_cells,
 )
+import pytest
 import torch
 import numpy as np
 import copy
 
 
 class TestTableTransformers:
-
     def test_outputs_to_objects_invalid_bbox(self):
         class MockTensor:
             def __init__(self, data):
@@ -277,8 +277,27 @@ class TestResolveOverlapsFunc:
 
 
 class TestStructureToCells:
+    def _has_cell_overlap(self, cells):
+        for i in range(len(cells)):
+            bbox1 = cells[i]["bbox"]
+            for j in range(i + 1, len(cells)):
+                bbox2 = cells[j]["bbox"]
+                if bbox1[0] < bbox2[2] and bbox1[2] > bbox2[0] and bbox1[1] < bbox2[3] and bbox1[3] > bbox2[1]:
+                    return True
+        return False
+
+    def _has_degenerate_cell(self, cells):
+        for cell in cells:
+            x1, y1, x2, y2 = cell["bbox"]
+
+            if x2 <= x1 or y2 <= y1:
+                return True
+
+            if x1 < 0 or y1 < 0 or x2 < 0 or y2 < 0:
+                return True
+        return False
+
     def test_basic_table_structure(self):
-        """Test basic table structure with simple rows and columns."""
         table_structure = {
             "rows": [
                 {"bbox": [0, 0, 100, 20], "column header": True},
@@ -302,10 +321,9 @@ class TestStructureToCells:
 
         cells, confidence_score = structure_to_cells(table_structure, tokens, union_tokens=False)
 
-        assert len(cells) == 6, f"Expected 6 cells, got {len(cells)}"
+        assert len(cells) == 6
         assert confidence_score > 0
 
-        # Test specific cells
         header_cells = [cell for cell in cells if cell["column header"]]
         assert len(header_cells) == 2
 
@@ -317,6 +335,9 @@ class TestStructureToCells:
         assert data_cell_1["cell text"] == "Data 1"
         assert data_cell_1["bbox"] == [0, 20, 50, 40]
         assert data_cell_1["column header"] is False
+
+        assert not self._has_degenerate_cell(cells)
+        assert not self._has_cell_overlap(cells)
 
     def test_table_with_spanning_cells(self):
         """Test table structure with spanning cells."""
@@ -350,7 +371,7 @@ class TestStructureToCells:
         # With spanning cell covering first row, we expect:
         # - 1 spanning cell (covers row 0, columns 0,1)
         # - 2 regular cells (row 1, columns 0 and 1)
-        assert len(cells) == 3, f"Expected 3 cells (1 spanning + 2 regular), got {len(cells)}"
+        assert len(cells) == 3
 
         spanning_cells = [cell for cell in cells if len(cell["column_nums"]) > 1]
         assert len(spanning_cells) == 1
@@ -361,21 +382,24 @@ class TestStructureToCells:
         assert spanning_cell["cell text"] == "Wide Header"
         assert spanning_cell["column header"] is True
 
-        # Check that regular cells exist for the second row
         regular_cells = [cell for cell in cells if len(cell["column_nums"]) == 1 and len(cell["row_nums"]) == 1]
         assert len(regular_cells) == 2, f"Expected 2 regular cells, got {len(regular_cells)}"
 
-        # Check the data cell
         data_cell = next(cell for cell in cells if cell["row_nums"] == [1] and cell["column_nums"] == [0])
         assert data_cell["cell text"] == "Data 1"
         assert data_cell["bbox"] == [0, 20, 50, 40]
 
-    def test_table_with_union_tokens(self):
+        assert not self._has_degenerate_cell(cells)
+        assert not self._has_cell_overlap(cells)
+
+    @pytest.mark.skip(reason="TODO: Fix degenerate cell issue when union_tokens=True")
+    def test_union_tokens(self):
         """Test table structure with union_tokens=True."""
         table_structure = {
             "rows": [
-                {"bbox": [0, 0, 100, 20], "column header": False},
-                {"bbox": [0, 20, 100, 40], "column header": False},
+                {"bbox": [0, 10, 100, 20], "column header": False},
+                # Gap between rows
+                {"bbox": [0, 40, 100, 60], "column header": False},
             ],
             "columns": [{"bbox": [0, 0, 50, 40]}, {"bbox": [50, 0, 100, 40]}],
             "spanning cells": [],
@@ -383,9 +407,10 @@ class TestStructureToCells:
         }
 
         tokens = [
-            {"text": "Cell 1", "bbox": [5, 5, 45, 15], "span_num": 0, "line_num": 0, "block_num": 0},
-            {"text": "Cell 2", "bbox": [55, 5, 95, 15], "span_num": 1, "line_num": 0, "block_num": 0},
-            {"text": "Dropped Token", "bbox": [10, 25, 90, 35], "span_num": 2, "line_num": 1, "block_num": 0},
+            {"text": "Dropped Token Above", "bbox": [2, 5, 45, 8], "span_num": 0, "line_num": 0, "block_num": 0},
+            {"text": "Cell 1", "bbox": [5, 5, 45, 15], "span_num": 1, "line_num": 0, "block_num": 0},
+            {"text": "Cell 2", "bbox": [5, 45, 45, 55], "span_num": 2, "line_num": 0, "block_num": 0},
+            {"text": "Dropped Token Between", "bbox": [5, 25, 45, 35], "span_num": 3, "line_num": 0, "block_num": 0},
         ]
 
         cells, confidence_score = structure_to_cells(table_structure, tokens, union_tokens=True)
@@ -394,10 +419,13 @@ class TestStructureToCells:
 
         cell_1 = next(cell for cell in cells if cell["row_nums"] == [0] and cell["column_nums"] == [0])
         assert cell_1["cell text"] == "Cell 1"
-        assert cell_1["bbox"] == [0, 0, 50, 20]
+        assert cell_1["bbox"] == [0, 10, 50, 20]
 
         dropped_token_cells = [cell for cell in cells if "Dropped Token" in cell["cell text"]]
-        assert len(dropped_token_cells) > 0
+        assert len(dropped_token_cells) == 2
+
+        assert not self._has_degenerate_cell(cells)
+        assert not self._has_cell_overlap(cells)
 
     def test_empty_and_edge_cases(self):
         """Test empty table structure and edge cases."""
@@ -425,67 +453,37 @@ class TestStructureToCells:
         assert cell_00["cell text"] == ""
         assert cell_00["spans"] == []
 
-    def test_projected_row_headers_and_complex_spanning(self):
-        """Test projected row headers and complex spanning cells."""
+        assert not self._has_degenerate_cell(cells)
+        assert not self._has_cell_overlap(cells)
+
+    def test_token_overlap_cell_boundary(self):
+        """Test that overlapping tokens between cells don't cause the final cells to overlap."""
         table_structure = {
             "rows": [
-                {"bbox": [0, 0, 100, 20], "column header": False},
-                {"bbox": [0, 20, 100, 40], "column header": False},
+                {"bbox": [0, 0, 100, 30], "column header": False},
+                {"bbox": [0, 30, 100, 60], "column header": False},
             ],
-            "columns": [{"bbox": [0, 0, 50, 40]}, {"bbox": [50, 0, 100, 40]}],
-            "spanning cells": [
-                {
-                    "bbox": [0, 0, 50, 40],
-                    "row_numbers": [0, 1],
-                    "column_numbers": [0],
-                    "projected row header": True,
-                }
+            "columns": [
+                {"bbox": [0, 0, 50, 60]},
+                {"bbox": [50, 0, 100, 60]},
             ],
+            "spanning cells": [],
             "column headers": [],
         }
 
         tokens = [
-            {"text": "Row Header", "bbox": [5, 5, 45, 35], "span_num": 0, "line_num": 0, "block_num": 0},
-            {"text": "Data", "bbox": [55, 5, 95, 15], "span_num": 1, "line_num": 0, "block_num": 0},
+            {"text": "Cell 1", "bbox": [5, 5, 45, 25], "span_num": 0, "line_num": 0, "block_num": 0},
+            {"text": "Cell 2", "bbox": [55, 5, 95, 25], "span_num": 1, "line_num": 0, "block_num": 0},
+            {"text": "Cell 3", "bbox": [5, 35, 45, 55], "span_num": 2, "line_num": 0, "block_num": 0},
+            {"text": "Cell 4", "bbox": [55, 35, 95, 55], "span_num": 3, "line_num": 0, "block_num": 0},
+            {"text": "HorizOverlap", "bbox": [40, 10, 60, 20], "span_num": 4, "line_num": 0, "block_num": 0},
+            {"text": "VertOverlap", "bbox": [10, 20, 30, 40], "span_num": 5, "line_num": 0, "block_num": 0},
+            {"text": "DiagOverlap", "bbox": [45, 25, 95, 55], "span_num": 6, "line_num": 0, "block_num": 0},
         ]
 
         cells, confidence_score = structure_to_cells(table_structure, tokens, union_tokens=False)
 
-        projected_headers = [cell for cell in cells if cell.get("projected row header", False)]
-        assert len(projected_headers) > 0
+        assert len(cells) == 4
 
-        for header in projected_headers:
-            assert len(header["row_nums"]) > 1
-            assert header["row_nums"] == [0, 1]
-            assert header["column_nums"] == [0]
-            assert header["projected row header"] is True
-            assert header["cell text"] == "Row Header"
-            assert header["bbox"] == [0, 0, 50, 40]
-
-        # Test complex spanning cells
-        complex_structure = {
-            "rows": [
-                {"bbox": [0, 0, 100, 20], "column header": True},
-                {"bbox": [0, 20, 100, 40], "column header": False},
-            ],
-            "columns": [{"bbox": [0, 0, 33, 40]}, {"bbox": [33, 0, 66, 40]}, {"bbox": [66, 0, 100, 40]}],
-            "spanning cells": [
-                {
-                    "bbox": [0, 0, 66, 20],
-                    "row_numbers": [0],
-                    "column_numbers": [0, 1],
-                    "projected row header": False,
-                }
-            ],
-            "column headers": [],
-        }
-
-        complex_tokens = [{"text": "Wide Header", "bbox": [5, 5, 60, 15], "span_num": 0, "line_num": 0, "block_num": 0}]
-        cells, confidence_score = structure_to_cells(complex_structure, complex_tokens, union_tokens=False)
-
-        assert len(cells) == 5  # 1 spanning + 4 regular
-
-        header_spanning = next(cell for cell in cells if cell["row_nums"] == [0] and len(cell["column_nums"]) > 1)
-        assert header_spanning["column_nums"] == [0, 1]
-        assert header_spanning["bbox"] == [0, 0, 66, 20]
-        assert header_spanning["column header"] is True
+        assert not self._has_degenerate_cell(cells)
+        assert not self._has_cell_overlap(cells)

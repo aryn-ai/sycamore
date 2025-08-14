@@ -12,6 +12,8 @@ from pydantic import (
     ValidatorFunctionWrapHandler,
     WrapValidator,
     ValidationError,
+    model_serializer,
+    SerializerFunctionWrapHandler,
 )
 
 
@@ -294,3 +296,35 @@ class SchemaV2(BaseModel):
             {"name": p.name, **p.type.model_dump(exclude_unset=True, exclude_none=True)} for p in flattened.properties
         ]
         return json.dumps({"properties": props}, indent=2)
+
+    @model_serializer(mode="wrap")
+    def serialize_backwards_compatible(self, nxt: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        """Serialize the schema in a backwards-compatible format.
+
+        This is designed to handle scenarios where client code may still
+        expect the old schema format. If the schema does not use any new
+        functionality, it will serialize to the same format as the previous
+        version. This adds some overhead to both serialization and
+        deserialization, but simplifies the upgrade path.
+
+        """
+        fields = []
+        for p in self.properties:
+            if p.type.type in {DataType.OBJECT, DataType.ARRAY, DataType.CHOICE}:
+                return nxt(self)
+
+            set_fields = p.type.model_fields_set
+            if not set_fields.issubset({"type", "default", "description", "examples"}):
+                return nxt(self)
+
+            fields.append(
+                {
+                    "name": p.name,
+                    "property_type": p.type.custom_type if p.type.type == DataType.CUSTOM else p.type.type,
+                    "default": p.type.default,
+                    "description": p.type.description,
+                    "examples": p.type.examples,
+                }
+            )
+
+        return {"properties": fields}

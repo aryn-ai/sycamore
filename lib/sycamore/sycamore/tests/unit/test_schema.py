@@ -52,31 +52,47 @@ custom_type_schema_new = {"properties": [custom_type_dict_new]}
 
 def test_read_old_schema():
     schema = SchemaV2.model_validate(single_property_schema_old)
-    assert (
-        schema.model_dump(exclude_unset=True, exclude_none=True) == single_property_schema_new
-    ), "Old schema should match the new schema format"
+    assert len(schema.properties) == 1
+    assert schema.properties[0].name == "state"
+    assert schema.properties[0].type.type == "string"
+    assert schema.properties[0].type.description == "Two-letter state code"
+    assert schema.properties[0].type.examples == ["NC"]
 
 
 def test_read_old_schema_properties():
     schema = SchemaV2.model_validate(single_property_schema_old_properties)
-    assert (
-        schema.model_dump(exclude_unset=True, exclude_none=True) == single_property_schema_new
-    ), "Old schema with properties should match the new schema format"
+    assert len(schema.properties) == 1
+    assert schema.properties[0].name == "state"
+    assert schema.properties[0].type.type == "string"
+    assert schema.properties[0].type.description == "Two-letter state code"
+    assert schema.properties[0].type.examples == ["NC"]
 
 
 def test_read_new_schema():
     schema = SchemaV2.model_validate(single_property_schema_new)
-    assert schema.model_dump(exclude_unset=True) == single_property_schema_new, "Schemas should match"
+    assert len(schema.properties) == 1
+    assert schema.properties[0].name == "state"
+    assert schema.properties[0].type.type == "string"
+    assert schema.properties[0].type.description == "Two-letter state code"
+    assert schema.properties[0].type.examples == ["NC"]
 
 
 def test_read_old_custom_type():
     schema = SchemaV2.model_validate(custom_type_schema_old)
-    assert schema.model_dump(exclude_unset=True, exclude_none=True) == custom_type_schema_new, "Schemas should match"
+    assert len(schema.properties) == 1
+    assert schema.properties[0].name == "email_address"
+    assert schema.properties[0].type.type == "custom"
+    assert schema.properties[0].type.custom_type == "email"
+    assert schema.properties[0].type.description == "Email address of the user"
 
 
 def test_read_new_custom_type():
     schema = SchemaV2.model_validate(custom_type_schema_new)
-    assert schema.model_dump(exclude_unset=True, exclude_none=True) == custom_type_schema_new, "Schemas should match"
+    assert len(schema.properties) == 1
+    assert schema.properties[0].name == "email_address"
+    assert schema.properties[0].type.type == "custom"
+    assert schema.properties[0].type.custom_type == "email"
+    assert schema.properties[0].type.description == "Email address of the user"
 
 
 nested_schema_dict = {
@@ -180,3 +196,79 @@ expected_flattened = """{
 def test_render_flattened():
     flat_str = nested_schema.render_flattened()
     assert flat_str == expected_flattened, "Flattened schema string should match expected output"
+
+
+compatible_schema = SchemaV2.model_validate(
+    {
+        "properties": [
+            make_named_property(
+                name="state", type="string", description="Two-letter state code", default="CA", examples=["NC"]
+            ),
+            make_named_property(
+                name="city", type="string", description="City", examples=["San Francisco", "Los Angeles"]
+            ),
+        ]
+    }
+)
+
+
+non_compatible_schema_type = SchemaV2.model_validate(
+    {
+        "properties": [
+            make_named_property(
+                name="state", type="string", description="Two-letter state code", default="CA", examples=["NC"]
+            ),
+            make_named_property(
+                name="cities", type="array", item_type=make_property(type="string"), description="Cities"
+            ),
+        ]
+    }
+)
+
+
+non_compatible_schema_param = SchemaV2.model_validate(
+    {
+        "properties": [
+            make_named_property(
+                name="state",
+                type="string",
+                description="Two-letter state code",
+                extraction_instructions="May be present in an address.",
+                default="CA",
+                examples=["NC"],
+            ),
+            make_named_property(
+                name="city", type="string", description="City", examples=["San Francisco", "Los Angeles"]
+            ),
+        ]
+    }
+)
+
+
+def test_serialize_backwards_compat():
+    res = compatible_schema.model_dump()
+    assert len(res["properties"]) == 2
+
+    assert res["properties"][0]["name"] == "state"
+    assert res["properties"][0]["property_type"] == "string"
+    assert res["properties"][0]["description"] == "Two-letter state code"
+    assert res["properties"][0]["default"] == "CA"
+    assert res["properties"][0]["examples"] == ["NC"]
+
+
+def test_serialize_not_backwards_compat_type():
+    res = non_compatible_schema_type.model_dump()
+    assert len(res["properties"]) == 2
+    assert set(res["properties"][0].keys()) == {"name", "type"}
+    assert res["properties"][0]["name"] == "state"
+    assert res["properties"][0]["type"]["type"] == "string"
+    assert res["properties"][1]["type"]["type"] == "array"
+
+
+def test_serialize_not_backwards_compat_param():
+    res = non_compatible_schema_param.model_dump()
+    assert len(res["properties"]) == 2
+    assert set(res["properties"][0].keys()) == {"name", "type"}
+    assert res["properties"][0]["name"] == "state"
+    assert res["properties"][0]["type"]["type"] == "string"
+    assert res["properties"][0]["type"]["extraction_instructions"] == "May be present in an address."

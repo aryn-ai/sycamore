@@ -876,6 +876,213 @@ def align_supercells(supercells, rows, columns):
     return aligned_supercells
 
 
+def _add_token_to_intersecting_cell(cells, token):
+    """Add token text to the first cell it intersects with. Returns True if intersection found."""
+    token_rect = BoundingBox(*token["bbox"])
+    for cell in cells:
+        cell_rect = BoundingBox(*cell["bbox"])
+        if cell_rect.intersect(token_rect).area > 0:
+            cell["cell text"] = cell.get("cell text", "") + extract_text_from_spans([token])
+            return True
+    return False
+
+
+def _find_or_create_row_for_token(token_rect, rows, cells, columns):
+    """
+    Find existing row for token or create a new one and keep table structures consistent.
+
+    Side effects:
+    - May insert a new row into `rows` and update existing cells' `row_nums` indices
+    - Ensures every column's bbox spans the new row's vertical bounds
+
+    Returns: [row_index]
+
+    Args:
+        token_rect: BoundingBox of the token
+        rows: List of row dictionaries
+        cells: List of existing cells
+        columns: List of column dictionaries
+    """
+    y_top, y_bottom = token_rect.y1, token_rect.y2
+
+    # Check if token's y-coordinates fall within any existing row's y-range
+    for idx, row in enumerate(rows):
+        row_rect = BoundingBox(*row["bbox"])
+        if row_rect.y1 <= y_top and y_bottom <= row_rect.y2:
+            return [idx]
+
+    # Find the best position to insert new row
+    insert_idx = 0
+
+    if y_bottom < rows[0]["bbox"][1]:
+        insert_idx = 0
+    elif y_top > rows[-1]["bbox"][3]:
+        insert_idx = len(rows)
+    else:
+        # Find position between existing rows
+        for idx in range(len(rows) - 1):
+            current_row = rows[idx]
+            next_row = rows[idx + 1]
+
+            if current_row["bbox"][3] < y_top and y_bottom < next_row["bbox"][1]:
+                insert_idx = idx + 1
+                break
+
+    # Create the new row and update related structures
+    # Compute table horizontal bounds from columns to ensure consistency
+    table_left = min(col["bbox"][0] for col in columns)
+    table_right = max(col["bbox"][2] for col in columns)
+
+    if insert_idx == 0:
+        # Insert at beginning
+        new_row = {"bbox": [table_left, y_top, table_right, rows[0]["bbox"][1]]}
+        rows.insert(0, new_row)
+
+        # Update all existing cell row numbers
+        for cell in cells:
+            for i, row_num in enumerate(cell["row_nums"]):
+                cell["row_nums"][i] = row_num + 1
+
+        new_idx = 0
+
+    elif insert_idx == len(rows):
+        # Insert at end
+        new_row = {"bbox": [table_left, rows[-1]["bbox"][3], table_right, y_bottom]}
+        rows.append(new_row)
+
+        new_idx = len(rows) - 1
+
+    else:
+        # Insert between existing rows
+        current_row = rows[insert_idx - 1]
+        next_row = rows[insert_idx]
+
+        new_row = {
+            "bbox": [
+                table_left,
+                current_row["bbox"][3],
+                table_right,
+                next_row["bbox"][1],
+            ]
+        }
+        rows.insert(insert_idx, new_row)
+        
+        # Update cell row numbers
+        for cell in cells:
+            for i, row_num in enumerate(cell["row_nums"]):
+                if row_num >= insert_idx:
+                    cell["row_nums"][i] = row_num + 1
+
+        new_idx = insert_idx
+
+    # Ensure all columns extend to cover the new row's vertical span
+    new_row_top = new_row["bbox"][1]
+    new_row_bottom = new_row["bbox"][3]
+    for col in columns:
+        col["bbox"][1] = min(col["bbox"][1], new_row_top)
+        col["bbox"][3] = max(col["bbox"][3], new_row_bottom)
+
+    return [new_idx]
+
+
+def _find_or_create_column_for_token(token_rect, columns, cells, rows):
+    """
+    Find existing column for token or create a new one and keep table structures consistent.
+
+    Side effects:
+    - May insert a new column into `columns` and update existing cells' `column_nums` indices
+    - Ensures every row's bbox spans the new column's horizontal bounds
+
+    Returns: [column_index]
+
+    Args:
+        token_rect: BoundingBox of the token
+        columns: List of column dictionaries
+        cells: List of existing cells
+        rows: List of row dictionaries
+    """
+    x_left, x_right = token_rect.x1, token_rect.x2
+
+    # Check if token's x-coordinates fall within any existing column's x-range
+    for idx, col in enumerate(columns):
+        col_rect = BoundingBox(*col["bbox"])
+        if col_rect.x1 <= x_left and x_right <= col_rect.x2:
+            return [idx]
+
+    # Find the best position to insert new column
+    insert_idx = 0
+
+    if x_right < columns[0]["bbox"][0]:
+        insert_idx = 0
+    elif x_left > columns[-1]["bbox"][2]:
+        insert_idx = len(columns)
+    else:
+        # Find position between existing columns
+        for idx in range(len(columns) - 1):
+            current_col = columns[idx]
+            next_col = columns[idx + 1]
+
+            if current_col["bbox"][2] < x_left and x_right < next_col["bbox"][0]:
+                insert_idx = idx + 1
+                break
+
+    # Create the new column and update related structures
+    # Compute table vertical bounds from rows to ensure consistency
+    table_top = min(row["bbox"][1] for row in rows)
+    table_bottom = max(row["bbox"][3] for row in rows)
+
+    if insert_idx == 0:
+        # Insert at beginning
+        new_col = {"bbox": [x_left, table_top, columns[0]["bbox"][0], table_bottom]}
+        columns.insert(0, new_col)
+
+        # Update all existing cell column numbers
+        for cell in cells:
+            for i, col_num in enumerate(cell["column_nums"]):
+                cell["column_nums"][i] = col_num + 1
+
+        new_idx = 0
+
+    elif insert_idx == len(columns):
+        # Insert at end
+        new_col = {"bbox": [columns[-1]["bbox"][2], table_top, x_right, table_bottom]}
+        columns.append(new_col)
+
+        new_idx = len(columns) - 1
+
+    else:
+        # Insert between existing columns
+        current_col = columns[insert_idx - 1]
+        next_col = columns[insert_idx]
+
+        new_col = {
+            "bbox": [
+                current_col["bbox"][2],
+                table_top,
+                next_col["bbox"][0],
+                table_bottom,
+            ]
+        }
+
+        columns.insert(insert_idx, new_col)
+
+        # Update cell column numbers
+        for cell in cells:
+            for i, col_num in enumerate(cell["column_nums"]):
+                if col_num >= insert_idx:
+                    cell["column_nums"][i] = col_num + 1
+
+        new_idx = insert_idx
+
+    # Ensure all rows extend to cover the new column's horizontal span
+    new_col_left = new_col["bbox"][0]
+    new_col_right = new_col["bbox"][2]
+    for row in rows:
+        row["bbox"][0] = min(row["bbox"][0], new_col_left)
+        row["bbox"][2] = max(row["bbox"][2], new_col_right)
+
+    return [new_idx]
+
 def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
     """
     For each token that was dropped, determine which cell it intersects with and add the text to that cell.
@@ -884,81 +1091,33 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
     """
     if not rows or not columns:
         return cells
+
     for token in dropped_tokens:
+        # First check if token intersects with existing cells
+        if _add_token_to_intersecting_cell(cells, token):
+            continue
+
+        # If no intersection found, create new cell
         token_rect = BoundingBox(*token["bbox"])
-        cell_intersect = False
-        for cell in cells:  # first check and add the token text to the cell it intersects with
-            cell_rect = BoundingBox(*cell["bbox"])
-            if cell_rect.intersect(token_rect).area > 0:
-                cell["cell text"] = cell.get("cell text", "") + extract_text_from_spans([token])
-                cell_intersect = True
-                break
-        if not cell_intersect:  # if not, create a new table cell
-            token_rows = []
-            token_columns = []
-            for row_idx, row in enumerate(rows):  # find or create the row for the token
-                row_rect = BoundingBox(*row["bbox"])
-                if row_rect.intersect(token_rect).area > 0:
-                    token_rows.append(row_idx)
-                elif row_rect.y2 < token_rect.y1:
-                    if row_idx < len(rows) - 1 and rows[row_idx + 1]["bbox"][1] > token_rect.y2:
-                        new_row = BoundingBox(row_rect.x1, row_rect.y2, row_rect.x2, rows[row_idx + 1]["bbox"][1])
-                        rows.insert(row_idx + 1, {"bbox": new_row.to_list()})
-                        for cell in cells:
-                            cell_row_nums = cell["row_nums"]
-                            if (
-                                row_idx in cell_row_nums and row_idx + 1 in cell_row_nums
-                            ):  # if the cell spans the 2 rows increase the span
-                                cell_row_nums.append(max(cell_row_nums) + 1)
-                            else:
-                                for idx, row_num in enumerate(cell_row_nums):
-                                    if row_num > row_idx:
-                                        cell_row_nums[idx] += 1
-                        token_rows.append(row_idx + 1)
-                        break
-            for col_idx, col in enumerate(columns):  # find or create the row for the token
-                col_rect = BoundingBox(*col["bbox"])
-                if col_rect.intersect(token_rect).area > 0:
-                    token_columns.append(col_idx)
-                elif col_rect.x2 < token_rect.x1:
-                    if col_idx < len(columns) - 1 and columns[col_idx + 1]["bbox"][0] > token_rect.x2:
-                        new_col = BoundingBox(col_rect.x2, col_rect.y1, columns[col_idx + 1]["bbox"][0], col_rect.y2)
-                        columns.insert(col_idx + 1, {"bbox": new_col.to_list()})
-                        for cell in cells:
-                            cell_column_nums = cell["column_nums"]
-                            if (
-                                col_idx in cell_column_nums and col_idx + 1 in cell_column_nums
-                            ):  # if the cell spans the 2 rows increase the span
-                                cell_column_nums.append(max(cell_column_nums) + 1)
-                            else:
-                                for idx, col_num in enumerate(cell_column_nums):
-                                    if col_num > col_idx:
-                                        cell_column_nums[idx] += 1
 
-                        token_columns.append(col_idx + 1)
-                        break
-            if not token_rows:
-                token_rows.append(len(rows))
-                prev_row = BoundingBox(*rows[-1]["bbox"])
-                rows.append({"bbox": [prev_row.x1, prev_row.y2, prev_row.x2, 2 * prev_row.y2 - prev_row.y1]})
-            if not token_columns:
-                token_columns.append(len(columns))
-                prev_col = BoundingBox(*columns[-1]["bbox"])
-                columns.append({"bbox": [prev_col.x2, prev_col.y1, 2 * prev_col.x2 - prev_col.x1, prev_col.y2]})
-            row_rect = BoundingBox.from_union(BoundingBox(*rows[row_num]["bbox"]) for row_num in token_rows)
-            column_rect = BoundingBox.from_union(
-                BoundingBox(*columns[column_num]["bbox"]) for column_num in token_columns
-            )
+        # Find or create rows and columns for the token
+        token_rows = _find_or_create_row_for_token(token_rect, rows, cells, columns)
+        token_columns = _find_or_create_column_for_token(token_rect, columns, cells, rows)
 
-            cell_rect = row_rect.intersect(column_rect)
-            cell = {
-                "bbox": cell_rect.to_list(),
-                "column_nums": token_columns,
-                "row_nums": token_rows,
-                "column header": False,
-                "cell text": token["text"],
-            }
-            cells.append(cell)
+        # Create the new cell
+        row_rect = BoundingBox.from_union(BoundingBox(*rows[row_idx]["bbox"]) for row_idx in token_rows)
+        column_rect = BoundingBox.from_union(BoundingBox(*columns[column_num]["bbox"]) for column_num in token_columns)
+
+        cell_rect = row_rect.intersect(column_rect)
+        cell = {
+            "bbox": cell_rect.to_list(),
+            "column_nums": token_columns,
+            "row_nums": token_rows,
+            "column header": False,
+            "cell text": token["text"],
+        }
+        cells.append(cell)
+
     return cells
 
 

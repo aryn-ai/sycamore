@@ -391,7 +391,6 @@ class TestStructureToCells:
         assert not self._has_degenerate_cell(cells)
         assert not self._has_cell_overlap(cells)
 
-    # @pytest.mark.skip(reason="TODO: Fix degenerate cell issue when union_tokens=True")
     def test_union_tokens(self):
         """Test table structure with union_tokens=True."""
         table_structure = {
@@ -414,7 +413,6 @@ class TestStructureToCells:
         ]
 
         cells, confidence_score = structure_to_cells(table_structure, tokens, union_tokens=True)
-        print(cells)
         assert len(cells) >= 4
 
         # Test "Dropped Token Above" - should be in row 0, column 0

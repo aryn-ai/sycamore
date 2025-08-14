@@ -124,7 +124,7 @@ def convert_from_path_streamed_batched(filename: str, batch_size: int) -> Genera
         yield batch
 
 
-def pdf_to_image_files(pdf_path: str, file_dir: Path, resolution: int = 200) -> Generator[Path, None, None]:
+def pdf_to_image_files(pdf_path: str, file_dir: Path, resolution: int = 200, queue_size=1) -> Generator[Path, None, None]:
     """Writes the files (streamed) into file_dir.  Caller is responsible for calling
     path.unlink() to cleanup the files.
 

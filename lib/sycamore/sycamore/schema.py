@@ -90,8 +90,13 @@ class DataType(str, Enum):
             return cls.STRING
 
     @classmethod
-    def _missing_(cls, value: str) -> "DataType":
+    def _missing_(cls, value: object) -> "DataType":
         """Handle missing values by returning a default DataType."""
+
+        if isinstance(value, cls):
+            return value
+        elif not isinstance(value, str):
+            raise ValueError(f"Invalid DataType value: {value}. Expected a string.")
         v = value.lower()
 
         # Handle common type names that are not in the enum

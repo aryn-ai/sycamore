@@ -408,10 +408,22 @@ class TestStructureToCells:
             {"text": "Dropped Token Above", "bbox": [5, 5, 45, 8], "span_num": 0, "line_num": 0, "block_num": 0},
             {"text": "Cell 1", "bbox": [5, 5, 45, 15], "span_num": 1, "line_num": 0, "block_num": 0},
             {"text": "Dropped Token Between", "bbox": [5, 25, 45, 35], "span_num": 2, "line_num": 0, "block_num": 0},
-            {"text": "Dropped Token Intersecting", "bbox": [5, 15, 45, 35], "span_num": 3, "line_num": 0, "block_num": 0},
+            {
+                "text": "Dropped Token Intersecting",
+                "bbox": [5, 15, 45, 35],
+                "span_num": 3,
+                "line_num": 0,
+                "block_num": 0,
+            },
             {"text": "Cell 2", "bbox": [5, 45, 45, 55], "span_num": 3, "line_num": 0, "block_num": 0},
             {"text": "Dropped Token Below", "bbox": [5, 65, 45, 70], "span_num": 4, "line_num": 0, "block_num": 0},
-            {"text": "Dropped Token Below and Spanning", "bbox": [40, 75, 60, 85], "span_num": 5, "line_num": 0, "block_num": 0},
+            {
+                "text": "Dropped Token Below and Spanning",
+                "bbox": [40, 75, 60, 85],
+                "span_num": 5,
+                "line_num": 0,
+                "block_num": 0,
+            },
         ]
 
         cells, confidence_score = structure_to_cells(table_structure, tokens, union_tokens=True)

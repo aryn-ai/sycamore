@@ -105,9 +105,10 @@ class DataType(str, Enum):
             return cls.OBJECT
         else:
             for member in cls:
-                if member.value == value:
+                if member.value == v:
                     return member
-        return None
+
+        raise ValueError(f"Invalid DataType value: {value}. Valid values are: {', '.join(cls.values())}")
 
 
 class PropertyValidator(BaseModel):

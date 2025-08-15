@@ -408,43 +408,47 @@ class TestStructureToCells:
             {"text": "Dropped Token Above", "bbox": [5, 5, 45, 8], "span_num": 0, "line_num": 0, "block_num": 0},
             {"text": "Cell 1", "bbox": [5, 5, 45, 15], "span_num": 1, "line_num": 0, "block_num": 0},
             {"text": "Dropped Token Between", "bbox": [5, 25, 45, 35], "span_num": 2, "line_num": 0, "block_num": 0},
+            {"text": "Dropped Token Intersecting", "bbox": [5, 15, 45, 35], "span_num": 3, "line_num": 0, "block_num": 0},
             {"text": "Cell 2", "bbox": [5, 45, 45, 55], "span_num": 3, "line_num": 0, "block_num": 0},
             {"text": "Dropped Token Below", "bbox": [5, 65, 45, 70], "span_num": 4, "line_num": 0, "block_num": 0},
+            {"text": "Dropped Token Below and Spanning", "bbox": [40, 75, 60, 85], "span_num": 5, "line_num": 0, "block_num": 0},
         ]
 
         cells, confidence_score = structure_to_cells(table_structure, tokens, union_tokens=True)
         assert len(cells) >= 4
 
-        # Test "Dropped Token Above" - should be in row 0, column 0
-        cell_above = next(cell for cell in cells if cell["row_nums"] == [0] and cell["column_nums"] == [0])
-        assert cell_above["cell text"] == "Dropped Token Above"
-        assert cell_above["bbox"] == [0, 5, 50, 10]
-
-        # Test "Dropped Token Between" - should be in row 2, column 0 (between the two existing rows)
-        cell_between = next(cell for cell in cells if cell["cell text"] == "Dropped Token Between")
-        assert cell_between["row_nums"] == [2]
-        assert cell_between["column_nums"] == [0]
-        assert cell_between["bbox"] == [0, 20, 50, 40]
-
-        # Test "Dropped Token Below" - should be in row 4, column 0 (below the last existing row)
-        cell_below = next(cell for cell in cells if cell["cell text"] == "Dropped Token Below")
-        assert cell_below["row_nums"] == [4]
-        assert cell_below["column_nums"] == [0]
-        # The bbox should extend from the last row's bottom to accommodate the token
-        assert cell_below["bbox"] == [0, 60, 50, 70]
-
-        cell_1_regular = next(cell for cell in cells if cell["cell text"] == "Cell 1")
-        assert cell_1_regular["row_nums"] == [1]
-        assert cell_1_regular["column_nums"] == [0]
-        assert cell_1_regular["bbox"] == [0, 10, 50, 20]
-
-        cell_below = next(cell for cell in cells if cell["cell text"] == "Cell 2")
-        assert cell_below["row_nums"] == [3]
-        assert cell_below["column_nums"] == [0]
-        assert cell_below["bbox"] == [0, 40, 50, 60]
+        for cell in cells:
+            if cell["cell text"] == "Dropped Token Above":
+                assert cell["row_nums"] == [0]
+                assert cell["column_nums"] == [0]
+                assert cell["bbox"] == [0, 5, 50, 10]
+            elif cell["cell text"] == "Dropped Token Between":
+                assert cell["row_nums"] == [2]
+                assert cell["column_nums"] == [0]
+                assert cell["bbox"] == [0, 20, 50, 40]
+            elif cell["cell text"] == "Dropped Token Below":
+                assert cell["row_nums"] == [4]
+                assert cell["column_nums"] == [0]
+                assert cell["bbox"] == [0, 60, 50, 70]
+            elif cell["cell text"] == "Cell 1":
+                assert cell["row_nums"] == [1]
+                assert cell["column_nums"] == [0]
+                assert cell["bbox"] == [0, 10, 50, 20]
+            elif cell["cell text"] == "Cell 2":
+                assert cell["row_nums"] == [3]
+                assert cell["column_nums"] == [0]
+                assert cell["bbox"] == [0, 40, 50, 60]
+            elif cell["cell text"] == "Dropped Token Intersecting":
+                assert cell["row_nums"] == [1]
+                assert cell["column_nums"] == [0]
+                assert cell["bbox"] == [0, 10, 50, 20]
+            elif cell["cell text"] == "Dropped Token Below and Spanning":
+                assert cell["row_nums"] == [5]
+                assert cell["column_nums"] == [0, 1]
+                assert cell["bbox"] == [0, 70, 100, 85]
 
         dropped_token_cells = [cell for cell in cells if "Dropped Token" in cell["cell text"]]
-        assert len(dropped_token_cells) == 3
+        assert len(dropped_token_cells) == 5
 
         assert not self._has_degenerate_cell(cells)
         assert not self._has_cell_overlap(cells)
@@ -496,11 +500,11 @@ class TestStructureToCells:
         tokens = [
             {"text": "Cell 1", "bbox": [5, 5, 45, 25], "span_num": 0, "line_num": 0, "block_num": 0},
             {"text": "Cell 2", "bbox": [55, 5, 95, 25], "span_num": 1, "line_num": 0, "block_num": 0},
-            {"text": "Cell 3", "bbox": [5, 35, 45, 55], "span_num": 2, "line_num": 0, "block_num": 0},
-            {"text": "Cell 4", "bbox": [55, 35, 95, 55], "span_num": 3, "line_num": 0, "block_num": 0},
-            {"text": "HorizOverlap", "bbox": [40, 10, 60, 20], "span_num": 4, "line_num": 0, "block_num": 0},
-            {"text": "VertOverlap", "bbox": [10, 20, 30, 40], "span_num": 5, "line_num": 0, "block_num": 0},
-            {"text": "DiagOverlap", "bbox": [45, 25, 95, 55], "span_num": 6, "line_num": 0, "block_num": 0},
+            {"text": "HorizOverlap", "bbox": [40, 10, 60, 20], "span_num": 2, "line_num": 0, "block_num": 0},
+            {"text": "VertOverlap", "bbox": [10, 20, 30, 40], "span_num": 3, "line_num": 0, "block_num": 0},
+            {"text": "DiagOverlap", "bbox": [45, 25, 95, 55], "span_num": 4, "line_num": 0, "block_num": 0},
+            {"text": "Cell 3", "bbox": [5, 35, 45, 55], "span_num": 5, "line_num": 0, "block_num": 0},
+            {"text": "Cell 4", "bbox": [55, 35, 95, 55], "span_num": 6, "line_num": 0, "block_num": 0},
         ]
 
         cells, confidence_score = structure_to_cells(table_structure, tokens, union_tokens=False)

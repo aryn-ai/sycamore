@@ -280,3 +280,14 @@ def test_serialize_custom_type():
     res["properties"][0]["name"] == "email_address"
     res["properties"][0]["property_type"] == "email"
     res["properties"][0]["description"] == "Email address of the user"
+
+
+def test_type_alias():
+    str_prop = make_property(type="str")
+    assert str_prop.type == "string", "Type alias 'str' should be converted to 'string'"
+
+    obj_prop = make_property(type="struct", properties=[make_named_property(name="field", type="str")])
+    assert obj_prop.type == "object", "Type alias 'struct' should be converted to 'object'"
+    assert len(obj_prop.properties) == 1
+    assert obj_prop.properties[0].name == "field"
+    assert obj_prop.properties[0].type.type == "string"

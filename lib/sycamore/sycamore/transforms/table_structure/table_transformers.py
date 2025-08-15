@@ -874,7 +874,7 @@ def align_supercells(supercells, rows, columns):
 
 
 def _add_token_to_intersecting_cell(cells, token):
-    """Add token text to the cell it overlaps with the most. Returns True if overlap found."""
+    """Add token to the cell it overlaps with the most. Returns True if token is assigned to a cell."""
     token_rect = BoundingBox(*token["bbox"])
     max_overlap = 0
     max_overlap_cell = None
@@ -888,6 +888,7 @@ def _add_token_to_intersecting_cell(cells, token):
 
     if max_overlap_cell:
         max_overlap_cell["cell text"] = max_overlap_cell.get("cell text", "") + extract_text_from_spans([token])
+        max_overlap_cell["spans"].append(token)
         return True
 
     return False
@@ -898,23 +899,36 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
         start_coord_idx, end_coord_idx = 1, 3
         cur_structs = rows
         other_structs = columns
-        cell_struct_nums_key = "row_nums"
+        cell_cur_struct_nums_key = "row_nums"
+        cell_other_struct_nums_key = "column_nums"
     else:
         start_coord_idx, end_coord_idx = 0, 2
         cur_structs = columns
         other_structs = rows
-        cell_struct_nums_key = "column_nums"
+        cell_cur_struct_nums_key = "column_nums"
+        cell_other_struct_nums_key = "row_nums"
 
+    # If the token overlaps with any existing structure along the relevant axis,
+    # return the indices of the overlapping structures.
+    overlapping_struct_idxs = []
     for idx, struct in enumerate(cur_structs):
-        struct_bbox = struct["bbox"]
-        if (
-            struct_bbox[start_coord_idx] <= token_bbox[start_coord_idx]
-            and struct_bbox[end_coord_idx] >= token_bbox[end_coord_idx]
-        ):
-            return [idx]
+        new_struct_bbox = struct["bbox"]
+        overlap_along_axis = max(
+            0,
+            min(token_bbox[end_coord_idx], new_struct_bbox[end_coord_idx])
+            - max(token_bbox[start_coord_idx], new_struct_bbox[start_coord_idx]),
+        )
+        if overlap_along_axis > 0:
+            overlapping_struct_idxs.append(idx)
+
+    if len(overlapping_struct_idxs) > 0:
+        return overlapping_struct_idxs
+
+    # If the token does not overlap with any existing structure, create a
+    # new structure and its corresponding cells
 
     # Sanity check that the structures are sorted
-    assert cur_structs[0]["bbox"][start_coord_idx] <= cur_structs[-1]["bbox"][start_coord_idx]
+    assert cur_structs[0]["bbox"][start_coord_idx] < cur_structs[-1]["bbox"][start_coord_idx]
 
     # Find the best position to insert new structure
     insert_idx = 0
@@ -925,84 +939,49 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
         insert_idx = len(cur_structs)
     else:
         for idx in range(len(cur_structs) - 1):
-            current_struct = cur_structs[idx]
+            prev_struct = cur_structs[idx]
             next_struct = cur_structs[idx + 1]
             if (
-                current_struct["bbox"][end_coord_idx] < token_bbox[start_coord_idx]
-                and token_bbox[end_coord_idx] < next_struct["bbox"][start_coord_idx]
+                prev_struct["bbox"][end_coord_idx] <= token_bbox[start_coord_idx]
+                and token_bbox[end_coord_idx] <= next_struct["bbox"][start_coord_idx]
             ):
                 insert_idx = idx + 1
                 break
 
     # Create the new structure and update related structures
-    # Compute table bounds from other structures to ensure consistency
-    if is_row:
-        # For rows, use horizontal bounds from columns
-        table_left = min(col["bbox"][0] for col in other_structs)
-        table_right = max(col["bbox"][2] for col in other_structs)
-    else:
-        # For columns, use vertical bounds from rows
-        table_top = min(row["bbox"][1] for row in other_structs)
-        table_bottom = max(row["bbox"][3] for row in other_structs)
+
+    # NOTE: Intentionally ignoring the "column header" field. Creating a column header from a dropped token is
+    # unlikely to generate a correct header, and we don't want to modify an existing correct one.
+
+    # This assumes that the rows and columns are properly aligned
+    new_struct_bbox = [rows[0]["bbox"][0], columns[0]["bbox"][1], rows[0]["bbox"][2], columns[0]["bbox"][3]]
 
     if insert_idx == 0:
         # Insert at beginning
-        if is_row:
-            new_struct = {"bbox": [table_left, token_bbox[1], table_right, cur_structs[0]["bbox"][1]]}
-        else:
-            new_struct = {"bbox": [token_bbox[0], table_top, cur_structs[0]["bbox"][0], table_bottom]}
-        cur_structs.insert(0, new_struct)
-
-        # Update all existing cell indices
-        for cell in cells:
-            for i, num in enumerate(cell[cell_struct_nums_key]):
-                cell[cell_struct_nums_key][i] = num + 1
-
-        new_idx = 0
+        new_struct_bbox[start_coord_idx] = token_bbox[start_coord_idx]
+        new_struct_bbox[end_coord_idx] = cur_structs[0]["bbox"][start_coord_idx]
 
     elif insert_idx == len(cur_structs):
         # Insert at end
-        if is_row:
-            new_struct = {"bbox": [table_left, cur_structs[-1]["bbox"][3], table_right, token_bbox[3]]}
-        else:
-            new_struct = {"bbox": [cur_structs[-1]["bbox"][2], table_top, token_bbox[2], table_bottom]}
-        cur_structs.append(new_struct)
-
-        new_idx = len(cur_structs) - 1
+        new_struct_bbox[start_coord_idx] = cur_structs[-1]["bbox"][end_coord_idx]
+        new_struct_bbox[end_coord_idx] = token_bbox[end_coord_idx]
 
     else:
         # Insert between existing structures
-        current_struct = cur_structs[insert_idx - 1]
+        prev_struct = cur_structs[insert_idx - 1]
         next_struct = cur_structs[insert_idx]
 
-        if is_row:
-            new_struct = {
-                "bbox": [
-                    table_left,
-                    current_struct["bbox"][3],
-                    table_right,
-                    next_struct["bbox"][1],
-                ]
-            }
-        else:
-            new_struct = {
-                "bbox": [
-                    current_struct["bbox"][2],
-                    table_top,
-                    next_struct["bbox"][0],
-                    table_bottom,
-                ]
-            }
+        new_struct_bbox[start_coord_idx] = prev_struct["bbox"][end_coord_idx]
+        new_struct_bbox[end_coord_idx] = next_struct["bbox"][start_coord_idx]
 
-        cur_structs.insert(insert_idx, new_struct)
+    new_struct = {"bbox": new_struct_bbox}
+    cur_structs.insert(insert_idx, new_struct)
 
-        # Update cell indices
-        for cell in cells:
-            for i, num in enumerate(cell[cell_struct_nums_key]):
-                if num >= insert_idx:
-                    cell[cell_struct_nums_key][i] = num + 1
-
-        new_idx = insert_idx
+    # Update cell indices
+    for cell in cells:
+        for i, num in enumerate(cell[cell_cur_struct_nums_key]):
+            if num >= insert_idx:
+                cell[cell_cur_struct_nums_key][i] = num + 1
 
     # Update other structures to cover the new structure
     new_start_coord = new_struct["bbox"][start_coord_idx]
@@ -1012,7 +991,16 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
         other_struct["bbox"][start_coord_idx] = min(other_struct["bbox"][start_coord_idx], new_start_coord)
         other_struct["bbox"][end_coord_idx] = max(other_struct["bbox"][end_coord_idx], new_end_coord)
 
-    return [new_idx]
+    # Create blank cells in the new structure, the cell for the dropped token will be modified by union_dropped_tokens_with_cells
+    for other_struct_idx, other_struct in enumerate(other_structs):
+        new_cell_bbox = BoundingBox(*other_struct["bbox"]).intersect(BoundingBox(*new_struct["bbox"]))
+        if new_cell_bbox.area > 0:
+            new_cell = {"bbox": new_cell_bbox.to_list(), "cell text": "", "spans": [], "column header": False}
+            new_cell[cell_cur_struct_nums_key] = [insert_idx]
+            new_cell[cell_other_struct_nums_key] = [other_struct_idx]
+            cells.append(new_cell)
+
+    return [insert_idx]
 
 
 def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
@@ -1035,6 +1023,23 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
         # Find or create rows and columns for the token
         token_rows = _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row=True)
         token_columns = _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row=False)
+
+        # Remove any blank cells that overlap with the token
+        cells_to_remove = []
+        for cell in cells:
+            if (
+                len(set(cell["row_nums"]).intersection(set(token_rows))) > 0
+                and len(set(cell["column_nums"]).intersection(set(token_columns))) > 0
+            ):
+                # These cells should be in a new structure created by _find_or_create_structure_for_token
+                # and should be empty.
+                assert cell["cell text"] == ""
+                assert len(cell["spans"]) == 0
+
+                cells_to_remove.append(cell)
+
+        for cell in cells_to_remove:
+            cells.remove(cell)
 
         # Create the new cell
         row_rect = BoundingBox.from_union(BoundingBox(*rows[row_idx]["bbox"]) for row_idx in token_rows)

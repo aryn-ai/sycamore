@@ -89,6 +89,26 @@ class DataType(str, Enum):
             logger.warning(f"Unsupported Python type: {python_type}. Defaulting to string.")
             return cls.STRING
 
+    @classmethod
+    def _missing_(cls, value: str) -> "DataType":
+        """Handle missing values by returning a default DataType."""
+        v = value.lower()
+
+        # Handle common type names that are not in the enum
+        if v in {"str", "text"}:
+            return cls.STRING
+        elif v in {"integer"}:
+            return cls.INT
+        elif v in {"list"}:
+            return cls.ARRAY
+        elif v in {"struct"}:
+            return cls.OBJECT
+        else:
+            for member in cls:
+                if member.value == value:
+                    return member
+        return None
+
 
 class PropertyValidator(BaseModel):
     """Represents a validator for a field in a DocSet schema."""
@@ -195,6 +215,12 @@ class ObjectProperty(Property):
     properties: list[NamedProperty]
 
 
+def _validate_with_type_alias(v: Any, handler: ValidatorFunctionWrapHandler) -> "PropertyType":
+    if isinstance(v, dict) and "type" in v:
+        v["type"] = DataType(v["type"])
+    return handler(v)
+
+
 PropertyType: TypeAlias = Annotated[
     (
         BoolProperty
@@ -209,6 +235,7 @@ PropertyType: TypeAlias = Annotated[
         | ObjectProperty
     ),
     Field(discriminator="type"),
+    WrapValidator(_validate_with_type_alias),
 ]
 
 
@@ -225,19 +252,16 @@ def _convert_to_named_property(schema_prop: SchemaField) -> NamedProperty:
     """Convert a SchemaProperty to a NamedProperty."""
 
     prop_type_dict = {
-        "type": schema_prop.field_type,
         "default": schema_prop.default,
         "description": schema_prop.description,
         "examples": schema_prop.examples,
     }
 
-    # Convert common type names to corresponding DataType
-    if prop_type_dict["type"] == "str":
-        prop_type_dict["type"] = DataType.STRING
-
-    if (declared_type := prop_type_dict["type"]) not in DataType.values():
+    if (declared_type := schema_prop.field_type) not in DataType.values():
         prop_type_dict["custom_type"] = declared_type
         prop_type_dict["type"] = DataType.CUSTOM
+    else:
+        prop_type_dict["type"] = DataType(schema_prop.field_type)
 
     return NamedProperty(
         name=schema_prop.name,

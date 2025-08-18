@@ -927,7 +927,7 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
     # Sanity check that the structures are sorted
     assert (
         cur_structs[0]["bbox"][start_coord_idx] < cur_structs[-1]["bbox"][start_coord_idx]
-    ), f"Structures are not sorted, first structure: {cur_structs[0]['bbox']} and last structure: {cur_structs[-1]['bbox']}"
+    ), f"Structures are not sorted, first structure: {cur_structs[0]['bbox']}, last structure: {cur_structs[-1]['bbox']}"
 
     # Find the best position to insert new structure
     insert_idx = 0

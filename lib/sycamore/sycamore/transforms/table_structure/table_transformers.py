@@ -924,8 +924,6 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
     if len(overlapping_struct_idxs) > 0:
         return overlapping_struct_idxs
 
-    # If the token does not overlap with any existing structure, create a
-    # new structure and its corresponding cells
 
     # Sanity check that the structures are sorted
     assert cur_structs[0]["bbox"][start_coord_idx] < cur_structs[-1]["bbox"][start_coord_idx]
@@ -950,9 +948,7 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
 
     # Create the new structure and update related structures
 
-    # NOTE: Intentionally ignoring the "column header" field. Creating a column header from a dropped token is
-    # unlikely to generate a correct header, and we don't want to modify an existing correct one.
-
+    
     # This assumes that the rows and columns are properly aligned
     new_struct_bbox = [rows[0]["bbox"][0], columns[0]["bbox"][1], rows[0]["bbox"][2], columns[0]["bbox"][3]]
 
@@ -973,6 +969,9 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
 
         new_struct_bbox[start_coord_idx] = prev_struct["bbox"][end_coord_idx]
         new_struct_bbox[end_coord_idx] = next_struct["bbox"][start_coord_idx]
+
+    # NOTE: Intentionally ignoring the "column header" field of the structure. Creating a column header from a dropped token is
+    # unlikely to generate a correct header, and we don't want to modify an existing correct one.
 
     new_struct = {"bbox": new_struct_bbox}
     cur_structs.insert(insert_idx, new_struct)

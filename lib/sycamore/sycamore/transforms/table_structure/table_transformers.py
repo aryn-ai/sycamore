@@ -924,7 +924,6 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
     if len(overlapping_struct_idxs) > 0:
         return overlapping_struct_idxs
 
-
     # Sanity check that the structures are sorted
     assert cur_structs[0]["bbox"][start_coord_idx] < cur_structs[-1]["bbox"][start_coord_idx]
 
@@ -948,7 +947,6 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
 
     # Create the new structure and update related structures
 
-    
     # This assumes that the rows and columns are properly aligned
     new_struct_bbox = [rows[0]["bbox"][0], columns[0]["bbox"][1], rows[0]["bbox"][2], columns[0]["bbox"][3]]
 

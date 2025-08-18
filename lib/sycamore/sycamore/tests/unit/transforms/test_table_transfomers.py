@@ -427,7 +427,7 @@ class TestStructureToCells:
         ]
 
         cells, confidence_score = structure_to_cells(table_structure, tokens, union_tokens=True)
-        assert len(cells) >= 4
+        assert len(cells) == 11
 
         for cell in cells:
             if cell["cell text"] == "Dropped Token Above":

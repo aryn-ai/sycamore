@@ -925,7 +925,9 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
         return overlapping_struct_idxs
 
     # Sanity check that the structures are sorted
-    assert cur_structs[0]["bbox"][start_coord_idx] < cur_structs[-1]["bbox"][start_coord_idx]
+    assert (
+        cur_structs[0]["bbox"][start_coord_idx] < cur_structs[-1]["bbox"][start_coord_idx]
+    ), f"Structures are not sorted, first structure: {cur_structs[0]['bbox']} and last structure: {cur_structs[-1]['bbox']}"
 
     # Find the best position to insert new structure
     insert_idx = 0
@@ -945,9 +947,7 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
                 insert_idx = idx + 1
                 break
 
-    # Create the new structure and update related structures
-
-    # This assumes that the rows and columns are properly aligned
+    # Create the new structure and update related structures. This assumes that the rows and columns are properly aligned.
     new_struct_bbox = [rows[0]["bbox"][0], columns[0]["bbox"][1], rows[0]["bbox"][2], columns[0]["bbox"][3]]
 
     if insert_idx == 0:
@@ -1030,8 +1030,8 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
             ):
                 # These cells should be in a new structure created by _find_or_create_structure_for_token
                 # and should be empty.
-                assert cell["cell text"] == ""
-                assert len(cell["spans"]) == 0
+                assert cell["cell text"] == "", f"Cell for dropped token should have no text: {cell}"
+                assert len(cell["spans"]) == 0, f"Cell for dropped token should have no spans: {cell}"
 
                 cells_to_remove.append(cell)
 

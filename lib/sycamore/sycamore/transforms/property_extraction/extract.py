@@ -34,12 +34,9 @@ class Extract(MapBatch):
         schema_partition_strategy: SchemaPartitionStrategy,
         llm: LLM,
         prompt: SycamorePrompt,
-        put_in_properties_dot_entity: bool = True,
         schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchema(),
         output_pydantic_models: bool = True,
     ):
-        if put_in_properties_dot_entity:
-            _logger.warning("Extraction results will go in properties.entity")
         super().__init__(node, f=self.extract)
         self._schema = schema
         self._step_through = step_through_strategy
@@ -47,10 +44,15 @@ class Extract(MapBatch):
         self._schema_update = schema_update_strategy
         self._llm = llm
         self._prompt = prompt
-        # Try calling the render method I need at constructor to make sure it's implemented
-        self._prompt.render_multiple_elements(elts=[], doc=Document(binary_representation=b""))
-        self._pipde = put_in_properties_dot_entity
         self._output_pydantic = output_pydantic_models
+        # Try calling the render method I need at constructor to make sure it's implemented
+        try:
+            self._prompt.render_multiple_elements(elts=[], doc=Document())
+        except NotImplementedError as e:
+            raise e
+        except Exception:
+            # Other errors are ok, probably dummy document is malformed for the prompt
+            pass
 
     def extract(self, documents: list[Document]) -> list[Document]:
         schema_parts = self._schema_partition.partition_schema(self._schema)
@@ -59,29 +61,24 @@ class Extract(MapBatch):
         assert all(isinstance(r, dict) for result_set in results for r in result_set)
         for partial_result in results:
             for props, doc in zip(partial_result, documents):
-                if self._pipde:
-                    if "entity_metadata" not in doc.properties:
-                        doc.properties["entity_metadata"] = props
-                    else:
-                        meta = doc.properties["entity_metadata"]
-                        rp = RichProperty(name=None, type=DataType.OBJECT, value=props)
-                        rm = RichProperty(name=None, type=DataType.OBJECT, value=meta)
-                        stitched = stitch_together_objects(rm, rp)
-                        doc.properties["entity_metadata"] = stitched.value
+                if "entity_metadata" not in doc.properties:
+                    doc.properties["entity_metadata"] = props
                 else:
-                    doc.properties.update(props)
-        if self._pipde:
-            for doc in documents:
-                em = doc.properties["entity_metadata"]
-                doc.properties.setdefault("entity", {})
-                for k, v in em.items():
-                    if isinstance(v, RichProperty):
-                        doc.properties["entity"][k] = v.to_python()
-                    else:
-                        pass  # This property has already been added and de-pydanticized
-                if not self._output_pydantic:
-                    for k, v in em.items():
+                    meta = doc.properties["entity_metadata"]
+                    rp = RichProperty(name=None, type=DataType.OBJECT, value=props)
+                    rm = RichProperty(name=None, type=DataType.OBJECT, value=meta)
+                    stitched = stitch_together_objects(rm, rp)
+                    doc.properties["entity_metadata"] = stitched.value
+        for doc in documents:
+            em = doc.properties["entity_metadata"]
+            doc.properties.setdefault("entity", {})
+            for k, v in em.items():
+                if isinstance(v, RichProperty):
+                    doc.properties["entity"][k] = v.to_python()
+                    if not self._output_pydantic:
                         em[k] = v.dump_recursive()
+                else:
+                    pass  # This property has already been added and de-pydanticized
         return documents
 
     async def extract_schema_partition(
@@ -94,18 +91,15 @@ class Extract(MapBatch):
         self, document: Document, schema_part: Schema
     ) -> dict[str, RichProperty]:
         prompt = self._prompt.fork(schema=schema_part)
-        if self._pipde:
-            em = document.properties.get("entity_metadata", {})
-            result_dict = {k: RichProperty.validate_recursive(v) for k, v in em.items()}
-            update = self._schema_update.update_schema(
-                in_schema=schema_part, new_fields={}, existing_fields=result_dict
-            )
-            result_dict = update.out_fields
-            schema_part = update.out_schema
-            if update.completed:
-                return result_dict
-        else:
-            result_dict = dict()
+
+        em = document.properties.get("entity_metadata", {})
+        result_dict = {k: RichProperty.validate_recursive(v) for k, v in em.items()}
+        update = self._schema_update.update_schema(in_schema=schema_part, new_fields={}, existing_fields=result_dict)
+        result_dict = update.out_fields
+        schema_part = update.out_schema
+        if update.completed:
+            return result_dict
+
         for elements in self._step_through.step_through(document):
             rendered = prompt.render_multiple_elements(elements, document)
             result = await self._llm.generate_async(prompt=rendered)

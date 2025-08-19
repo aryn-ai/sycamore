@@ -1,4 +1,5 @@
 from typing import Optional
+import pytest
 
 from sycamore.data.document import Document
 from sycamore.data.element import Element
@@ -164,3 +165,41 @@ class TestExtract:
         assert extracted[1].field_to_value("properties.entity_metadata.telts.value") == 2
         assert extracted[1].field_to_value("properties.entity.missing") is None
         assert extracted[1].field_to_value("properties.entity_metadata.missing.value") is None
+
+    def test_extract_with_bad_prompts(self):
+        class NotImplPrompt(SycamorePrompt):
+            pass
+
+        class ImplButCrashPrompt(SycamorePrompt):
+            def render_multiple_elements(self, elts: list[Element], doc: Document) -> RenderedPrompt:
+                1 / 0
+                return RenderedPrompt(messages=[])
+
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(name="doc_id", type=StringProperty()),
+                NamedProperty(name="missing", type=StringProperty()),
+                NamedProperty(name="telts", type=IntProperty()),
+            ]
+        )
+
+        with pytest.raises(NotImplementedError):
+            Extract(
+                None,
+                schema=schema,
+                step_through_strategy=OneElementAtATime(),
+                schema_partition_strategy=NoSchemaSplitting(),
+                llm=FakeLLM(),
+                prompt=NotImplPrompt(),
+                output_pydantic_models=False,
+            )
+
+        Extract(
+            None,
+            schema=schema,
+            step_through_strategy=OneElementAtATime(),
+            schema_partition_strategy=NoSchemaSplitting(),
+            llm=FakeLLM(),
+            prompt=ImplButCrashPrompt(),
+            output_pydantic_models=False,
+        )

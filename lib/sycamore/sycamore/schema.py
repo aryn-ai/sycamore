@@ -191,7 +191,12 @@ class DateTimeProperty(Property):
 class ArrayProperty(Property):
     type: Literal[DataType.ARRAY] = DataType.ARRAY
 
-    item_type: "PropertyType"
+    # The default value here is to improve backward compatibility with
+    # existing schemas. In a few places the old schema had type "array"
+    # without a clear child type. This defaults to string to avoid breaking at
+    # schema deserialization, though a more specific type should always be
+    # used if available.
+    item_type: "PropertyType" = StringProperty()
 
 
 class ChoiceProperty(Property):

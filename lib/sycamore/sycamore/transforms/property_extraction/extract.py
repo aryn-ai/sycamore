@@ -1,7 +1,6 @@
 from typing import Optional, Any
 import asyncio
 import logging
-import json
 
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node

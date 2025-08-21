@@ -1,6 +1,7 @@
 from typing import Optional, Any
 import asyncio
 import logging
+import json
 
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node
@@ -17,7 +18,7 @@ from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe
-from sycamore.transforms.property_extraction.utils import stitch_together_objects
+from sycamore.transforms.property_extraction.utils import stitch_together_objects, recursively_dedup
 from sycamore.transforms.property_extraction.attribution import refine_attribution
 
 _logger = logging.getLogger(__name__)
@@ -164,7 +165,11 @@ class SchemaExtract(MapBatch):
                 _logger.warning("No schema fields extracted, returning empty schema.")
                 doc.properties["_schema"] = Schema(properties=[])
                 continue
-            doc.properties["_schema"] = Schema(properties=result)
+            schema = Schema(properties=result)
+            for prop in schema.properties:
+                examples = recursively_dedup(prop.type.examples or [])[:5]  # Limit to 5 examples
+                prop.type.examples = examples if examples else None
+            doc.properties["_schema"] = schema
 
         return documents
 

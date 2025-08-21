@@ -17,7 +17,7 @@ from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe
-from sycamore.transforms.property_extraction.utils import create_named_property, stitch_together_objects
+from sycamore.transforms.property_extraction.utils import stitch_together_objects
 from sycamore.transforms.property_extraction.attribution import refine_attribution
 
 _logger = logging.getLogger(__name__)

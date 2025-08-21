@@ -38,6 +38,12 @@ def format_property(prop: Property, indent=0) -> str:
         basic_str += f", extraction_instructions: {prop.extraction_instructions}"
     if prop.examples is not None:
         basic_str += f", examples: {prop.examples}"
+    if len(prop.validators) > 0:
+        basic_str += ", constraints: [ "
+        constraints = [vld.constraint_string() for vld in prop.validators]
+        basic_str += ", ".join(constraints)
+        basic_str += " ]"
+
     return basic_str + " }"
 
 

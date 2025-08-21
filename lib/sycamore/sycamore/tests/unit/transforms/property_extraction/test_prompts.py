@@ -7,6 +7,7 @@ from sycamore.schema import (
     ArrayProperty,
     StringProperty,
     ChoiceProperty,
+    RegexValidator,
 )
 
 complicated_schema = SchemaV2(
@@ -30,6 +31,7 @@ complicated_schema = SchemaV2(
                 ]
             ),
         ),
+        NamedProperty(name="f", type=StringProperty(validators=[RegexValidator(regex=r"[1-9][0-9]{0,9}")])),
     ]
 )
 
@@ -46,7 +48,8 @@ expected_formatted_schema = """\
         { type: int, examples: [1, 4, 9] }
       ]
     ]
-  }
+  },
+  f: { type: string, constraints: [ must match the regex: `[1-9][0-9]{0,9}` ] }
 }"""
 
 

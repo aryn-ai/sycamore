@@ -164,7 +164,7 @@ class SchemaExtract(MapBatch):
                 _logger.warning("No schema fields extracted, returning empty schema.")
                 doc.properties["_schema"] = Schema(properties=[])
                 continue
-            doc.properties["_schema"] = Schema(properties=[create_named_property(prop) for prop in result])
+            doc.properties["_schema"] = Schema(properties=result)
 
         return documents
 
@@ -180,22 +180,24 @@ class SchemaExtract(MapBatch):
 
             for k, v in rd.items():
 
-                v_type = v.get("type", "string")  # Default to "string" if not specified
-                example = self._cast_to_type(v.get("value", None), v_type)
+                v_type = v.get("type", {}).get("type", "string")  # Default to string if type is not specified
+                examples = v.get("type", {}).get("examples", None)
 
                 if k not in result_dict:
-                    v["examples"] = [example] if example is not None else []
-                    v["type"] = v_type
-                    v.pop("value", None)
+                    v["type"]["examples"] = examples
+                    v["type"]["type"] = v_type
                     result_dict[k] = v
                 else:
-                    # Only append if type matches and value is not None and not already present
-                    if example is not None and v_type == result_dict[k]["type"]:
-                        if example not in result_dict[k]["examples"]:
-                            result_dict[k]["examples"].append(example)
+                    # Only add examples if they match the type of the existing field
+                    if examples is not None and v_type == result_dict[k]["type"]["type"]:
+                        if result_dict[k]["type"]["examples"] is None:
+                            result_dict[k]["type"]["examples"] = examples
+                        else:
+                            result_dict[k]["type"]["examples"].extend(examples)
+
                     elif v_type != result_dict[k]["type"]:
                         _logger.warning(
-                            f"Type mismatch for field '{k}': {v_type} vs {result_dict[k]['type']}. "
+                            f"Type mismatch for field '{k}': {v_type} vs {result_dict[k]['type']['type']}. "
                             "Skipping this field."
                         )
 

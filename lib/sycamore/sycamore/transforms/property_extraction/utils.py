@@ -1,4 +1,5 @@
 from typing import Optional, Any
+import json
 from pydantic import TypeAdapter
 from sycamore.schema import (
     NamedProperty,
@@ -15,8 +16,14 @@ def create_named_property(prop_data: dict[str, Any], n_examples: Optional[int] =
         prop_data["custom_type"] = declared_type
         prop_data["type"] = DataType.CUSTOM
 
+    # Deduplicate examples if they are provided
+    examples = [json.loads(s) for s in {json.dumps(d, sort_keys=True) for d in prop_data.get("examples", [])}]
+
     if n_examples is not None:
-        prop_data["examples"] = list(set(prop_data.get("examples", [])))[:n_examples]
+        prop_data["examples"] = examples[:n_examples]
+
+    if not examples:
+        prop_data["examples"] = None
 
     prop_type: PropertyType = TypeAdapter(PropertyType).validate_python(prop_data)
 

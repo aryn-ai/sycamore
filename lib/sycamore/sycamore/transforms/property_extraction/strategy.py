@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from sycamore.data.document import Document
 from sycamore.data.element import Element
-from sycamore.schema import ObjectProperty, ArrayProperty, NamedProperty, SchemaV2, DataType
+from sycamore.schema import ObjectProperty, ArrayProperty, NamedProperty, PropertyValidator, SchemaV2, DataType
 from sycamore.transforms.property_extraction.types import RichProperty
 
 
@@ -88,6 +88,14 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
             ret = default
         return ret
 
+    def _validate_prop(self, validators: list[PropertyValidator], value: RichProperty):
+        for validator in validators:
+            valid, new_val = validator.validate_property(value.value)
+            value.is_valid = valid
+            value.value = new_val
+            if not valid:
+                break
+
     def _update_object(
         self,
         in_obj_spec: ObjectProperty | SchemaV2,
@@ -106,6 +114,7 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                 updated_obj_p = RichProperty(name=name, type=DataType.OBJECT, value=updated_obj)
                 if updated_spec is not None:
                     updated_specs.append(NamedProperty(name=name, type=updated_spec))
+                self._validate_prop(inner_prop.type.validators, updated_obj_p)
                 updated_values[name] = updated_obj_p
                 continue
 
@@ -115,16 +124,20 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
 
                 assert isinstance(inner_prop.type, ArrayProperty)
                 updated_arr = self._update_array(inner_prop.type, new_arr, existing_arr)
-                updated_values[name] = RichProperty(name=name, type=DataType.ARRAY, value=updated_arr)
+                updated_arr_p = RichProperty(name=name, type=DataType.ARRAY, value=updated_arr)
+                self._validate_prop(inner_prop.type.validators, updated_arr_p)
+                updated_values[name] = updated_arr_p
                 updated_specs.append(inner_prop)
                 continue
 
             if (v := existing_fields.get(name)) is not None and v.value is not None:
-                updated_values[name] = v
-                continue
+                if v.is_valid or (name not in new_fields or new_fields[name].value is None):
+                    updated_values[name] = v
+                    continue
 
             if (v := new_fields.get(name)) is not None and v.value is not None:
                 updated_values[name] = v
+                self._validate_prop(inner_prop.type.validators, v)
                 continue
 
             updated_specs.append(inner_prop)
@@ -136,6 +149,25 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
     def _update_array(
         self, in_arr_spec: ArrayProperty, new_fields: list[RichProperty], existing_fields: list[RichProperty]
     ) -> list[RichProperty]:
+        inner_t = in_arr_spec.item_type
+        updated_new_fields = []
+        for nf in new_fields:
+            if inner_t.type == DataType.OBJECT:
+                obj, _ = self._update_object(inner_t, nf.value, {})
+                rp = RichProperty(name=None, type=DataType.OBJECT, value=obj)
+                self._validate_prop(inner_t.validators, rp)
+                updated_new_fields.append(rp)
+                continue
+            if inner_t.type == DataType.ARRAY:
+                arr = self._update_array(inner_t, nf, [])
+                rp = RichProperty(name=None, type=DataType.ARRAY, value=arr)
+                self._validate_prop(inner_t.validators, rp)
+                updated_new_fields.append(rp)
+                continue
+
+            self._validate_prop(inner_t.validators, nf)
+            updated_new_fields.append(nf)
+
         return existing_fields + new_fields
 
     def update_schema(

@@ -164,6 +164,12 @@ class RegexValidator(PropertyValidator):
         return (s is not None), propval
 
 
+ValidatorType: TypeAlias = Annotated[
+    (RegexValidator),
+    Field(discriminator="type"),
+]
+
+
 class SourceSpec(BaseModel):
     pass
 
@@ -197,7 +203,7 @@ class Property(BaseModel):
     Defaults to the entire document.
     """
 
-    validators: list[PropertyValidator] = []
+    validators: list[ValidatorType] = []
     """Validators to apply to this property."""
 
     @model_validator(mode="after")
@@ -327,7 +333,9 @@ def _convert_to_named_property(schema_prop: SchemaField) -> NamedProperty:
 def _validate_new_schema(v: Any, handler: ValidatorFunctionWrapHandler) -> NamedProperty:
     try:
         return handler(v)
-    except ValidationError:
+    except ValidationError as e:
+        if any("valid validator" in ed["msg"] for ed in e.errors()):
+            raise
         # Attempt to validate as a SchemaProperty and convert to NamedProperty
         schema_prop = SchemaField.model_validate(v)
         return _convert_to_named_property(schema_prop)

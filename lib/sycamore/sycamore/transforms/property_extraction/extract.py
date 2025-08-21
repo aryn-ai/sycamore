@@ -2,13 +2,14 @@ from typing import Optional, Any
 import asyncio
 import logging
 
-from sycamore.data.document import Document
+from sycamore.data.document import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.schema import SchemaV2 as Schema, DataType
 from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,
     SchemaUpdateStrategy,
+    SchemaUpdateResult,
     StepThroughStrategy,
     TakeFirstTrimSchema,
 )
@@ -90,8 +91,6 @@ class Extract(MapBatch):
     async def extract_schema_partition_from_document(
         self, document: Document, schema_part: Schema
     ) -> dict[str, RichProperty]:
-        prompt = self._prompt.fork(schema=schema_part)
-
         em = document.properties.get("entity_metadata", {})
         result_dict = {k: RichProperty.validate_recursive(v) for k, v in em.items()}
         update = self._schema_update.update_schema(in_schema=schema_part, new_fields={}, existing_fields=result_dict)
@@ -101,21 +100,30 @@ class Extract(MapBatch):
             return result_dict
 
         for elements in self._step_through.step_through(document):
-            rendered = prompt.render_multiple_elements(elements, document)
-            result = await self._llm.generate_async(prompt=rendered)
-            rd = extract_json(result)
-            new_fields = dict()
-            for k, v in rd.items():
-                new_fields[k] = refine_attribution(RichProperty.from_prediction(v, elements, name=k), document)
-            update = self._schema_update.update_schema(
-                in_schema=schema_part, new_fields=new_fields, existing_fields=result_dict
+            update = await self.extract_schema_partition_from_element_batch(
+                document, elements, schema_part, result_dict
             )
             result_dict = update.out_fields
             schema_part = update.out_schema
             if update.completed:
                 return result_dict
-            prompt = self._prompt.fork(schema=schema_part)
         return result_dict
+
+    async def extract_schema_partition_from_element_batch(
+        self, document: Document, elements: list[Element], schema_part: Schema, result_dict: dict[str, RichProperty]
+    ) -> SchemaUpdateResult:
+        prompt = self._prompt.fork(schema=schema_part)
+
+        rendered = prompt.render_multiple_elements(elements, document)
+        result = await self._llm.generate_async(prompt=rendered)
+        rd = extract_json(result)
+        new_fields = dict()
+        for k, v in rd.items():
+            new_fields[k] = refine_attribution(RichProperty.from_prediction(v, elements, name=k), document)
+        update = self._schema_update.update_schema(
+            in_schema=schema_part, new_fields=new_fields, existing_fields=result_dict
+        )
+        return update
 
 
 class SchemaExtract(MapBatch):

@@ -16,8 +16,23 @@ def create_named_property(prop_data: dict[str, Any], n_examples: Optional[int] =
         prop_data["custom_type"] = declared_type
         prop_data["type"] = DataType.CUSTOM
 
+    def _recursively_sorted(obj):
+        """Recursively sort lists and dicts for consistent hashing/serialization."""
+        if isinstance(obj, dict):
+            return {k: _recursively_sorted(obj[k]) for k in sorted(obj)}
+        if isinstance(obj, list):
+            # Sort lists of hashable items, otherwise sort by their JSON representation
+            try:
+                return sorted((_recursively_sorted(i) for i in obj), key=lambda x: json.dumps(x, sort_keys=True))
+            except TypeError:
+                return [_recursively_sorted(i) for i in obj]
+        return obj
+
     # Deduplicate examples if they are provided
-    examples = [json.loads(s) for s in {json.dumps(d, sort_keys=True) for d in prop_data.get("examples", [])}]
+    examples = [
+        json.loads(s)
+        for s in {json.dumps(_recursively_sorted(d), sort_keys=True) for d in prop_data.get("examples", [])}
+    ]
 
     if n_examples is not None:
         prop_data["examples"] = examples[:n_examples]

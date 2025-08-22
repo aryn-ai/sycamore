@@ -11,7 +11,6 @@ from sycamore.schema import SchemaV2
 from sycamore.transforms.property_extraction.extract import SchemaExtract
 from sycamore.transforms.property_extraction.strategy import BatchElements
 from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields
-from sycamore.transforms.property_extraction.utils import create_named_property
 
 
 class FakeExtractionPrompt(SycamorePrompt):
@@ -89,14 +88,14 @@ class TestSchemaExtract:
 
         agg_schema_true = SchemaV2(
             properties=[
-                create_named_property(
-                    {
-                        "name": "company_name",
+                {
+                    "name": "company_name",
+                    "type": {
                         "type": "string",
                         "description": "Name of the company",
                         "examples": ["Beta LLC", "Acme Corp"],
                     },
-                )
+                }
             ]
         )
 

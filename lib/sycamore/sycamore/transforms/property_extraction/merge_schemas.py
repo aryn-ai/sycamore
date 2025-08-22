@@ -3,7 +3,7 @@ from collections import Counter
 import logging
 from sycamore.data.document import Document
 from sycamore.schema import SchemaV2
-from sycamore.transforms.property_extraction.utils import create_named_property
+from sycamore.transforms.property_extraction.utils import dedup_examples
 
 _logger = logging.getLogger(__name__)
 
@@ -41,16 +41,14 @@ def _process_schema_fields(docs: list[Document], combine_fields_fn: Callable[[li
             name = property.name
             temp.add(name)
             if name not in merged_fields:
-                merged_fields[name] = {
-                    "name": name,
-                    "type": property.type.type.value,
-                    "description": property.type.description,
-                    "examples": property.type.examples or [],
-                }
+                merged_fields[name] = property
             else:
-                if property.type.type.value != merged_fields[name]["type"]:
-                    continue
-                merged_fields[name]["examples"].extend(property.type.examples)
+                if property.type.type != merged_fields[name].type.type:
+                    continue  # Skip if types don't match
+                if property.type.examples:
+                    if merged_fields[name].type.examples is None:
+                        merged_fields[name].type.examples = []
+                    merged_fields[name].type.examples.extend(property.type.examples)
         if temp:
             field_names.append(temp)
 
@@ -66,9 +64,10 @@ def _process_schema_fields(docs: list[Document], combine_fields_fn: Callable[[li
         fake_doc.properties["_schema"] = SchemaV2(properties=[])
         return fake_doc
 
-    schema = SchemaV2(
-        properties=[create_named_property(merged_fields[name], n_examples=5) for name in common_field_names]
-    )
+    schema = SchemaV2(properties=[merged_fields[name] for name in common_field_names])
+    for prop in schema.properties:
+        examples = dedup_examples(prop.type.examples or [])[:5]  # Limit to 5 examples
+        prop.type.examples = examples if examples else None
     fake_doc.properties["_schema"] = schema
 
     return fake_doc

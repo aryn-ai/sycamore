@@ -15,7 +15,6 @@ from sycamore.transforms.property_extraction.merge_schemas import (
     union_of_fields,
     make_freq_filter_fn,
 )
-from sycamore.transforms.property_extraction.utils import create_named_property
 
 
 class FakeExtractionPrompt(SycamorePrompt):
@@ -93,14 +92,14 @@ class TestSchemaExtract:
 
         agg_schema_true = SchemaV2(
             properties=[
-                create_named_property(
-                    {
-                        "name": "company_name",
+                {
+                    "name": "company_name",
+                    "type": {
                         "type": "string",
                         "description": "Name of the company",
                         "examples": ["Beta LLC", "Acme Corp"],
                     },
-                )
+                }
             ]
         )
 
@@ -176,30 +175,30 @@ class TestSchemaExtract:
 
         agg_schema_true = SchemaV2(
             properties=[
-                create_named_property(
-                    {
-                        "name": "company_name",
+                {
+                    "name": "company_name",
+                    "type": {
                         "type": "string",
                         "description": "Name of the company",
                         "examples": ["Beta LLC", "Acme Corp"],
                     },
-                ),
-                create_named_property(
-                    {
-                        "name": "ceo",
+                },
+                {
+                    "name": "ceo",
+                    "type": {
                         "type": "string",
                         "description": "CEO name",
                         "examples": ["Jane Doe"],
                     },
-                ),
-                create_named_property(
-                    {
-                        "name": "revenue",
+                },
+                {
+                    "name": "revenue",
+                    "type": {
                         "type": "float",
                         "description": "Annual revenue",
                         "examples": [1000000.0],
                     },
-                ),
+                },
             ]
         )
 
@@ -328,22 +327,22 @@ class TestSchemaExtract:
 
         agg_schema_true = SchemaV2(
             properties=[
-                create_named_property(
-                    {
-                        "name": "company_name",
+                {
+                    "name": "company_name",
+                    "type": {
                         "type": "string",
                         "description": "Name of the company",
                         "examples": ["Beta LLC", "Acme Corp", "Gamma Inc", "Delta Co"],
                     },
-                ),
-                create_named_property(
-                    {
-                        "name": "ceo",
+                },
+                {
+                    "name": "ceo",
+                    "type": {
                         "type": "string",
                         "description": "CEO name",
                         "examples": ["Jane Doe", "John Smith"],
                     },
-                ),
+                },
             ]
         )
 

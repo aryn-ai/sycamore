@@ -9,7 +9,7 @@ from sycamore.schema import (
 from sycamore.transforms.property_extraction.types import RichProperty
 
 
-def recursively_dedup(x: list[Any]) -> list[Any]:
+def dedup_examples(x: list[Any]) -> list[Any]:
     """
     Recursively deduplicate a list of items, ensuring that nested lists and dicts are also deduplicated.
     """
@@ -28,30 +28,6 @@ def recursively_dedup(x: list[Any]) -> list[Any]:
 
     ret_val = [json.loads(s) for s in {json.dumps(_recursively_sorted(d), sort_keys=True) for d in x}]
     return ret_val
-
-
-def create_named_property(prop_data: dict[str, Any], n_examples: Optional[int] = None) -> NamedProperty:
-    name = prop_data["name"]
-
-    if (declared_type := prop_data["type"]) not in DataType.values():
-        prop_data["custom_type"] = declared_type
-        prop_data["type"] = DataType.CUSTOM
-
-    # Deduplicate examples if they are provided
-    examples = recursively_dedup(prop_data.get("examples", []))
-
-    if n_examples is not None:
-        prop_data["examples"] = examples[:n_examples]
-
-    if not examples:
-        prop_data["examples"] = None
-
-    prop_type: PropertyType = TypeAdapter(PropertyType).validate_python(prop_data)
-
-    return NamedProperty(
-        name=name,
-        type=prop_type,
-    )
 
 
 def stitch_together_objects(ob1: RichProperty, ob2: RichProperty) -> RichProperty:

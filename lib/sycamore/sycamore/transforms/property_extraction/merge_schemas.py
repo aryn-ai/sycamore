@@ -3,7 +3,7 @@ from collections import Counter
 import logging
 from sycamore.data.document import Document
 from sycamore.schema import SchemaV2
-from sycamore.transforms.property_extraction.utils import recursively_dedup
+from sycamore.transforms.property_extraction.utils import dedup_examples
 
 _logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ def _process_schema_fields(docs: list[Document], combine_fields_fn: Callable[[li
 
     schema = SchemaV2(properties=[merged_fields[name] for name in common_field_names])
     for prop in schema.properties:
-        examples = recursively_dedup(prop.type.examples or [])[:5]  # Limit to 5 examples
+        examples = dedup_examples(prop.type.examples or [])[:5]  # Limit to 5 examples
         prop.type.examples = examples if examples else None
     fake_doc.properties["_schema"] = schema
 

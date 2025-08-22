@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from sycamore.data.document import Document
 from sycamore.data.element import Element
-from sycamore.schema import ObjectProperty, ArrayProperty, NamedProperty, PropertyValidator, SchemaV2, DataType
+from sycamore.schema import ObjectProperty, ArrayProperty, NamedProperty, SchemaV2, DataType, ValidatorType
 from sycamore.transforms.property_extraction.types import RichProperty
 
 
@@ -88,7 +88,7 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
             ret = default
         return ret
 
-    def _validate_prop(self, validators: list[PropertyValidator], value: RichProperty):
+    def _validate_prop(self, validators: list[ValidatorType], value: RichProperty):
         for validator in validators:
             valid, new_val = validator.validate_property(value.value)
             value.is_valid = valid

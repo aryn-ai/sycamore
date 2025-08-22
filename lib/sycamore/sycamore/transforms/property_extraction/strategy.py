@@ -164,7 +164,7 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                 updated_new_fields.append(rp)
                 continue
             if inner_t.type == DataType.ARRAY:
-                arr = self._update_array(inner_t, nf, [])
+                arr = self._update_array(inner_t, nf.value, [])
                 rp = RichProperty(name=None, type=DataType.ARRAY, value=arr)
                 self._validate_prop(inner_t.validators, rp)
                 updated_new_fields.append(rp)

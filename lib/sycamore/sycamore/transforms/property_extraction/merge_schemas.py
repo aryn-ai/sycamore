@@ -43,7 +43,7 @@ def _process_schema_fields(docs: list[Document], combine_fields_fn: Callable[[li
             if name not in merged_fields:
                 merged_fields[name] = property
             else:
-                if property.type.type.value != merged_fields[name].type.type.value:
+                if property.type.type != merged_fields[name].type.type:
                     continue  # Skip if types don't match
                 if property.type.examples:
                     if merged_fields[name].type.examples is None:

@@ -1,5 +1,7 @@
+from abc import ABC, abstractmethod
 import datetime
 from enum import Enum
+import re
 import json
 import logging
 from typing import Annotated, Any, Literal, Optional, TypeAlias
@@ -13,6 +15,7 @@ from pydantic import (
     WrapValidator,
     ValidationError,
     model_serializer,
+    model_validator,
     SerializerFunctionWrapHandler,
 )
 
@@ -116,10 +119,55 @@ class DataType(str, Enum):
         raise ValueError(f"Invalid DataType value: {value}. Valid values are: {', '.join(cls.values())}")
 
 
-class PropertyValidator(BaseModel):
+class PropertyValidator(BaseModel, ABC):
     """Represents a validator for a field in a DocSet schema."""
 
-    pass
+    type: Literal[str]  # type: ignore
+    allowable_types: set[DataType]
+
+    n_retries: int = Field(default=0, ge=0)
+
+    @abstractmethod
+    def constraint_string(self) -> str:
+        pass
+
+    @abstractmethod
+    def validate_property(self, propval: Any) -> tuple[bool, Any]:
+        pass
+
+
+class RegexValidator(PropertyValidator):
+    """Validates a field in a DocSet schema by comparing against a regex"""
+
+    type: Literal["regex"] = "regex"
+    allowable_types: set[DataType] = {DataType.STRING}
+
+    regex: str
+    _compiled_regex: Optional[re.Pattern] = None
+
+    @model_validator(mode="after")
+    def compile_regex(self) -> "RegexValidator":
+        self._compiled_regex = re.compile(self.regex)
+        return self
+
+    def constraint_string(self) -> str:
+        return f"must match the regex: `{self.regex}`"
+
+    def validate_property(self, propval: Any) -> tuple[bool, Any]:
+        import re
+
+        if not isinstance(propval, str):
+            return False, propval
+        if self._compiled_regex is None:
+            self._compiled_regex = re.compile(self.regex)
+        s = re.fullmatch(self._compiled_regex, propval)
+        return (s is not None), propval
+
+
+ValidatorType: TypeAlias = Annotated[
+    (RegexValidator),
+    Field(discriminator="type"),
+]
 
 
 class SourceSpec(BaseModel):
@@ -151,12 +199,19 @@ class Property(BaseModel):
 
     source: Optional[SourceSpec] = None
     """Where to look for the field in the document.
-    
-    Defaults to the entire document. 
+
+    Defaults to the entire document.
     """
 
-    validators: list[PropertyValidator] = []
+    validators: list[ValidatorType] = []
     """Validators to apply to this property."""
+
+    @model_validator(mode="after")
+    def check_validator_types(self) -> "Property":
+        for v in self.validators:
+            if self.type not in v.allowable_types:
+                raise ValueError(f"{v.type} is not a valid validator for {self.type} property")
+        return self
 
 
 class BoolProperty(Property):
@@ -283,7 +338,9 @@ def _convert_to_named_property(schema_prop: SchemaField) -> NamedProperty:
 def _validate_new_schema(v: Any, handler: ValidatorFunctionWrapHandler) -> NamedProperty:
     try:
         return handler(v)
-    except ValidationError:
+    except ValidationError as e:
+        if any("valid validator" in ed["msg"] for ed in e.errors()):
+            raise
         # Attempt to validate as a SchemaProperty and convert to NamedProperty
         schema_prop = SchemaField.model_validate(v)
         return _convert_to_named_property(schema_prop)

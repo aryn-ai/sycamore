@@ -17,7 +17,7 @@ from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe
-from sycamore.transforms.property_extraction.utils import create_named_property, stitch_together_objects
+from sycamore.transforms.property_extraction.utils import stitch_together_objects, recursively_dedup
 from sycamore.transforms.property_extraction.attribution import refine_attribution
 
 _logger = logging.getLogger(__name__)
@@ -164,7 +164,11 @@ class SchemaExtract(MapBatch):
                 _logger.warning("No schema fields extracted, returning empty schema.")
                 doc.properties["_schema"] = Schema(properties=[])
                 continue
-            doc.properties["_schema"] = Schema(properties=[create_named_property(prop) for prop in result])
+            schema = Schema(properties=result)
+            for prop in schema.properties:
+                examples = recursively_dedup(prop.type.examples or [])[:5]  # Limit to 5 examples
+                prop.type.examples = examples if examples else None
+            doc.properties["_schema"] = schema
 
         return documents
 
@@ -180,22 +184,24 @@ class SchemaExtract(MapBatch):
 
             for k, v in rd.items():
 
-                v_type = v.get("type", "string")  # Default to "string" if not specified
-                example = self._cast_to_type(v.get("value", None), v_type)
+                v_type = v.get("type", {}).get("type", "string")  # Default to string if type is not specified
+                examples = v.get("type", {}).get("examples", None)
 
                 if k not in result_dict:
-                    v["examples"] = [example] if example is not None else []
-                    v["type"] = v_type
-                    v.pop("value", None)
+                    v["type"]["examples"] = examples
+                    v["type"]["type"] = v_type
                     result_dict[k] = v
                 else:
-                    # Only append if type matches and value is not None and not already present
-                    if example is not None and v_type == result_dict[k]["type"]:
-                        if example not in result_dict[k]["examples"]:
-                            result_dict[k]["examples"].append(example)
+                    # Only add examples if they match the type of the existing field
+                    if examples is not None and v_type == result_dict[k]["type"]["type"]:
+                        if result_dict[k]["type"]["examples"] is None:
+                            result_dict[k]["type"]["examples"] = examples
+                        else:
+                            result_dict[k]["type"]["examples"].extend(examples)
+
                     elif v_type != result_dict[k]["type"]:
                         _logger.warning(
-                            f"Type mismatch for field '{k}': {v_type} vs {result_dict[k]['type']}. "
+                            f"Type mismatch for field '{k}': {v_type} vs {result_dict[k]['type']['type']}. "
                             "Skipping this field."
                         )
 

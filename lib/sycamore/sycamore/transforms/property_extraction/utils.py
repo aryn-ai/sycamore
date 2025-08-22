@@ -1,4 +1,5 @@
 from typing import Optional, Any
+import json
 from pydantic import TypeAdapter
 from sycamore.schema import (
     NamedProperty,
@@ -8,6 +9,27 @@ from sycamore.schema import (
 from sycamore.transforms.property_extraction.types import RichProperty
 
 
+def recursively_dedup(x: list[Any]) -> list[Any]:
+    """
+    Recursively deduplicate a list of items, ensuring that nested lists and dicts are also deduplicated.
+    """
+
+    def _recursively_sorted(obj):
+        """Recursively sort lists and dicts for consistent hashing/serialization."""
+        if isinstance(obj, dict):
+            return {k: _recursively_sorted(obj[k]) for k in sorted(obj)}
+        if isinstance(obj, list):
+            # Sort lists of hashable items, otherwise sort by their JSON representation
+            try:
+                return sorted((_recursively_sorted(i) for i in obj), key=lambda x: json.dumps(x, sort_keys=True))
+            except TypeError:
+                return [_recursively_sorted(i) for i in obj]
+        return obj
+
+    ret_val = [json.loads(s) for s in {json.dumps(_recursively_sorted(d), sort_keys=True) for d in x}]
+    return ret_val
+
+
 def create_named_property(prop_data: dict[str, Any], n_examples: Optional[int] = None) -> NamedProperty:
     name = prop_data["name"]
 
@@ -15,8 +37,14 @@ def create_named_property(prop_data: dict[str, Any], n_examples: Optional[int] =
         prop_data["custom_type"] = declared_type
         prop_data["type"] = DataType.CUSTOM
 
+    # Deduplicate examples if they are provided
+    examples = recursively_dedup(prop_data.get("examples", []))
+
     if n_examples is not None:
-        prop_data["examples"] = list(set(prop_data.get("examples", [])))[:n_examples]
+        prop_data["examples"] = examples[:n_examples]
+
+    if not examples:
+        prop_data["examples"] = None
 
     prop_type: PropertyType = TypeAdapter(PropertyType).validate_python(prop_data)
 

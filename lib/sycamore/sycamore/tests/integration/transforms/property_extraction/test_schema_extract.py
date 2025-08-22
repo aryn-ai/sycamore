@@ -34,16 +34,7 @@ class FakeLLM(LLM):
         return True
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        temp = [ast.literal_eval(msg.content[9:]) for msg in prompt.messages]
-        ret_val = [
-            {
-                "name": ii["name"],
-                "value": ii["examples"][0],
-                "type": ii["type"],
-                "description": ii["description"],
-            }
-            for ii in temp
-        ]
+        ret_val = [ast.literal_eval(msg.content[9:]) for msg in prompt.messages]
         return f"""{json.dumps(ret_val)}"""
 
     async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
@@ -58,15 +49,19 @@ class TestSchemaExtract:
         doc_0.properties["_schema_temp"] = [
             {
                 "name": "company_name",
-                "type": "string",
-                "description": "Name of the company",
-                "examples": ["Acme Corp"],
+                "type": {
+                    "type": "string",
+                    "description": "Name of the company",
+                    "examples": ["Acme Corp"],
+                },
             },
             {
                 "name": "ceo",
-                "type": "string",
-                "description": "CEO name",
-                "examples": ["Jane Doe"],
+                "type": {
+                    "type": "string",
+                    "description": "CEO name",
+                    "examples": ["Jane Doe"],
+                },
             },
         ]
 
@@ -76,15 +71,19 @@ class TestSchemaExtract:
         doc_1.properties["_schema_temp"] = [
             {
                 "name": "company_name",
-                "type": "string",
-                "description": "Name of the company",
-                "examples": ["Beta LLC"],
+                "type": {
+                    "type": "string",
+                    "description": "Name of the company",
+                    "examples": ["Beta LLC"],
+                },
             },
             {
                 "name": "revenue",
-                "type": "float",
-                "description": "Annual revenue",
-                "examples": [1000000.0],
+                "type": {
+                    "type": "float",
+                    "description": "Annual revenue",
+                    "examples": [1000000.0],
+                },
             },
         ]
 

@@ -45,7 +45,7 @@ def _process_schema_fields(docs: list[Document], combine_fields_fn: Callable[[li
                     "name": name,
                     "type": property.type.type.value,
                     "description": property.type.description,
-                    "examples": property.type.examples,
+                    "examples": property.type.examples or [],
                 }
             else:
                 if property.type.type.value != merged_fields[name]["type"]:

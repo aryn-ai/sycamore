@@ -1012,7 +1012,7 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
 
     for token in dropped_tokens:
         # Check if token intersects with existing cells
-        if _add_token_to_intersecting_cell(cells, token, overlap_threshold=0.25):
+        if _add_token_to_intersecting_cell(cells, token, overlap_threshold=0.2):
             continue
 
         # If no intersection found, create new cell

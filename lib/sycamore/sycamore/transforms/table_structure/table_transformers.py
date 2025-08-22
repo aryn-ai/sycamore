@@ -873,20 +873,21 @@ def align_supercells(supercells, rows, columns):
     return aligned_supercells
 
 
-def _add_token_to_intersecting_cell(cells, token):
-    """Add token to the cell it overlaps with the most. Returns True if token is assigned to a cell."""
+def _add_token_to_intersecting_cell(cells, token, overlap_threshold):
+    """Add token to the cell it overlaps with the most if the overlap is greater than the threshold. Returns True if token is assigned to a cell."""
     token_rect = BoundingBox(*token["bbox"])
     max_overlap = 0
     max_overlap_cell = None
 
     for cell in cells:
         cell_rect = BoundingBox(*cell["bbox"])
-        overlap = cell_rect.intersect(token_rect).area
+        overlap = cell_rect.intersect(token_rect).area / token_rect.area
         if overlap > max_overlap:
             max_overlap = overlap
             max_overlap_cell = cell
 
-    if max_overlap_cell:
+    if max_overlap >= overlap_threshold and max_overlap_cell:
+        # TODO: Insert the token text into the correct position in the cell text based on token locations
         max_overlap_cell["cell text"] = max_overlap_cell.get("cell text", "") + extract_text_from_spans([token])
         max_overlap_cell["spans"].append(token)
         return True
@@ -1011,7 +1012,7 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
 
     for token in dropped_tokens:
         # Check if token intersects with existing cells
-        if _add_token_to_intersecting_cell(cells, token):
+        if _add_token_to_intersecting_cell(cells, token, overlap_threshold=0.25):
             continue
 
         # If no intersection found, create new cell

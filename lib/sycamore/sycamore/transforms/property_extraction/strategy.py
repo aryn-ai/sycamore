@@ -131,13 +131,18 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                 continue
 
             if (v := existing_fields.get(name)) is not None and v.value is not None:
-                if v.is_valid or (name not in new_fields or new_fields[name].value is None):
-                    updated_values[name] = v
-                    continue
+                if not v.is_valid and name in new_fields and new_fields[name] is not None:
+                    nf = new_fields[name]
+                    self._validate_prop(inner_prop.type.validators, nf)
+                    if nf.is_valid:
+                        updated_values[name] = nf
+                        continue
+                updated_values[name] = v
+                continue
 
             if (v := new_fields.get(name)) is not None and v.value is not None:
-                updated_values[name] = v
                 self._validate_prop(inner_prop.type.validators, v)
+                updated_values[name] = v
                 continue
 
             updated_specs.append(inner_prop)

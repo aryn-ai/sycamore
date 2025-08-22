@@ -160,7 +160,7 @@ class RegexValidator(PropertyValidator):
             return False, propval
         if self._compiled_regex is None:
             self._compiled_regex = re.compile(self.regex)
-        s = re.search(self._compiled_regex, propval)
+        s = re.fullmatch(self._compiled_regex, propval)
         return (s is not None), propval
 
 

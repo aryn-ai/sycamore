@@ -898,7 +898,7 @@ def _add_token_to_intersecting_cell(cells, token, overlap_threshold):
 
 
 def _find_or_create_structure_for_token(
-    token_bbox, rows, columns, cells, is_row, token_intersect_thresh=TOKEN_INTERSECTION_THRESHOLD
+    token_bbox, rows, columns, cells, is_row, token_intersect_thresh=TOKEN_INTERSECTION_THRESHOLD, struct_intersect_thresh=0.2
 ):
     if is_row:
         start_coord_idx, end_coord_idx = 1, 3
@@ -923,8 +923,17 @@ def _find_or_create_structure_for_token(
             min(token_bbox[end_coord_idx], struct_bbox[end_coord_idx])
             - max(token_bbox[start_coord_idx], struct_bbox[start_coord_idx]),
         )
-        # This does not use the token_intersect_thresh parameter since the overlap is a fraction of the structure's length, not the tokens' length
-        if overlap_along_axis_pixels >= 0.2 * (struct_bbox[end_coord_idx] - struct_bbox[start_coord_idx]):
+        
+        # Check if structure overlaps with token along the specified axis
+        # Structure is considered overlapping if:
+        # 1. Overlap >= struct_intersect_thresh * structure's axis length, OR
+        # 2. Overlap >= token_intersect_thresh * token's axis length
+        # This handles cases where the token is very small and the structure is very large, or vice versa.
+        if overlap_along_axis_pixels >= struct_intersect_thresh * (
+            struct_bbox[end_coord_idx] - struct_bbox[start_coord_idx]
+        ) or overlap_along_axis_pixels >= token_intersect_thresh * (
+            token_bbox[end_coord_idx] - token_bbox[start_coord_idx]
+        ):
             overlapping_struct_idxs.append(idx)
 
     if len(overlapping_struct_idxs) > 0:

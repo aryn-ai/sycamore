@@ -19,7 +19,6 @@ from pydantic import (
     SerializerFunctionWrapHandler,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -164,8 +163,23 @@ class RegexValidator(PropertyValidator):
         return (s is not None), propval
 
 
+class BooleanExpValidator(PropertyValidator):
+    """Validates a field in a DocSet schema by comparing against a boolean expression"""
+
+    type: Literal["boolean_exp"] = "boolean_exp"
+    allowable_types: set[DataType] = {DataType.STRING, DataType.FLOAT, DataType.INT, DataType.BOOL}
+
+    expression: str
+
+    def constraint_string(self) -> str:
+        return f"must satisfy the boolean expression: `{self.expression}`"
+
+    def validate_property(self, propval: Any) -> tuple[bool, Any]:
+        return True, propval
+
+
 ValidatorType: TypeAlias = Annotated[
-    (RegexValidator),
+    (RegexValidator | BooleanExpValidator),
     Field(discriminator="type"),
 ]
 

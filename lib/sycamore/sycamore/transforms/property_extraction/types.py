@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Optional, Any, Iterable, Hashable
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.functional_serializers import field_serializer
 from pydantic.functional_validators import field_validator
@@ -7,6 +7,7 @@ from sycamore.data.bbox import BoundingBox
 from sycamore.data.element import Element
 from sycamore.schema import DataType
 from sycamore.llms.prompts.prompts import RenderedPrompt
+from sycamore.utils.zt import ZTDict, ZTLeaf, ZipTraversable, zip_traverse
 
 
 class AttributionValue(BaseModel):
@@ -51,6 +52,66 @@ class RichProperty(BaseModel):
 
     llm_prompt: Optional[RenderedPrompt] = None
 
+    def keys_zt(self) -> Iterable[Hashable]:
+        if self.type is DataType.OBJECT:
+            assert isinstance(self.value, dict)
+            return self.value.keys()
+        if self.type is DataType.ARRAY:
+            assert isinstance(self.value, list)
+            return range(len(self.value))
+        return []
+
+    def get_zt(self, key: Hashable) -> "ZipTraversable":
+        if self.type is DataType.OBJECT:
+            assert isinstance(self.value, dict)
+            v = self.value.get(key, ZTLeaf(None))
+            assert isinstance(v, (RichProperty, ZTLeaf))
+            return v
+        if self.type is DataType.ARRAY:
+            assert isinstance(self.value, list)
+            assert isinstance(key, int)
+            if key >= len(self.value) or key < -len(self.value):
+                return ZTLeaf(None)
+            v = self.value[key]
+            assert isinstance(v, RichProperty)
+            return v
+        return ZTLeaf(None)
+
+    def value_zt(self) -> Any:
+        return self
+
+    def _add_subprop(self, other: "RichProperty"):
+        if other.name is None:
+            assert self.type is DataType.ARRAY
+            self.value.append(other)
+        else:
+            assert self.type is DataType.OBJECT
+            self.value[other.name] = other
+
+    @staticmethod
+    def from_prediction_zt(prediction: dict[str, Any]) -> "RichProperty":
+        res = RichProperty(name=None, value={}, type=DataType.OBJECT)
+        working_stack = [res]
+        ztp = ZTDict(prediction)
+        prediction_stack = [ztp]
+        for k, (v,), (p,) in zip_traverse(ztp, order="before"):
+            name = k if isinstance(k, str) else None
+            while len(prediction_stack) > 0 and prediction_stack[-1] != p:
+                prediction_stack.pop()
+                working_stack.pop()
+
+            dt = DataType.from_python(v)
+            new_rp = RichProperty(name=name, value=v, type=dt)
+            working_stack[-1]._add_subprop(new_rp)
+            if dt in (DataType.OBJECT, DataType.ARRAY):
+                if dt is DataType.OBJECT:
+                    new_rp.value = {}
+                else:
+                    new_rp.value = []
+                working_stack.append(new_rp)
+                prediction_stack.append(v)
+        return res
+
     @staticmethod
     def from_prediction(
         prediction: Any, attributable_elements: list[Element], name: Optional[str] = None
@@ -82,6 +143,33 @@ class RichProperty(BaseModel):
             ),
         )
 
+    def to_python_zt(self):
+        res = {}
+        working_stack: list[Any] = [res]
+        prop_stack = [self]
+        for k, (v,), (p,) in zip_traverse(self, order="before"):
+            while len(prop_stack) > 0 and prop_stack[-1] != p:
+                prop_stack.pop()
+                working_stack.pop()
+
+            if v.type in (DataType.OBJECT, DataType.ARRAY):
+                if v.type is DataType.OBJECT:
+                    newv = {}
+                else:
+                    newv = []
+                if p.type is DataType.OBJECT:
+                    working_stack[-1][k] = newv
+                elif p.type is DataType.ARRAY:
+                    working_stack[-1].append(newv)
+                working_stack.append(newv)
+                prop_stack.append(v)
+            else:
+                if p.type is DataType.OBJECT:
+                    working_stack[-1][k] = v.value
+                elif p.type is DataType.ARRAY:
+                    working_stack[-1].append(v.value)
+        return res
+
     def to_python(self):
         if self.type == DataType.ARRAY:
             assert isinstance(self.value, list)
@@ -100,14 +188,4 @@ class RichProperty(BaseModel):
         elif isinstance(v.value, dict):
             for k, x in v.value.items():
                 v.value[k] = cls.validate_recursive(x)
-        return v
-
-    def dump_recursive(self) -> Any:
-        v = self.model_dump()
-        if isinstance(v["value"], list):
-            for i, x in enumerate(v["value"]):
-                v["value"][i] = x.dump_recursive()
-        elif isinstance(v["value"], dict):
-            for k, x in v["value"].items():
-                v["value"][k] = x.dump_recursive()
         return v

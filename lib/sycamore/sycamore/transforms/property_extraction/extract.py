@@ -77,7 +77,7 @@ class Extract(MapBatch):
                 if isinstance(v, RichProperty):
                     doc.properties["entity"][k] = v.to_python()
                     if not self._output_pydantic:
-                        em[k] = v.dump_recursive()
+                        em[k] = v.model_dump()
                 else:
                     pass  # This property has already been added and de-pydanticized
         return documents

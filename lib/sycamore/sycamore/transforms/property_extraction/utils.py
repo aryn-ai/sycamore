@@ -4,24 +4,24 @@ from sycamore.schema import DataType
 from sycamore.transforms.property_extraction.types import RichProperty
 
 
+def recursively_sorted(obj):
+    """Recursively sort lists and dicts for consistent hashing/serialization."""
+    if isinstance(obj, dict):
+        return {k: recursively_sorted(obj[k]) for k in sorted(obj)}
+    if isinstance(obj, list):
+        # Sort lists of hashable items, otherwise sort by their JSON representation
+        try:
+            return sorted((recursively_sorted(i) for i in obj), key=lambda x: json.dumps(x, sort_keys=True))
+        except TypeError:
+            return [recursively_sorted(i) for i in obj]
+    return obj
+
+
 def dedup_examples(x: list[Any]) -> list[Any]:
     """
     Recursively deduplicate a list of items, ensuring that nested lists and dicts are also deduplicated.
     """
-
-    def _recursively_sorted(obj):
-        """Recursively sort lists and dicts for consistent hashing/serialization."""
-        if isinstance(obj, dict):
-            return {k: _recursively_sorted(obj[k]) for k in sorted(obj)}
-        if isinstance(obj, list):
-            # Sort lists of hashable items, otherwise sort by their JSON representation
-            try:
-                return sorted((_recursively_sorted(i) for i in obj), key=lambda x: json.dumps(x, sort_keys=True))
-            except TypeError:
-                return [_recursively_sorted(i) for i in obj]
-        return obj
-
-    ret_val = [json.loads(s) for s in {json.dumps(_recursively_sorted(d), sort_keys=True) for d in x}]
+    ret_val = [json.loads(s) for s in {json.dumps(recursively_sorted(d), sort_keys=True) for d in x}]
     return ret_val
 
 

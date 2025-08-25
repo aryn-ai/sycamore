@@ -63,7 +63,7 @@ class ZTDict(dict, ZipTraversable):
         return ZTLeaf(x)
 
     def value_zt(self) -> Any:
-        return dict(self)
+        return self
 
 
 class ZTList(list, ZipTraversable):
@@ -83,7 +83,7 @@ class ZTList(list, ZipTraversable):
         return ZTLeaf(x)
 
     def value_zt(self) -> Any:
-        return list(self)
+        return self
 
 
 class ZTLeaf:

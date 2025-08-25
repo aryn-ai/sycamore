@@ -84,9 +84,9 @@ class DataType(str, Enum):
             return cls.DATE
         elif python_type is datetime.datetime:
             return cls.DATETIME
-        elif python_type is list:
+        elif issubclass(python_type, list):
             return cls.ARRAY
-        elif python_type is dict:
+        elif issubclass(python_type, dict):
             return cls.OBJECT
         else:
             logger.warning(f"Unsupported Python type: {python_type}. Defaulting to string.")

@@ -898,7 +898,7 @@ def _add_token_to_intersecting_cell(cells, token, overlap_threshold):
 
 
 def _find_or_create_structure_for_token(
-    token_bbox, rows, columns, cells, is_row, intersect_thres=TOKEN_INTERSECTION_THRESHOLD
+    token_bbox, rows, columns, cells, is_row, token_intersect_thresh=TOKEN_INTERSECTION_THRESHOLD
 ):
     if is_row:
         start_coord_idx, end_coord_idx = 1, 3
@@ -923,7 +923,8 @@ def _find_or_create_structure_for_token(
             min(token_bbox[end_coord_idx], struct_bbox[end_coord_idx])
             - max(token_bbox[start_coord_idx], struct_bbox[start_coord_idx]),
         )
-        if overlap_along_axis_pixels >= intersect_thres * (token_bbox[end_coord_idx] - token_bbox[start_coord_idx]):
+        # This does not use the token_intersect_thresh parameter since the overlap is a fraction of the structure's length, not the tokens' length
+        if overlap_along_axis_pixels >= 0.2 * (struct_bbox[end_coord_idx] - struct_bbox[start_coord_idx]):
             overlapping_struct_idxs.append(idx)
 
     if len(overlapping_struct_idxs) > 0:
@@ -1025,10 +1026,10 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
 
         # Find or create rows and columns for the token
         token_rows = _find_or_create_structure_for_token(
-            token_bbox, rows, columns, cells, is_row=True, intersect_thres=TOKEN_INTERSECTION_THRESHOLD
+            token_bbox, rows, columns, cells, is_row=True, token_intersect_thresh=TOKEN_INTERSECTION_THRESHOLD
         )
         token_columns = _find_or_create_structure_for_token(
-            token_bbox, rows, columns, cells, is_row=False, intersect_thres=TOKEN_INTERSECTION_THRESHOLD
+            token_bbox, rows, columns, cells, is_row=False, token_intersect_thresh=TOKEN_INTERSECTION_THRESHOLD
         )
 
         # Remove any blank cells that overlap with the token

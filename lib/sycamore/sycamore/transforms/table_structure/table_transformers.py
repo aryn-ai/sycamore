@@ -898,7 +898,13 @@ def _add_token_to_intersecting_cell(cells, token, overlap_threshold):
 
 
 def _find_or_create_structure_for_token(
-    token_bbox, rows, columns, cells, is_row, token_intersect_thresh=TOKEN_INTERSECTION_THRESHOLD, struct_intersect_thresh=0.2
+    token_bbox,
+    rows,
+    columns,
+    cells,
+    is_row,
+    token_intersect_thresh=TOKEN_INTERSECTION_THRESHOLD,
+    struct_intersect_thresh=0.2,
 ):
     if is_row:
         start_coord_idx, end_coord_idx = 1, 3
@@ -923,7 +929,7 @@ def _find_or_create_structure_for_token(
             min(token_bbox[end_coord_idx], struct_bbox[end_coord_idx])
             - max(token_bbox[start_coord_idx], struct_bbox[start_coord_idx]),
         )
-        
+
         # Check if structure overlaps with token along the specified axis
         # Structure is considered overlapping if:
         # 1. Overlap >= struct_intersect_thresh * structure's axis length, OR

@@ -52,14 +52,14 @@ class RichProperty(BaseModel):
 
     llm_prompt: Optional[RenderedPrompt] = None
 
-    def keys_zt(self) -> Iterable[Hashable]:
+    def keys_zt(self) -> Iterable[Hashable] | None:
         if self.type is DataType.OBJECT:
             assert isinstance(self.value, dict)
             return self.value.keys()
         if self.type is DataType.ARRAY:
             assert isinstance(self.value, list)
             return range(len(self.value))
-        return []
+        return ()
 
     def get_zt(self, key: Hashable) -> "ZipTraversable":
         if self.type is DataType.OBJECT:

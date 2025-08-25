@@ -2,7 +2,7 @@ from typing import Protocol, Iterable, Hashable, Any, Literal, Generator
 
 
 class ZipTraversable(Protocol):
-    def keys_zt(self) -> Iterable[Hashable]:
+    def keys_zt(self) -> Iterable[Hashable] | None:
         """Return an iterable of keys that can be used to lookup sub-trees via get_zt"""
         ...
 
@@ -35,7 +35,15 @@ def zip_traverse(
             values and parents are tuples of objects from the trees in the
             order they were supplied.
     """
-    key_sets = [set(zt.keys_zt()) for zt in zts]
+    # Figure out keys. A tree may report None for keys_zt to say "I don't care
+    # about the keys", in which case, we drop them from the set operation entirely
+    # unless only Nones exist, in which case we set the keys to exactly {None}.
+    # The only place this behavior is used (to my knowledge) is schema::ArrayProperty
+    key_iters = [zt.keys_zt() for zt in zts]
+    if all(ki is None for ki in key_iters):
+        key_sets: list[set[None | Hashable]] = [{None}]
+    else:
+        key_sets = [set(ki) for ki in key_iters if ki is not None]
     if intersect_keys:
         keys = set.intersection(*key_sets)
     else:
@@ -51,7 +59,7 @@ def zip_traverse(
 
 
 class ZTDict(dict, ZipTraversable):
-    def keys_zt(self) -> Iterable[Hashable]:
+    def keys_zt(self) -> Iterable[Hashable] | None:
         return self.keys()
 
     def get_zt(self, key: Hashable) -> ZipTraversable:
@@ -67,7 +75,7 @@ class ZTDict(dict, ZipTraversable):
 
 
 class ZTList(list, ZipTraversable):
-    def keys_zt(self) -> Iterable[Hashable]:
+    def keys_zt(self) -> Iterable[Hashable] | None:
         return range(len(self))
 
     def get_zt(self, key: Hashable) -> ZipTraversable:
@@ -90,7 +98,7 @@ class ZTLeaf:
     def __init__(self, value):
         self.value = value
 
-    def keys_zt(self) -> Iterable[Hashable]:
+    def keys_zt(self) -> Iterable[Hashable] | None:
         return ()
 
     def get_zt(self, key: Hashable) -> ZipTraversable:

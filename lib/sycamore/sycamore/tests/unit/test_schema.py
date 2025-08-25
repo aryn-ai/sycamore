@@ -1,4 +1,4 @@
-from sycamore.schema import SchemaV2, make_property, make_named_property
+from sycamore.schema import SchemaV2, make_property, make_named_property, NamedProperty
 
 single_property_dict_old = {
     "name": "state",
@@ -291,3 +291,59 @@ def test_type_alias():
     assert len(obj_prop.properties) == 1
     assert obj_prop.properties[0].name == "field"
     assert obj_prop.properties[0].type.type == "string"
+
+
+def test_ziptraverse():
+    from sycamore.utils.zt import zip_traverse
+
+    traverseme_schema_dict = {
+        "properties": [
+            make_named_property(
+                name="location",
+                type="object",
+                properties=[
+                    make_named_property(name="city", type="string", description="City name"),
+                    make_named_property(name="state", type="string", description="State name"),
+                    make_named_property(name="country", type="string", description="Country name"),
+                    make_named_property(
+                        name="years_resident",
+                        type="object",
+                        properties=[
+                            make_named_property(name="start", type="int", description="Year residency started"),
+                            make_named_property(name="end", type="int", description="Year residency ended"),
+                        ],
+                    ),
+                ],
+            ),
+            make_named_property(
+                name="settings",
+                type="array",
+                item_type=make_property(
+                    type="object",
+                    properties=[
+                        make_named_property(name="retention", type="bool", description="Is data retention enabled"),
+                        make_named_property(name="student", type="bool", description="Is a student account"),
+                    ],
+                ),
+                description="User settings",
+            ),
+        ]
+    }
+    sch = SchemaV2.model_validate(traverseme_schema_dict)
+    for k, (v,), (p,) in zip_traverse(sch.as_object_property(), order="before"):
+        if p is sch:
+            assert k in ("location", "settings")
+            assert v.name in ("location", "settings")
+            continue
+        if not isinstance(v, NamedProperty):
+            assert p.name == "settings"
+            continue
+        if v.name in ("retention", "student"):
+            assert p.type == "object"
+            continue
+        if v.name in ("city", "state", "country", "years_resident"):
+            assert p.name == "location"
+            continue
+        if v.name in ("start", "end"):
+            assert p.name == "years_resident"
+            continue

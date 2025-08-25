@@ -4,7 +4,7 @@ from enum import Enum
 import re
 import json
 import logging
-from typing import Annotated, Any, Literal, Optional, TypeAlias
+from typing import Annotated, Any, Literal, Optional, TypeAlias, Hashable, Iterable
 from pydantic import (
     AliasChoices,
     BaseModel,
@@ -18,6 +18,8 @@ from pydantic import (
     model_validator,
     SerializerFunctionWrapHandler,
 )
+
+from sycamore.utils.zt import ZipTraversable, ZTLeaf
 
 
 logger = logging.getLogger(__name__)
@@ -213,6 +215,15 @@ class Property(BaseModel):
                 raise ValueError(f"{v.type} is not a valid validator for {self.type} property")
         return self
 
+    def keys_zt(self) -> Iterable[Hashable] | None:
+        return ()
+
+    def get_zt(self, key: Hashable) -> ZipTraversable:
+        return ZTLeaf(None)
+
+    def value_zt(self) -> Any:
+        return self
+
 
 class BoolProperty(Property):
     type: Literal[DataType.BOOL] = DataType.BOOL
@@ -253,6 +264,17 @@ class ArrayProperty(Property):
     # used if available.
     item_type: "PropertyType" = StringProperty()
 
+    def keys_zt(self) -> Iterable[Hashable] | None:
+        # zip_traverse understands None as "I don't care what the keys are"
+        return None
+
+    def get_zt(self, key: Hashable) -> ZipTraversable:
+        # Always return the inner type during a traversal
+        return self.item_type
+
+    def value_zt(self) -> Any:
+        return self
+
 
 class ChoiceProperty(Property):
     type: Literal[DataType.CHOICE] = DataType.CHOICE
@@ -275,10 +297,31 @@ class NamedProperty(BaseModel):
     type: "PropertyType"
     """The type of the property."""
 
+    def keys_zt(self) -> Iterable[Hashable] | None:
+        return self.type.keys_zt()
+
+    def get_zt(self, key: Hashable) -> ZipTraversable:
+        return self.type.get_zt(key)
+
+    def value_zt(self) -> Any:
+        return self
+
 
 class ObjectProperty(Property):
     type: Literal[DataType.OBJECT] = DataType.OBJECT
     properties: list[NamedProperty]
+
+    def keys_zt(self) -> Iterable[Hashable] | None:
+        return [p.name for p in self.properties]
+
+    def get_zt(self, key: Hashable) -> ZipTraversable:
+        for p in self.properties:
+            if p.name == key:
+                return p
+        return ZTLeaf(None)
+
+    def value_zt(self) -> Any:
+        return self
 
 
 def _validate_with_type_alias(v: Any, handler: ValidatorFunctionWrapHandler) -> "PropertyType":
@@ -420,3 +463,6 @@ class SchemaV2(BaseModel):
             )
 
         return {"properties": fields}
+
+    def as_object_property(self) -> ObjectProperty:
+        return ObjectProperty(properties=self.properties)

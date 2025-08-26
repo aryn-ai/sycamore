@@ -962,8 +962,8 @@ def _find_or_create_structure_for_token(
         for idx in range(len(cur_structs) - 1):
             prev_struct = cur_structs[idx]
             next_struct = cur_structs[idx + 1]
-            gap_overlap_pixels = min(token_bbox[end_coord_idx], next_struct["bbox"][end_coord_idx]) - max(
-                token_bbox[start_coord_idx], prev_struct["bbox"][start_coord_idx]
+            gap_overlap_pixels = min(token_bbox[end_coord_idx], next_struct["bbox"][start_coord_idx]) - max(
+                token_bbox[start_coord_idx], prev_struct["bbox"][end_coord_idx]
             )
             if gap_overlap_pixels > max_gap_overlap_pixels:
                 max_gap_overlap_pixels = gap_overlap_pixels

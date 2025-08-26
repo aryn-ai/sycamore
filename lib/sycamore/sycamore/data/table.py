@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from bs4 import Tag
     from PIL import Image, ImageDraw
 
+
 # This is part of itertools in 3.10+.
 # Adding here to support 3.9
 def _pairwise(iterable):

@@ -1032,11 +1032,13 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
 
     if not all(rows[i]["bbox"][1] <= rows[i + 1]["bbox"][1] for i in range(len(rows) - 1)):
         import logging
+
         logging.warning("Rows are not sorted")
         rows.sort(key=lambda x: x["bbox"][1])
 
     if not all(columns[i]["bbox"][0] <= columns[i + 1]["bbox"][0] for i in range(len(columns) - 1)):
         import logging
+
         logging.warning("Columns are not sorted")
         columns.sort(key=lambda x: x["bbox"][0])
 

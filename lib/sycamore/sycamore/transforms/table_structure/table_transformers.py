@@ -14,6 +14,10 @@ from sycamore.data import BoundingBox
 
 # If more than this fraction of a token's area is inside a cell, the token is assigned to that cell
 TOKEN_AREA_INTERSECTION_THRESHOLD = 0.2
+# If more than this fraction of a token's length along an axis overlaps with a structure, the token is assigned to that structure.
+TOKEN_AXIS_INTERSECTION_THRESHOLD = 0.2
+# If more than this fraction of a structure's length along an axis overlaps with a token, the token is assigned to that structure.
+STRUCTURE_AXIS_INTERSECTION_THRESHOLD = 0.2
 
 
 # From https://github.com/NielsRogge/Transformers-Tutorials/blob/master/Table%20Transformer/Inference_with_Table_Transformer_(TATR)_for_parsing_tables.ipynb
@@ -904,8 +908,8 @@ def _find_or_create_structure_for_token(
     columns,
     cells,
     is_row,
-    token_intersect_thresh=0.2,
-    struct_intersect_thresh=0.2,
+    token_intersect_thresh=TOKEN_AXIS_INTERSECTION_THRESHOLD,
+    struct_intersect_thresh=STRUCTURE_AXIS_INTERSECTION_THRESHOLD,
 ):
     if is_row:
         start_coord_idx, end_coord_idx = 1, 3

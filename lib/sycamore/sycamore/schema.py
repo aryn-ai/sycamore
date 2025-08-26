@@ -323,11 +323,13 @@ def _convert_to_named_property(schema_prop: SchemaField) -> NamedProperty:
         "examples": schema_prop.examples,
     }
 
-    if (declared_type := schema_prop.field_type) not in DataType.values():
-        prop_type_dict["custom_type"] = declared_type
+    try:
+        # This will use _missing_ to map "str" → "string", etc.
+        dtype = DataType(schema_prop.field_type)
+        prop_type_dict["type"] = dtype
+    except ValueError:
+        prop_type_dict["custom_type"] = schema_prop.field_type
         prop_type_dict["type"] = DataType.CUSTOM
-    else:
-        prop_type_dict["type"] = DataType(schema_prop.field_type)
 
     return NamedProperty(
         name=schema_prop.name,

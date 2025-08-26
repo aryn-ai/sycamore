@@ -3,14 +3,13 @@ from dataclasses import dataclass, field
 from typing import Any, Optional, TypeVar, Union, List, Sequence, TYPE_CHECKING
 import xml.etree.ElementTree as ET
 
-from PIL import Image, ImageDraw
-
 from sycamore.data.bbox import BoundingBox
 from sycamore.utils.import_utils import requires_modules
 
 if TYPE_CHECKING:
     from pandas import DataFrame
     from bs4 import Tag
+    from PIL import Image, ImageDraw
 
 
 # This is part of itertools in 3.10+.
@@ -514,7 +513,7 @@ class Table:
 
         return root
 
-    U = TypeVar("U", bound=Union[Image.Image, ImageDraw.ImageDraw])
+    U = TypeVar("U", bound=Union["Image.Image", "ImageDraw.ImageDraw"])
 
     # TODO: This currently assumes that the bounding rectangles are on the same page.
     def draw(self, target: U) -> U:

@@ -6,6 +6,7 @@ from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.schema import ObjectProperty, ArrayProperty, NamedProperty, SchemaV2, DataType, ValidatorType
 from sycamore.transforms.property_extraction.types import RichProperty
+from sycamore.utils.zt import ZTLeaf, zip_traverse
 
 
 class StepThroughStrategy(ABC):
@@ -196,3 +197,77 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
 default_stepthrough = OneElementAtATime()
 default_schema_partition = NoSchemaSplitting()
 default_schema_update = TakeFirstTrimSchema()
+
+
+class TakeFirstTrimSchemaZT(SchemaUpdateStrategy):
+    def update_schema(
+        self,
+        in_schema: SchemaV2,
+        new_fields: dict[str, RichProperty],
+        existing_fields: dict[str, RichProperty] = dict(),
+    ) -> SchemaUpdateResult:
+        print("=" * 80)
+        sch_obj = in_schema.as_object_property()
+        nf_rp = RichProperty(type=DataType.OBJECT, value=new_fields, name=None)
+        ef_rp = RichProperty(type=DataType.OBJECT, value=existing_fields, name=None)
+        out_rp = RichProperty(type=DataType.OBJECT, value={}, name=None)
+        out_sch = ObjectProperty(properties=[])
+
+        for k, (prop, nf, ef, out, out_prop), (prop_p, nf_p, ef_p, out_p, out_prop_p) in zip_traverse(
+            sch_obj, nf_rp, ef_rp, out_rp, out_sch, order="before", intersect_keys=False
+        ):
+            print(f"{k} -->")
+            print(f"- {prop}")
+            print(f"- {ef}")
+            print(f"- {nf}")
+            print(f"- {out}")
+            print(f"- {out_prop}")
+            print(f"- {out_prop_p}")
+            print("-" * 80)
+            if prop is None:
+                out_p.value[k] = ef
+                continue
+
+            trim = False
+            if ef is not None:
+                if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT):
+                    trim = True
+                if nf is not None and prop.get_type() is DataType.ARRAY:
+                    ef.value.extend(nf.value)
+                out_p.value[k] = ef
+            elif nf is not None:
+                if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT):
+                    trim = True
+                out_p.value[k] = nf
+
+            if (
+                not trim
+                and isinstance(prop, NamedProperty)
+                and prop_p.get_type() is DataType.OBJECT
+                and not isinstance(out_prop_p, ZTLeaf)
+            ):
+                if prop.get_type() is DataType.OBJECT:
+                    np = NamedProperty(name=prop.name, type=ObjectProperty(properties=[]))
+                else:
+                    np = prop
+                proplist = (out_prop_p.type if isinstance(out_prop_p, NamedProperty) else out_prop_p).properties
+                if not any(p.name == np.name for p in proplist):
+                    proplist.append(np)
+
+        for k, (prop,), (prop_p,) in zip_traverse(out_sch, order="after"):
+            if (
+                prop.get_type() is DataType.OBJECT
+                and prop_p.get_type() is DataType.OBJECT
+                and len(prop.type.properties) == 0
+            ):
+                if isinstance(prop_p, NamedProperty):
+                    prop_p.type.properties.remove(prop)
+                else:
+                    prop_p.properties.remove(prop)
+
+        print(out_sch.model_dump_json(indent=2))
+        return SchemaUpdateResult(
+            out_schema=SchemaV2(properties=out_sch.properties),
+            out_fields=out_rp.value,
+            completed=len(out_sch.properties) == 0,
+        )

@@ -1,4 +1,4 @@
-from sycamore.transforms.property_extraction.strategy import TakeFirstTrimSchema, RichProperty
+from sycamore.transforms.property_extraction.strategy import TakeFirstTrimSchema, RichProperty, TakeFirstTrimSchemaZT
 from sycamore.schema import NamedProperty
 from sycamore.schema import SchemaV2, StringProperty, ObjectProperty, ArrayProperty, DataType, RegexValidator
 
@@ -20,7 +20,7 @@ class TestSchemaUpdateStrategy:
                 NamedProperty(name="c", type=StringProperty()),
             ]
         )
-        strat = TakeFirstTrimSchema()
+        strat = TakeFirstTrimSchemaZT()
 
         props: dict[str, RichProperty] = dict()
         p1 = {"a": RichProperty(name="a", type=DataType.STRING, value="a1")}
@@ -64,7 +64,7 @@ class TestSchemaUpdateStrategy:
                 NamedProperty(name="c", type=StringProperty()),
             ]
         )
-        strat = TakeFirstTrimSchema()
+        strat = TakeFirstTrimSchemaZT()
 
         props: dict[str, RichProperty] = dict()
         p1 = {
@@ -98,6 +98,112 @@ class TestSchemaUpdateStrategy:
         assert not sur3.completed
         assert sur3.out_fields["a"].value[0].value == "a1"
         assert sur3.out_fields["a"].value[1].value == "a2"
+        assert sur3.out_fields["b"].value == "b2"
+        assert sur3.out_fields["c"].value == "c3"
+
+    def test_takefirst_trimschema_with_array_of_array(self):
+        start_schema = SchemaV2(
+            properties=[
+                NamedProperty(
+                    name="a",
+                    type=ArrayProperty(
+                        item_type=ObjectProperty(
+                            properties=[
+                                NamedProperty(name="a1", type=StringProperty()),
+                                NamedProperty(
+                                    name="a2",
+                                    type=ArrayProperty(
+                                        item_type=ObjectProperty(
+                                            properties=[
+                                                NamedProperty(name="a21", type=StringProperty()),
+                                            ]
+                                        )
+                                    ),
+                                ),
+                            ]
+                        )
+                    ),
+                ),
+                NamedProperty(name="b", type=StringProperty()),
+                NamedProperty(name="c", type=StringProperty()),
+            ]
+        )
+        strat = TakeFirstTrimSchemaZT()
+
+        props: dict[str, RichProperty] = dict()
+        p1 = {
+            "a": RichProperty(
+                name="a",
+                type=DataType.ARRAY,
+                value=[
+                    RichProperty(
+                        name=None,
+                        type=DataType.OBJECT,
+                        value={
+                            "a1": RichProperty(name="a1", type=DataType.STRING, value="a11"),
+                            "a2": RichProperty(
+                                name="a2",
+                                type=DataType.ARRAY,
+                                value=[
+                                    RichProperty(
+                                        name=None,
+                                        type=DataType.OBJECT,
+                                        value={"a21": RichProperty(name="a21", type=DataType.STRING, value="a211")},
+                                    )
+                                ],
+                            ),
+                        },
+                    )
+                ],
+            )
+        }
+        sur1 = strat.update_schema(start_schema, p1, props)
+        assert not sur1.completed
+        assert "a" in sur1.out_fields
+        assert sur1.out_fields["a"].value[0].value["a1"].value == "a11"
+        assert len(sur1.out_fields["a"].value) == 1
+        assert len(sur1.out_schema.fields) == 3
+
+        p2 = {
+            "a": RichProperty(
+                name="a",
+                type=DataType.ARRAY,
+                value=[
+                    RichProperty(
+                        name=None,
+                        type=DataType.OBJECT,
+                        value={
+                            "a1": RichProperty(name="a1", type=DataType.STRING, value="a12"),
+                            "a2": RichProperty(
+                                name="a2",
+                                type=DataType.ARRAY,
+                                value=[
+                                    RichProperty(
+                                        name=None,
+                                        type=DataType.OBJECT,
+                                        value={"a21": RichProperty(name="a21", type=DataType.STRING, value="a211")},
+                                    )
+                                ],
+                            ),
+                        },
+                    )
+                ],
+            ),
+            "b": RichProperty(name="b", type=DataType.STRING, value="b2"),
+        }
+        sur2 = strat.update_schema(sur1.out_schema, p2, sur1.out_fields)
+        assert not sur2.completed
+        assert sur2.out_fields["a"].value[0].value["a1"].value == "a11"
+        assert sur2.out_fields["a"].value[1].value["a2"].value[0].value["a21"].value == "a211"
+        assert sur2.out_fields["b"].value == "b2"
+        assert "c" not in sur2.out_fields
+        assert len(sur2.out_schema.fields) == 2
+
+        p3 = {"c": RichProperty(name="c", type=DataType.STRING, value="c3")}
+        sur3 = strat.update_schema(sur2.out_schema, p3, sur2.out_fields)
+        assert not sur3.completed
+        assert sur3.out_fields["a"].value[0].value["a1"].value == "a11"
+        assert sur3.out_fields["a"].value[1].value["a1"].value == "a12"
         assert sur3.out_fields["b"].value == "b2"
         assert sur3.out_fields["c"].value == "c3"
 

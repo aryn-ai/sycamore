@@ -12,6 +12,7 @@ from sycamore.transforms.property_extraction.strategy import (
     SchemaUpdateResult,
     StepThroughStrategy,
     TakeFirstTrimSchema,
+    TakeFirstTrimSchemaZT,
 )
 from sycamore.transforms.property_extraction.types import RichProperty
 from sycamore.llms.llms import LLM

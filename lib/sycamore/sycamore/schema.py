@@ -224,6 +224,9 @@ class Property(BaseModel):
     def value_zt(self) -> Any:
         return self
 
+    def get_type(self) -> DataType:
+        return self.type
+
 
 class BoolProperty(Property):
     type: Literal[DataType.BOOL] = DataType.BOOL
@@ -305,6 +308,9 @@ class NamedProperty(BaseModel):
 
     def value_zt(self) -> Any:
         return self
+
+    def get_type(self) -> DataType:
+        return self.type.type
 
 
 class ObjectProperty(Property):

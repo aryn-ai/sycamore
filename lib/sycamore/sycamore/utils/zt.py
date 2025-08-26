@@ -50,12 +50,11 @@ def zip_traverse(
         keys = set.union(*key_sets)
 
     for k in keys:
-        subtrees = [zt.get_zt(k) for zt in zts]
         if order == "before":
-            yield (k, tuple(st.value_zt() for st in subtrees), tuple(zt.value_zt() for zt in zts))
-        yield from zip_traverse(*subtrees, intersect_keys=intersect_keys, order=order)
+            yield (k, tuple(zt.get_zt(k).value_zt() for zt in zts), tuple(zt.value_zt() for zt in zts))
+        yield from zip_traverse(*(zt.get_zt(k) for zt in zts), intersect_keys=intersect_keys, order=order)
         if order == "after":
-            yield (k, tuple(st.value_zt() for st in subtrees), tuple(zt.value_zt() for zt in zts))
+            yield (k, tuple(zt.get_zt(k).value_zt() for zt in zts), tuple(zt.value_zt() for zt in zts))
 
 
 class ZTDict(dict, ZipTraversable):

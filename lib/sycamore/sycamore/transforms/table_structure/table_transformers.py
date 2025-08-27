@@ -492,6 +492,9 @@ def overlaps(bbox1, bbox2, threshold=0.5):
 def extract_text_from_spans(spans, join_with_space=True, remove_integer_superscripts=True):
     """
     Convert a collection of page tokens/words/spans into a single text string.
+    TODO: This currently gets the span_num from _process_tokens in extract.py. This is the order that the OCR gives the spans in, which
+    is not necessarily the "correct" reading order. Tokens could be shifted by 1 or 2 pixels, which could change the order of the tokens. Some form
+    of line by line grouping or fuzzy sort is necessary to get the "correct" reading order.
     """
 
     if join_with_space:
@@ -894,9 +897,8 @@ def _add_token_to_intersecting_cell(cells, token, overlap_threshold=TOKEN_AREA_I
             max_overlap_cell = cell
 
     if max_overlap >= overlap_threshold and max_overlap_cell:
-        # TODO: Insert the token text into the correct position in the cell text based on token locations
-        max_overlap_cell["cell text"] = max_overlap_cell.get("cell text", "") + extract_text_from_spans([token])
         max_overlap_cell["spans"].append(token)
+        max_overlap_cell["cell text"] = extract_text_from_spans(max_overlap_cell["spans"])
         return True
 
     return False
@@ -1079,7 +1081,6 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
         row_rect = BoundingBox.from_union(BoundingBox(*rows[row_idx]["bbox"]) for row_idx in token_rows)
         column_rect = BoundingBox.from_union(BoundingBox(*columns[column_num]["bbox"]) for column_num in token_columns)
 
-        # TODO: Fuzzy sort the tokens in the cell so that they are in reading order
         new_cell_spans = [*removed_spans, token]
         new_cell_text = extract_text_from_spans(new_cell_spans)
 

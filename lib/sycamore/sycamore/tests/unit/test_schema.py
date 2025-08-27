@@ -1,4 +1,4 @@
-from sycamore.schema import SchemaV2, make_property, make_named_property, BooleanExpValidator
+from sycamore.schema import SchemaV2, make_property, make_named_property
 
 single_property_dict_old = {
     "name": "state",

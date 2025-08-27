@@ -12,15 +12,15 @@ from sycamore.transforms.property_extraction.strategy import (
     SchemaUpdateResult,
     StepThroughStrategy,
     TakeFirstTrimSchema,
-    TakeFirstTrimSchemaZT,
 )
-from sycamore.transforms.property_extraction.types import RichProperty
+from sycamore.transforms.property_extraction.types import AttributionValue, RichProperty
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe
 from sycamore.transforms.property_extraction.utils import stitch_together_objects, dedup_examples
 from sycamore.transforms.property_extraction.attribution import refine_attribution
+from sycamore.utils.zt import zip_traverse
 
 _logger = logging.getLogger(__name__)
 
@@ -118,11 +118,12 @@ class Extract(MapBatch):
         rendered = prompt.render_multiple_elements(elements, document)
         result = await self._llm.generate_async(prompt=rendered)
         rd = extract_json(result)
-        new_fields = dict()
-        for k, v in rd.items():
-            new_fields[k] = refine_attribution(RichProperty.from_prediction(v, elements, name=k), document)
+        rp = RichProperty.from_prediction(rd)
+        for k, (v,), (p,) in zip_traverse(rp):
+            v.attribution = AttributionValue(element_indices=[e.element_index or -1 for e in elements])
+        rp = refine_attribution(rp, document)
         update = self._schema_update.update_schema(
-            in_schema=schema_part, new_fields=new_fields, existing_fields=result_dict
+            in_schema=schema_part, new_fields=rp.value, existing_fields=result_dict
         )
         return update
 

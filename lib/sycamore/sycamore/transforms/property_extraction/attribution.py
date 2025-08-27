@@ -16,11 +16,13 @@ def refine_attribution(prop: RichProperty, doc: Document) -> RichProperty:
 
     # Traverse the JSON
     if prop.type == DataType.OBJECT:
+        prop.attribution = None
         d = prop.value
         for k, v in d.items():
             d[k] = refine_attribution(v, doc)
         return prop
     if prop.type == DataType.ARRAY:
+        prop.attribution = None
         ls = prop.value
         for i, v in enumerate(ls):
             ls[i] = refine_attribution(v, doc)

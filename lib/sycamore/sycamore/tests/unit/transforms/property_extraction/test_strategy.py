@@ -131,7 +131,7 @@ class TestSchemaUpdateStrategy:
         strat = TakeFirstTrimSchemaZT()
 
         props: dict[str, RichProperty] = dict()
-        p1 = RichProperty.from_prediction_zt({"a": [{"a1": "a11", "a2": [{"a21": "a211"}]}]}).value
+        p1 = RichProperty.from_prediction({"a": [{"a1": "a11", "a2": [{"a21": "a211"}]}]}).value
         sur1 = strat.update_schema(start_schema, p1, props)
         assert not sur1.completed
         assert "a" in sur1.out_fields
@@ -139,7 +139,7 @@ class TestSchemaUpdateStrategy:
         assert len(sur1.out_fields["a"].value) == 1
         assert len(sur1.out_schema.fields) == 3
 
-        p2 = RichProperty.from_prediction_zt({"a": [{"a1": "a12", "a2": [{"a21": "a212"}]}], "b": "b2"}).value
+        p2 = RichProperty.from_prediction({"a": [{"a1": "a12", "a2": [{"a21": "a212"}]}], "b": "b2"}).value
         sur2 = strat.update_schema(sur1.out_schema, p2, sur1.out_fields)
         assert not sur2.completed
         assert sur2.out_fields["a"].value[0].value["a1"].value == "a11"
@@ -149,7 +149,7 @@ class TestSchemaUpdateStrategy:
         assert "c" not in sur2.out_fields
         assert len(sur2.out_schema.fields) == 2
 
-        p3 = RichProperty.from_prediction_zt({"c": "c3"}).value
+        p3 = RichProperty.from_prediction({"c": "c3"}).value
         sur3 = strat.update_schema(sur2.out_schema, p3, sur2.out_fields)
         assert not sur3.completed
         assert sur3.out_fields["a"].value[0].value["a1"].value == "a11"
@@ -188,14 +188,14 @@ class TestSchemaUpdateStrategy:
         strat = TakeFirstTrimSchema()
 
         props: dict[str, RichProperty] = dict()
-        p1 = RichProperty.from_prediction({"a": ["a"], "b": "b", "c": {"d": "dC"}}, [])
+        p1 = RichProperty.from_prediction({"a": ["a"], "b": "b", "c": {"d": "dC"}})
         sur1 = strat.update_schema(schema, p1.value, props)
         assert not sur1.completed
         assert not sur1.out_fields["a"].value[0].is_valid
         assert not sur1.out_fields["b"].is_valid
         assert not sur1.out_fields["c"].value["d"].is_valid
 
-        p2 = RichProperty.from_prediction({"a": ["A"], "b": "B", "c": {"d": "dc000"}}, [])
+        p2 = RichProperty.from_prediction({"a": ["A"], "b": "B", "c": {"d": "dc000"}})
         sur2 = strat.update_schema(schema, p2.value, sur1.out_fields)
         assert not sur2.completed
         assert not sur2.out_fields["a"].value[0].is_valid
@@ -203,7 +203,7 @@ class TestSchemaUpdateStrategy:
         assert sur2.out_fields["b"] == sur1.out_fields["b"]
         assert sur2.out_fields["c"].value["d"].is_valid
 
-        p3 = RichProperty.from_prediction({"a": ["1"], "b": "4", "c": {"d": "Invalid"}}, [])
+        p3 = RichProperty.from_prediction({"a": ["1"], "b": "4", "c": {"d": "Invalid"}})
         sur3 = strat.update_schema(schema, p3.value, sur2.out_fields)
         assert not sur3.completed
         assert not sur3.out_fields["a"].value[0].is_valid

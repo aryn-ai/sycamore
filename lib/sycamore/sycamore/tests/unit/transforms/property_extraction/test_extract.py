@@ -46,9 +46,9 @@ class TestExtract:
             Document(
                 doc_id="0",
                 elements=[
-                    Element(text_representation="d0e0"),
-                    Element(text_representation="d0e1"),
-                    Element(text_representation="d0e2"),
+                    Element(text_representation="d0e0", properties={"_element_index": 4}),
+                    Element(text_representation="d0e1", properties={"_element_index": 9}),
+                    Element(text_representation="d0e2", properties={"_element_index": 19}),
                 ],
                 properties={
                     "entity": {"doc_id": "flarglhavn"},
@@ -65,8 +65,8 @@ class TestExtract:
             Document(
                 doc_id="1",
                 elements=[
-                    Element(text_representation="d1e0"),
-                    Element(text_representation="d1e1"),
+                    Element(text_representation="d1e0", properties={"_element_index": 40}),
+                    Element(text_representation="d1e1", properties={"_element_index": 41}),
                 ],
             ),
         ]
@@ -108,9 +108,9 @@ class TestExtract:
             Document(
                 doc_id="0",
                 elements=[
-                    Element(text_representation="d0e0"),
-                    Element(text_representation="d0e1"),
-                    Element(text_representation="d0e2"),
+                    Element(text_representation="d0e0", properties={"_element_index": 4}),
+                    Element(text_representation="d0e1", properties={"_element_index": 9}),
+                    Element(text_representation="d0e2", properties={"_element_index": 19}),
                 ],
                 properties={
                     "entity": {"doc_id": "flarglhavn"},
@@ -127,8 +127,8 @@ class TestExtract:
             Document(
                 doc_id="1",
                 elements=[
-                    Element(text_representation="d1e0"),
-                    Element(text_representation="d1e1"),
+                    Element(text_representation="d1e0", properties={"_element_index": 40}),
+                    Element(text_representation="d1e1", properties={"_element_index": 42}),
                 ],
             ),
         ]

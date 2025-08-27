@@ -4,7 +4,6 @@ from pydantic.functional_serializers import field_serializer
 from pydantic.functional_validators import field_validator
 
 from sycamore.data.bbox import BoundingBox
-from sycamore.data.element import Element
 from sycamore.schema import DataType
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.zt import ZTDict, ZTLeaf, ZipTraversable, zip_traverse
@@ -89,7 +88,7 @@ class RichProperty(BaseModel):
             self.value[other.name] = other
 
     @staticmethod
-    def from_prediction_zt(prediction: dict[str, Any]) -> "RichProperty":
+    def from_prediction(prediction: dict[str, Any]) -> "RichProperty":
         res = RichProperty(name=None, value={}, type=DataType.OBJECT)
         ztp = ZTDict(prediction)
         for k, (pred_v, res_v), (pred_p, res_p) in zip_traverse(ztp, res, order="before", intersect_keys=False):
@@ -103,69 +102,8 @@ class RichProperty(BaseModel):
             res_p._add_subprop(new_rp)
         return res
 
-    @staticmethod
-    def from_prediction(
-        prediction: Any, attributable_elements: list[Element], name: Optional[str] = None
-    ) -> "RichProperty":
-        if isinstance(prediction, dict):
-            v_dict: dict[str, RichProperty] = {}
-            for k, v in prediction.items():
-                v_dict[k] = RichProperty.from_prediction(v, attributable_elements, name=k)
-            return RichProperty(
-                name=name,
-                type=DataType.OBJECT,
-                value=v_dict,
-            )
-        if isinstance(prediction, list):
-            v_list: list[RichProperty] = []
-            for x in prediction:
-                v_list.append(RichProperty.from_prediction(x, attributable_elements))
-            return RichProperty(
-                name=name,
-                type=DataType.ARRAY,
-                value=v_list,
-            )
-        return RichProperty(
-            name=name,
-            type=DataType.from_python(prediction) if prediction is not None else DataType.STRING,
-            value=prediction,
-            attribution=AttributionValue(
-                element_indices=[e.element_index for e in attributable_elements if e.element_index is not None]
-            ),
-        )
-
-    def to_python_zt(self):
-        res = self.value
-        if self.type is DataType.OBJECT:
-            res = {}
-        if self.type is DataType.ARRAY:
-            res = []
-        working_stack: list[Any] = [res]
-        prop_stack = [self]
-        for k, (v,), (p,) in zip_traverse(self, order="before"):
-            while len(prop_stack) > 0 and prop_stack[-1] != p:
-                prop_stack.pop()
-                working_stack.pop()
-
-            if v.type in (DataType.OBJECT, DataType.ARRAY):
-                if v.type is DataType.OBJECT:
-                    newv = {}
-                else:
-                    newv = []
-                if p.type is DataType.OBJECT:
-                    working_stack[-1][k] = newv
-                elif p.type is DataType.ARRAY:
-                    working_stack[-1].append(newv)
-                working_stack.append(newv)
-                prop_stack.append(v)
-            else:
-                if p.type is DataType.OBJECT:
-                    working_stack[-1][k] = v.value
-                elif p.type is DataType.ARRAY:
-                    working_stack[-1].append(v.value)
-        return res
-
     def to_python(self):
+        # I tried writing this with ziptraverse but it just wasn't as clean
         if self.type == DataType.ARRAY:
             assert isinstance(self.value, list)
             return [v.to_python() for v in self.value]

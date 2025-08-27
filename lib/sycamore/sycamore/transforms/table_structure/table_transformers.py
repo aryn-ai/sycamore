@@ -1058,17 +1058,16 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
         token_rows = _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row=True)
         token_columns = _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row=False)
 
-        # Remove any blank cells that overlap with the token
+        # Remove any cells that overlap with the dropped token's new cell and save the spans to add to the new cell
         cells_to_remove = []
+        removed_spans = []
         for cell in cells:
             if (
                 len(set(cell["row_nums"]).intersection(set(token_rows))) > 0
                 and len(set(cell["column_nums"]).intersection(set(token_columns))) > 0
             ):
-                # These cells should be in a new structure created by _find_or_create_structure_for_token
-                # and should be empty.
-                assert cell["cell text"] == "", f"Cell for dropped token should have no text: {cell}"
-                assert len(cell["spans"]) == 0, f"Cell for dropped token should have no spans: {cell}"
+                if len(cell["spans"]) > 0:
+                    removed_spans.extend(cell["spans"])
 
                 cells_to_remove.append(cell)
 
@@ -1076,8 +1075,13 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
             cells.remove(cell)
 
         # Create the new cell
+
         row_rect = BoundingBox.from_union(BoundingBox(*rows[row_idx]["bbox"]) for row_idx in token_rows)
         column_rect = BoundingBox.from_union(BoundingBox(*columns[column_num]["bbox"]) for column_num in token_columns)
+
+        # TODO: Fuzzy sort the tokens in the cell so that they are in reading order
+        new_cell_spans = [*removed_spans, token]
+        new_cell_text = extract_text_from_spans(new_cell_spans)
 
         cell_rect = row_rect.intersect(column_rect)
         cell = {
@@ -1085,9 +1089,10 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
             "column_nums": token_columns,
             "row_nums": token_rows,
             "column header": False,
-            "cell text": token["text"],
-            "spans": [token],
+            "cell text": new_cell_text,
+            "spans": new_cell_spans,
         }
+
         cells.append(cell)
 
     return cells

@@ -131,32 +131,7 @@ class TestSchemaUpdateStrategy:
         strat = TakeFirstTrimSchemaZT()
 
         props: dict[str, RichProperty] = dict()
-        p1 = {
-            "a": RichProperty(
-                name="a",
-                type=DataType.ARRAY,
-                value=[
-                    RichProperty(
-                        name=None,
-                        type=DataType.OBJECT,
-                        value={
-                            "a1": RichProperty(name="a1", type=DataType.STRING, value="a11"),
-                            "a2": RichProperty(
-                                name="a2",
-                                type=DataType.ARRAY,
-                                value=[
-                                    RichProperty(
-                                        name=None,
-                                        type=DataType.OBJECT,
-                                        value={"a21": RichProperty(name="a21", type=DataType.STRING, value="a211")},
-                                    )
-                                ],
-                            ),
-                        },
-                    )
-                ],
-            )
-        }
+        p1 = RichProperty.from_prediction_zt({"a": [{"a1": "a11", "a2": [{"a21": "a211"}]}]}).value
         sur1 = strat.update_schema(start_schema, p1, props)
         assert not sur1.completed
         assert "a" in sur1.out_fields
@@ -164,42 +139,17 @@ class TestSchemaUpdateStrategy:
         assert len(sur1.out_fields["a"].value) == 1
         assert len(sur1.out_schema.fields) == 3
 
-        p2 = {
-            "a": RichProperty(
-                name="a",
-                type=DataType.ARRAY,
-                value=[
-                    RichProperty(
-                        name=None,
-                        type=DataType.OBJECT,
-                        value={
-                            "a1": RichProperty(name="a1", type=DataType.STRING, value="a12"),
-                            "a2": RichProperty(
-                                name="a2",
-                                type=DataType.ARRAY,
-                                value=[
-                                    RichProperty(
-                                        name=None,
-                                        type=DataType.OBJECT,
-                                        value={"a21": RichProperty(name="a21", type=DataType.STRING, value="a211")},
-                                    )
-                                ],
-                            ),
-                        },
-                    )
-                ],
-            ),
-            "b": RichProperty(name="b", type=DataType.STRING, value="b2"),
-        }
+        p2 = RichProperty.from_prediction_zt({"a": [{"a1": "a12", "a2": [{"a21": "a212"}]}], "b": "b2"}).value
         sur2 = strat.update_schema(sur1.out_schema, p2, sur1.out_fields)
         assert not sur2.completed
         assert sur2.out_fields["a"].value[0].value["a1"].value == "a11"
-        assert sur2.out_fields["a"].value[1].value["a2"].value[0].value["a21"].value == "a211"
+        assert sur2.out_fields["a"].value[1].value["a2"].value[0].value["a21"].value == "a212"
+        # assert len(sur2.out_fields["a"].value) == 1
         assert sur2.out_fields["b"].value == "b2"
         assert "c" not in sur2.out_fields
         assert len(sur2.out_schema.fields) == 2
 
-        p3 = {"c": RichProperty(name="c", type=DataType.STRING, value="c3")}
+        p3 = RichProperty.from_prediction_zt({"c": "c3"}).value
         sur3 = strat.update_schema(sur2.out_schema, p3, sur2.out_fields)
         assert not sur3.completed
         assert sur3.out_fields["a"].value[0].value["a1"].value == "a11"

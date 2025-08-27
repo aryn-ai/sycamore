@@ -91,25 +91,16 @@ class RichProperty(BaseModel):
     @staticmethod
     def from_prediction_zt(prediction: dict[str, Any]) -> "RichProperty":
         res = RichProperty(name=None, value={}, type=DataType.OBJECT)
-        working_stack = [res]
         ztp = ZTDict(prediction)
-        prediction_stack = [ztp]
-        for k, (v,), (p,) in zip_traverse(ztp, order="before"):
+        for k, (pred_v, res_v), (pred_p, res_p) in zip_traverse(ztp, res, order="before", intersect_keys=False):
             name = k if isinstance(k, str) else None
-            while len(prediction_stack) > 0 and prediction_stack[-1] != p:
-                prediction_stack.pop()
-                working_stack.pop()
-
-            dt = DataType.from_python(v)
-            new_rp = RichProperty(name=name, value=v, type=dt)
-            working_stack[-1]._add_subprop(new_rp)
-            if dt in (DataType.OBJECT, DataType.ARRAY):
-                if dt is DataType.OBJECT:
-                    new_rp.value = {}
-                else:
-                    new_rp.value = []
-                working_stack.append(new_rp)
-                prediction_stack.append(v)
+            dt = DataType.from_python(pred_v)
+            new_rp = RichProperty(name=name, type=dt, value=pred_v)
+            if dt is DataType.OBJECT:
+                new_rp.value = {}
+            if dt is DataType.ARRAY:
+                new_rp.value = []
+            res_p._add_subprop(new_rp)
         return res
 
     @staticmethod
@@ -144,7 +135,11 @@ class RichProperty(BaseModel):
         )
 
     def to_python_zt(self):
-        res = {}
+        res = self.value
+        if self.type is DataType.OBJECT:
+            res = {}
+        if self.type is DataType.ARRAY:
+            res = []
         working_stack: list[Any] = [res]
         prop_stack = [self]
         for k, (v,), (p,) in zip_traverse(self, order="before"):

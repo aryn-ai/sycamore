@@ -206,7 +206,6 @@ class TakeFirstTrimSchemaZT(SchemaUpdateStrategy):
         new_fields: dict[str, RichProperty],
         existing_fields: dict[str, RichProperty] = dict(),
     ) -> SchemaUpdateResult:
-        print("=" * 80)
         sch_obj = in_schema.as_object_property()
         nf_rp = RichProperty(type=DataType.OBJECT, value=new_fields, name=None)
         ef_rp = RichProperty(type=DataType.OBJECT, value=existing_fields, name=None)
@@ -216,30 +215,35 @@ class TakeFirstTrimSchemaZT(SchemaUpdateStrategy):
         for k, (prop, nf, ef, out, out_prop), (prop_p, nf_p, ef_p, out_p, out_prop_p) in zip_traverse(
             sch_obj, nf_rp, ef_rp, out_rp, out_sch, order="before", intersect_keys=False
         ):
-            print(f"{k} -->")
-            print(f"- {prop}")
-            print(f"- {ef}")
-            print(f"- {nf}")
-            print(f"- {out}")
-            print(f"- {out_prop}")
-            print(f"- {out_prop_p}")
-            print("-" * 80)
+            # Schema might have been trimmed, so keep existing fields (that may have
+            # come from a previous extraction step)
             if prop is None:
                 out_p.value[k] = ef
                 continue
 
+            # If field in existing fields (ef), take that
+            # Else if field in new fields (nf), take that
+            # If field is in both and it's an Array, concat them
+            # If field is a leaf and exists in either, trim it out
             trim = False
             if ef is not None:
                 if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT):
                     trim = True
                 if nf is not None and prop.get_type() is DataType.ARRAY:
-                    ef.value.extend(nf.value)
-                out_p.value[k] = ef
+                    out_p.value[k] = RichProperty(value=ef.value + nf.value, type=DataType.ARRAY, name=ef.name)
+                    nf.value = []
+                    ef.value = []
+                else:
+                    out_p.value[k] = ef
             elif nf is not None:
                 if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT):
                     trim = True
                 out_p.value[k] = nf
 
+            # If this property should not be trimmed (was not found or is an array/object)
+            # Add it to the parent property list if applicable. Array properties are added
+            # with full item_type, which means that fields inside arrays of objects are not
+            # trimmed
             if (
                 not trim
                 and isinstance(prop, NamedProperty)
@@ -254,6 +258,9 @@ class TakeFirstTrimSchemaZT(SchemaUpdateStrategy):
                 if not any(p.name == np.name for p in proplist):
                     proplist.append(np)
 
+        # Finally, drop empty objects in the out schema. We couldn't do this in the
+        # previous trimming operation bc we didn't know if the object would be empty
+        # or not
         for k, (prop,), (prop_p,) in zip_traverse(out_sch, order="after"):
             if (
                 prop.get_type() is DataType.OBJECT
@@ -265,7 +272,6 @@ class TakeFirstTrimSchemaZT(SchemaUpdateStrategy):
                 else:
                     prop_p.properties.remove(prop)
 
-        print(out_sch.model_dump_json(indent=2))
         return SchemaUpdateResult(
             out_schema=SchemaV2(properties=out_sch.properties),
             out_fields=out_rp.value,

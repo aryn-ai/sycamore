@@ -166,8 +166,24 @@ class RegexValidator(PropertyValidator):
         return (s is not None), propval
 
 
+class BooleanExpValidator(PropertyValidator):
+    """Validates a field in a DocSet schema by comparing against a boolean expression"""
+
+    type: Literal["boolean_exp"] = "boolean_exp"
+    allowable_types: set[DataType] = {DataType.STRING, DataType.FLOAT, DataType.INT, DataType.BOOL}
+
+    expression: str
+
+    def constraint_string(self) -> str:
+        return f"must satisfy the boolean expression: `{self.expression}`"
+
+    def validate_property(self, propval: Any) -> tuple[bool, Any]:
+        # TODO: Implement boolean expression validation
+        return True, propval
+
+
 ValidatorType: TypeAlias = Annotated[
-    (RegexValidator),
+    (RegexValidator | BooleanExpValidator),
     Field(discriminator="type"),
 ]
 
@@ -372,11 +388,13 @@ def _convert_to_named_property(schema_prop: SchemaField) -> NamedProperty:
         "examples": schema_prop.examples,
     }
 
-    if (declared_type := schema_prop.field_type) not in DataType.values():
-        prop_type_dict["custom_type"] = declared_type
+    try:
+        # This will use _missing_ to map "str" → "string", etc.
+        dtype = DataType(schema_prop.field_type)
+        prop_type_dict["type"] = dtype
+    except ValueError:
+        prop_type_dict["custom_type"] = schema_prop.field_type
         prop_type_dict["type"] = DataType.CUSTOM
-    else:
-        prop_type_dict["type"] = DataType(schema_prop.field_type)
 
     return NamedProperty(
         name=schema_prop.name,

@@ -12,6 +12,13 @@ import xml.etree.ElementTree as ET
 from sycamore.data.table import Table, TableCell
 from sycamore.data import BoundingBox
 
+# If more than this fraction of a token's area is inside a cell, the token is assigned to that cell
+TOKEN_AREA_INTERSECTION_THRESHOLD = 0.2
+# If more than this fraction of a token's length along an axis overlaps with a structure, the token is assigned to that structure.
+TOKEN_AXIS_INTERSECTION_THRESHOLD = 0.2
+# If more than this fraction of a structure's length along an axis overlaps with a token, the token is assigned to that structure.
+STRUCTURE_AXIS_INTERSECTION_THRESHOLD = 0.2
+
 
 # From https://github.com/NielsRogge/Transformers-Tutorials/blob/master/Table%20Transformer/Inference_with_Table_Transformer_(TATR)_for_parsing_tables.ipynb
 class MaxResize(object):
@@ -873,7 +880,7 @@ def align_supercells(supercells, rows, columns):
     return aligned_supercells
 
 
-def _add_token_to_intersecting_cell(cells, token, overlap_threshold):
+def _add_token_to_intersecting_cell(cells, token, overlap_threshold=TOKEN_AREA_INTERSECTION_THRESHOLD):
     """Add token to the cell it overlaps with the most if the overlap is greater than the threshold. Returns True if token is assigned to a cell."""
     token_rect = BoundingBox(*token["bbox"])
     max_overlap = 0
@@ -895,7 +902,15 @@ def _add_token_to_intersecting_cell(cells, token, overlap_threshold):
     return False
 
 
-def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row):
+def _find_or_create_structure_for_token(
+    token_bbox,
+    rows,
+    columns,
+    cells,
+    is_row,
+    token_intersect_thresh=TOKEN_AXIS_INTERSECTION_THRESHOLD,
+    struct_intersect_thresh=STRUCTURE_AXIS_INTERSECTION_THRESHOLD,
+):
     if is_row:
         start_coord_idx, end_coord_idx = 1, 3
         cur_structs = rows
@@ -913,25 +928,31 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
     # return the indices of the overlapping structures.
     overlapping_struct_idxs = []
     for idx, struct in enumerate(cur_structs):
-        new_struct_bbox = struct["bbox"]
-        overlap_along_axis = max(
+        struct_bbox = struct["bbox"]
+        overlap_along_axis_pixels = max(
             0,
-            min(token_bbox[end_coord_idx], new_struct_bbox[end_coord_idx])
-            - max(token_bbox[start_coord_idx], new_struct_bbox[start_coord_idx]),
+            min(token_bbox[end_coord_idx], struct_bbox[end_coord_idx])
+            - max(token_bbox[start_coord_idx], struct_bbox[start_coord_idx]),
         )
-        if overlap_along_axis > 0:
+
+        # Check if structure overlaps with token along the specified axis
+        # Structure is considered overlapping if:
+        # 1. Overlap >= struct_intersect_thresh * structure's axis length, OR
+        # 2. Overlap >= token_intersect_thresh * token's axis length
+        # This handles cases where the token is very small and the structure is very large, or vice versa.
+        if overlap_along_axis_pixels >= struct_intersect_thresh * (
+            struct_bbox[end_coord_idx] - struct_bbox[start_coord_idx]
+        ) or overlap_along_axis_pixels >= token_intersect_thresh * (
+            token_bbox[end_coord_idx] - token_bbox[start_coord_idx]
+        ):
             overlapping_struct_idxs.append(idx)
 
     if len(overlapping_struct_idxs) > 0:
         return overlapping_struct_idxs
 
-    # Sanity check that the structures are sorted
-    assert (
-        cur_structs[0]["bbox"][start_coord_idx] < cur_structs[-1]["bbox"][start_coord_idx]
-    ), f"Structures are not sorted, first structure: {cur_structs[0]['bbox']}, last structure: {cur_structs[-1]['bbox']}"
-
-    # Find the best position to insert new structure
+    # Find the best position to insert new structure, this assumes the structures are sorted
     insert_idx = 0
+    max_overlap_along_axis_pixels = 0
 
     if token_bbox[start_coord_idx] < cur_structs[0]["bbox"][start_coord_idx]:
         insert_idx = 0
@@ -941,12 +962,14 @@ def _find_or_create_structure_for_token(token_bbox, rows, columns, cells, is_row
         for idx in range(len(cur_structs) - 1):
             prev_struct = cur_structs[idx]
             next_struct = cur_structs[idx + 1]
-            if (
-                prev_struct["bbox"][end_coord_idx] <= token_bbox[start_coord_idx]
-                and token_bbox[end_coord_idx] <= next_struct["bbox"][start_coord_idx]
-            ):
+
+            # Find the overlap between the token and the gap between the current and next structure
+            overlap_along_axis_pixels = min(token_bbox[end_coord_idx], next_struct["bbox"][start_coord_idx]) - max(
+                token_bbox[start_coord_idx], prev_struct["bbox"][end_coord_idx]
+            )
+            if overlap_along_axis_pixels > max_overlap_along_axis_pixels:
+                max_overlap_along_axis_pixels = overlap_along_axis_pixels
                 insert_idx = idx + 1
-                break
 
     # Create the new structure and update related structures. This assumes that the rows and columns are properly aligned.
     new_struct_bbox = [rows[0]["bbox"][0], columns[0]["bbox"][1], rows[0]["bbox"][2], columns[0]["bbox"][3]]
@@ -1005,14 +1028,27 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
     """
     For each token that was dropped, determine which cell it intersects with and add the text to that cell.
     If the token does not intersect with any existing cell, create a new cell. Determine the new row and column by
-    checking for intersection with any previous one and creating a new one if necessary.
+    checking for intersection with any previous one and creating a new one if necessary. Requires the rows and columns
+    to be aligned and sorted.
     """
     if not rows or not columns:
         return cells
 
+    if not all(rows[i]["bbox"][1] <= rows[i + 1]["bbox"][1] for i in range(len(rows) - 1)):
+        import logging
+
+        logging.warning("Rows are not sorted")
+        rows.sort(key=lambda x: x["bbox"][1])
+
+    if not all(columns[i]["bbox"][0] <= columns[i + 1]["bbox"][0] for i in range(len(columns) - 1)):
+        import logging
+
+        logging.warning("Columns are not sorted")
+        columns.sort(key=lambda x: x["bbox"][0])
+
     for token in dropped_tokens:
         # Check if token intersects with existing cells
-        if _add_token_to_intersecting_cell(cells, token, overlap_threshold=0.2):
+        if _add_token_to_intersecting_cell(cells, token):
             continue
 
         # If no intersection found, create new cell
@@ -1303,8 +1339,14 @@ def structure_to_cells(table_structure, tokens, union_tokens):
         cell_rect = column_rect.intersect(row_rect)
         cell["bbox"] = cell_rect.to_list()
 
+    # Each token is assigned to the cell it overlaps the most, but only if the overlap as a fraction of the token's area is greater than TOKEN_AREA_INTERSECTION_THRESHOLD.
+    # Tokens that are not assigned to any cell are considered dropped tokens.
     span_nums_by_cell, package_assignments, _ = slot_into_containers(
-        cells, tokens, overlap_threshold=0.001, unique_assignment=True, forced_assignment=False
+        cells,
+        tokens,
+        overlap_threshold=TOKEN_AREA_INTERSECTION_THRESHOLD,
+        unique_assignment=True,
+        forced_assignment=False,
     )
 
     for cell, cell_span_nums in zip(cells, span_nums_by_cell):
@@ -1314,9 +1356,6 @@ def structure_to_cells(table_structure, tokens, union_tokens):
         # but need to associate
         cell["cell text"] = extract_text_from_spans(cell_spans, remove_integer_superscripts=False)
         cell["spans"] = cell_spans
-
-    rows = sort_objects_top_to_bottom(rows)
-    columns = sort_objects_left_to_right(columns)
 
     if union_tokens:
         dropped_tokens = [

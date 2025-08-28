@@ -1,4 +1,4 @@
-from sycamore.transforms.property_extraction.strategy import RichProperty, TakeFirstTrimSchemaZT
+from sycamore.transforms.property_extraction.strategy import RichProperty, TakeFirstTrimSchema
 from sycamore.schema import NamedProperty
 from sycamore.schema import SchemaV2, StringProperty, ObjectProperty, ArrayProperty, DataType, RegexValidator
 
@@ -20,7 +20,7 @@ class TestSchemaUpdateStrategy:
                 NamedProperty(name="c", type=StringProperty()),
             ]
         )
-        strat = TakeFirstTrimSchemaZT()
+        strat = TakeFirstTrimSchema()
 
         props: dict[str, RichProperty] = dict()
         p1 = {"a": RichProperty(name="a", type=DataType.STRING, value="a1")}
@@ -64,7 +64,7 @@ class TestSchemaUpdateStrategy:
                 NamedProperty(name="c", type=StringProperty()),
             ]
         )
-        strat = TakeFirstTrimSchemaZT()
+        strat = TakeFirstTrimSchema()
 
         props: dict[str, RichProperty] = dict()
         p1 = {
@@ -128,7 +128,7 @@ class TestSchemaUpdateStrategy:
                 NamedProperty(name="c", type=StringProperty()),
             ]
         )
-        strat = TakeFirstTrimSchemaZT()
+        strat = TakeFirstTrimSchema()
 
         props: dict[str, RichProperty] = dict()
         p1 = RichProperty.from_prediction({"a": [{"a1": "a11", "a2": [{"a21": "a211"}]}]}).value
@@ -186,7 +186,7 @@ class TestSchemaUpdateStrategy:
             ]
         )
 
-        strat = TakeFirstTrimSchemaZT()
+        strat = TakeFirstTrimSchema()
 
         props: dict[str, RichProperty] = dict()
         p1 = RichProperty.from_prediction({"a": ["a"], "b": "b", "c": {"d": "dC"}})

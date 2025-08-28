@@ -11,7 +11,7 @@ from sycamore.transforms.property_extraction.strategy import (
     SchemaUpdateStrategy,
     SchemaUpdateResult,
     StepThroughStrategy,
-    TakeFirstTrimSchemaZT,
+    TakeFirstTrimSchema,
 )
 from sycamore.transforms.property_extraction.types import AttributionValue, RichProperty
 from sycamore.llms.llms import LLM
@@ -36,7 +36,7 @@ class Extract(MapBatch):
         schema_partition_strategy: SchemaPartitionStrategy,
         llm: LLM,
         prompt: SycamorePrompt,
-        schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchemaZT(),
+        schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchema(),
         output_pydantic_models: bool = True,
     ):
         super().__init__(node, f=self.extract)

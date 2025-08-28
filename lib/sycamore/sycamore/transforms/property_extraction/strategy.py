@@ -137,7 +137,9 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                     np = NamedProperty(name=prop.name, type=ObjectProperty(properties=[]))
                 else:
                     np = prop
-                proplist = (out_prop_p.type if isinstance(out_prop_p, NamedProperty) else out_prop_p).properties
+                obj_p = out_prop_p.type if isinstance(out_prop_p, NamedProperty) else out_prop_p
+                assert isinstance(obj_p, ObjectProperty)
+                proplist = obj_p.properties
                 if not any(p.name == np.name for p in proplist):
                     proplist.append(np)
 
@@ -150,10 +152,9 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                 and prop_p.get_type() is DataType.OBJECT
                 and len(prop.type.properties) == 0
             ):
-                if isinstance(prop_p, NamedProperty):
-                    prop_p.type.properties.remove(prop)
-                else:
-                    prop_p.properties.remove(prop)
+                obj_p = prop_p.type if isinstance(prop_p, NamedProperty) else prop_p
+                assert isinstance(obj_p, ObjectProperty)
+                obj_p.properties.remove(prop)
 
         return SchemaUpdateResult(
             out_schema=SchemaV2(properties=out_sch.properties),

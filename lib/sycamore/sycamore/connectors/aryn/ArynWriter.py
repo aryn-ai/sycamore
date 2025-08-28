@@ -67,7 +67,6 @@ class ArynWriterClient(BaseDBWriter.Client):
         for record in records:
             assert isinstance(record, ArynWriterRecord)
             doc = record.doc
-            print(doc)
             with tempfile.TemporaryFile(prefix="aryn-writer-", suffix=".ArynSDoc") as stream:
                 params: dict[str, Any] = {
                     "docset_id": docset_id,

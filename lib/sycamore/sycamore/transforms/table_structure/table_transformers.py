@@ -493,8 +493,8 @@ def extract_text_from_spans(spans, join_with_space=True, remove_integer_superscr
     """
     Convert a collection of page tokens/words/spans into a single text string.
     TODO: This currently gets the span_num from _process_tokens in extract.py. This is the order that the OCR gives the spans in, which
-    is not necessarily the "correct" reading order. Tokens could be shifted by 1 or 2 pixels, which could change the order of the tokens. Some form
-    of line by line grouping or fuzzy sort is necessary to get the "correct" reading order.
+    is not necessarily the optimal reading order. Tokens could be shifted by 1 or 2 pixels, which could change the order of the tokens. Some form
+    of line by line grouping or fuzzy sort is necessary to get the optimal reading order.
     """
 
     if join_with_space:
@@ -1068,6 +1068,7 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
                 len(set(cell["row_nums"]).intersection(set(token_rows))) > 0
                 and len(set(cell["column_nums"]).intersection(set(token_columns))) > 0
             ):
+                # If the new cell overlaps an existing cell that contains spans, add the spans to the new cell
                 if len(cell["spans"]) > 0:
                     removed_spans.extend(cell["spans"])
 
@@ -1077,7 +1078,6 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
             cells.remove(cell)
 
         # Create the new cell
-
         row_rect = BoundingBox.from_union(BoundingBox(*rows[row_idx]["bbox"]) for row_idx in token_rows)
         column_rect = BoundingBox.from_union(BoundingBox(*columns[column_num]["bbox"]) for column_num in token_columns)
 
@@ -1093,7 +1093,6 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
             "cell text": new_cell_text,
             "spans": new_cell_spans,
         }
-
         cells.append(cell)
 
     return cells

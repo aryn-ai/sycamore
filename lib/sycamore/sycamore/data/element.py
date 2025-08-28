@@ -154,6 +154,8 @@ class ImageElement(Element):
         self.data["properties"]["image_size"] = image_size
         self.data["properties"]["image_mode"] = image_mode
         self.data["properties"]["image_format"] = image_format
+        if kwargs.pop("max_image_size", None) is not None:
+            Image.MAX_IMAGE_PIXELS = kwargs.pop("max_image_size")
 
     def as_image(self) -> Optional[Image.Image]:
         if self.binary_representation is None:

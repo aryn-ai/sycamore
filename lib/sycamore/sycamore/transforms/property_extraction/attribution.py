@@ -10,6 +10,7 @@ MAX_FUZZY_FIND_PADDING = 30
 
 
 def refine_attribution(prop: RichProperty, doc: Document) -> RichProperty:
+    # TODO: Rewrite with zip_traverse
     if prop.value is None:
         prop.attribution = None
         return prop

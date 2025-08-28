@@ -4,14 +4,14 @@ import logging
 
 from sycamore.data.document import Document, Element
 from sycamore.plan_nodes import Node
-from sycamore.schema import SchemaV2 as Schema, DataType
+from sycamore.schema import NamedProperty, SchemaV2 as Schema, DataType
 from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,
     SchemaUpdateStrategy,
     SchemaUpdateResult,
     StepThroughStrategy,
-    TakeFirstTrimSchema,
+    TakeFirstTrimSchemaZT,
 )
 from sycamore.transforms.property_extraction.types import AttributionValue, RichProperty
 from sycamore.llms.llms import LLM
@@ -36,7 +36,7 @@ class Extract(MapBatch):
         schema_partition_strategy: SchemaPartitionStrategy,
         llm: LLM,
         prompt: SycamorePrompt,
-        schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchema(),
+        schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchemaZT(),
         output_pydantic_models: bool = True,
     ):
         super().__init__(node, f=self.extract)
@@ -120,8 +120,22 @@ class Extract(MapBatch):
         rd = extract_json(result)
         rp = RichProperty.from_prediction(rd)
         for k, (v,), (p,) in zip_traverse(rp):
-            v.attribution = AttributionValue(element_indices=[e.element_index or -1 for e in elements])
+            v.attribution = AttributionValue(
+                element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
+            )
         rp = refine_attribution(rp, document)
+        for k, (v, prop_v), (p, prop_p) in zip_traverse(rp, schema_part.as_object_property(), intersect_keys=True):
+            if v is None:
+                continue
+            prop = prop_v.type if isinstance(prop_v, NamedProperty) else prop_v
+            for val in prop.validators:
+                valid, propval = val.validate_property(v.to_python())
+                v.is_valid = valid
+                if v.type not in (DataType.ARRAY, DataType.OBJECT):
+                    v.value = propval
+                if not v.is_valid:
+                    break
+
         update = self._schema_update.update_schema(
             in_schema=schema_part, new_fields=rp.value, existing_fields=result_dict
         )

@@ -93,6 +93,11 @@ class RichProperty(BaseModel):
         ztp = ZTDict(prediction)
         for k, (pred_v, res_v), (pred_p, res_p) in zip_traverse(ztp, res, order="before", intersect_keys=False):
             name = k if isinstance(k, str) else None
+            if pred_v is None:
+                # Might want to do something more intelligent here
+                # but would need a reference to the schema to determine
+                # the type
+                continue
             dt = DataType.from_python(pred_v)
             new_rp = RichProperty(name=name, type=dt, value=pred_v)
             if dt is DataType.OBJECT:

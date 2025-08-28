@@ -218,7 +218,8 @@ class TakeFirstTrimSchemaZT(SchemaUpdateStrategy):
             # Schema might have been trimmed, so keep existing fields (that may have
             # come from a previous extraction step)
             if prop is None:
-                out_p.value[k] = ef
+                if ef is not None:
+                    out_p.value[k] = ef
                 continue
 
             # If field in existing fields (ef), take that
@@ -233,6 +234,8 @@ class TakeFirstTrimSchemaZT(SchemaUpdateStrategy):
                     out_p.value[k] = RichProperty(value=ef.value + nf.value, type=DataType.ARRAY, name=ef.name)
                     nf.value = []
                     ef.value = []
+                elif not ef.is_valid and nf is not None and nf.is_valid:
+                    out_p.value[k] = nf
                 else:
                     out_p.value[k] = ef
             elif nf is not None:

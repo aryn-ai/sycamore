@@ -4,7 +4,7 @@ import logging
 
 from sycamore.data.document import Document, Element
 from sycamore.plan_nodes import Node
-from sycamore.schema import NamedProperty, SchemaV2 as Schema, DataType
+from sycamore.schema import NamedProperty, ObjectProperty, SchemaV2 as Schema, DataType
 from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,
@@ -23,6 +23,8 @@ from sycamore.transforms.property_extraction.attribution import refine_attributi
 from sycamore.utils.zt import zip_traverse
 
 _logger = logging.getLogger(__name__)
+
+MAX_RETRIES = 3
 
 
 class Extract(MapBatch):
@@ -113,33 +115,114 @@ class Extract(MapBatch):
     async def extract_schema_partition_from_element_batch(
         self, document: Document, elements: list[Element], schema_part: Schema, result_dict: dict[str, RichProperty]
     ) -> SchemaUpdateResult:
-        prompt = self._prompt.fork(schema=schema_part)
+        print("vvvvvvvvvvvvvvvvvv")
+        print(elements)
+        print(schema_part)
+        print("^^^^^^^^^^^^^^^^^^")
+        sch = schema_part
+        retries = 0
 
-        rendered = prompt.render_multiple_elements(elements, document)
-        result = await self._llm.generate_async(prompt=rendered)
-        rd = extract_json(result)
-        rp = RichProperty.from_prediction(rd)
-        for k, (v,), (p,) in zip_traverse(rp):
+        working_results = RichProperty(type=DataType.OBJECT, value={}, name=None)
+        while sch is not None and retries < MAX_RETRIES:
+            prompt = self._prompt.fork(schema=sch)
+
+            rendered = prompt.render_multiple_elements(elements, document)
+            result = await self._llm.generate_async(prompt=rendered)
+            rd = extract_json(result)
+            rp = RichProperty.from_prediction(rd)
+
+            for k, (v_new, v_work), (p_new, p_work) in zip_traverse(rp, working_results, order="before"):
+                if v_new is v_work:
+                    # When I replace a list sub-items are the same, so skip
+                    continue
+                if v_new is not None and v_new.type is not DataType.OBJECT:
+                    p_work.value[k] = v_new
+
+            sch = self.validate_prediction(sch, working_results)
+            print("---")
+            print(sch)
+            print("---")
+            print(working_results)
+            print("---")
+            retries += 1
+
+        for k, (v,), (p,) in zip_traverse(working_results):
             v.attribution = AttributionValue(
                 element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
             )
-        rp = refine_attribution(rp, document)
-        for k, (v, prop_v), (p, prop_p) in zip_traverse(rp, schema_part.as_object_property(), intersect_keys=True):
-            if v is None:
-                continue
-            prop = prop_v.type if isinstance(prop_v, NamedProperty) else prop_v
-            for val in prop.validators:
-                valid, propval = val.validate_property(v.to_python())
-                v.is_valid = valid
-                if v.type not in (DataType.ARRAY, DataType.OBJECT):
-                    v.value = propval
-                if not v.is_valid:
-                    break
-
+        working_results = refine_attribution(working_results, document)
         update = self._schema_update.update_schema(
-            in_schema=schema_part, new_fields=rp.value, existing_fields=result_dict
+            in_schema=schema_part, new_fields=working_results.value, existing_fields=result_dict
         )
         return update
+
+    def validate_prediction(self, schema_part: Schema, prediction: RichProperty) -> Optional[Schema]:
+        out_sch_obj = schema_part.model_copy(deep=True).as_object_property()
+        # Inside array properties the same validator will be used multiple
+        # times, but we only want to decrement it once per validate_prediction call
+        decremented_validators = set()
+
+        prop_to_inner_validators = dict()
+        for k, (prop,), (prop_p,) in zip_traverse(out_sch_obj, order="after"):
+            prop = prop.type if isinstance(prop, NamedProperty) else prop
+            # Copy because references are weird
+            prop_to_inner_validators[id(prop)] = [v for v in prop.validators]
+            if prop.type is DataType.ARRAY:
+                prop_to_inner_validators[id(prop)] += [v for v in prop_to_inner_validators[id(prop.item_type)]]
+            if prop.type is DataType.OBJECT:
+                for p in prop.properties:
+                    prop_to_inner_validators[id(prop)] += [v for v in prop_to_inner_validators[id(p.type)]]
+
+        for k, (val, prop), (val_p, prop_p) in zip_traverse(
+            prediction, out_sch_obj, intersect_keys=True, order="after"
+        ):
+            prop = prop.type if isinstance(prop, NamedProperty) else prop
+            for validator in prop.validators:
+                valid, propval = validator.validate_property(val.to_python())
+                print(validator, propval, valid)
+                val.is_valid = valid
+                if val.type not in (DataType.ARRAY, DataType.OBJECT):
+                    val.value = propval
+                if not val.is_valid:
+                    if id(validator) not in decremented_validators:
+                        validator.n_retries -= 1
+                        decremented_validators.add(id(validator))
+                    val.invalid_guesses.append(val.value)
+            if val.type is DataType.OBJECT:
+                val.is_valid = all(inner.is_valid for inner in val.value.values())
+            if val.type is DataType.ARRAY:
+                val.is_valid = all(inner.is_valid for inner in val.value)
+
+        pred_copy = prediction.model_copy(deep=True)
+
+        for k, (val, prop), (val_p, prop_p) in zip_traverse(
+            pred_copy, out_sch_obj, intersect_keys=True, order="before"
+        ):
+            oprop = prop
+            prop = prop.type if isinstance(prop, NamedProperty) else prop
+            trim = False
+            if len(prop_to_inner_validators[id(prop)]) == 0:
+                trim = True
+            if val.is_valid:
+                trim = True
+            if any(v.n_retries < 0 for v in prop_to_inner_validators[id(prop)]):
+                trim = True
+            if val.type is DataType.ARRAY:
+                # Hack to prevent trimming properties inside arrays
+                # by telling zip_traverse there's nothing to traverse.
+                # I can get away with this bc I copied the prediction.
+                val.value = []
+            if trim:
+                if prop_p.get_type() is DataType.OBJECT:
+                    if isinstance(prop_p, NamedProperty):
+                        prop_p = prop_p.type
+                    assert isinstance(prop_p, ObjectProperty), "Unreachable, type narrowing"
+                    print(f"Trim {oprop}")
+                    prop_p.properties.remove(oprop)
+
+        if len(out_sch_obj.properties) > 0:
+            return Schema(properties=out_sch_obj.properties)
+        return None
 
 
 class SchemaExtract(MapBatch):

@@ -15,7 +15,7 @@ from sycamore.transforms.property_extraction.strategy import (
     TakeFirstTrimSchema,
 )
 from sycamore.transforms.property_extraction.types import RichProperty
-from sycamore.transforms.property_extraction.prompts import schema_extract_pre_elements_helper
+from sycamore.transforms.property_extraction.prompts import schema_extract_pre_elements_helper, ExtractionJinjaPrompt
 from sycamore.transforms.property_extraction.utils import remove_keys_recursive
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
@@ -136,7 +136,7 @@ class SchemaExtract(MapBatch):
         *,
         step_through_strategy: StepThroughStrategy,
         llm: LLM,
-        prompt: SycamorePrompt,
+        prompt: ExtractionJinjaPrompt,
         existing_schema: Optional[Schema] = None,
     ):
         super().__init__(node, f=self.extract_schema)

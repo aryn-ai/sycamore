@@ -1,6 +1,7 @@
 from typing import Optional, Any
 import asyncio
 import logging
+import json
 
 from sycamore.data.document import Document, Element
 from sycamore.plan_nodes import Node
@@ -14,6 +15,8 @@ from sycamore.transforms.property_extraction.strategy import (
     TakeFirstTrimSchema,
 )
 from sycamore.transforms.property_extraction.types import RichProperty
+from sycamore.transforms.property_extraction.prompts import schema_extract_pre_elements_helper
+from sycamore.transforms.property_extraction.utils import remove_keys_recursive
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
@@ -134,11 +137,17 @@ class SchemaExtract(MapBatch):
         step_through_strategy: StepThroughStrategy,
         llm: LLM,
         prompt: SycamorePrompt,
+        existing_schema: Optional[Schema] = None,
     ):
         super().__init__(node, f=self.extract_schema)
         self._step_through = step_through_strategy
         self._llm = llm
         self._prompt = prompt
+        if existing_schema is not None and len(existing_schema.properties) > 0:
+            # TODO: Change the keys to be removed from the schema based on what the prompt needs
+            self._prompt.user_pre_elements += schema_extract_pre_elements_helper.format(
+                existing_schema=json.dumps(remove_keys_recursive(existing_schema.model_dump()["properties"]), indent=2)
+            )
         # Try calling the render method I need at constructor to make sure it's implemented
         self._prompt.render_multiple_elements(elts=[], doc=Document())
 

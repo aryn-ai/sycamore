@@ -145,6 +145,8 @@ class SchemaExtract(MapBatch):
         self._prompt = prompt
         if existing_schema is not None and len(existing_schema.properties) > 0:
             # TODO: Change the keys to be removed from the schema based on what the prompt needs
+            if self._prompt.user_pre_elements is None:
+                self._prompt.user_pre_elements = ""
             self._prompt.user_pre_elements += schema_extract_pre_elements_helper.format(
                 existing_schema=json.dumps(remove_keys_recursive(existing_schema.model_dump()["properties"]), indent=2)
             )

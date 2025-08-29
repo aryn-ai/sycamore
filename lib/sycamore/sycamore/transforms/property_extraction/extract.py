@@ -115,7 +115,6 @@ class Extract(MapBatch):
     async def extract_schema_partition_from_element_batch(
         self, document: Document, elements: list[Element], schema_part: Schema, result_dict: dict[str, RichProperty]
     ) -> SchemaUpdateResult:
-        print(elements[0].text_representation)
         sch = schema_part
         retries = 0
 
@@ -207,13 +206,11 @@ class Extract(MapBatch):
                 # by telling zip_traverse there's nothing to traverse.
                 # I can get away with this bc I copied the prediction.
                 val.value = []
-            if trim:
-                if prop_p.get_type() is DataType.OBJECT:
-                    if isinstance(prop_p, NamedProperty):
-                        prop_p = prop_p.type
-                    assert isinstance(prop_p, ObjectProperty), "Unreachable, type narrowing"
-                    print(f"Trim {oprop}")
-                    prop_p.properties.remove(oprop)
+            if trim and prop_p.get_type() is DataType.OBJECT:
+                if isinstance(prop_p, NamedProperty):
+                    prop_p = prop_p.type
+                assert isinstance(prop_p, ObjectProperty), "Unreachable, type narrowing"
+                prop_p.properties.remove(oprop)
 
         if len(out_sch_obj.properties) > 0:
             return Schema(properties=out_sch_obj.properties)

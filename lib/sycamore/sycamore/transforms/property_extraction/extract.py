@@ -20,7 +20,7 @@ from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe
 from sycamore.transforms.property_extraction.utils import stitch_together_objects, dedup_examples
 from sycamore.transforms.property_extraction.attribution import refine_attribution
-from sycamore.utils.zt import zip_traverse
+from sycamore.utils.zip_traverse import zip_traverse
 
 _logger = logging.getLogger(__name__)
 

@@ -1,4 +1,4 @@
-from sycamore.utils.zt import zip_traverse, ZTDict
+from sycamore.utils.zip_traverse import zip_traverse, ZTDict
 
 
 def test_zt_one_obj():

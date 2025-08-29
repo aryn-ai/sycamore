@@ -1,7 +1,7 @@
 from sycamore.transforms.property_extraction.types import RichProperty, AttributionValue
 from sycamore.transforms.property_extraction.attribution import refine_attribution
 from sycamore.data import Document, Element
-from sycamore.utils.zt import zip_traverse
+from sycamore.utils.zip_traverse import zip_traverse
 
 
 def test_refine_attribution():

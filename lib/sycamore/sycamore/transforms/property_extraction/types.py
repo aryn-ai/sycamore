@@ -6,7 +6,7 @@ from pydantic.functional_validators import field_validator
 from sycamore.data.bbox import BoundingBox
 from sycamore.schema import DataType
 from sycamore.llms.prompts.prompts import RenderedPrompt
-from sycamore.utils.zt import ZTDict, ZTLeaf, ZipTraversable, zip_traverse
+from sycamore.utils.zip_traverse import ZTDict, ZTLeaf, ZipTraversable, zip_traverse
 
 
 class AttributionValue(BaseModel):

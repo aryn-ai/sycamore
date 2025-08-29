@@ -6,7 +6,7 @@ from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.schema import ObjectProperty, NamedProperty, SchemaV2, DataType
 from sycamore.transforms.property_extraction.types import RichProperty
-from sycamore.utils.zt import ZTLeaf, zip_traverse
+from sycamore.utils.zip_traverse import ZTLeaf, zip_traverse
 
 
 class StepThroughStrategy(ABC):

@@ -115,6 +115,7 @@ class Extract(MapBatch):
     async def extract_schema_partition_from_element_batch(
         self, document: Document, elements: list[Element], schema_part: Schema, result_dict: dict[str, RichProperty]
     ) -> SchemaUpdateResult:
+        print(elements[0].text_representation)
         sch = schema_part
         retries = 0
 
@@ -199,7 +200,7 @@ class Extract(MapBatch):
             trim = (
                 len(prop_to_inner_validators[id(prop)]) == 0
                 or val.is_valid
-                or any(v.n_retries < 0 for v in prop_to_inner_validators[id(prop)])
+                or any(v.n_retries <= 0 for v in prop_to_inner_validators[id(prop)])
             )
             if val.type is DataType.ARRAY:
                 # Hack to prevent trimming properties inside arrays

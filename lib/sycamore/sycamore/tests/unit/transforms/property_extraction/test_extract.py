@@ -24,11 +24,13 @@ class FakeExtractionPrompt(SycamorePrompt):
 class FakeLLM(LLM):
     def __init__(self):
         super().__init__(model_name="fake", default_mode=LLMMode.ASYNC)
+        self.ncalls = 0
 
     def is_chat_mode(self):
         return True
 
     def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        self.ncalls += 1
         return f"""{{
             "doc_id": "{prompt.messages[0].content[6:]}",
             "nelts": {prompt.messages[1].content[6:]},
@@ -237,19 +239,20 @@ class TestExtract:
         schema = SchemaV2(
             properties=[
                 NamedProperty(
-                    name="doc_id", type=StringProperty(validators=[RegexValidator(regex=r"regexthatdoesntmatch")])
+                    name="doc_id",
+                    type=StringProperty(validators=[RegexValidator(regex=r"regexthatdoesntmatch", n_retries=3)]),
                 ),
-                NamedProperty(name="missing", type=StringProperty()),
                 NamedProperty(name="telts", type=IntProperty()),
             ]
         )
 
+        llm = FakeLLM()
         extract = Extract(
             None,
             schema=schema,
             step_through_strategy=OneElementAtATime(),
             schema_partition_strategy=NoSchemaSplitting(),
-            llm=FakeLLM(),
+            llm=llm,
             prompt=FakeExtractionPrompt(),
         )
 
@@ -257,3 +260,45 @@ class TestExtract:
         # Incoming properties are assumed to be valid unless they say otherwise
         assert extracted[0].field_to_value("properties.entity_metadata.doc_id").is_valid
         assert not extracted[1].field_to_value("properties.entity_metadata.doc_id").is_valid
+        assert llm.ncalls == 1 + 3 + 3
+
+    def test_extract_validator_retry_unpredictable_prop(self):
+        docs = [
+            Document(
+                doc_id="0",
+                elements=[
+                    Element(text_representation="d0e0", properties={"_element_index": 4}),
+                    Element(text_representation="d0e1", properties={"_element_index": 9}),
+                    Element(text_representation="d0e2", properties={"_element_index": 19}),
+                ],
+            ),
+            Document(
+                doc_id="1",
+                elements=[
+                    Element(text_representation="d1e0", properties={"_element_index": 40}),
+                    Element(text_representation="d1e1", properties={"_element_index": 41}),
+                ],
+            ),
+        ]
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(name="missing", type=StringProperty()),
+            ]
+        )
+
+        llm = FakeLLM()
+        extract = Extract(
+            None,
+            schema=schema,
+            step_through_strategy=OneElementAtATime(),
+            schema_partition_strategy=NoSchemaSplitting(),
+            llm=llm,
+            prompt=FakeExtractionPrompt(),
+        )
+        extracted = extract.run(docs)
+
+        from sycamore.transforms.property_extraction.extract import MAX_RETRIES
+
+        assert llm.ncalls == MAX_RETRIES * 5
+        assert extracted[0].field_to_value("properties.entity.missing") is None
+        assert extracted[1].field_to_value("properties.entity.missing") is None

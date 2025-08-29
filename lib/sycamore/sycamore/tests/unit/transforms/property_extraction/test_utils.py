@@ -17,7 +17,6 @@ def test_stitch_together_objects():
                 "c3",
             ],
         },
-        attributable_elements=[],
     )
     ob2 = RichProperty.from_prediction(
         prediction={
@@ -28,7 +27,6 @@ def test_stitch_together_objects():
             "c": ["c3", "c4", "c5"],
             "d": "dval",
         },
-        attributable_elements=[],
     )
 
     ob3 = stitch_together_objects(ob1, ob2)

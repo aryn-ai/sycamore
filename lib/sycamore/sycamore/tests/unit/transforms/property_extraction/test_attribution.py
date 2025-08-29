@@ -1,6 +1,7 @@
-from sycamore.transforms.property_extraction.types import RichProperty
+from sycamore.transforms.property_extraction.types import RichProperty, AttributionValue
 from sycamore.transforms.property_extraction.attribution import refine_attribution
 from sycamore.data import Document, Element
+from sycamore.utils.zip_traverse import zip_traverse
 
 
 def test_refine_attribution():
@@ -41,9 +42,12 @@ def test_refine_attribution():
         ]
     )
 
-    richprops = {}
-    for k, v in propsdict.items():
-        richprops[k] = RichProperty.from_prediction(v, doc.elements, name=k)
+    rp = RichProperty.from_prediction(propsdict)
+    for k, (v,), (p,) in zip_traverse(rp):
+        v.attribution = AttributionValue(
+            element_indices=[e.element_index if e.element_index is not None else -1 for e in doc.elements]
+        )
+    richprops = rp.value
 
     atta = refine_attribution(richprops["a"], doc).attribution
     assert atta is not None

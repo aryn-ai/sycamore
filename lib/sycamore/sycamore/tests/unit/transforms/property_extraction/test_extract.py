@@ -7,7 +7,7 @@ from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
 from sycamore.transforms.property_extraction.extract import Extract
 from sycamore.transforms.property_extraction.strategy import NoSchemaSplitting, OneElementAtATime
-from sycamore.schema import IntProperty, NamedProperty, SchemaV2, StringProperty, DataType
+from sycamore.schema import IntProperty, NamedProperty, RegexValidator, SchemaV2, StringProperty, DataType
 
 
 class FakeExtractionPrompt(SycamorePrompt):
@@ -46,9 +46,9 @@ class TestExtract:
             Document(
                 doc_id="0",
                 elements=[
-                    Element(text_representation="d0e0"),
-                    Element(text_representation="d0e1"),
-                    Element(text_representation="d0e2"),
+                    Element(text_representation="d0e0", properties={"_element_index": 4}),
+                    Element(text_representation="d0e1", properties={"_element_index": 9}),
+                    Element(text_representation="d0e2", properties={"_element_index": 19}),
                 ],
                 properties={
                     "entity": {"doc_id": "flarglhavn"},
@@ -65,8 +65,8 @@ class TestExtract:
             Document(
                 doc_id="1",
                 elements=[
-                    Element(text_representation="d1e0"),
-                    Element(text_representation="d1e1"),
+                    Element(text_representation="d1e0", properties={"_element_index": 40}),
+                    Element(text_representation="d1e1", properties={"_element_index": 41}),
                 ],
             ),
         ]
@@ -108,9 +108,9 @@ class TestExtract:
             Document(
                 doc_id="0",
                 elements=[
-                    Element(text_representation="d0e0"),
-                    Element(text_representation="d0e1"),
-                    Element(text_representation="d0e2"),
+                    Element(text_representation="d0e0", properties={"_element_index": 4}),
+                    Element(text_representation="d0e1", properties={"_element_index": 9}),
+                    Element(text_representation="d0e2", properties={"_element_index": 19}),
                 ],
                 properties={
                     "entity": {"doc_id": "flarglhavn"},
@@ -127,8 +127,8 @@ class TestExtract:
             Document(
                 doc_id="1",
                 elements=[
-                    Element(text_representation="d1e0"),
-                    Element(text_representation="d1e1"),
+                    Element(text_representation="d1e0", properties={"_element_index": 40}),
+                    Element(text_representation="d1e1", properties={"_element_index": 42}),
                 ],
             ),
         ]
@@ -203,3 +203,57 @@ class TestExtract:
             prompt=ImplButCrashPrompt(),
             output_pydantic_models=False,
         )
+
+    def test_extract_validators(self):
+        docs = [
+            Document(
+                doc_id="0",
+                elements=[
+                    Element(text_representation="d0e0", properties={"_element_index": 4}),
+                    Element(text_representation="d0e1", properties={"_element_index": 9}),
+                    Element(text_representation="d0e2", properties={"_element_index": 19}),
+                ],
+                properties={
+                    "entity": {"doc_id": "flarglhavn"},
+                    "entity_metadata": {
+                        "doc_id": {
+                            "name": "doc_id",
+                            "type": DataType.STRING,
+                            "value": "flarglhavn",
+                            "attribution": {"element_indices": [0], "page": 0, "bbox": [0, 0, 1, 1]},
+                        }
+                    },
+                },
+            ),
+            Document(
+                doc_id="1",
+                elements=[
+                    Element(text_representation="d1e0", properties={"_element_index": 40}),
+                    Element(text_representation="d1e1", properties={"_element_index": 41}),
+                ],
+            ),
+        ]
+
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(
+                    name="doc_id", type=StringProperty(validators=[RegexValidator(regex=r"regexthatdoesntmatch")])
+                ),
+                NamedProperty(name="missing", type=StringProperty()),
+                NamedProperty(name="telts", type=IntProperty()),
+            ]
+        )
+
+        extract = Extract(
+            None,
+            schema=schema,
+            step_through_strategy=OneElementAtATime(),
+            schema_partition_strategy=NoSchemaSplitting(),
+            llm=FakeLLM(),
+            prompt=FakeExtractionPrompt(),
+        )
+
+        extracted = extract.run(docs)
+        # Incoming properties are assumed to be valid unless they say otherwise
+        assert extracted[0].field_to_value("properties.entity_metadata.doc_id").is_valid
+        assert not extracted[1].field_to_value("properties.entity_metadata.doc_id").is_valid

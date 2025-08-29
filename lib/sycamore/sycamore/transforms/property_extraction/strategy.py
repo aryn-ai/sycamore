@@ -118,10 +118,12 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                     out_p.value[k] = nf
                 else:
                     out_p.value[k] = ef
+                    trim = trim and ef.is_valid
             elif nf is not None:
                 if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT):
                     trim = True
                 out_p.value[k] = nf
+                trim = trim and nf.is_valid
 
             # If this property should not be trimmed (was not found or is an array/object)
             # Add it to the parent property list if applicable. Array properties are added

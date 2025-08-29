@@ -24,7 +24,7 @@ from sycamore.utils.zt import zip_traverse
 
 _logger = logging.getLogger(__name__)
 
-MAX_RETRIES = 3
+MAX_RETRIES = 10
 
 
 class Extract(MapBatch):
@@ -115,10 +115,6 @@ class Extract(MapBatch):
     async def extract_schema_partition_from_element_batch(
         self, document: Document, elements: list[Element], schema_part: Schema, result_dict: dict[str, RichProperty]
     ) -> SchemaUpdateResult:
-        print("vvvvvvvvvvvvvvvvvv")
-        print(elements)
-        print(schema_part)
-        print("^^^^^^^^^^^^^^^^^^")
         sch = schema_part
         retries = 0
 
@@ -131,7 +127,12 @@ class Extract(MapBatch):
             rd = extract_json(result)
             rp = RichProperty.from_prediction(rd)
 
-            for k, (v_new, v_work), (p_new, p_work) in zip_traverse(rp, working_results, order="before"):
+            for k, (v_new, v_work, prop), (p_new, p_work, prop_p) in zip_traverse(
+                rp, working_results, sch.as_object_property(), order="before"
+            ):
+                if prop is None:
+                    # If I didn't ask for this property, skip
+                    continue
                 if v_new is v_work:
                     # When I replace a list sub-items are the same, so skip
                     continue
@@ -139,11 +140,6 @@ class Extract(MapBatch):
                     p_work.value[k] = v_new
 
             sch = self.validate_prediction(sch, working_results)
-            print("---")
-            print(sch)
-            print("---")
-            print(working_results)
-            print("---")
             retries += 1
 
         for k, (v,), (p,) in zip_traverse(working_results):
@@ -200,13 +196,11 @@ class Extract(MapBatch):
         ):
             oprop = prop
             prop = prop.type if isinstance(prop, NamedProperty) else prop
-            trim = False
-            if len(prop_to_inner_validators[id(prop)]) == 0:
-                trim = True
-            if val.is_valid:
-                trim = True
-            if any(v.n_retries < 0 for v in prop_to_inner_validators[id(prop)]):
-                trim = True
+            trim = (
+                len(prop_to_inner_validators[id(prop)]) == 0
+                or val.is_valid
+                or any(v.n_retries < 0 for v in prop_to_inner_validators[id(prop)])
+            )
             if val.type is DataType.ARRAY:
                 # Hack to prevent trimming properties inside arrays
                 # by telling zip_traverse there's nothing to traverse.

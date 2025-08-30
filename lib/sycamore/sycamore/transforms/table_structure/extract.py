@@ -528,10 +528,10 @@ class HybridTableStructureExtractor(TableStructureExtractor):
 class VLMTableStructureExtractor(TableStructureExtractor):
     """Table structure extractor that uses a VLM model to extract the table structure."""
 
-    EXTRACT_TABLE_STRUCTURE_PROMPT = """You are a specialized image table extraction engine. Your task is to identify and convert every table in uploaded images into clean, structured HTML.
+    EXTRACT_TABLE_STRUCTURE_PROMPT = """You are a specialized image table extraction engine. Your task is to identify and convert the table in the uploaded image into clean, structured HTML.
 
 EXTRACTION REQUIREMENTS:
-1. **Output Format**: Return ONLY complete HTML table structures
+1. **Output Format**: Return ONLY the complete HTML table structure.
    - Begin each table with `<table>`
    - End each table with `</table>`
    - Use `<tr>` for table rows

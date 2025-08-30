@@ -528,8 +528,38 @@ class HybridTableStructureExtractor(TableStructureExtractor):
 class VLMTableStructureExtractor(TableStructureExtractor):
     """Table structure extractor that uses a VLM model to extract the table structure."""
 
-    EXTRACT_TABLE_STRUCTURE_PROMPT = """You are given an image of a table from a document. Please convert this table into HTML. Be sure to include the table header and all rows. Use 'colspan' and 'rowspan' in the output to indicate merged cells. Return the HTML as a string. Do not include any other text in the response.
-+"""
+    EXTRACT_TABLE_STRUCTURE_PROMPT = """You are a specialized image table extraction engine. Your task is to identify and convert every table in uploaded images into clean, structured HTML.
+
+EXTRACTION REQUIREMENTS:
+1. **Output Format**: Return ONLY complete HTML table structures
+   - Begin each table with `<table>`
+   - End each table with `</table>`
+   - Use `<tr>` for table rows
+   - Use `<th>` for header cells (first row or column headers)
+   - Use `<td>` for all data cells
+
+2. **Content Preservation**: 
+   - Reproduce cell content exactly as written (maintain spacing, punctuation, capitalization)
+   - Preserve numerical formatting (decimals, percentages, currency symbols)
+   - Keep empty cells as `<td></td>` or `<th></th>`
+   - Do not attempt to encode images
+
+3. **Structure Accuracy**:
+   - Apply `rowspan="n"` for cells spanning multiple rows
+   - Apply `colspan="n"` for cells spanning multiple columns
+   - Ensure spanning attributes create valid table structure
+   - Maintain consistent column count across all rows
+
+4. **Quality Standards**:
+   - Each image will contain exactly one table
+   - Do not add styling, classes, or additional HTML elements
+   - Do not include explanatory text or comments
+
+5. **Error Handling**:
+   - If text is unclear, use your best interpretation
+   - For partially visible tables, extract visible portions
+
+OUTPUT NOTHING EXCEPT the HTML table structure."""
 
     DEFAULT_RETRIES = 2
     INITIAL_BACKOFF = 0.2

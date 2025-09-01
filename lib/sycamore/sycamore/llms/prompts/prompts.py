@@ -50,6 +50,9 @@ class RenderedPrompt:
             return 0
         return sum(len(tokenizer.tokenize(m.content)) for m in self.messages)
 
+    def to_human_readable(self) -> str:
+        return "\n".join(f"------------------------\n{m.role}\n-----------------------\n{m.content}\n" for m in self.messages)
+
 
 class SycamorePrompt:
     """Base class/API for all Sycamore LLM Prompt objects. Sycamore Prompts

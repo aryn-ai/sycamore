@@ -448,6 +448,9 @@ class TestSchemaExtract:
         )
         ds = DocSet(context, schema_ext)
         agg_schema_pred = ds.take()[0].properties.get("_schema", SchemaV2(properties=[]))
+        if existing_schema is not None and len(existing_schema.properties) > 0:
+            for named_prop in existing_schema.properties:
+                agg_schema_pred.properties.append(named_prop)
 
         assert len(agg_schema_pred.properties) == len(
             agg_schema_true.properties

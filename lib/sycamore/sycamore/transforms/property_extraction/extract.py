@@ -142,14 +142,16 @@ class SchemaExtract(MapBatch):
         super().__init__(node, f=self.extract_schema)
         self._step_through = step_through_strategy
         self._llm = llm
-        self._prompt = prompt
         if existing_schema is not None and len(existing_schema.properties) > 0:
-            # TODO: Change the keys to be removed from the schema based on what the prompt needs
-            if self._prompt.user_pre_elements is None:
-                self._prompt.user_pre_elements = ""
-            self._prompt.user_pre_elements += schema_extract_pre_elements_helper.format(
-                existing_schema=json.dumps(remove_keys_recursive(existing_schema.model_dump()["properties"]), indent=2)
+            user_pre_elements = (
+                (prompt.user_pre_elements or "")
+                + schema_extract_pre_elements_helper.format(
+                    existing_schema=json.dumps(remove_keys_recursive(existing_schema.model_dump()["properties"]), indent=2)
+                )
             )
+            self._prompt = prompt.fork(user_pre_elements=user_pre_elements)
+        else:
+            self._prompt = prompt
         # Try calling the render method I need at constructor to make sure it's implemented
         self._prompt.render_multiple_elements(elts=[], doc=Document())
 

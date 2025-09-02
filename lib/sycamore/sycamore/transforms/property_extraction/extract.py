@@ -143,11 +143,8 @@ class SchemaExtract(MapBatch):
         self._step_through = step_through_strategy
         self._llm = llm
         if existing_schema is not None and len(existing_schema.properties) > 0:
-            user_pre_elements = (
-                (prompt.user_pre_elements or "")
-                + schema_extract_pre_elements_helper.format(
-                    existing_schema=json.dumps(remove_keys_recursive(existing_schema.model_dump()["properties"]), indent=2)
-                )
+            user_pre_elements = (prompt.user_pre_elements or "") + schema_extract_pre_elements_helper.format(
+                existing_schema=json.dumps(remove_keys_recursive(existing_schema.model_dump()["properties"]), indent=2)
             )
             self._prompt = prompt.fork(user_pre_elements=user_pre_elements)
         else:

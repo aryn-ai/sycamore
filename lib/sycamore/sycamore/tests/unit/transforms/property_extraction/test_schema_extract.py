@@ -30,9 +30,8 @@ class FakeExtractionPrompt(ExtractionJinjaPrompt):
         )
 
     def fork(self, **kwargs):
-        # Override fork to return an instance of the fake prompt
-        # This is a simple implementation; you might need to copy more attributes
-        # depending on what your test needs.
+        # Override fork to return an instance of the fake prompt. This is needed because the base class fork method
+        # returns an instance of the base class, which we don't want.
         new_prompt = FakeExtractionPrompt()
         for k, v in kwargs.items():
             setattr(new_prompt, k, v)

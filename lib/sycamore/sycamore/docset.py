@@ -476,13 +476,19 @@ class DocSet:
         return DocSet(self.context, ext)
 
     @experimental
-    def suggest_schema(self, llm: LLM, reduce_fn: Optional[Callable[[list[Document]], Document]] = None) -> "SchemaV2":
+    def suggest_schema(
+        self,
+        llm: LLM,
+        existing_schema: Optional[SchemaV2] = None,
+        reduce_fn: Optional[Callable[[list[Document]], Document]] = None,
+    ) -> "SchemaV2":
         """
         Extracts a common schema from the documents in this DocSet.
         This transform is similar to extract_schema, except that it will add the same schema
         to each document in the DocSet rather than inferring a separate schema per Document.
         Args:
             llm: An instance of an LLM class that defines the LLM to be used for schema extraction.
+            existing_schema: An optional existing schema to provide as context to the LLM.
             reduce_fn: A function that takes a list of Documents (each with a _schema property) and
                        returns a single Document with the combined schema. If None, defaults to
                        intersection_of_fields.
@@ -504,11 +510,15 @@ class DocSet:
             step_through_strategy=BatchElements(batch_size=50),
             llm=llm,
             prompt=_schema_extraction_prompt,
+            existing_schema=existing_schema,
         )
         if reduce_fn is None:
             reduce_fn = intersection_of_fields
         ds = DocSet(self.context, schema_ext).reduce(reduce_fn)
         schema = ds.take()[0].properties.get("_schema", SchemaV2(properties=[]))
+        if existing_schema is not None and len(existing_schema.properties) > 0:
+            for named_prop in existing_schema.properties:
+                schema.properties.append(named_prop)
 
         return schema
 

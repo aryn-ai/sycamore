@@ -193,6 +193,12 @@ as JSON. If a field is not present on the page, output `null` in the output resu
 
 default_prompt = _elt_at_a_time_full_schema
 
+schema_extract_pre_elements_helper = """\n
+You are given a schema that has already been extracted from the document. Now extract only the new properties that are missing from this schema. Do not include any properties that are already in the schema. Use the structure of the schema (names and nesting) to decide what is already included.
+Extracted schema:
+{existing_schema}
+"""
+
 _schema_extraction_prompt = ExtractionJinjaPrompt(
     system=textwrap.dedent(
         """\

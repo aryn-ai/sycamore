@@ -29,43 +29,7 @@ from sycamore.utils.pdf_utils import get_element_image, select_pdf_pages
 import json
 
 
-def format_property(prop: Property, indent=0) -> str:
-    indent_spaces = " " * indent
-    if prop.type == DataType.ARRAY:
-        assert isinstance(prop, ArrayProperty)
-        return f"array [\n{indent_spaces}  {format_property(prop.item_type, indent=indent + 2)}\n{indent_spaces}]"
-    if prop.type == DataType.OBJECT:
-        assert isinstance(prop, ObjectProperty)
-        prop_strs = [(p.name, format_property(p.type, indent=indent + 2)) for p in prop.properties]
-        return "object {\n" + ",\n".join([f"{indent_spaces}  {n}: {p}" for n, p in prop_strs]) + f"\n{indent_spaces}}}"
-    if prop.type == DataType.CHOICE:
-        assert isinstance(prop, ChoiceProperty)
-        return 'enum { "' + '", "'.join(map(str, prop.choices)) + '" }'
-    basic_str = f"{{ type: {prop.type.value}"
-    if prop.default is not None:
-        basic_str += f", default={prop.default}"
-    if prop.description is not None:
-        basic_str += f", description: {prop.description}"
-    if prop.extraction_instructions is not None:
-        basic_str += f", extraction_instructions: {prop.extraction_instructions}"
-    if prop.examples is not None:
-        basic_str += f", examples: {prop.examples}"
-    if len(prop.validators) > 0:
-        basic_str += ", constraints: [ "
-        constraints = [vld.constraint_string() for vld in prop.validators]
-        basic_str += ", ".join(constraints)
-        basic_str += " ]"
-
-    return basic_str + " }"
-
-
-def format_schema_v2(schema: SchemaV2) -> str:
-    return format_property(ObjectProperty(properties=schema.properties)).lstrip("object ")
-    prop_strs = [(prop.name, format_property(prop.type)) for prop in schema.properties]
-    return ",\n".join([f"{n}: {p}" for n, p in prop_strs])
-
-
-def format_schema_v2_v2(schema: SchemaV2, entity_metadata: Optional[RichProperty] = None) -> str:
+def format_schema_v2(schema: SchemaV2, entity_metadata: Optional[RichProperty] = None) -> str:
     obj = schema.as_object_property()
     em = ZTLeaf(None) if entity_metadata is None else entity_metadata
     lines = ["{"]
@@ -124,15 +88,6 @@ def format_schema_v2_v2(schema: SchemaV2, entity_metadata: Optional[RichProperty
             lines.append("  " * len(propstack) + "}")
 
     return "\n".join(lines)
-
-
-def format_schema_v2_v3(schema: SchemaV2, entity_metadata: Optional[RichProperty] = None) -> str:
-    return f"""
-{schema.model_dump_json(indent=2)}
-
-Already extracted:
-{entity_metadata.model_dump_json(indent=2)}
-"""
 
 
 class ImageMode(Enum):
@@ -210,7 +165,7 @@ class ExtractionJinjaPrompt(SycamorePrompt):
         render_args = copy.deepcopy(self.kwargs)
         if self.schema is not None:
             if isinstance(self.schema, SchemaV2):
-                render_args["schema"] = format_schema_v2_v2(self.schema)
+                render_args["schema"] = format_schema_v2(self.schema)
             else:
                 render_args["schema"] = self.schema
         render_args["doc"] = doc

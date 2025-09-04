@@ -23,7 +23,7 @@ from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe
 from sycamore.transforms.property_extraction.utils import stitch_together_objects, dedup_examples
 from sycamore.transforms.property_extraction.attribution import refine_attribution
-from sycamore.transforms.property_extraction.prompts import format_schema_v2_v2, format_schema_v2_v3
+from sycamore.transforms.property_extraction.prompts import format_schema_v2
 from sycamore.utils.zip_traverse import zip_traverse
 
 _logger = logging.getLogger(__name__)
@@ -124,7 +124,7 @@ class Extract(MapBatch):
 
         working_results = RichProperty(type=DataType.OBJECT, value={}, name=None)
         while sch is not None and retries < MAX_RETRIES:
-            sch_str = format_schema_v2_v2(sch, working_results)
+            sch_str = format_schema_v2(sch, working_results)
             prompt = self._prompt.fork(schema=sch_str)
 
             rendered = prompt.render_multiple_elements(elements, document)

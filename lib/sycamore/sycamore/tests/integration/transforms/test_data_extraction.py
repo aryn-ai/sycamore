@@ -128,7 +128,7 @@ def test_extract_properties_from_schema(llm):
                 type="string",
                 description="This is the name of an entity",
                 examples=["Mark", "Ollie", "Winston"],
-                default="null",
+                default="None",
             ),
             make_named_property(name="age", type="int", default=999),
             make_named_property(

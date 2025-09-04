@@ -21,6 +21,7 @@ from sycamore.schema import (
     ObjectProperty,
     SchemaV2,
     Property,
+    DataType,
 )
 from sycamore.transforms.property_extraction.types import RichProperty
 from sycamore.utils.zip_traverse import ZTLeaf, zip_traverse
@@ -33,10 +34,12 @@ def format_schema_v2(schema: SchemaV2, entity_metadata: Optional[RichProperty] =
     em = ZTLeaf(None) if entity_metadata is None else entity_metadata
     lines = ["{"]
     propstack: list[Property] = [obj]
+    seen_props = {id(obj)}
 
     for k, (prop, val), (prop_p, val_p) in zip_traverse(obj, em, order="before", intersect_keys=False):
-        if prop is None:
+        if prop is None or id(prop) in seen_props:
             continue
+        seen_props.add(id(prop))
         prop_p = prop_p.unwrap()
         while len(propstack) > 0 and propstack[-1] is not prop_p:
             p = propstack.pop()
@@ -64,7 +67,7 @@ def format_schema_v2(schema: SchemaV2, entity_metadata: Optional[RichProperty] =
             for ig in val.invalid_guesses:
                 lines.append(indentation + f"//   - {json.dumps(ig)}")
 
-        prop_begin = indentation + (f"{k}: " if k is not None else "")
+        prop_begin = indentation + (f"{k}: " if prop_p.get_type() is not DataType.ARRAY else "")
         required_marker = "" if prop.required else "?"
         if isinstance(prop, ArrayProperty):
             lines.append(prop_begin + "array [")

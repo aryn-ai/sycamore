@@ -12,6 +12,7 @@ from sycamore.schema import (
     RegexValidator,
 )
 from sycamore.transforms.property_extraction.types import RichProperty
+from sycamore.tests.unit.transforms.test_summarize import occurrences
 
 
 complicated_schema = SchemaV2(
@@ -109,3 +110,21 @@ def test_format_schema_v2():
     rpt.value["f"].invalid_guesses = ["0123"]
     f = format_schema_v2(complicated_schema, rpt)
     assert f == expected_formatted_schema
+
+
+def test_format_schema_v2_zipwith_array():
+    sch = SchemaV2(
+        properties=[
+            NamedProperty(
+                name="a",
+                type=ArrayProperty(
+                    item_type=ObjectProperty(properties=[NamedProperty(name="b", type=StringProperty())])
+                ),
+            )
+        ]
+    )
+
+    rpt = RichProperty.from_prediction({"a": [{"b": "b1"}, {"b": "b2"}]})
+
+    f = format_schema_v2(sch, rpt)
+    assert occurrences(f, "object") == 1

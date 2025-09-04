@@ -80,7 +80,7 @@ def zip_traverse(
     key_iters = [zt.keys_zt() for zt in zts]
     keys = _order_keys(key_iters, intersect_keys)
 
-    for k in keys:  # type: ignore  # Hashable is not necessarily sortable, but strings and ints are
+    for k in keys:
         if order == "before":
             yield (k, tuple(zt.get_zt(k).value_zt() for zt in zts), tuple(zt.value_zt() for zt in zts))
         yield from zip_traverse(*(zt.get_zt(k) for zt in zts), intersect_keys=intersect_keys, order=order)

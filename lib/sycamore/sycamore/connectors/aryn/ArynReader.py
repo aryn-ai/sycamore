@@ -1,13 +1,8 @@
-import io
-import json
 import logging
-import struct
 from dataclasses import dataclass
 import random
 from time import time
 from typing import Any, TYPE_CHECKING, Optional
-
-import httpx
 
 from sycamore.connectors.aryn.client import ArynClient
 
@@ -87,61 +82,14 @@ class ArynReaderClient(BaseDBReader.Client):
 
     def read_records(self, query_params: "BaseDBReader.QueryParams") -> "ArynQueryResponse":
         assert isinstance(query_params, ArynQueryParams)
-        headers = {"Authorization": f"Bearer {self.api_key}"}
 
-        client = httpx.Client()
-        with client.stream(
-            "POST", f"{self.aryn_url}/docsets/{query_params.docset_id}/read", headers=headers
-        ) as response:
-
-            docs = []
-            print(f"Reading from docset: {query_params.docset_id}")
-            buffer = io.BytesIO()
-            to_read = 0
-            start_new_doc = True
-            doc_size_buf = bytearray(4)
-            idx = 0
-            chunk_count = 0
-            t0 = time()
-            for chunk in response.iter_bytes():
-                cur_pos = 0
-                chunk_count += 1
-                remaining = len(chunk)
-                print(f"Chunk {chunk_count} size: {len(chunk)}")
-                assert len(chunk) >= 4, f"Chunk too small: {len(chunk)} < 4"
-                while cur_pos < len(chunk):
-                    if start_new_doc:
-                        doc_size_buf[idx:] = chunk[cur_pos : cur_pos + 4 - idx]
-                        to_read = struct.unpack("!i", doc_size_buf)[0]
-                        print(f"Reading doc of size: {to_read}")
-                        doc_size_buf = bytearray(4)
-                        idx = 0
-                        cur_pos += 4
-                        remaining = len(chunk) - cur_pos
-                        start_new_doc = False
-                    if to_read > remaining:
-                        buffer.write(chunk[cur_pos:])
-                        to_read -= remaining
-                        print(f"Remaining to read: {to_read}")
-                        # Read the next chunk
-                        break
-                    else:
-                        print("Reading the rest of the doc from the chunk")
-                        buffer.write(chunk[cur_pos : cur_pos + to_read])
-                        docs.append(json.loads(buffer.getvalue().decode()))
-                        buffer.flush()
-                        buffer.seek(0)
-                        cur_pos += to_read
-                        to_read = 0
-                        start_new_doc = True
-                        if (cur_pos - len(chunk)) < 4:
-                            idx = left_over = cur_pos - len(chunk)
-                            doc_size_buf[:left_over] = chunk[cur_pos:]
-                            # Need to get the rest of the next chunk
-                            break
-
-            t1 = time()
-            print(f"Reading took: {t1 - t0} seconds")
+        t0 = time()
+        docs = []
+        doc_list = self._client.list_docs(query_params.docset_id)
+        for doc_id in doc_list:
+            docs.append(self._client.get_doc(query_params.docset_id, doc_id))
+        t1 = time()
+        print(f"Reading took: {t1 - t0} seconds")
         return ArynQueryResponse(docs)
 
     def check_target_presence(self, query_params: "BaseDBReader.QueryParams") -> bool:

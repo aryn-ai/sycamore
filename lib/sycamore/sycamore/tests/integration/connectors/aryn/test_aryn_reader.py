@@ -6,7 +6,7 @@ from sycamore.data import mkdocid, Document
 from sycamore.utils.aryn_config import ArynConfig
 
 
-def test_aryn_reader():
+def test_aryn_reader(exec_mode):
     dicts = [
         {
             "doc_id": mkdocid("f"),

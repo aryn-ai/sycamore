@@ -86,6 +86,9 @@ class ArynReaderClient(BaseDBReader.Client):
         t0 = time()
         docs = []
         doc_list = self._client.list_docs(query_params.docset_id)
+        if query_params.doc_filter is not None:
+            doc_list = query_params.doc_filter.select(doc_list)
+        logger.debug(f"Found {len(docs)} docs in docset: {query_params.docset_id}")
         for doc_id in doc_list:
             docs.append(self._client.get_doc(query_params.docset_id, doc_id))
         t1 = time()

@@ -28,7 +28,7 @@ from sycamore.utils.zip_traverse import zip_traverse
 
 _logger = logging.getLogger(__name__)
 
-MAX_RETRIES = 10
+MAX_RETRIES = 3
 
 
 class Extract(MapBatch):

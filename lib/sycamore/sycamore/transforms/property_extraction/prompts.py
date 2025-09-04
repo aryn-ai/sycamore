@@ -21,10 +21,9 @@ from sycamore.schema import (
     ObjectProperty,
     SchemaV2,
     Property,
-    DataType,
 )
 from sycamore.transforms.property_extraction.types import RichProperty
-from sycamore.utils.zt import ZTLeaf, zip_traverse
+from sycamore.utils.zip_traverse import ZTLeaf, zip_traverse
 from sycamore.utils.pdf_utils import get_element_image, select_pdf_pages
 import json
 

@@ -262,7 +262,7 @@ class TestExtract:
         assert not extracted[1].field_to_value("properties.entity_metadata.doc_id").is_valid
         assert llm.ncalls == 1 + 3 + 3
 
-    def test_extract_validator_retry_unpredictable_prop(self):
+    def test_extract_validator_no_retry_null(self):
         docs = [
             Document(
                 doc_id="0",
@@ -297,8 +297,6 @@ class TestExtract:
         )
         extracted = extract.run(docs)
 
-        from sycamore.transforms.property_extraction.extract import MAX_RETRIES
-
-        assert llm.ncalls == MAX_RETRIES * 5
+        assert llm.ncalls == 5
         assert extracted[0].field_to_value("properties.entity.missing") is None
         assert extracted[1].field_to_value("properties.entity.missing") is None

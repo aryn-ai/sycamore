@@ -119,7 +119,7 @@ class Extract(MapBatch):
     async def extract_schema_partition_from_element_batch(
         self, document: Document, elements: list[Element], schema_part: Schema, result_dict: dict[str, RichProperty]
     ) -> SchemaUpdateResult:
-        sch = schema_part
+        sch: Optional[Schema] = schema_part
         retries = 0
 
         working_results = RichProperty(type=DataType.OBJECT, value={}, name=None)

@@ -713,6 +713,7 @@ class DocSetReader:
             docset_id: The ID of the Aryn docset to read from.
             aryn_api_key: (Optional) The Aryn API key to use for authentication.
             aryn_url: (Optional) The URL of the Aryn instance to read from.
+            doc_filter: (Optional) A DocFilter to filter the documents to read from the docset.
             kwargs: Keyword arguments to pass to the underlying execution engine.
         """
         from sycamore.connectors.aryn.ArynReader import (

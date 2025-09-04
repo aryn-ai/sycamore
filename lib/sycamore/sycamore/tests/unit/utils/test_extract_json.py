@@ -23,14 +23,26 @@ def test_bad_escape():
 
 def test_code_block():
     want = {"a": 5, "x": "y"}
-    # Note extract_json does not tolerate any leading whitespace
+    # Test without and with leading whitespce
     input = """```json
 { "a": 5, "x": "y" }
 ```
 """
     assert extract_json(input) == want
+    assert extract_json("\n" + input) == want
 
+def test_nested_code_block():
+    want = {"a": 5, "x": "```json ... ```"}
+    input = """
+I am so helpful, the json you want is:
+```json
+{ "a": 5, "x": "```json ... ```" }
+```
+That is some perfect json."""
 
+    got = extract_json(input, verbose=True)
+    assert got == want
+    
 def test_fails():
     with pytest.raises(ValueError):
         extract_json("1-2")

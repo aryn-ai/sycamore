@@ -2,11 +2,13 @@ import uuid
 
 from aryn_sdk.client import Client
 import sycamore
+from sycamore.connectors.aryn.ArynReader import DocFilter
 from sycamore.data import mkdocid, Document
 from sycamore.utils.aryn_config import ArynConfig
 
 
-def test_aryn_reader():
+def test_aryn_reader(exec_mode):
+    total_doc_count = 20
     dicts = [
         {
             "doc_id": mkdocid("f"),
@@ -19,7 +21,7 @@ def test_aryn_reader():
                 },
             ],
         }
-        for i in range(101)
+        for i in range(total_doc_count)
     ]
 
     docs = [Document(item) for item in dicts]
@@ -55,7 +57,18 @@ def test_aryn_reader():
         aryn_api_key=api_key,
     ).take_all()
 
-    assert len(ds) == 101
+    assert len(ds) == total_doc_count
+
+    # Test the filter
+    docs10 = [doc.doc_id for doc in ds[0:10]]
+    ds = context.read.aryn(
+        docset_id=docset_id,
+        aryn_url=aryn_url,
+        aryn_api_key=api_key,
+        doc_filter=DocFilter(doc_ids=docs10),
+    ).take_all()
+
+    assert len(ds) == 10
 
     # Clean up the created docset
     client.delete_docset(docset_id=docset_id)

@@ -82,7 +82,7 @@ class ZTList(list, ZipTraversable):
     def get_zt(self, key: Hashable) -> ZipTraversable:
         if not isinstance(key, int):
             return ZTLeaf(None)
-        if key >= len(self) or key < -len(self):
+        if key >= len(self) or key < 0:
             return ZTLeaf(None)
         x = self[key]
         if isinstance(x, dict):

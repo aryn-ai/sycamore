@@ -1,6 +1,7 @@
 from typing import Optional, Any
 import asyncio
 import logging
+import json
 
 from sycamore.data.document import Document, Element
 from sycamore.plan_nodes import Node
@@ -14,6 +15,8 @@ from sycamore.transforms.property_extraction.strategy import (
     TakeFirstTrimSchema,
 )
 from sycamore.transforms.property_extraction.types import AttributionValue, RichProperty
+from sycamore.transforms.property_extraction.prompts import schema_extract_pre_elements_helper, ExtractionJinjaPrompt
+from sycamore.transforms.property_extraction.utils import remove_keys_recursive
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
@@ -21,7 +24,7 @@ from sycamore.utils.threading import run_coros_threadsafe
 from sycamore.transforms.property_extraction.utils import stitch_together_objects, dedup_examples
 from sycamore.transforms.property_extraction.attribution import refine_attribution
 from sycamore.transforms.property_extraction.prompts import format_schema_v2_v2, format_schema_v2_v3
-from sycamore.utils.zt import zip_traverse
+from sycamore.utils.zip_traverse import zip_traverse
 
 _logger = logging.getLogger(__name__)
 
@@ -228,12 +231,19 @@ class SchemaExtract(MapBatch):
         *,
         step_through_strategy: StepThroughStrategy,
         llm: LLM,
-        prompt: SycamorePrompt,
+        prompt: ExtractionJinjaPrompt,
+        existing_schema: Optional[Schema] = None,
     ):
         super().__init__(node, f=self.extract_schema)
         self._step_through = step_through_strategy
         self._llm = llm
-        self._prompt = prompt
+        if existing_schema is not None and len(existing_schema.properties) > 0:
+            user_pre_elements = (prompt.user_pre_elements or "") + schema_extract_pre_elements_helper.format(
+                existing_schema=json.dumps(remove_keys_recursive(existing_schema.model_dump()["properties"]), indent=2)
+            )
+            self._prompt = prompt.fork(user_pre_elements=user_pre_elements)
+        else:
+            self._prompt = prompt
         # Try calling the render method I need at constructor to make sure it's implemented
         self._prompt.render_multiple_elements(elts=[], doc=Document())
 

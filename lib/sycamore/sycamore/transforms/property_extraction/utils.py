@@ -25,6 +25,20 @@ def dedup_examples(x: list[Any]) -> list[Any]:
     return ret_val
 
 
+def remove_keys_recursive(
+    obj: Any, keys_to_remove: set[str] = {"required", "default", "extraction_instructions", "source", "validators"}
+) -> Any:
+    if isinstance(obj, dict):
+        # Remove unwanted keys at this level
+        return {k: remove_keys_recursive(v) for k, v in obj.items() if k not in keys_to_remove}
+    elif isinstance(obj, list):
+        # Recurse into lists
+        return [remove_keys_recursive(item) for item in obj]
+    else:
+        # Base case: return the object as is
+        return obj
+
+
 def stitch_together_objects(ob1: RichProperty, ob2: RichProperty) -> RichProperty:
     if not isinstance(ob1, RichProperty):
         # Reachable by document.properties.entity_metadata not

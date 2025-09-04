@@ -6,7 +6,7 @@ from pydantic.functional_validators import field_validator
 from sycamore.data.bbox import BoundingBox
 from sycamore.schema import DataType
 from sycamore.llms.prompts.prompts import RenderedPrompt
-from sycamore.utils.zt import ZTDict, ZTLeaf, ZipTraversable, zip_traverse
+from sycamore.utils.zip_traverse import ZTDict, ZTLeaf, ZipTraversable, zip_traverse
 
 
 class AttributionValue(BaseModel):
@@ -71,7 +71,7 @@ class RichProperty(BaseModel):
         if self.type is DataType.ARRAY:
             assert isinstance(self.value, list)
             assert isinstance(key, int)
-            if key >= len(self.value) or key < -len(self.value):
+            if key >= len(self.value) or key < 0:
                 return ZTLeaf(None)
             v = self.value[key]
             assert isinstance(v, RichProperty)

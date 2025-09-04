@@ -294,7 +294,7 @@ def test_type_alias():
 
 
 def test_ziptraverse():
-    from sycamore.utils.zt import zip_traverse
+    from sycamore.utils.zip_traverse import zip_traverse
 
     traverseme_schema_dict = {
         "properties": [

@@ -174,6 +174,7 @@ def test_extract(llm):
     docs = get_docs()
     for d in docs:
         d.elements = [Element(d)]
+        d.elements[0].element_index = 0
 
     schema = SchemaV2(
         properties=[

@@ -5,7 +5,7 @@ import json
 
 from sycamore.data.document import Document, Element
 from sycamore.plan_nodes import Node
-from sycamore.schema import SchemaV2 as Schema, DataType
+from sycamore.schema import NamedProperty, SchemaV2 as Schema, DataType
 from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,
@@ -14,7 +14,7 @@ from sycamore.transforms.property_extraction.strategy import (
     StepThroughStrategy,
     TakeFirstTrimSchema,
 )
-from sycamore.transforms.property_extraction.types import RichProperty
+from sycamore.transforms.property_extraction.types import AttributionValue, RichProperty
 from sycamore.transforms.property_extraction.prompts import schema_extract_pre_elements_helper, ExtractionJinjaPrompt
 from sycamore.transforms.property_extraction.utils import remove_keys_recursive
 from sycamore.llms.llms import LLM
@@ -23,6 +23,7 @@ from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe
 from sycamore.transforms.property_extraction.utils import stitch_together_objects, dedup_examples
 from sycamore.transforms.property_extraction.attribution import refine_attribution
+from sycamore.utils.zip_traverse import zip_traverse
 
 _logger = logging.getLogger(__name__)
 
@@ -80,7 +81,7 @@ class Extract(MapBatch):
                 if isinstance(v, RichProperty):
                     doc.properties["entity"][k] = v.to_python()
                     if not self._output_pydantic:
-                        em[k] = v.dump_recursive()
+                        em[k] = v.model_dump()
                 else:
                     pass  # This property has already been added and de-pydanticized
         return documents
@@ -120,11 +121,26 @@ class Extract(MapBatch):
         rendered = prompt.render_multiple_elements(elements, document)
         result = await self._llm.generate_async(prompt=rendered)
         rd = extract_json(result)
-        new_fields = dict()
-        for k, v in rd.items():
-            new_fields[k] = refine_attribution(RichProperty.from_prediction(v, elements, name=k), document)
+        rp = RichProperty.from_prediction(rd)
+        for k, (v,), (p,) in zip_traverse(rp):
+            v.attribution = AttributionValue(
+                element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
+            )
+        rp = refine_attribution(rp, document)
+        for k, (v, prop_v), (p, prop_p) in zip_traverse(rp, schema_part.as_object_property(), intersect_keys=True):
+            if v is None:
+                continue
+            prop = prop_v.type if isinstance(prop_v, NamedProperty) else prop_v
+            for val in prop.validators:
+                valid, propval = val.validate_property(v.to_python())
+                v.is_valid = valid
+                if v.type not in (DataType.ARRAY, DataType.OBJECT):
+                    v.value = propval
+                if not v.is_valid:
+                    break
+
         update = self._schema_update.update_schema(
-            in_schema=schema_part, new_fields=new_fields, existing_fields=result_dict
+            in_schema=schema_part, new_fields=rp.value, existing_fields=result_dict
         )
         return update
 

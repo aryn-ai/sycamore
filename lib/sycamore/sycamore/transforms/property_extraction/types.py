@@ -69,7 +69,7 @@ class RichProperty(BaseModel):
         if self.type is DataType.ARRAY:
             assert isinstance(self.value, list)
             assert isinstance(key, int)
-            if key >= len(self.value) or key < -len(self.value):
+            if key >= len(self.value) or key < 0:
                 return ZTLeaf(None)
             v = self.value[key]
             assert isinstance(v, RichProperty)

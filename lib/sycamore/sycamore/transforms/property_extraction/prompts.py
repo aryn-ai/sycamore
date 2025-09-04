@@ -13,8 +13,20 @@ from sycamore.llms.prompts.prompts import (
     RenderedPrompt,
     compile_templates,
 )
-from sycamore.schema import ArrayProperty, ChoiceProperty, ObjectProperty, SchemaV2, Property, DataType
+from sycamore.schema import (
+    ArrayProperty,
+    ChoiceProperty,
+    DateProperty,
+    DateTimeProperty,
+    ObjectProperty,
+    SchemaV2,
+    Property,
+    DataType,
+)
+from sycamore.transforms.property_extraction.types import RichProperty
+from sycamore.utils.zt import ZTLeaf, zip_traverse
 from sycamore.utils.pdf_utils import get_element_image, select_pdf_pages
+import json
 
 
 def format_property(prop: Property, indent=0) -> str:
@@ -53,6 +65,76 @@ def format_schema_v2(schema: SchemaV2) -> str:
     return ",\n".join([f"{n}: {p}" for n, p in prop_strs])
 
 
+def format_schema_v2_v2(schema: SchemaV2, entity_metadata: Optional[RichProperty] = None) -> str:
+    obj = schema.as_object_property()
+    em = ZTLeaf(None) if entity_metadata is None else entity_metadata
+    lines = ["{"]
+    propstack: list[Property] = [obj]
+
+    for k, (prop, val), (prop_p, val_p) in zip_traverse(obj, em, order="before", intersect_keys=False):
+        if prop is None:
+            continue
+        prop_p = prop_p.unwrap()
+        while len(propstack) > 0 and propstack[-1] is not prop_p:
+            p = propstack.pop()
+            if isinstance(p, ArrayProperty):
+                lines.append("  " * len(propstack) + "]")
+            if isinstance(p, ObjectProperty):
+                lines.append("  " * len(propstack) + "}")
+        prop = prop.unwrap()
+        indentation = "  " * len(propstack)
+        lines.append("")
+        if prop.description is not None:
+            lines.append(indentation + f"// Description: {prop.description}")
+        if prop.extraction_instructions is not None:
+            lines.append(indentation + f"// Extraction Instructions: {prop.extraction_instructions}")
+        if len(prop.validators) > 0:
+            lines.append(indentation + "// Constraints:")
+            for v in prop.validators:
+                lines.append(indentation + f"//   - {v.constraint_string()}")
+        if prop.examples is not None and len(prop.examples) > 0:
+            lines.append(indentation + "// Examples:")
+            for ex in prop.examples:
+                lines.append(indentation + f"//   - {json.dumps(ex)}")
+        if val is not None and len(val.invalid_guesses) > 0:
+            lines.append(indentation + "// Invalid Guesses:")
+            for ig in val.invalid_guesses:
+                lines.append(indentation + f"//   - {json.dumps(ig)}")
+
+        prop_begin = indentation + (f"{k}: " if k is not None else "")
+        required_marker = "" if prop.required else "?"
+        if isinstance(prop, ArrayProperty):
+            lines.append(prop_begin + "array [")
+            propstack.append(prop)
+        elif isinstance(prop, ObjectProperty):
+            lines.append(prop_begin + "object {")
+            propstack.append(prop)
+        elif isinstance(prop, ChoiceProperty):
+            lines.append(prop_begin + 'enum { "' + '", "'.join(map(str, prop.choices)) + '" }' + required_marker)
+        elif isinstance(prop, (DateProperty, DateTimeProperty)):
+            lines.append(prop_begin + f"{prop.type.value}{required_marker} ({prop.format})")
+        else:
+            lines.append(prop_begin + prop.type.value + required_marker)
+
+    while len(propstack) > 0:
+        p = propstack.pop()
+        if isinstance(p, ArrayProperty):
+            lines.append("  " * len(propstack) + "]")
+        if isinstance(p, ObjectProperty):
+            lines.append("  " * len(propstack) + "}")
+
+    return "\n".join(lines)
+
+
+def format_schema_v2_v3(schema: SchemaV2, entity_metadata: Optional[RichProperty] = None) -> str:
+    return f"""
+{schema.model_dump_json(indent=2)}
+
+Already extracted:
+{entity_metadata.model_dump_json(indent=2)}
+"""
+
+
 class ImageMode(Enum):
     NONE = 0
     PAGE = 1
@@ -62,7 +144,7 @@ class ImageMode(Enum):
 class ExtractionJinjaPrompt(SycamorePrompt):
     def __init__(
         self,
-        schema: Optional[SchemaV2] = None,
+        schema: Optional[SchemaV2 | str] = None,
         system: Optional[str] = None,
         user_pre_elements: Optional[str] = None,
         element_template: Optional[str] = None,
@@ -127,7 +209,10 @@ class ExtractionJinjaPrompt(SycamorePrompt):
         # assert self._elt_template is not None, "Unreachable, type narrowing"
         render_args = copy.deepcopy(self.kwargs)
         if self.schema is not None:
-            render_args["schema"] = format_schema_v2(self.schema)
+            if isinstance(self.schema, SchemaV2):
+                render_args["schema"] = format_schema_v2_v2(self.schema)
+            else:
+                render_args["schema"] = self.schema
         render_args["doc"] = doc
 
         messages = []
@@ -180,14 +265,14 @@ _elt_at_a_time_full_schema = ExtractionJinjaPrompt(
     user_pre_elements="""You are provided some elements of a document and a schema. Extract all the fields in the
 schema as JSON. If a field is not present in the element, output `null` in the output result.""",
     element_template="Element: {{ elt.text_representation }}",
-    user_post_elements="Schema: \n{{ schema }}",
+    user_post_elements="Schema: \n```\n{{ schema }}\n```",
 )
 
 _page_image_full_schema = ExtractionJinjaPrompt(
     system=extract_system,
     user_pre_elements="""You are provided a page of a document and a schema. Extract all the fields in the schema
 as JSON. If a field is not present on the page, output `null` in the output result.""",
-    user_post_elements="Schema: \n{{ schema }}",
+    user_post_elements="Schema: \n```\n{{ schema }}\n```",
     image_mode=ImageMode.PAGE,
 )
 

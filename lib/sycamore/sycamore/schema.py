@@ -246,6 +246,9 @@ class Property(BaseModel):
     def is_leaf_type(self) -> bool:
         return self.type not in (DataType.ARRAY, DataType.OBJECT)
 
+    def unwrap(self) -> "Property":
+        return self
+
 
 class BoolProperty(Property):
     type: Literal[DataType.BOOL] = DataType.BOOL
@@ -333,6 +336,9 @@ class NamedProperty(BaseModel):
 
     def is_leaf_type(self) -> bool:
         return self.type.is_leaf_type()
+
+    def unwrap(self) -> Property:
+        return self.type
 
 
 class ObjectProperty(Property):

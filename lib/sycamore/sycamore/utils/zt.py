@@ -44,12 +44,14 @@ def zip_traverse(
         key_sets: list[set[None | Hashable]] = [{None}]
     else:
         key_sets = [set(ki) for ki in key_iters if ki is not None]
+        if all(len(ks) == 0 for ks in key_sets) and None in key_iters:
+            key_sets.append({None})
     if intersect_keys:
         keys = set.intersection(*key_sets)
     else:
         keys = set.union(*key_sets)
 
-    for k in keys:
+    for k in sorted(keys):
         if order == "before":
             yield (k, tuple(zt.get_zt(k).value_zt() for zt in zts), tuple(zt.value_zt() for zt in zts))
         yield from zip_traverse(*(zt.get_zt(k) for zt in zts), intersect_keys=intersect_keys, order=order)

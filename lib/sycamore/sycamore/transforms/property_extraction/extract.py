@@ -20,6 +20,7 @@ from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe
 from sycamore.transforms.property_extraction.utils import stitch_together_objects, dedup_examples
 from sycamore.transforms.property_extraction.attribution import refine_attribution
+from sycamore.transforms.property_extraction.prompts import format_schema_v2_v2, format_schema_v2_v3
 from sycamore.utils.zt import zip_traverse
 
 _logger = logging.getLogger(__name__)
@@ -120,7 +121,8 @@ class Extract(MapBatch):
 
         working_results = RichProperty(type=DataType.OBJECT, value={}, name=None)
         while sch is not None and retries < MAX_RETRIES:
-            prompt = self._prompt.fork(schema=sch)
+            sch_str = format_schema_v2_v2(sch, working_results)
+            prompt = self._prompt.fork(schema=sch_str)
 
             rendered = prompt.render_multiple_elements(elements, document)
             result = await self._llm.generate_async(prompt=rendered)
@@ -175,7 +177,6 @@ class Extract(MapBatch):
             prop = prop.type if isinstance(prop, NamedProperty) else prop
             for validator in prop.validators:
                 valid, propval = validator.validate_property(val.to_python())
-                print(validator, propval, valid)
                 val.is_valid = valid
                 if val.type not in (DataType.ARRAY, DataType.OBJECT):
                     val.value = propval
@@ -192,16 +193,19 @@ class Extract(MapBatch):
         pred_copy = prediction.model_copy(deep=True)
 
         for k, (val, prop), (val_p, prop_p) in zip_traverse(
-            pred_copy, out_sch_obj, intersect_keys=True, order="before"
+            pred_copy, out_sch_obj, intersect_keys=False, order="before"
         ):
+            if prop is None:
+                continue
             oprop = prop
             prop = prop.type if isinstance(prop, NamedProperty) else prop
             trim = (
-                len(prop_to_inner_validators[id(prop)]) == 0
+                val is None
+                or len(prop_to_inner_validators[id(prop)]) == 0
                 or val.is_valid
                 or any(v.n_retries <= 0 for v in prop_to_inner_validators[id(prop)])
             )
-            if val.type is DataType.ARRAY:
+            if val is not None and val.type is DataType.ARRAY:
                 # Hack to prevent trimming properties inside arrays
                 # by telling zip_traverse there's nothing to traverse.
                 # I can get away with this bc I copied the prediction.

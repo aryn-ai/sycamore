@@ -1,10 +1,11 @@
+from io import IOBase
 from sycamore.data import Element, BoundingBox
 from sycamore.utils.cache import DiskCache
 from typing import Any, BinaryIO, Tuple, Iterable, Literal, Optional, cast, Generator, TYPE_CHECKING, Union
 from pathlib import Path
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import timetrace
-from sycamore.transforms.text_extraction.text_extractor import TextExtractor
+from sycamore.transforms.text_extraction.text_extractor import PdfTextExtractor
 import logging
 
 if TYPE_CHECKING:
@@ -30,7 +31,7 @@ def _enumerate_objs(page_layout, target_type: str):
             yield from _enumerate_objs(obj, target_type)
 
 
-class PdfMinerExtractor(TextExtractor):
+class PdfMinerExtractor(PdfTextExtractor["PDFPage"]):
 
     # TODO: Switch the default to lines once we are confident there aren't any regressions.
     @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
@@ -45,9 +46,9 @@ class PdfMinerExtractor(TextExtractor):
         self.interpreter = PDFPageInterpreter(rm, self.device)
         self.object_type = object_type
 
-    @staticmethod
+    @classmethod
     @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
-    def pdf_to_pages(file_name: str) -> Generator["PDFPage", None, None]:
+    def pdf_to_pages(cls, file_name: Union[str, IOBase]) -> Generator["PDFPage", None, None]:
         from pdfminer.utils import open_filename
         from pdfminer.pdfpage import PDFPage
 
@@ -56,37 +57,6 @@ class PdfMinerExtractor(TextExtractor):
             pages = PDFPage.get_pages(fp)
             for page in pages:
                 yield page
-
-    @staticmethod
-    def _convert_bbox_coordinates(
-        rect: Tuple[float, float, float, float],
-        height: float,
-    ) -> Tuple[float, float, float, float]:
-        """
-        pdf coordinates are different, bottom left is origin, also two diagonal points defining a rectangle is
-        (bottom left, upper right), for details, refer
-        https://www.leadtools.com/help/leadtools/v19/dh/to/pdf-topics-pdfcoordinatesystem.html
-        """
-        x1, y2, x2, y1 = rect
-        y1 = height - y1
-        y2 = height - y2
-        return x1, y1, x2, y2
-
-    @timetrace("PdfMinerDocEx")
-    def extract_document(self, filename: str, hash_key: str, use_cache=False, **kwargs) -> list[list[Element]]:
-        cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
-        if cached_result:
-            logger.info(f"Cache Hit for PdfMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")
-            return cached_result
-        else:
-            pages = []
-            for page in PdfMinerExtractor.pdf_to_pages(filename):
-                texts = self.extract_page(page)
-                pages.append(texts)
-            if use_cache:
-                logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
-                pdf_miner_cache.set(hash_key, pages)
-            return pages
 
     @staticmethod
     def _get_font_size(objs) -> float:

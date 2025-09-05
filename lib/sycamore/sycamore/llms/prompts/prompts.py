@@ -51,7 +51,9 @@ class RenderedPrompt:
         return sum(len(tokenizer.tokenize(m.content)) for m in self.messages)
 
     def to_human_readable(self) -> str:
-        return "\n".join(f"------------------------\n{m.role}\n-----------------------\n{m.content}\n" for m in self.messages)
+        return "\n".join(
+            f"------------------------\n{m.role}\n-----------------------\n{m.content}\n" for m in self.messages
+        )
 
 
 class SycamorePrompt:

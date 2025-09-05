@@ -31,6 +31,7 @@ def test_code_block():
     assert extract_json(input) == want
     assert extract_json("\n" + input) == want
 
+
 def test_nested_code_block():
     want = {"a": 5, "x": "```json ... ```"}
     input = """
@@ -42,7 +43,8 @@ That is some perfect json."""
 
     got = extract_json(input, verbose=True)
     assert got == want
-    
+
+
 def test_fails():
     with pytest.raises(ValueError):
         extract_json("1-2")

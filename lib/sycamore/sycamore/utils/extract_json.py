@@ -19,8 +19,8 @@ def extract_json(payload: str, verbose=False) -> Any:
         if verbose:
             print(f"  ----------------------remove ```json ``` wrapper -----------\n{payload}\n")
     elif verbose and "```json" in payload:
-        print(f"  --------------------did not remove ```json from payload")
-            
+        print("  --------------------did not remove ```json from payload")
+
     # Replace Python's None with JSON's null, being careful to not replace
     # strings that might contain "None" as part of their content
     p2 = re.sub(r":\s*None\b", ": null", payload)
@@ -28,7 +28,7 @@ def extract_json(payload: str, verbose=False) -> Any:
         payload = p2
         if verbose:
             print(f"  ----------------------replace Python None -----------------\n{payload}\n")
-            
+
     try:
         return json.loads(payload)
     except JSONDecodeError as exc:

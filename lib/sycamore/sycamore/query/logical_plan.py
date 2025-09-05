@@ -301,6 +301,7 @@ class LogicalPlan(BaseModel):
 
             # Modify the _input_nodes for self.nodes[node_id+1]
             self.nodes[node_id + 1]._input_nodes = [new_node]
+            self.nodes[node_id + 1].inputs = [node_id]
 
         # Insert the new node at the specified node_id
         self.nodes[node_id] = new_node

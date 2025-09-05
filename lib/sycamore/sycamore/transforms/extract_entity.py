@@ -4,12 +4,7 @@ from typing import Callable, Any, Optional, Union
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Element, Document
 from sycamore.llms import LLM
-from sycamore.llms.prompts.default_prompts import (
-    EntityExtractorZeroShotJinjaPrompt,
-    EntityExtractorFewShotJinjaPrompt,
-    _EntityExtractorZeroShotGuidancePrompt,
-    _EntityExtractorFewShotGuidancePrompt,
-)
+
 from sycamore.llms.prompts.prompts import (
     RenderedMessage,
     SycamorePrompt,
@@ -195,8 +190,12 @@ class OpenAIEntityExtractor(EntityExtractor):
                     user = [p["content"] for p in self._prompt] + [j_elements]
                 return JinjaPrompt(system=system, user=user, response_format=None, **common_params)
         elif self._prompt_template is not None:
+            from sycamore.llms.prompts.default_prompts import EntityExtractorFewShotJinjaPrompt
+
             return EntityExtractorFewShotJinjaPrompt.fork(examples=self._prompt_template, **common_params)
         else:
+            from sycamore.llms.prompts.default_prompts import EntityExtractorZeroShotJinjaPrompt
+
             return EntityExtractorZeroShotJinjaPrompt.fork(**common_params)
 
     def _make_preprocess_fn(self, prompt: SycamorePrompt) -> Callable[[Document], Document]:
@@ -361,8 +360,12 @@ class OpenAIEntityExtractor(EntityExtractor):
         if self._prompt is None:
             prompt: Any = None
             if self._prompt_template:
+                from sycamore.llms.prompts.default_prompts import _EntityExtractorFewShotGuidancePrompt
+
                 prompt = _EntityExtractorFewShotGuidancePrompt()
             else:
+                from sycamore.llms.prompts.default_prompts import _EntityExtractorZeroShotGuidancePrompt
+
                 prompt = _EntityExtractorZeroShotGuidancePrompt()
             entities = self._llm.generate_old(
                 prompt_kwargs={

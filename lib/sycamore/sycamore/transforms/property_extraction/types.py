@@ -61,6 +61,8 @@ class RichProperty(BaseModel):
         return ()
 
     def get_zt(self, key: Hashable) -> "ZipTraversable":
+        if key is None:
+            return ZTLeaf(None)
         if self.type is DataType.OBJECT:
             assert isinstance(self.value, dict)
             v = self.value.get(key, ZTLeaf(None))

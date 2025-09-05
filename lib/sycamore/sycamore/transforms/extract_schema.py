@@ -264,6 +264,8 @@ class LLMPropertyExtractor(PropertyExtractor):
             value = fields.get(field.name)
             if value is None and field.type.default is None:
                 result[field.name] = None
+            elif value is None:
+                result[field.name] = field.type.default
             else:
                 result[field.name] = type_cast_functions.get(field.type.type, lambda x: x)(value)
 

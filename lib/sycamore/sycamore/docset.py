@@ -10,10 +10,7 @@ from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import SycamorePrompt
-from sycamore.llms.prompts.default_prompts import (
-    LlmClusterEntityAssignGroupsMessagesPrompt,
-    LlmClusterEntityFormGroupsMessagesPrompt,
-)
+
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms import DocumentStructure, Sort
 from sycamore.transforms.aggregation import Aggregation
@@ -1484,6 +1481,7 @@ class DocSet:
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def llm_generate_group(self, llm: LLM, instruction: str, field: str, **kwargs):
         # Not all documents will have a value for the given field, so we filter those out.
+        from sycamore.llms.prompts.default_prompts import LlmClusterEntityFormGroupsMessagesPrompt
 
         count = self.count()
         samples = self if count < 1000 else self.random_sample(1000.0 / count)
@@ -1520,6 +1518,7 @@ class DocSet:
             'yogurt', 'chocolate', 'orange', "properties._autogen_ClusterAssignment" would contain
             values like 'fruit', 'dairy', and 'dessert'.
         """
+        from sycamore.llms.prompts.default_prompts import LlmClusterEntityAssignGroupsMessagesPrompt
 
         docset = self
 
@@ -1554,6 +1553,10 @@ class DocSet:
             'yogurt', 'chocolate', 'orange', "properties._autogen_ClusterAssignment" would contain
             values like 'fruit', 'dairy', and 'dessert'.
         """
+        from sycamore.llms.prompts.default_prompts import (
+            LlmClusterEntityAssignGroupsMessagesPrompt,
+            LlmClusterEntityFormGroupsMessagesPrompt,
+        )
 
         docset = self
         # Not all documents will have a value for the given field, so we filter those out.

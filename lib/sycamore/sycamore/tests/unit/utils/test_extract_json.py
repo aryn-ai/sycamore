@@ -31,6 +31,7 @@ def test_code_block():
     assert extract_json(input) == want
     assert extract_json("\n" + input) == want
 
+
 def test_code_block_no_newline():
     want = {"a": 5, "x": "y"}
     # No LLM tested will do this; they always put in some newlines, but some of our
@@ -40,7 +41,7 @@ def test_code_block_no_newline():
     assert extract_json(input + "\n") == want
     assert extract_json(input + " ") == want
 
-    
+
 def test_nested_code_block():
     want = {"a": 5, "x": "```json ... ```"}
     input = """

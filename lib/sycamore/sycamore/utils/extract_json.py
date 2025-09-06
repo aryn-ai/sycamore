@@ -10,16 +10,19 @@ def extract_json(payload: str, verbose=False) -> Any:
     orig_payload = payload
     if verbose:
         print(f"--------------------Extract Json--------------------\n{payload}\n")
-    # It is possible that the LLM response includes a code block with JSON data.
-    # Pull the JSON content out from it.
-    pattern = r"(^|.*\n)```json\n([\s\S]*?\n)```"
-    match = re.match(pattern, payload, re.DOTALL)
-    if match:
-        payload = match.group(2)
-        if verbose:
-            print(f"  ----------------------remove ```json ``` wrapper -----------\n{payload}\n")
-    elif verbose and "```json" in payload:
-        print("  --------------------did not remove ```json from payload")
+    if payload.startswith("```json") and payload.rstrip().endswith("```"):
+        payload = payload.removeprefix("```json").rstrip().removesuffix("```").strip()
+    else:
+        # It is possible that the LLM response includes a code block with JSON data.
+        # Pull the JSON content out from it.
+        pattern = r"(^|.*\n)```json\n([\s\S]*?\n)```"
+        match = re.match(pattern, payload, re.DOTALL)
+        if match:
+            payload = match.group(2)
+            if verbose:
+                print(f"  ----------------------remove ```json ``` wrapper -----------\n{payload}\n")
+        elif verbose and "```json" in payload:
+            print("  --------------------did not remove ```json from payload")
 
     # Replace Python's None with JSON's null, being careful to not replace
     # strings that might contain "None" as part of their content

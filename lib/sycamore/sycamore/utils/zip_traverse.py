@@ -1,4 +1,4 @@
-from typing import KeysView, Protocol, Iterable, Hashable, Any, Literal, Generator, Iterator
+from typing import KeysView, Protocol, Iterable, Hashable, Any, Literal, Generator, Iterator, Optional
 
 
 class ZipTraversable(Protocol):
@@ -6,7 +6,7 @@ class ZipTraversable(Protocol):
         """Return an iterable of keys that can be used to lookup sub-trees via get_zt"""
         ...
 
-    def get_zt(self, key: Hashable) -> "ZipTraversable":
+    def get_zt(self, key: Hashable) -> Optional["ZipTraversable"]:
         """Return the subtree corresponding to the key"""
         ...
 
@@ -57,6 +57,13 @@ def _order_keys(key_iters: list[Iterable[Hashable] | None], intersect_keys: bool
     return ordering
 
 
+def _get_zt_safe(zt: ZipTraversable, k: Hashable) -> ZipTraversable:
+    x = zt.get_zt(k)
+    if x is None:
+        return ZTLeaf(None)
+    return x
+
+
 def zip_traverse(
     *zts: ZipTraversable,
     intersect_keys: bool = False,
@@ -82,10 +89,10 @@ def zip_traverse(
 
     for k in keys:
         if order == "before":
-            yield (k, tuple(zt.get_zt(k).value_zt() for zt in zts), tuple(zt.value_zt() for zt in zts))
-        yield from zip_traverse(*(zt.get_zt(k) for zt in zts), intersect_keys=intersect_keys, order=order)
+            yield (k, tuple(_get_zt_safe(zt, k).value_zt() for zt in zts), tuple(zt.value_zt() for zt in zts))
+        yield from zip_traverse(*(_get_zt_safe(zt, k) for zt in zts), intersect_keys=intersect_keys, order=order)
         if order == "after":
-            yield (k, tuple(zt.get_zt(k).value_zt() for zt in zts), tuple(zt.value_zt() for zt in zts))
+            yield (k, tuple(_get_zt_safe(zt, k).value_zt() for zt in zts), tuple(zt.value_zt() for zt in zts))
 
 
 class ZTDict(dict, ZipTraversable):

@@ -19,8 +19,6 @@ from pydantic import (
     SerializerFunctionWrapHandler,
 )
 
-from sycamore.utils.zip_traverse import ZipTraversable, ZTLeaf
-
 
 logger = logging.getLogger(__name__)
 
@@ -234,8 +232,8 @@ class Property(BaseModel):
     def keys_zt(self) -> Iterable[Hashable] | None:
         return ()
 
-    def get_zt(self, key: Hashable) -> ZipTraversable:
-        return ZTLeaf(None)
+    def get_zt(self, key: Hashable):
+        return None
 
     def value_zt(self) -> Any:
         return self
@@ -293,10 +291,10 @@ class ArrayProperty(Property):
         # zip_traverse understands None as "I don't care what the keys are"
         return None
 
-    def get_zt(self, key: Hashable) -> ZipTraversable:
+    def get_zt(self, key: Hashable):
         if not isinstance(key, int) and key is not None:
             logger.warning(f"Tried to look up non-int key '{key}' on ArrayProperty during zip_traverse.")
-            return ZTLeaf(None)
+            return None
         return self.item_type
 
     def value_zt(self) -> Any:
@@ -327,7 +325,7 @@ class NamedProperty(BaseModel):
     def keys_zt(self) -> Iterable[Hashable] | None:
         return self.type.keys_zt()
 
-    def get_zt(self, key: Hashable) -> ZipTraversable:
+    def get_zt(self, key: Hashable):
         return self.type.get_zt(key)
 
     def value_zt(self) -> Any:
@@ -350,11 +348,11 @@ class ObjectProperty(Property):
     def keys_zt(self) -> Iterable[Hashable] | None:
         return [p.name for p in self.properties]
 
-    def get_zt(self, key: Hashable) -> ZipTraversable:
+    def get_zt(self, key: Hashable):
         for p in self.properties:
             if p.name == key:
                 return p
-        return ZTLeaf(None)
+        return None
 
     def value_zt(self) -> Any:
         return self

@@ -232,7 +232,7 @@ class Property(BaseModel):
     def keys_zt(self) -> Iterable[Hashable] | None:
         return ()
 
-    def get_zt(self, key: Hashable):
+    def get_zt(self, key: Hashable) -> "NamedProperty | PropertyType | None":
         return None
 
     def value_zt(self) -> Any:

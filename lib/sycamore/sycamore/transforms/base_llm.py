@@ -1,3 +1,5 @@
+import logging
+import os
 from typing import Optional, Sequence, Callable, Union
 
 from sycamore.llms.llms import LLM, LLMMode
@@ -7,6 +9,8 @@ from sycamore.transforms.map import MapBatch
 from sycamore.data import Document, Element
 from sycamore.utils.threading import run_coros_threadsafe
 import asyncio
+
+logger = logging.getLogger(__name__)
 
 
 async def _infer_prompts_async(prompts: list[RenderedPrompt], llm: LLM) -> list[str]:
@@ -32,8 +36,15 @@ def _infer_prompts(
             if len(p.messages) == 0:
                 res.append("")
                 continue
-            s = llm.generate(prompt=p)
-            res.append(s)
+            try:
+                s = llm.generate(prompt=p)
+                res.append(s)
+            except Exception:
+                bad_prompt_path = os.environ.get("BAD_PROMPT_PATH", "/tmp/bad_prompt.txt")
+                with open(bad_prompt_path, "w") as f:
+                    f.write(p.to_human_readable())
+                    logger.error(f"Error generating prompt. Wrote failing prompt to $BAD_PROMPT_PATH:{bad_prompt_path}")
+                raise
         return res
     elif llm_mode == LLMMode.ASYNC:
         nonempty = [(i, p) for i, p in enumerate(prompts) if len(p.messages) > 0]

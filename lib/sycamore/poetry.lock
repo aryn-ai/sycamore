@@ -6685,15 +6685,15 @@ files = [
 
 [[package]]
 name = "paddleocr"
-version = "3.1.1"
+version = "3.1.0"
 description = "Awesome multilingual OCR and document parsing toolkits based on PaddlePaddle"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
 markers = "extra == \"local-inference\""
 files = [
-    {file = "paddleocr-3.1.1-py3-none-any.whl", hash = "sha256:134b7ce12f22a784571db361b97ef41d015ba7026ac71f7d99c966a5b92af2bf"},
-    {file = "paddleocr-3.1.1.tar.gz", hash = "sha256:b9f173efdfe9ca17d0da895f7836db02894f947313ebe7857a0ffefd44c7c907"},
+    {file = "paddleocr-3.1.0-py3-none-any.whl", hash = "sha256:4845b9c1734af2aced7a6fb9bf9f456c7764665a10ebc820ebcef1a5480b4236"},
+    {file = "paddleocr-3.1.0.tar.gz", hash = "sha256:c42ba6876cc1f5237e1d14cb69fc6aa45cbbe6b714ecd87cec54c097a0334f77"},
 ]
 
 [package.dependencies]
@@ -12290,7 +12290,7 @@ elasticsearch = ["elasticsearch"]
 eval = ["apted", "datasets", "rouge"]
 google-genai = ["google-genai"]
 legacy-partitioners = ["nltk", "python-pptx", "unstructured"]
-local-inference = ["easyocr", "langchain-community", "paddleocr", "paddlex", "pdfminer-six", "pytesseract", "sentence-transformers", "timm", "torch", "torchvision", "transformers"]
+local-inference = ["easyocr", "langchain-community", "paddleocr", "pdfminer-six", "pytesseract", "sentence-transformers", "timm", "torch", "torchvision", "transformers"]
 neo4j = ["neo4j"]
 opensearch = ["opensearch-py"]
 pinecone = ["pinecone", "pinecone-text"]
@@ -12300,4 +12300,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "afcbc250c1649ce43645a0eca0ff0bdc4c01afe06f2611b1e70cb5bfc6cf77eb"
+content-hash = "d4f0688a816d5b374c8192f07463f0081a701e2d1259a2e7777cae6d05bfb331"

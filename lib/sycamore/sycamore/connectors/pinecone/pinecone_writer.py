@@ -1,6 +1,6 @@
 from dataclasses import dataclass, asdict
 import typing
-from typing import Optional, TypedDict, Union, Any
+from typing import Optional, Union, Any
 from sycamore.utils import batched
 from typing_extensions import TypeGuard
 
@@ -11,8 +11,8 @@ from sycamore.utils.import_utils import requires_modules
 import time
 
 if typing.TYPE_CHECKING:
-    from pinecone import PodSpec, ServerlessSpec
-    from pinecone.grpc import PineconeGRPC, Vector
+    from pinecone import PodSpec, ServerlessSpec, SparseValues, Vector
+    from pinecone.grpc import GRPCVector, PineconeGRPC
 
 
 @dataclass
@@ -103,15 +103,14 @@ class PineconeWriterClient(BaseDBWriter.Client):
 class PineconeWriterRecord(BaseDBWriter.Record):
     id: str
     values: Optional[list[float]]
-    metadata: dict[str, Union[list[str], str, bool, int, float]]
-    sparse_values: Optional["PineconeWriterRecord.SparseVector"]
-
-    class SparseVector(TypedDict):
-        indices: list[int]
-        values: list[float]
+    metadata: dict[str, Union[list[str], list[int], list[float], str, int, float]]
+    sparse_values: Optional["SparseValues"]
 
     @classmethod
+    @requires_modules("pinecone", extra="pinecone")
     def from_doc(cls, document: Document, target_params: "BaseDBWriter.TargetParams") -> "PineconeWriterRecord":
+        from pinecone import SparseValues
+
         assert isinstance(target_params, PineconeWriterTargetParams)
         assert document.doc_id is not None, f"Document found with null id: {document}"
         if document.parent_id is None:
@@ -136,19 +135,22 @@ class PineconeWriterRecord(BaseDBWriter.Record):
                     "Please use `docset.term_frequency(tokenizer, with_token_ids=True)` for pinecone hybrid search"
                 )
             sparse_values = [float(v) for v in tf_table.values()]
-            sparse_vector = PineconeWriterRecord.SparseVector(indices=sparse_indices, values=sparse_values)
+            sparse_vector = SparseValues(indices=sparse_indices, values=sparse_values)
         metadata = dict(flatten_data(metadata, allowed_list_types=[str]))
         assert PineconeWriterRecord._validate_metadata(metadata)
         return PineconeWriterRecord(id, values, metadata, sparse_vector)
 
+    @requires_modules("pinecone", extra="pinecone")
+    def to_vector(self) -> "Vector":
+        from pinecone import Vector
+
+        return Vector(id=self.id, values=self.values or [], metadata=self.metadata, sparse_values=self.sparse_values)
+
     @requires_modules("pinecone.grpc.vector_factory_grpc", extra="pinecone")
-    def to_grpc_vector(self) -> "Vector":
+    def to_grpc_vector(self) -> "GRPCVector":
         from pinecone.grpc.vector_factory_grpc import VectorFactoryGRPC
 
-        if self.sparse_values:
-            return VectorFactoryGRPC.build(asdict(self))
-        else:
-            return VectorFactoryGRPC.build({"id": self.id, "values": self.values, "metadata": self.metadata})
+        return VectorFactoryGRPC.build(self.to_vector())
 
     def to_http_vector(self) -> dict:
         if self.sparse_values:
@@ -157,7 +159,9 @@ class PineconeWriterRecord(BaseDBWriter.Record):
             return {"id": self.id, "values": self.values, "metadata": self.metadata}
 
     @staticmethod
-    def _validate_metadata(metadata: dict) -> TypeGuard[dict[str, Union[list[str], str, bool, int, float]]]:
+    def _validate_metadata(
+        metadata: dict,
+    ) -> TypeGuard[dict[str, Union[list[str], list[int], list[float], str, int, float]]]:
         for k, v in metadata.items():
             if not isinstance(k, str):
                 return False

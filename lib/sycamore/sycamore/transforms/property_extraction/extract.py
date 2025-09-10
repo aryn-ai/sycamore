@@ -79,6 +79,19 @@ class Extract(MapBatch):
                     doc.properties["entity_metadata"] = stitched.value
         for doc in documents:
             em = doc.properties["entity_metadata"]
+            for k, (prop, val), (prop_p, val_p) in zip_traverse(
+                self._schema.as_object_property(),
+                RichProperty(type=DataType.OBJECT, name=None, value=em),
+                order="before",
+                intersect_keys=False,
+            ):
+                if val is None and prop is not None and prop_p.get_type() is not DataType.ARRAY and val_p is not None:
+                    dt = prop.get_type()
+                    name = k if isinstance(k, str) else None
+                    v: Any = [] if dt is DataType.ARRAY else ({} if dt is DataType.OBJECT else None)
+                    sp = RichProperty(name=name, value=v, type=dt)
+                    val_p._add_subprop(sp)
+
             doc.properties.setdefault("entity", {})
             for k, v in em.items():
                 if isinstance(v, RichProperty):
@@ -177,6 +190,8 @@ class Extract(MapBatch):
         for k, (val, prop), (val_p, prop_p) in zip_traverse(
             prediction, out_sch_obj, intersect_keys=True, order="after"
         ):
+            if val is None:
+                continue
             prop = prop.type if isinstance(prop, NamedProperty) else prop
             for validator in prop.validators:
                 valid, propval = validator.validate_property(val.to_python())

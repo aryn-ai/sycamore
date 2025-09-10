@@ -96,14 +96,14 @@ class TestExtract:
         assert extracted[0].field_to_value("properties.entity.telts") == 3
         assert extracted[0].field_to_value("properties.entity_metadata.telts").value == 3
         assert extracted[0].field_to_value("properties.entity.missing") is None
-        assert extracted[0].field_to_value("properties.entity_metadata.missing") is None
+        assert extracted[0].field_to_value("properties.entity_metadata.missing").value is None
 
         assert extracted[1].field_to_value("properties.entity.doc_id") == docs[1].doc_id
         assert extracted[1].field_to_value("properties.entity_metadata.doc_id").value == docs[1].doc_id
         assert extracted[1].field_to_value("properties.entity.telts") == 2
         assert extracted[1].field_to_value("properties.entity_metadata.telts").value == 2
         assert extracted[1].field_to_value("properties.entity.missing") is None
-        assert extracted[1].field_to_value("properties.entity_metadata.missing") is None
+        assert extracted[1].field_to_value("properties.entity_metadata.missing").value is None
 
     def test_extract_to_nonpydantic(self):
         docs = [

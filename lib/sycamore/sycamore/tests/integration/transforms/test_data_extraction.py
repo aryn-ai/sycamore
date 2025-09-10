@@ -213,8 +213,8 @@ def test_extract(llm):
     ), "Invalid location extracted or formatted"
     assert real[0].properties["entity_metadata"]["date"].value == "1923-02-24"
 
-    assert "name" not in real[1].properties["entity"]
-    assert "age" not in real[1].properties["entity"]
+    assert real[1].properties["entity"]["name"] is None
+    assert real[1].properties["entity"]["age"] is None
     assert real[1].properties["entity"]["from_location"] == "New Delhi"
     assert real[1].properties["entity"]["date"] == "2014-01-11"
 

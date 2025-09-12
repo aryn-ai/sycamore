@@ -1,8 +1,8 @@
 import ray.data
 
-from sycamore.data import Document
+from sycamore.data import Document, TableElement, Table, TableCell
 from sycamore.transforms.split_elements import SplitElements
-from sycamore.functions.tokenizer import HuggingFaceTokenizer
+from sycamore.functions.tokenizer import HuggingFaceTokenizer, CharacterTokenizer
 from sycamore.plan_nodes import Node
 
 
@@ -62,3 +62,12 @@ class TestSplitElements:
         assert elems[7].text_representation == "thirtyeight thirtynine forty fortyone fortytwo fortythree "
         assert elems[8].text_representation == "fortyfour fortyfive fortysix "
         assert elems[9].text_representation == "fortyseven fortyeight fortynine"
+
+    def test_unsplittable_large_table_headers(self):
+        element = TableElement()
+        element.table = Table(cells=[TableCell(content="one\ntwo\nthree", rows=[0], cols=[0])])
+        element.table.column_headers = [" ".join(["header "] * 100)]
+        result = SplitElements.split_one(element, CharacterTokenizer(), max=10)
+
+        # Without early stopping, we get 1,013,259 elements.
+        assert len(result) == 1

@@ -185,7 +185,7 @@ class BinaryScan(FileScan):
             filesystem=filesystem,
             **resource_args,
         )
-        self._binary_format = binary_format.lower()
+        self._binary_format = binary_format.lower() if binary_format is not None else None
         self._metadata_provider = metadata_provider
         self._filter_paths_by_extension = filter_paths_by_extension
         self._path_filter = None

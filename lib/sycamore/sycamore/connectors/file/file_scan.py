@@ -185,7 +185,7 @@ class BinaryScan(FileScan):
             filesystem=filesystem,
             **resource_args,
         )
-        self._binary_format = binary_format
+        self._binary_format = binary_format.lower() if binary_format is not None else None
         self._metadata_provider = metadata_provider
         self._filter_paths_by_extension = filter_paths_by_extension
         self._path_filter = None
@@ -258,7 +258,7 @@ class BinaryScan(FileScan):
     def process_file(self, info) -> list[Document]:
         if not info.is_file:
             return []
-        if self._filter_paths_by_extension and not info.path.endswith(self.format()):
+        if self._filter_paths_by_extension and not info.path.lower().endswith(self.format()):
             return []
         if self._path_filter is not None and not self._path_filter(info.path, True):
             return []

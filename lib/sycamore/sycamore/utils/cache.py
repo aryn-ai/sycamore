@@ -232,7 +232,7 @@ class DynamoDBCache(Cache):
 
     def get(self, hash_key: str):
         key = {self.hash_key_name: hash_key}
-        res = {}
+        res: dict[Any, Any] = {}
         try:
             res = self.table.get_item(Key=key)
         except ClientError as error:

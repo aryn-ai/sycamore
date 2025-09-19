@@ -1,6 +1,8 @@
 from __future__ import annotations
 import hashlib
 import json
+import logging
+from datetime import timedelta
 from pathlib import Path
 import time
 from tempfile import SpooledTemporaryFile
@@ -10,6 +12,7 @@ import diskcache
 from botocore.exceptions import ClientError
 
 BLOCK_SIZE = 1048576  # 1 MiB
+PAGE_CACHE_TTL = timedelta(days=10)
 
 
 class HashContext:
@@ -192,11 +195,70 @@ class S3Cache(Cache):
         return s3_cache_deserializer, (kwargs,)
 
 
+class DynamoDBCache(Cache):
+    """
+    A DynamoDB cache items are specified as follows:
+
+    ddb://<region_name>/<table_name>[/<hash_key_name>]
+
+    where 'hash_key_name' defaults to 'hash_key' if left unspecified.
+
+    This cache uses an attribute called 'expire_at' to use DynamoDB's TTL feature for cache expiration.
+    The DynamoDB table backing this cache must have TTL enabled on this attribute for this to work properly.
+    """
+
+    def __init__(self, path: str, ttl: int = 10 * 24 * 3600):
+        import boto3
+
+        super().__init__()
+        region_name, table_name, hash_key_name = self.parse_path(path)
+        self.hash_key_name = hash_key_name if hash_key_name is not None else "hash_key"
+        self.dynamodb = boto3.resource("dynamodb", region_name=region_name)
+        self.table_name = table_name
+        self.table = self.dynamodb.Table(table_name)
+        self.ttl = ttl
+
+    @staticmethod
+    def parse_path(path: str) -> tuple[str, str, Optional[str]]:
+        assert path.startswith("ddb://"), "DynamoDB cache paths must start with ddb://"
+
+        parts = path[6:].split("/")
+        if len(parts) < 2:
+            raise ValueError("DynamoDB cache paths must have 'region_name' (us-east-1, e.g.) and 'table_name'")
+        if len(parts) == 2:
+            return parts[0], parts[1], None
+
+        return parts[0], parts[1], parts[2]
+
+    def get(self, hash_key: str):
+        key = {self.hash_key_name: hash_key}
+        res = None
+        try:
+            res = self.table.get_item(Key=key)
+        except ClientError as error:
+            logging.error(f"Error calling get_item({key}) on {self.table_name} : {error}")
+
+        self.total_accesses += 1
+        if res is not None and "Item" in res and "payload" in res["Item"]:
+            self.cache_hits += 1
+        return res["Item"]["payload"]
+
+    def set(self, hash_key: str, hash_value):
+        item = {
+            self.hash_key_name: hash_key,
+            "payload": hash_value,
+            "expire_at": int(time.time()) + self.ttl,
+        }
+        self.table.put_item(Item=item)
+
+
 def cache_from_path(path: Optional[str]) -> Optional[Cache]:
     if path is None:
         return None
     if path.startswith("s3://"):
         return S3Cache(path)
+    if path.startswith("ddb://"):
+        return DynamoDBCache(path)
     if path.startswith("/"):
         return DiskCache(path)
     if Path(path).is_dir():

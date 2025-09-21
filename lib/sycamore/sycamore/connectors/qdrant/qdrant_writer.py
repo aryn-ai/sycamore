@@ -33,15 +33,15 @@ class QdrantWriterTargetParams(BaseDBWriter.TargetParams):
     vector_name: Optional[str]
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
-        assert isinstance(other, QdrantWriterTargetParams)
-
-        return all(
-            [
-                self.collection_params["collection_name"] == other.collection_params["collection_name"],
-                self.collection_params["vectors_config"] == other.collection_params["vectors_config"],
-                self.vector_name == other.vector_name,
-            ]
-        )
+        if not isinstance(other, QdrantWriterTargetParams):
+            raise ValueError(f"Incompatible target parameters: Expected QdrantWriterTargetParams, found {type(other)}")
+        if self.collection_params["collection_name"] != other.collection_params["collection_name"]:
+            raise ValueError(f"Incompatible collection names: Expected {self.collection_params['collection_name']}, found {other.collection_params['collection_name']}")
+        if self.collection_params["vectors_config"] != other.collection_params["vectors_config"]:
+            raise ValueError(f"Incompatible vectors config: Expected {self.collection_params['vectors_config']}, found {other.collection_params['vectors_config']}")
+        if self.vector_name != other.vector_name:
+            raise ValueError(f"Incompatible vector names: Expected {self.vector_name}, found {other.vector_name}")
+        return True
 
 
 class QdrantWriterClient(BaseDBWriter.Client):

@@ -18,7 +18,7 @@ guidance = "0.1.14" # They removed AzureOpenAIChat in https://github.com/guidanc
 ray = ">=2.41.0" # Latest version supported on linux/aarch64 https://github.com/ray-project/ray/issues/46104
 pandas = "2.3.0" # Bumped to a version that supports 3.13.
 scipy = "^1.15.0"
-weaviate-client = "^4.16.10" # Failes typechecking with 4.7.0
+weaviate-client = "^4.16.10"
 protobuf = "^5.29.5"
 
 # Required to continue supporting python 3.9; it may be possible to make these a bit more

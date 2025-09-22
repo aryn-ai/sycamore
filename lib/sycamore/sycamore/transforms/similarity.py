@@ -176,6 +176,7 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
 
             self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)
             self._model = AutoModelForSequenceClassification.from_pretrained(self.model_name).to(self.device)
+            assert self._model
             self._model.eval()
 
         assert self._model is not None

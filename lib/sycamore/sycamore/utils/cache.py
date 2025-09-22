@@ -241,7 +241,7 @@ class DynamoDBCache(Cache):
         self.total_accesses += 1
         if res is not None and "Item" in res and "payload" in res["Item"]:
             self.cache_hits += 1
-        return res["Item"]["payload"]
+        return res["Item"]["payload"].value
 
     def set(self, hash_key: str, hash_value):
         item = {

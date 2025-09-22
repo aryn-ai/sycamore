@@ -559,16 +559,15 @@ tests-mypy = ["mypy (>=1.11.1) ; platform_python_implementation == \"CPython\" a
 
 [[package]]
 name = "authlib"
-version = "1.3.1"
+version = "1.6.4"
 description = "The ultimate Python library in building OAuth and OpenID Connect servers and clients."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "Authlib-1.3.1-py2.py3-none-any.whl", hash = "sha256:d35800b973099bbadc49b42b256ecb80041ad56b7fe1216a362c7943c088f377"},
-    {file = "authlib-1.3.1.tar.gz", hash = "sha256:7ae843f03c06c5c0debd63c9db91f9fda64fa62a42a77419fa15fbb7e7a58917"},
+    {file = "authlib-1.6.4-py2.py3-none-any.whl", hash = "sha256:39313d2a2caac3ecf6d8f95fbebdfd30ae6ea6ae6a6db794d976405fdd9aa796"},
+    {file = "authlib-1.6.4.tar.gz", hash = "sha256:104b0442a43061dc8bc23b133d1d06a2b0a9c2e3e33f34c4338929e816287649"},
 ]
-markers = {main = "extra == \"weaviate\""}
 
 [package.dependencies]
 cryptography = "*"
@@ -1298,7 +1297,7 @@ files = [
     {file = "cffi-1.17.1-cp39-cp39-win_amd64.whl", hash = "sha256:d016c76bdd850f3c626af19b0542c9677ba156e4ee4fccfdd7848803533ef662"},
     {file = "cffi-1.17.1.tar.gz", hash = "sha256:1c39c6016c32bc48dd54561950ebd6836e1670f2ae46128f67cf49e789c52824"},
 ]
-markers = {main = "(extra == \"weaviate\" or extra == \"local-inference\" or extra == \"legacy-partitioners\") and (platform_python_implementation != \"PyPy\" or extra == \"local-inference\")", dev = "platform_python_implementation != \"PyPy\" or implementation_name == \"pypy\"", docker = "platform_python_implementation != \"PyPy\""}
+markers = {main = "extra == \"local-inference\" or platform_python_implementation != \"PyPy\"", dev = "platform_python_implementation != \"PyPy\" or implementation_name == \"pypy\"", docker = "platform_python_implementation != \"PyPy\""}
 
 [package.dependencies]
 pycparser = "*"
@@ -1659,7 +1658,6 @@ files = [
     {file = "cryptography-44.0.2-pp311-pypy311_pp73-manylinux_2_34_x86_64.whl", hash = "sha256:04abd71114848aa25edb28e225ab5f268096f44cf0127f3d36975bdf1bdf3390"},
     {file = "cryptography-44.0.2.tar.gz", hash = "sha256:c63454aa261a0cf0c5b4718349629793e9e634993538db841165b3df74f37ec0"},
 ]
-markers = {main = "extra == \"weaviate\" or extra == \"local-inference\" or extra == \"legacy-partitioners\""}
 
 [package.dependencies]
 cffi = {version = ">=1.12", markers = "platform_python_implementation != \"PyPy\""}
@@ -3039,23 +3037,6 @@ files = [
 protobuf = ["grpcio-tools (>=1.71.0)"]
 
 [[package]]
-name = "grpcio-health-checking"
-version = "1.71.0"
-description = "Standard Health Checking Service for gRPC"
-optional = false
-python-versions = ">=3.9"
-groups = ["main", "dev"]
-files = [
-    {file = "grpcio_health_checking-1.71.0-py3-none-any.whl", hash = "sha256:b7d9b7a7606ab4cd02d23bd1d3943843f784ffc987c9bfec14c9d058d9e279db"},
-    {file = "grpcio_health_checking-1.71.0.tar.gz", hash = "sha256:ff9bd55beb97ce3322fda2ae58781c9d6c6fcca6a35ca3b712975d9f75dd30af"},
-]
-markers = {main = "extra == \"weaviate\""}
-
-[package.dependencies]
-grpcio = ">=1.71.0"
-protobuf = ">=5.26.1,<6.0dev"
-
-[[package]]
 name = "grpcio-status"
 version = "1.62.3"
 description = "Status proto mapping for gRPC"
@@ -3077,9 +3058,10 @@ protobuf = ">=4.21.6"
 name = "grpcio-tools"
 version = "1.71.0"
 description = "Protobuf code generator for gRPC"
-optional = false
+optional = true
 python-versions = ">=3.9"
-groups = ["main", "dev"]
+groups = ["main"]
+markers = "extra == \"qdrant\""
 files = [
     {file = "grpcio_tools-1.71.0-cp310-cp310-linux_armv7l.whl", hash = "sha256:f4ad7f0d756546902597053d70b3af2606fbd70d7972876cd75c1e241d22ae00"},
     {file = "grpcio_tools-1.71.0-cp310-cp310-macosx_12_0_universal2.whl", hash = "sha256:64bdb291df61cf570b5256777ad5fe2b1db6d67bc46e55dc56a0a862722ae329"},
@@ -3133,7 +3115,6 @@ files = [
     {file = "grpcio_tools-1.71.0-cp39-cp39-win_amd64.whl", hash = "sha256:1291a6136c07a86c3bb09f6c33f5cf227cc14956edd1b85cb572327a36e0aef8"},
     {file = "grpcio_tools-1.71.0.tar.gz", hash = "sha256:38dba8e0d5e0fb23a034e09644fdc6ed862be2371887eee54901999e8f6792a8"},
 ]
-markers = {main = "extra == \"weaviate\" or extra == \"qdrant\""}
 
 [package.dependencies]
 grpcio = ">=1.71.0"
@@ -7954,7 +7935,7 @@ files = [
     {file = "pycparser-2.22-py3-none-any.whl", hash = "sha256:c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc"},
     {file = "pycparser-2.22.tar.gz", hash = "sha256:491c8be9c040f5390f5bf44a5b07752bd07f56edf992381b05c701439eec10f6"},
 ]
-markers = {main = "(extra == \"weaviate\" or extra == \"local-inference\" or extra == \"legacy-partitioners\") and (platform_python_implementation != \"PyPy\" or extra == \"local-inference\")", dev = "platform_python_implementation != \"PyPy\" or implementation_name == \"pypy\"", docker = "platform_python_implementation != \"PyPy\""}
+markers = {main = "extra == \"local-inference\" or platform_python_implementation != \"PyPy\"", dev = "platform_python_implementation != \"PyPy\" or implementation_name == \"pypy\"", docker = "platform_python_implementation != \"PyPy\""}
 
 [[package]]
 name = "pydantic"
@@ -10462,6 +10443,7 @@ develop = true
 
 [package.dependencies]
 aiohttp = "^3.12.14"
+authlib = "^1.6.4"
 cryptography = ">=44.0.1"
 fsspec = "2024.2.0"
 guidance = "0.1.14"
@@ -10483,7 +10465,7 @@ scipy = "^1.15.0"
 scrapy = ">=2.11.2"
 setuptools = ">=78.1.1"
 tornado = ">=6.5.0"
-weaviate-client = "4.14.1"
+weaviate-client = "^4.16.10"
 
 [package.source]
 type = "directory"
@@ -11603,29 +11585,28 @@ markers = {main = "extra == \"local-inference\""}
 
 [[package]]
 name = "weaviate-client"
-version = "4.14.1"
+version = "4.16.10"
 description = "A python native Weaviate client"
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "weaviate_client-4.14.1-py3-none-any.whl", hash = "sha256:00895b1b96f725acae9ed64d6e9c541f1774a09cc1f53a0ab79369ca2b451dcf"},
-    {file = "weaviate_client-4.14.1.tar.gz", hash = "sha256:fbac4dc73cb65d811865ebb8d42c2c14207cc192f51008009cb54b571e181d1a"},
+    {file = "weaviate_client-4.16.10-py3-none-any.whl", hash = "sha256:a2009530951ca08dc071dd74e13052de9ccc3830e9e57a3f292656efa386d6de"},
+    {file = "weaviate_client-4.16.10.tar.gz", hash = "sha256:c041e6ae5416b8db8ed53d961722f122b52516175da1d249601a87db327e9288"},
 ]
 markers = {main = "extra == \"weaviate\""}
 
 [package.dependencies]
-authlib = ">=1.2.1,<1.3.2"
+authlib = ">=1.2.1,<2.0.0"
 deprecation = ">=2.1.0,<3.0.0"
-grpcio = ">=1.66.2,<2.0.0"
-grpcio-health-checking = ">=1.66.2,<2.0.0"
-grpcio-tools = ">=1.66.2,<2.0.0"
+grpcio = ">=1.59.5,<1.80.0"
 httpx = ">=0.26.0,<0.29.0"
+protobuf = ">=4.21.6,<7.0.0"
 pydantic = ">=2.8.0,<3.0.0"
-validators = "0.34.0"
+validators = ">=0.34.0,<1.0.0"
 
 [package.extras]
-agents = ["weaviate-agents (>=0.3.0,<1.0.0)"]
+agents = ["weaviate-agents (>=1.0.0,<2.0.0)"]
 
 [[package]]
 name = "webcolors"
@@ -12300,4 +12281,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "d4f0688a816d5b374c8192f07463f0081a701e2d1259a2e7777cae6d05bfb331"
+content-hash = "bb81d0de3533fec582a8c70f7fecaa31a53ba4fc989b8dafe7995690f0868087"

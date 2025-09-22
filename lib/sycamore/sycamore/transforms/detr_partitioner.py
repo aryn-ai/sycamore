@@ -44,9 +44,12 @@ _TEN_MINUTES = 600
 # The retry logic is controlled by a decorator. Unclear how we could pass in
 # a flag to indicate we don't want retry.
 ENABLE_RETRY = True
+
+
 def disable_retry():
     global ENABLE_RETRY
     ENABLE_RETRY = False
+
 
 class ArynPDFPartitionerException(Exception):
     def __init__(self, message, can_retry=False):

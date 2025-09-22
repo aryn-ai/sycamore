@@ -42,6 +42,7 @@ def _infer_prompts(
                 if all_prompt_dir := os.environ.get("LLM_DEBUG_DIR"):
                     from datetime import datetime
                     from pathlib import Path
+
                     now = datetime.now().isoformat()
                     path = Path(all_prompt_dir) / f"{now}.txt"
                     logger.info(f"Saving prompt and result to {path}")

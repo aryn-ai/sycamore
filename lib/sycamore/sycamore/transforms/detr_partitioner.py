@@ -631,7 +631,7 @@ class DeformableDetr(SycamoreObjectDetection):
         from transformers import AutoImageProcessor
         from sycamore.utils.model_load import load_deformable_detr
 
-        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
+        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path, use_fast=True)
         self.model = load_deformable_detr(model_name_or_path, self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
@@ -697,8 +697,9 @@ class DeformableDetr(SycamoreObjectDetection):
         import torch
 
         results = []
-        inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
-        with torch.no_grad():
+        device = self._get_device()
+        inputs = self.processor(images=images, return_tensors="pt").to(device)
+        with (torch.no_grad(), torch.autocast(device)):
             outputs = self.model(**inputs)
         target_sizes = torch.tensor([image.size[::-1] for image in images])
         results.extend(

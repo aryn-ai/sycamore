@@ -223,7 +223,10 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         import torch
 
-        with (torch.no_grad(), torch.autocast(self._get_device())):
+        with (
+            torch.no_grad(),
+            torch.autocast(self._get_device()),
+        ):
             outputs = self.structure_model(pixel_values)
 
         structure_id2label = self.structure_model.config.id2label

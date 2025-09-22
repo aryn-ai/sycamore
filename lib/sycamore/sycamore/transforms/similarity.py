@@ -182,7 +182,10 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
         assert self._tokenizer is not None
 
         scores = []
-        with (torch.no_grad(), torch.autocast(self.device)):
+        with (
+            torch.no_grad(),
+            torch.autocast(self.device),
+        ):
             for i in range(0, len(inputs), self.model_batch_size):
                 input_batch = inputs[i : i + self.model_batch_size]
 

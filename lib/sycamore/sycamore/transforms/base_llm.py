@@ -39,6 +39,17 @@ def _infer_prompts(
             try:
                 s = llm.generate(prompt=p)
                 res.append(s)
+                if all_prompt_dir := os.environ.get("LLM_DEBUG_DIR"):
+                    from datetime import datetime
+                    from pathlib import Path
+
+                    now = datetime.now().isoformat()
+                    path = Path(all_prompt_dir) / f"{now}.txt"
+                    logger.info(f"Saving prompt and result to {path}")
+                    with open(path, "w") as f:
+                        f.write(p.to_human_readable())
+                        f.write("\n\n--------------------------------------------\n\n")
+                        f.write(s)
             except Exception:
                 bad_prompt_path = os.environ.get("BAD_PROMPT_PATH", "/tmp/bad_prompt.txt")
                 with open(bad_prompt_path, "w") as f:

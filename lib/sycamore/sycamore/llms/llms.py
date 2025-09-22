@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import copy
 from enum import Enum
 import logging
+from pathlib import Path
 import pickle
 import base64
 from PIL import Image

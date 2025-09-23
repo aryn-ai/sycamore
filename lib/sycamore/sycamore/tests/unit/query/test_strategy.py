@@ -10,6 +10,7 @@ from sycamore.llms.prompts import RenderedPrompt
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.strategy import (
+    LimitLlmOperations,
     RemoveVectorSearchForAnalytics,
     VectorSearchOnlyStrategy,
     AlwaysSummarize,
@@ -159,6 +160,18 @@ class TestPlanProcessors:
         else:
             assert new_plan.nodes[new_plan.result_node].node_type == "QueryDatabase"
             assert len(new_plan.nodes) == 1
+
+    @pytest.mark.parametrize("plan", PLANS)
+    def test_limit_llm_ops(self, plan):
+        assert isinstance(plan, LogicalPlan)
+        proc = LimitLlmOperations(["SummarizeData", "LlmExtractEntity"], 10)
+        new_plan = proc(copy.deepcopy(plan))
+        if new_plan.query == "Question 1":
+            assert new_plan.nodes[1].node_type == "Limit"
+            assert new_plan.nodes[new_plan.result_node].node_type == "SummarizeData"
+            assert new_plan.result_node == 2
+        else:
+            assert new_plan == plan
 
 
 class TestRemoveVectorSearchForAnalytics(unittest.TestCase):

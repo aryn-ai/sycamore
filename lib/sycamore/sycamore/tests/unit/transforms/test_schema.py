@@ -9,7 +9,7 @@ from sycamore.data import Document, Element
 from sycamore.llms.llms import LLM, FakeLLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.plan_nodes import Node
-from sycamore.schema import Schema, SchemaField
+from sycamore.schema import SchemaV2 as Schema, make_named_property
 from sycamore.transforms.base_llm import LLMMap
 from sycamore.transforms.map import Map
 from sycamore.transforms.extract_schema import ExtractBatchSchema, SchemaExtractor
@@ -281,13 +281,13 @@ class TestSchema:
         doc.elements = [element1, element2]
 
         schema = Schema(
-            fields=[
-                SchemaField(name="startDate", field_type="datetime"),
-                SchemaField(name="endDate", field_type="date"),
-                SchemaField(name="accidentNumber", field_type="str"),
-                SchemaField(name="injuryCount", field_type="int"),
-                SchemaField(name="latitude", field_type="float"),
-                SchemaField(name="location", field_type="list"),
+            properties=[
+                make_named_property(name="startDate", type="datetime"),
+                make_named_property(name="endDate", type="date"),
+                make_named_property(name="accidentNumber", type="string"),
+                make_named_property(name="injuryCount", type="int"),
+                make_named_property(name="latitude", type="float"),
+                make_named_property(name="location", type="array", item_type={"type": "string"}),
             ]
         )
         property_extractor = LLMPropertyExtractor(llm, schema=schema)

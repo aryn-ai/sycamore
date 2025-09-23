@@ -48,3 +48,5 @@ apps/timetrace/ttviz
 notebooks/pc-tutorial
 notebooks/tmp
 notebooks/data
+notebooks/materialize
+pyrightconfig.json

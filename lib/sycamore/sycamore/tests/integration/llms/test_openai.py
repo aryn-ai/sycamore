@@ -268,6 +268,13 @@ def test_reasoning_model():
     assert len(res) > 0
 
 
+def test_gpt_5():
+    llm = OpenAI(OpenAIModels.GPT_5_MINI)
+    res = llm.generate(prompt=TestPrompt().render_generic())
+    print(res)
+    assert len(res) > 0
+
+
 @pytest.fixture(scope="module")
 def azure_llm():
     # Note this deployment name is different from the official model name, which has a '.'

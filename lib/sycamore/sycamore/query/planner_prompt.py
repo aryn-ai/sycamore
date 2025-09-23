@@ -3,8 +3,7 @@ from sycamore.llms.prompts.prompts import (
     RenderedPrompt,
     RenderedMessage,
 )
-from sycamore.schema import Schema, SchemaField
-from sycamore.query.schema import OpenSearchSchema
+from sycamore.schema import SchemaV2 as Schema, make_named_property
 from sycamore.query.logical_plan import LogicalPlan, Node
 
 from sycamore.query.operators.query_database import QueryVectorDatabase, QueryDatabase
@@ -17,7 +16,7 @@ from sycamore.query.operators.math import Math
 from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.sort import Sort
 
-from typing import Optional, Union, List, Type
+from typing import Optional, List, Type
 from dataclasses import dataclass
 
 
@@ -56,51 +55,51 @@ PLANNER_NATURAL_LANGUAGE_PROMPT = (
 class PlannerExample:
     """Represents an example query and query plan for the planner."""
 
-    def __init__(self, schema: Union[OpenSearchSchema, Schema], plan: LogicalPlan) -> None:
+    def __init__(self, schema: Schema, plan: LogicalPlan) -> None:
         super().__init__()
         self.plan = plan
-        self.schema: Schema = schema.to_schema() if isinstance(schema, OpenSearchSchema) else schema
+        self.schema = schema
 
 
 # Example schema and planner examples for the NTSB and financial datasets.
 EXAMPLE_NTSB_SCHEMA = Schema(
-    fields=[
-        SchemaField(
+    properties=[
+        make_named_property(
             name="properties.path",
-            field_type="str",
+            type="string",
             examples=["/docs/incident1.pdf", "/docs/incident2.pdf", "/docs/incident3.pdf"],
         ),
-        SchemaField(name="properties.entity.date", field_type="date", examples=["2023-07-01", "2024-09-01"]),
-        SchemaField(name="properties.entity.accidentNumber", field_type="str", examples=["1234", "5678", "91011"]),
-        SchemaField(
+        make_named_property(name="properties.entity.date", type="date", examples=["2023-07-01", "2024-09-01"]),
+        make_named_property(name="properties.entity.accidentNumber", type="string", examples=["1234", "5678", "91011"]),
+        make_named_property(
             name="properties.entity.location",
-            field_type="str",
+            type="string",
             examples=["Atlanta, Georgia", "Miami, Florida", "San Diego, California"],
         ),
-        SchemaField(name="properties.entity.aircraft", field_type="str", examples=["Cessna", "Boeing", "Airbus"]),
-        SchemaField(name="properties.entity.city", field_type="str", examples=["Atlanta", "Savannah", "Augusta"]),
-        SchemaField(
-            name="text_representation", field_type="str", examples=["Can be assumed to have all other details"]
+        make_named_property(name="properties.entity.aircraft", type="string", examples=["Cessna", "Boeing", "Airbus"]),
+        make_named_property(name="properties.entity.city", type="string", examples=["Atlanta", "Savannah", "Augusta"]),
+        make_named_property(
+            name="text_representation", type="string", examples=["Can be assumed to have all other details"]
         ),
     ]
 )
 
 EXAMPLE_FINANCIAL_SCHEMA = Schema(
-    fields=[
-        SchemaField(name="properties.path", field_type="str", examples=["doc1.pdf", "doc2.pdf", "doc3.pdf"]),
-        SchemaField(
-            name="properties.entity.date", field_type="str", examples=["2022-01-01", "2022-12-31", "2023-01-01"]
+    properties=[
+        make_named_property(name="properties.path", type="string", examples=["doc1.pdf", "doc2.pdf", "doc3.pdf"]),
+        make_named_property(
+            name="properties.entity.date", type="string", examples=["2022-01-01", "2022-12-31", "2023-01-01"]
         ),
-        SchemaField(
-            name="properties.entity.revenue", field_type="float", examples=["1000000.0", "2000000.0", "3000000.0"]
+        make_named_property(
+            name="properties.entity.revenue", type="float", examples=["1000000.0", "2000000.0", "3000000.0"]
         ),
-        SchemaField(
+        make_named_property(
             name="properties.entity.firmName",
-            field_type="str",
+            type="string",
             examples=["Dewey, Cheatem, and Howe", "Saul Goodman & Associates", "Wolfram & Hart"],
         ),
-        SchemaField(
-            name="text_representation", field_type="str", examples=["Can be assumed to have all other details"]
+        make_named_property(
+            name="text_representation", type="string", examples=["Can be assumed to have all other details"]
         ),
     ]
 )
@@ -367,6 +366,7 @@ class PlannerPrompt(SycamorePrompt):
         planner_system_prompt: str = PLANNER_SYSTEM_PROMPT,
         planner_natural_language_prompt: str = PLANNER_NATURAL_LANGUAGE_PROMPT,
         planner_raw_data_prompt: str = PLANNER_RAW_DATA_PROMPT,
+        planner_tail_prompt: Optional[str] = None,
     ):
         self.query = query
         self.examples = examples
@@ -377,6 +377,7 @@ class PlannerPrompt(SycamorePrompt):
         self.planner_system_prompt = planner_system_prompt
         self.planner_natural_language_prompt = planner_natural_language_prompt
         self.planner_raw_data_prompt = planner_raw_data_prompt
+        self.planner_tail_prompt = planner_tail_prompt
 
     @staticmethod
     def make_operator_prompt(operator: type[Node]) -> str:
@@ -392,7 +393,7 @@ class PlannerPrompt(SycamorePrompt):
     @staticmethod
     def make_schema_prompt(schema: Schema) -> str:
         """Generate the prompt fragment for the provided schema."""
-        return schema.model_dump_json(indent=2)
+        return schema.render_flattened()
 
     def make_examples_prompt(self) -> str:
         """Generate the prompt fragment for the query examples."""
@@ -458,6 +459,9 @@ class PlannerPrompt(SycamorePrompt):
         INDEX_NAME: {self.index}
         DATA_SCHEMA:\n\n{self.make_schema_prompt(self.data_schema)}
         """
+
+        if self.planner_tail_prompt:
+            prompt += f"\n{self.planner_tail_prompt}"
 
         return prompt
 

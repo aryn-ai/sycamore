@@ -324,7 +324,7 @@ class OpenAI(LLM):
             **(llm_kwargs or {}),
         }
 
-        if not self.model.name.startswith("o"):
+        if not self.model.name.startswith("o") and not self.model.name.startswith("gpt-5"):
             kwargs["temperature"] = 0
 
         if "SYCAMORE_OPENAI_USER" in os.environ:
@@ -395,7 +395,7 @@ class OpenAI(LLM):
             response_text = completion.choices[0].text
 
         completion_tokens, prompt_tokens = self.validate_tokens(completion)
-        self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens, model=model)
+        self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens, model=model)
         if not response_text:
             raise ValueError("OpenAI returned empty response")
         return response_text

@@ -13,7 +13,6 @@ from sycamore.llms.prompts.prompts import (
 from sycamore.llms.prompts.jinja_fragments import (
     J_DYNAMIC_DOC_TEXT,
     J_FIELD_VALUE_MACRO,
-    J_FORMAT_SCHEMA_MACRO,
     J_SET_ENTITY,
     J_SET_SCHEMA,
     J_ELEMENT_BATCHED_LIST,
@@ -100,6 +99,27 @@ EntityExtractorFewShotJinjaPrompt = JinjaPrompt(
     num_elements=35,
 )
 
+MetadataExtractorJinjaPrompt = JinjaPrompt(
+    system="""You are a helpful property extractor.
+        You generate JSON objects according to a schema
+        to represent unstructured text data""",
+    user="""You are given a series of elements from a document and each element contains a page number.
+        Your task is to extract the {{ entity_name }} from the document and also record the page number where the property is found.
+        The {{ entity_name }} follows the schema {{ schema }}.
+        The schema includes some description and type hints to help you
+        find them in the document. Make sure to not use comma for number. Do not output these hints.
+        Return all the properties. If a property is not present in the document return null.
+        Output ONLY JSON conforming to this schema, and nothing else, pass it as json between '```json {JSON}```.
+
+        Text:
+        {% for elt in doc.elements %}
+        Page Number {{ elt['properties']['page_number'] }}: {{ elt.text_representation }}
+        {% endfor %}
+
+        Make sure to return the output tuple with square brackets.
+
+        """,
+)
 
 SummarizeImagesJinjaPrompt = JinjaElementPrompt(
     user=textwrap.dedent(
@@ -394,11 +414,10 @@ PropertiesFromSchemaJinjaPrompt = JinjaPrompt(
         "You are a helpful property extractor. You have to return your response as a JSON that"
         "can be parsed with json.loads(<response>) in Python. Do not return any other text."
     ),
-    user=(
-        J_FORMAT_SCHEMA_MACRO
-        + """\
+    user=textwrap.dedent(
+        """\
 Extract values for the following fields:
-{{ format_schema(schema) }}
+{{ schema_string }}
 
 Document text:"""
         + J_DYNAMIC_DOC_TEXT

@@ -10,12 +10,10 @@ from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import SycamorePrompt
-from sycamore.llms.prompts.default_prompts import (
-    LlmClusterEntityAssignGroupsMessagesPrompt,
-    LlmClusterEntityFormGroupsMessagesPrompt,
-)
+
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms import DocumentStructure, Sort
+from sycamore.transforms.aggregation import Aggregation
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph_entities import GraphEntityExtractor
 from sycamore.transforms.extract_graph_relationships import GraphRelationshipExtractor
@@ -27,8 +25,10 @@ from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.deprecate import deprecated
+from sycamore.decorators import experimental
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
+from sycamore.schema import SchemaV2
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
@@ -455,6 +455,69 @@ class DocSet:
 
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
+
+    @experimental
+    def extract(self, schema: SchemaV2, llm: LLM) -> "DocSet":
+        from sycamore.transforms.property_extraction.extract import Extract
+        from sycamore.transforms.property_extraction.strategy import default_stepthrough, default_schema_partition
+        from sycamore.transforms.property_extraction.prompts import default_prompt
+
+        ext = Extract(
+            self.plan,
+            schema=schema,
+            step_through_strategy=default_stepthrough,
+            schema_partition_strategy=default_schema_partition,
+            llm=llm,
+            prompt=default_prompt,
+        )
+        return DocSet(self.context, ext)
+
+    @experimental
+    def suggest_schema(
+        self,
+        llm: LLM,
+        existing_schema: Optional[SchemaV2] = None,
+        reduce_fn: Optional[Callable[[list[Document]], Document]] = None,
+    ) -> "SchemaV2":
+        """
+        Extracts a common schema from the documents in this DocSet.
+        This transform is similar to extract_schema, except that it will add the same schema
+        to each document in the DocSet rather than inferring a separate schema per Document.
+        Args:
+            llm: An instance of an LLM class that defines the LLM to be used for schema extraction.
+            existing_schema: An optional existing schema to provide as context to the LLM.
+            reduce_fn: A function that takes a list of Documents (each with a _schema property) and
+                       returns a single Document with the combined schema. If None, defaults to
+                       intersection_of_fields.
+        Example:
+            .. code-block:: python
+
+                openai_llm = OpenAI(OpenAIModels.GPT_4O.value)
+                context = sycamore.init()
+                docset = context.read.binary(paths, binary_format="pdf").partition(partitioner=ArynPartitioner())
+                schema = docset.suggest_schema(llm=openai_llm, reduce_fn=intersection_of_fields)
+        """
+        from sycamore.transforms.property_extraction.extract import SchemaExtract
+        from sycamore.transforms.property_extraction.strategy import BatchElements
+        from sycamore.transforms.property_extraction.prompts import _schema_extraction_prompt
+        from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields
+
+        schema_ext = SchemaExtract(
+            self.plan,
+            step_through_strategy=BatchElements(batch_size=50),
+            llm=llm,
+            prompt=_schema_extraction_prompt,
+            existing_schema=existing_schema,
+        )
+        if reduce_fn is None:
+            reduce_fn = intersection_of_fields
+        ds = DocSet(self.context, schema_ext).reduce(reduce_fn)
+        schema = ds.take()[0].properties.get("_schema", SchemaV2(properties=[]))
+        if existing_schema is not None and len(existing_schema.properties) > 0:
+            for named_prop in existing_schema.properties:
+                schema.properties.append(named_prop)
+
+        return schema
 
     def extract_document_structure(self, structure: DocumentStructure, **kwargs):
         """
@@ -1303,6 +1366,18 @@ class DocSet:
             plan = DropIfMissingField(plan, field)
         return DocSet(self.context, Sort(plan, descending, field, default_val))
 
+    def aggregate(self, agg: Aggregation) -> "DocSet":
+        return DocSet(self.context, agg.build(self.plan))
+
+    def reduce(
+        self,
+        reduce_fn: Callable[[list[Document]], Document],
+        group_key_fn: Callable[[Document], str] = lambda d: "single_group",
+    ) -> "DocSet":
+        from sycamore.transforms.aggregation import Reduce
+
+        return DocSet(self.context, Reduce(reduce_fn).build_grouped(self.plan, group_key_fn))
+
     def groupby_count(self, field: str, unique_field: Optional[str] = None, **kwargs) -> "DocSet":
         """
         Performs a count aggregation on a DocSet.
@@ -1406,6 +1481,7 @@ class DocSet:
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def llm_generate_group(self, llm: LLM, instruction: str, field: str, **kwargs):
         # Not all documents will have a value for the given field, so we filter those out.
+        from sycamore.llms.prompts.default_prompts import LlmClusterEntityFormGroupsMessagesPrompt
 
         count = self.count()
         samples = self if count < 1000 else self.random_sample(1000.0 / count)
@@ -1442,6 +1518,7 @@ class DocSet:
             'yogurt', 'chocolate', 'orange', "properties._autogen_ClusterAssignment" would contain
             values like 'fruit', 'dairy', and 'dessert'.
         """
+        from sycamore.llms.prompts.default_prompts import LlmClusterEntityAssignGroupsMessagesPrompt
 
         docset = self
 
@@ -1476,6 +1553,10 @@ class DocSet:
             'yogurt', 'chocolate', 'orange', "properties._autogen_ClusterAssignment" would contain
             values like 'fruit', 'dairy', and 'dessert'.
         """
+        from sycamore.llms.prompts.default_prompts import (
+            LlmClusterEntityAssignGroupsMessagesPrompt,
+            LlmClusterEntityFormGroupsMessagesPrompt,
+        )
 
         docset = self
         # Not all documents will have a value for the given field, so we filter those out.

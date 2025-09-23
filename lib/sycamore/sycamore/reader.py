@@ -4,8 +4,9 @@ from pathlib import Path
 
 from pandas import DataFrame
 from pyarrow import Table
-from pyarrow.filesystem import FileSystem
+from pyarrow.fs import FileSystem
 
+from sycamore.connectors.aryn.ArynReader import DocFilter
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.context import context_params
 from sycamore.decorators import experimental
@@ -698,7 +699,12 @@ class DocSetReader:
 
     @experimental
     def aryn(
-        self, docset_id: str, aryn_api_key: Optional[str] = None, aryn_url: Optional[str] = None, **kwargs
+        self,
+        docset_id: str,
+        aryn_api_key: Optional[str] = None,
+        aryn_url: Optional[str] = None,
+        doc_filter: Optional[DocFilter] = None,
+        **kwargs,
     ) -> DocSet:
         """
         Reads the contents of an Aryn docset into a DocSet.
@@ -707,6 +713,7 @@ class DocSetReader:
             docset_id: The ID of the Aryn docset to read from.
             aryn_api_key: (Optional) The Aryn API key to use for authentication.
             aryn_url: (Optional) The URL of the Aryn instance to read from.
+            doc_filter: (Optional) A DocFilter to filter the documents to read from the docset.
             kwargs: Keyword arguments to pass to the underlying execution engine.
         """
         from sycamore.connectors.aryn.ArynReader import (
@@ -721,6 +728,8 @@ class DocSetReader:
             aryn_url = ArynConfig.get_aryn_url()
 
         dr = ArynReader(
-            client_params=ArynClientParams(aryn_url, aryn_api_key), query_params=ArynQueryParams(docset_id), **kwargs
+            client_params=ArynClientParams(aryn_url, aryn_api_key),
+            query_params=ArynQueryParams(docset_id, doc_filter),
+            **kwargs,
         )
         return DocSet(self._context, dr)

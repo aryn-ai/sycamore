@@ -124,7 +124,7 @@ class TestOperations:
         import random
         from copy import deepcopy
 
-        words = ["some", "words", "are", "too", "long"]
+        words = ["each", "word", "uses", "four", "char"]
         docs = words_and_ids_docset.take_all()
         big_docs = []
         for i in range(5):
@@ -186,7 +186,8 @@ class TestOperations:
             ),
         )
         captured = llm.capture
-        assert len(captured) == 48
+        # Number of messages changes depending on the order of the docs.
+        assert len(captured) == 49
         assert response == "merged summary"
 
     def test_get_text_for_summarize_data_non_docset(self, words_and_ids_docset):

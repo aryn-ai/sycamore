@@ -3,6 +3,7 @@ import ray
 import tempfile
 from typing import Any
 
+import sycamore
 from sycamore.data import Document
 from sycamore.connectors.file.file_scan import JsonManifestMetadataProvider
 from sycamore.connectors.file import BinaryScan, JsonScan
@@ -132,6 +133,25 @@ class TestFileScan:
             assert doc.properties["indexed_at"] == indexed_at
         finally:
             tmp_manifest.close()
+
+    def test_case_insensitive_extension(self):
+        from pyarrow.fs import FileSystem
+
+        fs = FileSystem.from_uri("mock://test")[0]
+        with open(str(TEST_DIR / "resources/data/pdfs/Ray_page1.pdf"), "rb") as f:
+            data = f.read()
+            fs.create_dir("test_pdfs")
+
+            with fs.open_output_stream("test_pdfs/file1.pdf") as out_stream:
+                out_stream.write(data)
+            with fs.open_output_stream("test_pdfs/file1.PDF") as out_stream:
+                out_stream.write(data)
+            with fs.open_output_stream("test_pdfs/file1.pDf") as out_stream:
+                out_stream.write(data)
+
+        ctx = sycamore.init(exec_mode=sycamore.ExecMode.LOCAL)
+        count = ctx.read.binary(paths="mock://test_pdfs", binary_format="pdf", filesystem=fs).count()
+        assert count == 3
 
     def test_cleanup(self):
         ray.shutdown()

@@ -50,6 +50,11 @@ class RenderedPrompt:
             return 0
         return sum(len(tokenizer.tokenize(m.content)) for m in self.messages)
 
+    def to_human_readable(self) -> str:
+        return "\n".join(
+            f"------------------------\n{m.role}\n-----------------------\n{m.content}\n" for m in self.messages
+        )
+
 
 class SycamorePrompt:
     """Base class/API for all Sycamore LLM Prompt objects. Sycamore Prompts
@@ -101,6 +106,18 @@ class SycamorePrompt:
         Returns:
             A fully rendered prompt that can be sent to an LLM for inference"""
         raise NotImplementedError(f"render_multiple_documents is not implemented for {self.__class__.__name__}")
+
+    def render_multiple_elements(self, elts: list[Element], doc: Document) -> RenderedPrompt:
+        """Render this prompt, given a list of elements from a document as context.
+
+        Args:
+            elts: The list of elements to use to populate the prompt
+            doc: The parent document of the elements
+
+        Returns:
+            A fully rendered prompt that can be sent to an LLM for inference
+        """
+        raise NotImplementedError(f"render_multiple_elements is not implemented for {self.__class__.__name__}")
 
     def fork(self, **kwargs: Any) -> Self:
         """Create a new prompt with some fields changed.

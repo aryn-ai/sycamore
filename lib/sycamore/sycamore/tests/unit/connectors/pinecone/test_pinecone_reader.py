@@ -8,7 +8,7 @@ from sycamore.connectors.pinecone.pinecone_reader import (
     PineconeReaderQueryResponse,
 )
 
-from pinecone.data import FetchResponse, Vector
+from pinecone.db_data import FetchResponse, Vector
 
 
 @pytest.fixture

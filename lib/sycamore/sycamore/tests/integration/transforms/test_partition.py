@@ -1,7 +1,6 @@
 from io import BytesIO
 import re
 import string
-import pytest
 
 import nltk
 from PIL import Image
@@ -17,7 +16,6 @@ import os
 ARYN_API_KEY = os.environ["ARYN_API_KEY"]
 
 
-@pytest.mark.skip(reason="Temp off while service under high load")
 def test_aryn_partitioner_w_ocr():
     path = TEST_DIR / "resources/data/pdfs/Transformer.pdf"
 
@@ -41,7 +39,6 @@ def test_aryn_partitioner_w_ocr():
 
 
 def check_table_extraction(**kwargs):
-    assert False, "Should not get here while docparse tests are off."
     path = TEST_DIR / "resources/data/pdfs/basic_table.pdf"
 
     basic_table_result = Table(
@@ -114,17 +111,14 @@ def check_table_extraction(**kwargs):
         assert cell1.is_header == cell2.is_header
 
 
-@pytest.mark.skip(reason="Temp off while service under high load")
 def test_table_extraction_with_ocr():
     check_table_extraction(use_ocr=True)
 
 
-@pytest.mark.skip(reason="Temp off while service under high load")
 def test_table_extraction_with_no_ocr():
     check_table_extraction(use_ocr=False)
 
 
-@pytest.mark.skip(reason="Temp off while service under high load")
 def test_aryn_partitioner():
     path = TEST_DIR / "resources/data/pdfs/Transformer.pdf"
 
@@ -145,7 +139,6 @@ def test_aryn_partitioner():
     )
 
 
-@pytest.mark.skip(reason="Temp off while service under high load")
 def test_table_extraction_with_ocr_batched():
     import logging
 

@@ -1,7 +1,7 @@
 import io
 from pathlib import Path
 from typing import Optional
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from sycamore.llms import get_llm, MODELS
 from sycamore.llms.chained_llm import ChainedLLM
@@ -20,7 +20,12 @@ def test_get_metadata():
     llm = FakeLLM()
     wall_latency = datetime.timedelta(seconds=1)
     metadata = llm.get_metadata(
-        llm._model_name, {"prompt": "Hello", "temperature": 0.7}, "Test output", wall_latency, 10, 5
+        llm._model_name,
+        {"prompt": "Hello", "temperature": 0.7},
+        "Test output",
+        wall_latency,
+        in_tokens=5,
+        out_tokens=10,
     )
     assert metadata["model"] == llm._model_name
     assert metadata["usage"] == {
@@ -48,7 +53,12 @@ def test_add_llm_metadata(mock_add_metadata):
         mock_add_metadata.assert_not_called()
 
 
-def test_openai_davinci_fallback():
+@patch("openai.OpenAI")
+def test_openai_davinci_fallback(mock_openai_client):
+    # Mock the OpenAI client to prevent external API calls
+    mock_openai_instance = MagicMock()
+    mock_openai_client.return_value = mock_openai_instance
+
     llm = OpenAI(model_name=OpenAIModels.TEXT_DAVINCI.value)
     assert llm._model_name == OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value.name
 
@@ -73,8 +83,13 @@ def test_merge_llm_kwargs():
     assert merged_kwargs == {"temperature": 0.5, "max_tokens": 500, "thinking_config": {"token_budget": 1000}}
 
 
-def test_gemini_pickle():
+@patch("google.genai.Client")
+def test_gemini_pickle(mock_client):
     import pickle
+
+    # Mock the Google Gemini client to prevent external API calls
+    mock_client_instance = MagicMock()
+    mock_client.return_value = mock_client_instance
 
     kwargs = {"max_output_tokens": 4092}
 
@@ -90,7 +105,16 @@ def test_gemini_pickle():
 
 
 @patch("boto3.client")
-def test_get_llm(mock_boto3_client):
+@patch("openai.OpenAI")
+def test_get_llm(mock_openai_client, mock_boto3_client):
+    # Mock the OpenAI client to prevent external API calls
+    mock_openai_instance = MagicMock()
+    mock_openai_client.return_value = mock_openai_instance
+
+    # Mock the boto3 client to prevent AWS calls
+    mock_boto3_instance = MagicMock()
+    mock_boto3_client.return_value = mock_boto3_instance
+
     assert isinstance(get_llm("openai." + OpenAIModels.TEXT_DAVINCI.value.name)(), OpenAI)
     assert isinstance(get_llm("bedrock." + BedrockModels.CLAUDE_3_5_SONNET.value.name)(), Bedrock)
 

@@ -1,5 +1,6 @@
+import tempfile
 from dataclasses import dataclass
-from typing import Optional, Mapping
+from typing import Optional, Mapping, Any
 
 import requests
 
@@ -20,9 +21,16 @@ class ArynWriterClientParams(BaseDBWriter.ClientParams):
 
 @dataclass
 class ArynWriterTargetParams(BaseDBWriter.TargetParams):
-    def __init__(self, docset_id: Optional[str] = None, update_schema: bool = False):
+    def __init__(
+        self,
+        docset_id: Optional[str] = None,
+        *,
+        update_schema: bool = False,
+        only_properties: bool = False,
+    ):
         self.docset_id = docset_id
         self.update_schema = update_schema
+        self.only_properties = only_properties
 
     def compatible_with(self, other: "BaseDBWriter.TargetParams") -> bool:
         return True
@@ -54,17 +62,29 @@ class ArynWriterClient(BaseDBWriter.Client):
 
         headers = {"Authorization": f"Bearer {self.api_key}"}
         update_schema = target_params.update_schema
+        only_properties = target_params.only_properties
         sess = requests.Session()
         for record in records:
             assert isinstance(record, ArynWriterRecord)
             doc = record.doc
-            files: Mapping = {"doc": doc.serialize()}
-            sess.post(
-                url=f"{self.aryn_url}/docsets/write",
-                params={"docset_id": docset_id, "update_schema": update_schema},
-                files=files,
-                headers=headers,
-            )
+            with tempfile.TemporaryFile(prefix="aryn-writer-", suffix=".ArynSDoc") as stream:
+                params: dict[str, Any] = {
+                    "docset_id": docset_id,
+                    "update_schema": update_schema,
+                    "only_properties": only_properties,
+                }
+                if only_properties:
+                    # Reduce payload size by removing elements if not updating schema only.
+                    del doc.elements
+                doc.web_serialize(stream)
+                stream.seek(0)
+                files: Mapping = {"doc": stream}
+                sess.post(
+                    url=f"{self.aryn_url}/docsets/write",
+                    params=params,
+                    files=files,
+                    headers=headers,
+                )
             # For each batch we'll update the Aryn schema with only the first doc of each batch
             update_schema = False
 

@@ -143,9 +143,12 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                     }
                 )
                 doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
-                doc.properties["score"] = (
-                    data["_score"] if doc.properties.get("score") is None else doc.properties["score"]
-                )
+                if "_score" not in data:
+                    logger.warning(
+                        f"No _score field found in OpenSearch response for index: {query_params.index_name} and query:{query_params.query}."
+                        "This may lead to incorrect search relevance scores."
+                    )
+                doc.properties["search_relevance_score"] = data.get("_score", 0.0)
                 result.append(doc)
         else:
             assert (
@@ -161,6 +164,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
             # Get unique documents
             unique_docs: dict[str, Document] = {}
             query_result_elements_per_doc: dict[str, set[str]] = {}
+            opensearch_scores: dict[Optional[str], float] = {}
             for data in self.output:
                 doc = Document(
                     {
@@ -169,6 +173,12 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                 )
                 doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
                 assert doc.doc_id, "Retrieved invalid doc with missing doc_id"
+                if "_score" not in data:
+                    logger.warning(
+                        f"No _score field found in OpenSearch response for index: {query_params.index_name} and query:{query_params.query}."
+                        "This may lead to incorrect search relevance scores."
+                    )
+                opensearch_scores[doc.doc_id] = data.get("_score", 0.0)
                 if not doc.parent_id:
                     # Always use retrieved doc as the unique parent doc - override any empty parent doc created below
                     unique_docs[doc.doc_id] = doc
@@ -204,6 +214,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                         **element.get("_source", {}),
                     }
                 )
+                doc.properties["search_relevance_score"] = opensearch_scores.get(doc.doc_id, 0.0)
                 assert doc.parent_id, "Got non-element record from OpenSearch reconstruction query"
                 if doc.doc_id not in query_result_elements_per_doc.get(doc.parent_id, {}):
                     doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL

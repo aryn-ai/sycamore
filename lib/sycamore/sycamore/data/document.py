@@ -1,10 +1,19 @@
 from collections import UserDict
 import json
-from typing import Any, Optional
+from typing import Any, Optional, BinaryIO
+import struct
+
+import msgpack
 
 from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
 from sycamore.data.docid import mkdocid, nanoid36
+from sycamore.decorators import experimental
+
+DOCUMENT_WEB_SERIALIZATION_MAGIC = b"ArynSDoc"
+DOCUMENT_WEB_SERIALIZATION_VERSION_MAJOR = 0
+DOCUMENT_WEB_SERIALIZATION_VERSION_MINOR = 1
+DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT = "!8s2H4x"
 
 
 class DocumentSource:
@@ -201,6 +210,72 @@ class Document(UserDict):
             return SummaryDocument(data)
         else:
             return Document(data)
+
+    @experimental
+    def web_serialize(self, stream: BinaryIO) -> None:
+        kind = type(self)
+        if kind != Document:  # MetadataDocument, HierarchicalDocument, SummaryDocument are not yet supported
+            raise NotImplementedError(f"web_serialize cannot yet handle type '{kind.__name__}'")
+
+        stream.write(
+            struct.pack(
+                DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT,
+                DOCUMENT_WEB_SERIALIZATION_MAGIC,
+                DOCUMENT_WEB_SERIALIZATION_VERSION_MAJOR,
+                DOCUMENT_WEB_SERIALIZATION_VERSION_MINOR,
+            )
+        )
+
+        elementless_data = self.data.copy()  # Shallow copy
+        del elementless_data["elements"]
+
+        packed_elementless_data = msgpack.packb(elementless_data)
+        if not packed_elementless_data:
+            raise RuntimeError("Failed to serialize document")
+        stream.write(packed_elementless_data)
+
+        for element in self.elements:
+            element.web_serialize(stream)
+        msgpack.pack("_TERMINATOR", stream)
+
+    @experimental
+    @staticmethod
+    def web_deserialize(stream: BinaryIO) -> "Document":
+        def read_header(stream: BinaryIO):
+            header_size = struct.calcsize(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT)
+            data = bytearray()
+            got = 0
+            while got < header_size:
+                to_add = stream.read(header_size - got)
+                if not to_add:
+                    raise RuntimeError("Failed to read document header")
+                data.extend(to_add)
+                got += len(to_add)
+            return data
+
+        header = read_header(stream)
+        magic_bytes, version_major, version_minor = struct.unpack(DOCUMENT_WEB_SERIALIZATION_HEADER_FORMAT, header)
+        if magic_bytes != DOCUMENT_WEB_SERIALIZATION_MAGIC:
+            raise RuntimeError("Input does not appear to be an Aryn serialized document (Bad magic number).")
+        if (
+            version_major != DOCUMENT_WEB_SERIALIZATION_VERSION_MAJOR
+            or version_minor != DOCUMENT_WEB_SERIALIZATION_VERSION_MINOR
+        ):
+            raise RuntimeError(f"Unsupported serialization version: {version_major}.{version_minor}")
+
+        unpacker = msgpack.Unpacker(stream)
+        elementless_data = next(unpacker)
+        doc = Document(elementless_data)
+        elements = doc.elements
+        saw_terminator = False
+        for obj in unpacker:
+            if obj == "_TERMINATOR":
+                saw_terminator = True
+                break
+            elements.append(Element.web_deserialize(obj))
+        if not saw_terminator:
+            raise RuntimeError("Premature end of serialized document stream.")
+        return doc
 
     @staticmethod
     def from_row(row: dict[str, bytes]) -> "Document":

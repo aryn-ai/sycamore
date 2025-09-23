@@ -14,14 +14,14 @@ from PIL import Image
 from pypdf import PdfReader
 
 from aryn_sdk.partition import partition_file
-from sycamore.data import Element, BoundingBox, ImageElement, TableElement
+from sycamore.data import Element, BoundingBox, TableElement
 from sycamore.data.document import DocumentPropertyTypes
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import choose_device
 from sycamore.utils.element_sort import sort_page
 from sycamore.utils.cache import Cache
-from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
+from sycamore.utils.image_utils import crop_to_bbox, extract_images_from_elements
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.markdown import elements_to_markdown
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
@@ -204,6 +204,7 @@ class ArynPDFPartitioner:
                 use_ocr=use_ocr,
                 extract_table_structure=extract_table_structure,
                 extract_images=extract_images,
+                extract_image_format=extract_image_format,
                 pages_per_call=pages_per_call,
                 output_format=output_format,
                 source=source,
@@ -293,6 +294,7 @@ class ArynPDFPartitioner:
         use_ocr: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
+        extract_image_format: str = "PPM",
         pages_per_call: int = -1,
         output_format: Optional[str] = None,
         source: str = "",
@@ -316,6 +318,7 @@ class ArynPDFPartitioner:
                     use_ocr=use_ocr,
                     extract_table_structure=extract_table_structure,
                     extract_images=extract_images,
+                    extract_image_format=extract_image_format,
                     selected_pages=[[low, min(high, page_count)]],
                     output_format=output_format,
                     source=source,
@@ -447,88 +450,6 @@ class ArynPDFPartitioner:
             display_top(after)
         return deformable_layout
 
-    def process_batch(
-        self,
-        batch: list[Image.Image],
-        *,
-        threshold: float,
-        text_extractor: TextExtractor,
-        extractor_inputs: Any,
-        use_ocr: bool,
-        ocr_model: Union[str, OcrModel],
-        per_element_ocr: bool,
-        extract_table_structure: bool,
-        table_structure_extractor,
-        table_extraction_options: dict,
-        extract_images: bool,
-        extract_image_format: str,
-        use_cache,
-        skip_empty_tables: bool = False,
-        supplement_text_fn: Callable[[list[Element], list[Element]], list[Element]] = _supplement_text,
-    ) -> list[list[Element]]:
-        with LogTime("infer"):
-            assert self.model is not None
-            deformable_layout = self.model.infer(batch, threshold, use_cache)
-
-        if not extractor_inputs:
-            extractor_inputs = batch
-        gc_tensor_dump()
-        assert len(deformable_layout) == len(batch)
-        if use_ocr and per_element_ocr:
-            with LogTime("Per Element OCR"):
-                extract_ocr(
-                    batch,
-                    deformable_layout,
-                    ocr_model=ocr_model,
-                )
-        else:
-            extracted_pages = []
-            with LogTime("text_extraction"):
-                for i, page_data in enumerate(extractor_inputs):
-                    if isinstance(page_data, dict):
-                        width, height = page_data.get("dimensions")
-                        page = text_extractor.parse_output(page_data.get("data"), width, height)
-                    else:
-                        page = text_extractor.extract_page(page_data)
-                    extracted_pages.append(page)
-            assert len(extracted_pages) == len(deformable_layout)
-            with LogTime("text_supplement"):
-                for d, p in zip(deformable_layout, extracted_pages):
-                    supplement_text_fn(d, p)
-        if extract_table_structure:
-            if table_structure_extractor is None:
-                table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
-            with LogTime("extract_table_structure_batch"):
-                for i, page_elements in enumerate(deformable_layout):
-                    image = batch[i]
-                    for j in range(len(page_elements)):
-                        element = page_elements[j]
-                        if isinstance(element, TableElement):
-                            if skip_empty_tables:
-                                if not element.tokens:
-                                    continue
-                                concatenated_text = " ".join([token.get("text") for token in element.tokens])
-                                if concatenated_text.strip() == "":
-                                    continue
-                            page_elements[j] = table_structure_extractor.extract(
-                                element, image, **table_extraction_options
-                            )
-
-        if extract_images:
-            with LogTime("extract_images_batch"):
-                for i, page_elements in enumerate(deformable_layout):
-                    image = batch[i]
-                    for element in page_elements:
-                        if isinstance(element, ImageElement) and element.bbox is not None:
-                            cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
-                            resolved_format = None if extract_image_format == "PPM" else extract_image_format
-                            element.binary_representation = image_to_bytes(cropped_image, format=resolved_format)
-                            element.image_mode = cropped_image.mode
-                            element.image_size = cropped_image.size
-                            element.image_format = resolved_format
-
-        return deformable_layout
-
     @staticmethod
     def _run_text_extractor_document(
         file_name: str,
@@ -551,17 +472,23 @@ class ArynPDFPartitioner:
     def process_batch_inference(
         self,
         batch: list[Image.Image],
+        *,
         threshold: float,
         use_cache: bool,
         use_ocr: bool,
         ocr_model: Union[str, OcrModel],
         per_element_ocr: bool,
+        extractor_inputs: Optional[Any] = None,
+        text_extractor: Optional[TextExtractor] = None,
+        supplement_text_fn: Callable[[list[Element], list[Element]], list[Element]] = _supplement_text,
     ) -> Any:
         self._init_model()
         with LogTime("infer"):
             assert self.model is not None
             deformable_layout = self.model.infer(batch, threshold, use_cache)
 
+        if not extractor_inputs:
+            extractor_inputs = batch
         gc_tensor_dump()
         assert len(deformable_layout) == len(batch)
         if use_ocr and per_element_ocr:
@@ -570,11 +497,26 @@ class ArynPDFPartitioner:
                 deformable_layout,
                 ocr_model=ocr_model,
             )
+        elif text_extractor is not None:
+            extracted_pages = []
+            with LogTime("text_extraction"):
+                for i, page_data in enumerate(extractor_inputs):
+                    if isinstance(page_data, dict):
+                        width, height = page_data.get("dimensions")
+                        page = text_extractor.parse_output(page_data.get("data"), width, height)
+                    else:
+                        page = text_extractor.extract_page(page_data)
+                    extracted_pages.append(page)
+            assert len(extracted_pages) == len(deformable_layout)
+            with LogTime("text_supplement"):
+                for d, p in zip(deformable_layout, extracted_pages):
+                    supplement_text_fn(d, p)
         return deformable_layout
 
     def process_batch_extraction(
         self,
         batch: list[Image.Image],
+        *,
         deformable_layout: list[list[Element]],
         extract_table_structure: bool,
         table_structure_extractor,
@@ -599,15 +541,49 @@ class ArynPDFPartitioner:
             with LogTime("extract_images_batch"):
                 for i, page_elements in enumerate(deformable_layout):
                     image = batch[i]
-                    for element in page_elements:
-                        if isinstance(element, ImageElement) and element.bbox is not None:
-                            cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
-                            resolved_format = None if extract_image_format == "PPM" else extract_image_format
-                            element.binary_representation = image_to_bytes(cropped_image, format=resolved_format)
-                            element.image_mode = cropped_image.mode
-                            element.image_size = cropped_image.size
-                            element.image_format = resolved_format
+                    deformable_layout[i] = extract_images_from_elements(page_elements, image, extract_image_format)
+        return deformable_layout
 
+    def process_batch(
+        self,
+        batch: list[Image.Image],
+        *,
+        threshold: float,
+        text_extractor: TextExtractor,
+        extractor_inputs: Any,
+        use_ocr: bool,
+        ocr_model: Union[str, OcrModel],
+        per_element_ocr: bool,
+        extract_table_structure: bool,
+        table_structure_extractor,
+        table_extraction_options: dict,
+        extract_images: bool,
+        extract_image_format: str,
+        use_cache,
+        skip_empty_tables: bool = False,
+        supplement_text_fn: Callable[[list[Element], list[Element]], list[Element]] = _supplement_text,
+    ) -> list[list[Element]]:
+        deformable_layout = self.process_batch_inference(
+            batch,
+            threshold=threshold,
+            use_cache=use_cache,
+            use_ocr=use_ocr,
+            ocr_model=ocr_model,
+            per_element_ocr=per_element_ocr,
+            text_extractor=text_extractor,
+            supplement_text_fn=supplement_text_fn,
+            extractor_inputs=extractor_inputs,
+        )
+        if extract_table_structure or extract_images:
+            return self.process_batch_extraction(
+                batch,
+                deformable_layout=deformable_layout,
+                extract_table_structure=extract_table_structure,
+                table_structure_extractor=table_structure_extractor,
+                table_extraction_options=table_extraction_options,
+                extract_images=extract_images,
+                extract_image_format=extract_image_format,
+            )
         return deformable_layout
 
 
@@ -655,7 +631,7 @@ class DeformableDetr(SycamoreObjectDetection):
         from transformers import AutoImageProcessor
         from sycamore.utils.model_load import load_deformable_detr
 
-        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
+        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path, use_fast=True)
         self.model = load_deformable_detr(model_name_or_path, self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
@@ -721,8 +697,12 @@ class DeformableDetr(SycamoreObjectDetection):
         import torch
 
         results = []
-        inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
-        with torch.no_grad():
+        device = self._get_device()
+        inputs = self.processor(images=images, return_tensors="pt").to(device)
+        with (
+            torch.no_grad(),
+            torch.autocast(device),
+        ):
             outputs = self.model(**inputs)
         target_sizes = torch.tensor([image.size[::-1] for image in images])
         results.extend(

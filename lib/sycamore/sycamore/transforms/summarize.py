@@ -8,9 +8,6 @@ import logging
 
 from sycamore.data import Element, Document
 from sycamore.functions.tokenizer import Tokenizer, CharacterTokenizer
-from sycamore.llms.prompts.default_prompts import (
-    TextSummarizerJinjaPrompt,
-)
 from sycamore.llms.prompts.prompts import (
     SycamorePrompt,
     JinjaPrompt,
@@ -19,10 +16,13 @@ from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
 from sycamore.llms.llms import LLMMode
 from sycamore.transforms.map import Map
+from sycamore.transforms.aggregation import Aggregation
 from sycamore.transforms.base import CompositeTransform, BaseMapTransform
 from sycamore.transforms.base_llm import LLMMapElements, LLMMap, _infer_prompts
 
 
+# TODO: Rename this to DocumentListDocument or something less stupid-looking
+#       and move it somewhere more generally available
 class SummaryDocument(Document):
     def __init__(self, document=None, **kwargs):
         if "elements" in kwargs:
@@ -111,6 +111,8 @@ class LLMElementTextSummarizer(Summarizer):
         self._element_filter = element_filter
 
     def as_llm_map(self, child: Optional[Node], **kwargs) -> Node:
+        from sycamore.llms.prompts.default_prompts import TextSummarizerJinjaPrompt
+
         filter = self._element_filter or (lambda e: True)
         return LLMMapElements(
             child,
@@ -160,9 +162,10 @@ def _partition_fields(document: Document, fields: list[Union[str, Type[EtCetera]
     return doc_fields, elt_fields
 
 
-MaxTokensHierarchyPrompt = JinjaPrompt(
-    system=textwrap.dedent(
-        """
+def make_max_tokens_heirarchy_prompt() -> JinjaPrompt:
+    return JinjaPrompt(
+        system=textwrap.dedent(
+            """
         {%- if element_testing is not defined -%}{# element_testing means only render an element, to get token count #}
         {% if question is defined %}You are a helpful research assistant. You answer questions based on
         text you are presented with.
@@ -170,9 +173,9 @@ MaxTokensHierarchyPrompt = JinjaPrompt(
         including as much detail as possible.
         {% endif %}{% endif %}
         """
-    ),
-    user=textwrap.dedent(
-        """
+        ),
+        user=textwrap.dedent(
+            """
         {%- macro get_text_fields(element, fields) %}
             {% for f in fields %}
             {{ f }}: {{ element.field_to_value(f) }}
@@ -227,9 +230,9 @@ MaxTokensHierarchyPrompt = JinjaPrompt(
         {{ loop.index }}: {{ get_text(e) }}
         {% endfor %}
         """
-    ),
-    question="What is the summary of this data?",
-)
+        ),
+        question="What is the summary of this data?",
+    )
 
 
 class MultiStepDocumentSummarizer(Summarizer):
@@ -267,7 +270,7 @@ class MultiStepDocumentSummarizer(Summarizer):
         llm_mode: Optional[LLMMode] = None,
         question: Optional[str] = None,
         data_description: Optional[str] = None,
-        prompt: SycamorePrompt = MaxTokensHierarchyPrompt,
+        prompt: SycamorePrompt = make_max_tokens_heirarchy_prompt(),
         fields: list[Union[str, Type[EtCetera]]] = [],
         tokenizer: Tokenizer = CharacterTokenizer(),
     ):
@@ -345,6 +348,7 @@ class MultiStepDocumentSummarizer(Summarizer):
                 to_infer.append(base_prompt.render_document(document))
 
         # Invoke the llm and attach summaries
+        # TODO: Use run_coros_threadsafe here instead
         summaries = _infer_prompts(prompts=to_infer, llm=self.llm, llm_mode=self.llm_mode)
         for e, s in zip(final_elements, summaries):
             e.properties["summary"] = s
@@ -383,33 +387,34 @@ class MultiStepDocumentSummarizer(Summarizer):
         return result
 
 
-OneStepSummarizerPrompt = JinjaPrompt(
-    system="You are a helpful text summarizer",
-    user=textwrap.dedent(
-        """
-        You are given a series of database entries that answer the question "{{ question }}".
-        Generate a concise, conversational summary of the data to answer the question.
-        {%- for subdoc in doc.data.get("sub_docs", [doc]) %}
-        Entry {{ loop.index }}:
-            {% for f in doc.properties[doc_fields_key] %}{% if f.startswith("_") %}{% continue %}{% endif %}
-            {{ f }}: {{ subdoc.field_to_value(f) }}
-            {% endfor -%}
-            {%- if doc.properties[numel_key] is not none and doc.properties[numel_key] > 0 %}
-            Elements:
-                {%- set start = doc.properties[startel_key] -%}
-                {%- set end = doc.properties[startel_key] + doc.properties[numel_key] -%}
-                {%- for subel in subdoc.elements[start:end] -%}
-                {#- Removed {loop.index} from here because it blows up the token count. For an element token count, the index is 0 but when we count the tokens for all the elements included, it becomes like (0,1,2...) which results in a different tokenization from how we tokenize 1 element at a time. -#}
-                    {%- for f in doc.properties[elt_fields_key] %}
-                    {{ f }}: {{ subel.field_to_value(f) }}
-                    {%- endfor %}
-                    Text: {{ subel.text_representation }}
-                {% endfor %}
-            {% endif -%}
-        {% endfor %}
-        """
-    ),
-)
+def make_onestep_summarizer_prompt() -> JinjaPrompt:
+    return JinjaPrompt(
+        system="You are a helpful text summarizer",
+        user=textwrap.dedent(
+            """
+            You are given a series of database entries that answer the question "{{ question }}".
+            Generate a concise, conversational summary of the data to answer the question.
+            {%- for subdoc in doc.data.get("sub_docs", [doc]) %}
+            Entry {{ loop.index }}:
+                {% for f in doc.properties[doc_fields_key] %}{% if f.startswith("_") %}{% continue %}{% endif %}
+                {{ f }}: {{ subdoc.field_to_value(f) }}
+                {% endfor -%}
+                {%- if doc.properties[numel_key] is not none and doc.properties[numel_key] > 0 %}
+                Elements:
+                    {%- set start = doc.properties[startel_key] -%}
+                    {%- set end = doc.properties[startel_key] + doc.properties[numel_key] -%}
+                    {%- for subel in subdoc.elements[start:end] -%}
+                    {#- Removed {loop.index} from here because it blows up the token count. For an element token count, the index is 0 but when we count the tokens for all the elements included, it becomes like (0,1,2...) which results in a different tokenization from how we tokenize 1 element at a time. -#}
+                        {%- for f in doc.properties[elt_fields_key] %}
+                        {{ f }}: {{ subel.field_to_value(f) }}
+                        {%- endfor %}
+                        Text: {{ subel.text_representation }}
+                    {% endfor %}
+                {% endif -%}
+            {% endfor %}
+            """
+        ),
+    )
 
 
 class OneStepDocumentSummarizer(Summarizer):
@@ -443,7 +448,7 @@ class OneStepDocumentSummarizer(Summarizer):
         self.tokenizer = tokenizer
         assert EtCetera not in fields[:-1], "EtCetera must be at the end of the list of fields if provided"
         self.fields = fields
-        self.prompt = OneStepSummarizerPrompt.fork(**self.get_const_vars())
+        self.prompt = make_onestep_summarizer_prompt().fork(**self.get_const_vars())
 
     @staticmethod
     def get_const_vars() -> dict[str, str]:
@@ -633,3 +638,25 @@ class Summarize(NonCPUUser, NonGPUUser, Map):
 
     def __init__(self, child: Node, summarizer: Summarizer, **kwargs):
         super().__init__(child, f=summarizer.summarize, **kwargs)
+
+
+class CollectToSummaryDoc(Aggregation):
+    def __init__(self):
+        super().__init__(name="collect_to_summary_doc")
+
+    def accumulate(self, docs: list[Document]) -> Document:
+        return SummaryDocument(sub_docs=docs)
+
+    def combine(self, doc1: Document, doc2: Document) -> Document:
+        assert isinstance(doc1, SummaryDocument)
+        assert isinstance(doc2, SummaryDocument)
+        doc1.sub_docs.extend(doc2.sub_docs)
+        return doc1
+
+    def finalize(self, doc: Document) -> Document:
+        assert isinstance(doc, SummaryDocument)
+        doc.sub_docs.sort(key=lambda d: d.doc_id or "")
+        return doc
+
+    def zero_factory(self) -> Document:
+        return SummaryDocument()

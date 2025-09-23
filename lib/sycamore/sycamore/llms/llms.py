@@ -7,7 +7,6 @@ import pickle
 import base64
 from PIL import Image
 from typing import Any, Optional
-import pydantic
 
 from sycamore.llms.config import LLMModel
 from sycamore.utils.cache import Cache
@@ -135,6 +134,8 @@ class LLM(ABC):
 
     @staticmethod
     def _pickleable_response_format(prompt: RenderedPrompt) -> Any:
+        import pydantic
+
         if inspect.isclass(prompt.response_format) and issubclass(prompt.response_format, pydantic.BaseModel):
             return prompt.response_format.model_json_schema()
         else:
@@ -232,8 +233,8 @@ class LLM(ABC):
             "model": model,
             "temperature": kwargs.get("temperature", None),
             "usage": {
-                "completion_tokens": in_tokens,
-                "prompt_tokens": out_tokens,
+                "completion_tokens": out_tokens,
+                "prompt_tokens": in_tokens,
                 "total_tokens": in_tokens + out_tokens,
             },
             "wall_latency": wall_latency,

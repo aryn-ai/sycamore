@@ -1,4 +1,5 @@
-import threading
+import logging
+import os
 from typing import Optional, Sequence, Callable, Union
 
 from sycamore.llms.llms import LLM, LLMMode
@@ -6,7 +7,10 @@ from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import MapBatch
 from sycamore.data import Document, Element
+from sycamore.utils.threading import run_coros_threadsafe
 import asyncio
+
+logger = logging.getLogger(__name__)
 
 
 async def _infer_prompts_async(prompts: list[RenderedPrompt], llm: LLM) -> list[str]:
@@ -32,28 +36,21 @@ def _infer_prompts(
             if len(p.messages) == 0:
                 res.append("")
                 continue
-            s = llm.generate(prompt=p)
-            res.append(s)
+            try:
+                s = llm.generate(prompt=p)
+                res.append(s)
+            except Exception:
+                bad_prompt_path = os.environ.get("BAD_PROMPT_PATH", "/tmp/bad_prompt.txt")
+                with open(bad_prompt_path, "w") as f:
+                    f.write(p.to_human_readable())
+                    logger.error(f"Error generating prompt. Wrote failing prompt to $BAD_PROMPT_PATH:{bad_prompt_path}")
+                raise
         return res
     elif llm_mode == LLMMode.ASYNC:
         nonempty = [(i, p) for i, p in enumerate(prompts) if len(p.messages) > 0]
         res = [""] * len(prompts)
-
-        # Previously we would use asyncio.run here, but that causes issues in
-        # environments like Jupyter notebooks where an event loop is already
-        # running. To workaround this we create a separate event loop on a new
-        # thread and run the tasks there.
-        new_loop = asyncio.new_event_loop()
-        t = threading.Thread(target=_run_new_thread, args=(new_loop,), daemon=True)
-        t.start()
-
-        fut = asyncio.run_coroutine_threadsafe(_infer_prompts_async([p for _, p in nonempty], llm), new_loop)
-
-        responses = fut.result()
-
-        new_loop.call_soon_threadsafe(new_loop.stop)
-        t.join()
-        new_loop.close()
+        coroutines = [llm.generate_async(prompt=p, llm_kwargs={}) for _, p in nonempty]
+        responses = run_coros_threadsafe(coroutines)
 
         for (i, _), rs in zip(nonempty, responses):
             res[i] = rs

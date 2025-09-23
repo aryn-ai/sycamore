@@ -74,7 +74,8 @@ class GeminiModels(Enum):
     GEMINI_2_5_PRO = GeminiModel(name="gemini-2.5-pro", is_chat=True)
     GEMINI_2_5_PRO_PREVIEW = GEMINI_2_5_PRO  # Alias for the preview model
 
-    GEMINI_2_5_FLASH_LITE_PREVIEW = GeminiModel(name="gemini-2.5-flash-lite-preview-06-17", is_chat=True)
+    GEMINI_2_5_FLASH_LITE = GeminiModel(name="gemini-2.5-flash-lite", is_chat=True)
+    GEMINI_2_5_FLASH_LITE_PREVIEW = GEMINI_2_5_FLASH_LITE  # Alias for the preview model
 
     GEMINI_2_FLASH = GeminiModel(name="gemini-2.0-flash", is_chat=True)
     GEMINI_2_FLASH_LITE = GeminiModel(name="gemini-2.0-flash-lite", is_chat=True)
@@ -112,6 +113,10 @@ class OpenAIModels(Enum):
 
     O4_MINI = OpenAIModel(name="o4-mini", is_chat=True)
     O3 = OpenAIModel(name="o3", is_chat=True)
+
+    GPT_5 = OpenAIModel(name="gpt-5", is_chat=True)
+    GPT_5_MINI = OpenAIModel(name="gpt-5-mini", is_chat=True)
+    GPT_5_NANO = OpenAIModel(name="gpt-5-nano", is_chat=True)
 
     @classmethod
     def from_name(cls, name: str):

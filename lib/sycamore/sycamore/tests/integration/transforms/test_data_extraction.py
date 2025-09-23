@@ -1,11 +1,21 @@
 import pytest
 import sycamore
 from sycamore import ExecMode
-from sycamore.data import Document
-from sycamore.schema import Schema, SchemaField
+from sycamore.data import Document, Element
+from sycamore.schema import (
+    NamedProperty,
+    SchemaV2,
+    StringProperty,
+    IntProperty,
+    DateProperty,
+    make_named_property,
+)
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.llms.anthropic import Anthropic, AnthropicModels
 from sycamore.transforms.extract_schema import LLMPropertyExtractor
+from sycamore.transforms.embed import OpenAIEmbedder
+from sycamore.llms.llms import LLMMode
+from sycamore.data.document import split_data_metadata
 
 
 def get_docs():
@@ -42,7 +52,7 @@ def test_extract_properties_from_dict_schema(llm):
 
     ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
     docs = ctx.read.document(docs)
-    docs = docs.extract_properties(property_extractor)
+    docs = docs.extract_properties(property_extractor, llm_mode=LLMMode.SYNC)
 
     taken = docs.take_all(include_metadata=True)
 
@@ -56,25 +66,77 @@ def test_extract_properties_from_dict_schema(llm):
 
 
 @pytest.mark.parametrize("llm", llms)
+def test_extract_metadata(llm):
+    docs = get_docs()[:1]
+
+    schema = SchemaV2(
+        properties=[
+            make_named_property(
+                name="person_name",
+                type="string",
+                description="name of the person, return a tuple with value and pagenumber",
+            ),
+            make_named_property(
+                name="profession",
+                type="string",
+                description="profession of the person, return a tuple of value and pagenumber",
+            ),
+        ]
+    )
+
+    llm = OpenAI(OpenAIModels.GPT_4_1)
+    embedder = OpenAIEmbedder("text-embedding-3-small")
+
+    # Create schema
+    property_extractor = LLMPropertyExtractor(
+        llm,
+        schema=schema,
+        metadata_extraction=True,
+        group_size=1,
+        embedder=embedder,
+        clustering=False,
+        schema_name="entity",
+    )
+    element = Element(
+        {
+            "type": "text",
+            "text_representation": "My name is Vinayak & I'm a 74 year old software engineer from Honolulu Hawaii. ",
+            "properties": {"page_number": 1},
+        }
+    )
+    document = Document({"doc_id": "sample_doc_001", "elements": [element], "properties": {"title": "Sample Document"}})
+
+    ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+    docs = ctx.read.document([document])
+    docs = docs.extract_properties(property_extractor)
+
+    taken = docs.take_all(include_metadata=True)
+    assert taken[0].properties["entity"]["person_name"] == "Vinayak"
+    assert taken[0].properties["entity"]["profession"] == "software engineer"
+    assert taken[0].properties["entity_metadata"]["person_name"] == 1
+    assert taken[0].properties["entity_metadata"]["profession"] == 1
+
+
+@pytest.mark.parametrize("llm", llms)
 def test_extract_properties_from_schema(llm):
     docs = get_docs()
 
-    schema = Schema(
-        fields=[
-            SchemaField(
+    schema = SchemaV2(
+        properties=[
+            make_named_property(
                 name="name",
-                field_type="str",
+                type="string",
                 description="This is the name of an entity",
                 examples=["Mark", "Ollie", "Winston"],
-                default="null",
+                default="None",
             ),
-            SchemaField(name="age", field_type="int", default=999),
-            SchemaField(
-                name="date", field_type="str", description="Any date in the doc, extracted in YYYY-MM-DD format"
+            make_named_property(name="age", type="int", default=999),
+            make_named_property(
+                name="date", type="string", description="Any date in the doc, extracted in YYYY-MM-DD format"
             ),
-            SchemaField(
+            make_named_property(
                 name="from_location",
-                field_type="str",
+                type="string",
                 description="This is the location the entity is from. "
                 "If it's a US location and explicitly states a city and state, format it as 'City, State' "
                 "The state is abbreviated in it's standard 2 letter form.",
@@ -86,7 +148,7 @@ def test_extract_properties_from_schema(llm):
 
     ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
     docs = ctx.read.document(docs)
-    docs = docs.extract_properties(property_extractor)
+    docs = docs.extract_properties(property_extractor, llm_mode=LLMMode.SYNC)
 
     taken = docs.take_all(include_metadata=True)
 
@@ -105,3 +167,60 @@ def test_extract_properties_from_schema(llm):
     assert taken[4].metadata["usage"]["completion_tokens"] > 0
     assert taken[5].metadata["usage"]["prompt_tokens"] > 0
     assert taken[5].metadata["usage"]["completion_tokens"] > 0
+
+
+@pytest.mark.parametrize("llm", llms)
+def test_extract(llm):
+    docs = get_docs()
+    for d in docs:
+        d.elements = [Element(d)]
+        d.elements[0].element_index = 0
+
+    schema = SchemaV2(
+        properties=[
+            NamedProperty(
+                name="name",
+                type=StringProperty(description="This is the name of an entity", examples=["Mark", "Ollie", "Winston"]),
+            ),
+            NamedProperty(name="age", type=IntProperty()),
+            NamedProperty(
+                name="date", type=DateProperty(description="Any date in the doc, extracted in YYYY-MM-DD format")
+            ),
+            NamedProperty(
+                name="from_location",
+                type=StringProperty(
+                    description="This is the location the entity is from. "
+                    "If it's a US location and explicitly states a city and state, format it as 'City, State' "
+                    "The state is abbreviated in it's standard 2 letter form.",
+                    examples=["Ann Arbor, MI", "Seattle, WA", "New Delhi"],
+                ),
+            ),
+        ]
+    )
+    ctx = sycamore.init(exec_mode=ExecMode.RAY)
+    docs = ctx.read.document(docs)
+    docs = docs.extract(schema, llm)
+
+    taken = docs.take_all(include_metadata=True)
+
+    real, meta = split_data_metadata(taken)
+    real.sort(key=lambda d: d.doc_id or "")
+    assert len(real) == 2
+    assert real[0].properties["entity_metadata"]["name"].value == "Vinayak"
+    assert real[0].properties["entity"]["age"] == 74
+    assert (
+        real[0].properties["entity_metadata"]["from_location"].value == "Honolulu, HI"
+    ), "Invalid location extracted or formatted"
+    assert real[0].properties["entity_metadata"]["date"].value == "1923-02-24"
+
+    assert real[1].properties["entity"]["name"] is None
+    assert real[1].properties["entity"]["age"] is None
+    assert real[1].properties["entity"]["from_location"] == "New Delhi"
+    assert real[1].properties["entity"]["date"] == "2014-01-11"
+
+    llm_meta = [m for m in meta if "lineage_links" not in m.metadata]
+    assert len(llm_meta) == 2
+    assert llm_meta[0].metadata["usage"]["prompt_tokens"] > 0
+    assert llm_meta[0].metadata["usage"]["completion_tokens"] > 0
+    assert llm_meta[1].metadata["usage"]["prompt_tokens"] > 0
+    assert llm_meta[1].metadata["usage"]["completion_tokens"] > 0

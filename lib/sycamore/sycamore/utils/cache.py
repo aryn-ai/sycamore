@@ -13,7 +13,7 @@ import diskcache
 from botocore.exceptions import ClientError
 
 BLOCK_SIZE = 1048576  # 1 MiB
-DDB_CACHE_TTL = timedelta(days=10)
+DDB_CACHE_TTL: int = int(timedelta(days=10).total_seconds())
 
 
 class HashContext:
@@ -259,10 +259,11 @@ class DynamoDBCache(Cache):
         return None
 
     def set(self, hash_key: str, hash_value: bytes):
+        ttl = int(time.time()) + self.ttl
         item = {
-            self.hash_key_name: hash_key,
-            "payload": hash_value,
-            "expire_at": int(time.time()) + self.ttl,
+            self.hash_key_name: {"S": hash_key},
+            "payload": {"B": hash_value},
+            "expire_at": {"N": f"{ttl}"},
         }
         self.client.put_item(TableName=self.table_name, Item=item)
 

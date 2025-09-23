@@ -2,6 +2,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import threading
 from datetime import timedelta
 from pathlib import Path
 import time
@@ -12,7 +13,7 @@ import diskcache
 from botocore.exceptions import ClientError
 
 BLOCK_SIZE = 1048576  # 1 MiB
-PAGE_CACHE_TTL = timedelta(days=10)
+DDB_CACHE_TTL = timedelta(days=10)
 
 
 class HashContext:
@@ -39,8 +40,9 @@ class HashContext:
 class Cache:
 
     def __init__(self):
+        self.mutex = threading.Lock()
         self.cache_hits = 0
-        self.total_accesses = 0
+        self.cache_misses = 0
 
     def get(self, hash_key: str):
         pass
@@ -48,10 +50,20 @@ class Cache:
     def set(self, hash_key: str, hash_value):
         pass
 
+    def inc_hits(self):
+        with self.mutex:
+            self.cache_hits += 1
+
+    def inc_misses(self):
+        with self.mutex:
+            self.cache_misses += 1
+
     def get_hit_rate(self):
-        if self.total_accesses == 0:
-            return 0.0
-        return self.cache_hits / self.total_accesses
+        with self.mutex:
+            total = self.cache_hits + self.cache_misses
+            if total == 0:
+                return 0.0
+            return self.cache_hits / total
 
     @staticmethod
     def get_hash_context(data: bytes, hash_ctx: Optional[HashContext] = None) -> HashContext:
@@ -120,8 +132,9 @@ class DiskCache(Cache):
     def get(self, hash_key: str):
         v = self._cache.get(hash_key)
         if v is not None:
-            self.cache_hits += 1
-        self.total_accesses += 1
+            self.inc_hits()
+            return v
+        self.inc_misses()
         return v
 
     def set(self, hash_key: str, hash_value):
@@ -162,17 +175,16 @@ class S3Cache(Cache):
                 self._freshness_in_seconds >= 0
                 and self._freshness_in_seconds + content.get("cached_at", 0) < time.time()
             ):
+                self.inc_misses()
                 return None
             data = content["value"]
-            self.cache_hits += 1
+            self.inc_hits()
             return data
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchKey":
                 return None
             else:
                 raise
-        finally:
-            self.total_accesses += 1
 
     def set(self, key: str, value: Any):
         if not self._s3_client:
@@ -207,49 +219,52 @@ class DynamoDBCache(Cache):
     The DynamoDB table backing this cache must have TTL enabled on this attribute for this to work properly.
     """
 
-    def __init__(self, path: str, ttl: int = 10 * 24 * 3600):
+    def __init__(self, path: str, ttl: int = DDB_CACHE_TTL):
         import boto3
 
         super().__init__()
-        region_name, table_name, hash_key_name = self.parse_path(path)
+        scheme, _, region_name, table_name, hash_key_name = self.parse_path(path)
         self.hash_key_name = hash_key_name if hash_key_name is not None else "hash_key"
-        self.dynamodb = boto3.resource("dynamodb", region_name=region_name)
+        self.client = boto3.client("dynamodb", region_name=region_name)
         self.table_name = table_name
-        self.table = self.dynamodb.Table(table_name)
         self.ttl = ttl
 
     @staticmethod
-    def parse_path(path: str) -> tuple[str, str, Optional[str]]:
+    def parse_path(path: str):
         assert path.startswith("ddb://"), "DynamoDB cache paths must start with ddb://"
 
-        parts = path[6:].split("/")
-        if len(parts) < 2:
+        parts = path.split("/", 5)
+        if len(parts) < 4:
             raise ValueError("DynamoDB cache paths must have 'region_name' (us-east-1, e.g.) and 'table_name'")
-        if len(parts) == 2:
-            return parts[0], parts[1], None
 
-        return parts[0], parts[1], parts[2]
+        if len(parts) == 4:
+            return (*parts, None)
 
-    def get(self, hash_key: str):
+        return tuple(parts)
+
+    def get(self, hash_key: str) -> Optional[bytes]:
         key = {self.hash_key_name: hash_key}
         res: dict[Any, Any] = {}
         try:
-            res = self.table.get_item(Key=key)
+            res = self.client.get_item(TableName=self.table_name, Key=key)
         except ClientError as error:
             logging.error(f"Error calling get_item({key}) on {self.table_name} : {error}")
 
-        self.total_accesses += 1
-        if res is not None and "Item" in res and "payload" in res["Item"]:
-            self.cache_hits += 1
-        return res["Item"]["payload"].value
+        if res is not None:
+            if item := res.get("Item"):
+                if payload := item.get("payload"):
+                    self.inc_hits()
+                    return payload.value
+        self.inc_misses()
+        return None
 
-    def set(self, hash_key: str, hash_value):
+    def set(self, hash_key: str, hash_value: bytes):
         item = {
             self.hash_key_name: hash_key,
             "payload": hash_value,
             "expire_at": int(time.time()) + self.ttl,
         }
-        self.table.put_item(Item=item)
+        self.client.put_item(TableName=self.table_name, Item=item)
 
 
 def cache_from_path(path: Optional[str]) -> Optional[Cache]:

@@ -223,6 +223,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         import torch
 
+        # We tried torch.autocast() here, but it introduced errors...
         with torch.no_grad():
             outputs = self.structure_model(pixel_values)
 

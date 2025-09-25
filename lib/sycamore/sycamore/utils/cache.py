@@ -41,8 +41,8 @@ class Cache:
 
     def __init__(self):
         self.mutex = threading.Lock()
-        self.cache_hits = 0
-        self.cache_misses = 0
+        self.cache_hits: int = 0
+        self.cache_misses: int = 0
 
     def get(self, hash_key: str):
         pass
@@ -58,12 +58,16 @@ class Cache:
         with self.mutex:
             self.cache_misses += 1
 
-    def get_hit_rate(self):
+    def get_hit_rate(self) -> float:
         with self.mutex:
             total = self.cache_hits + self.cache_misses
             if total == 0:
                 return 0.0
             return self.cache_hits / total
+
+    def get_hit_info(self) -> tuple[int, int]:
+        with self.mutex:
+            return self.cache_hits, self.cache_misses
 
     @staticmethod
     def get_hash_context(data: bytes, hash_ctx: Optional[HashContext] = None) -> HashContext:

@@ -195,7 +195,7 @@ class Anthropic(LLM):
     ) -> str:
         model_name: str = model.name if model else self.model.name
         if self.model.name != model_name:
-            logging.info(f"Overriding Gemini model from {self.model.name} to {model_name}")
+            logging.info(f"Overriding Anthropic model from {self.model.name} to {model_name}")
         d = self.generate_metadata(model=model_name, prompt=prompt, llm_kwargs=llm_kwargs)
         return d["output"]
 
@@ -207,7 +207,7 @@ class Anthropic(LLM):
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         model_name: str = model.name if model else self.model.name
         if self.model.name != model_name:
-            logging.info(f"Overriding Gemini model from {self.model.name} to {model_name}")
+            logging.info(f"Overriding Anthropic model from {self.model.name} to {model_name}")
         ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if isinstance(ret, dict):
             return ret["output"]
@@ -243,7 +243,7 @@ class Anthropic(LLM):
 
         model_name: str = model.name if model else self.model.name
         if self.model.name != model_name:
-            logging.info(f"Overriding Gemini model from {self.model.name} to {model_name}")
+            logging.info(f"Overriding Anthropic model from {self.model.name} to {model_name}")
 
         cache_hits = [self._llm_cache_get(p, llm_kwargs, model=model_name) for p in prompts]
 

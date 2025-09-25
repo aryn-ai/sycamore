@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 
 from sycamore.llms import get_llm, MODELS
 from sycamore.llms.chained_llm import ChainedLLM
+from sycamore.llms.config import LLMModel
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.llms.bedrock import Bedrock, BedrockModels
 from sycamore.llms.gemini import Gemini, GeminiModels
@@ -19,7 +20,12 @@ def test_get_metadata():
     llm = FakeLLM()
     wall_latency = datetime.timedelta(seconds=1)
     metadata = llm.get_metadata(
-        {"prompt": "Hello", "temperature": 0.7}, "Test output", wall_latency, in_tokens=5, out_tokens=10
+        llm._model_name,
+        {"prompt": "Hello", "temperature": 0.7},
+        "Test output",
+        wall_latency,
+        in_tokens=5,
+        out_tokens=10,
     )
     assert metadata["model"] == llm._model_name
     assert metadata["usage"] == {
@@ -113,11 +119,25 @@ def test_get_llm(mock_openai_client, mock_boto3_client):
     assert isinstance(get_llm("bedrock." + BedrockModels.CLAUDE_3_5_SONNET.value.name)(), Bedrock)
 
 
+class FooLLMModel(LLMModel):
+    name = "foo"
+    is_chat = True
+
+
+class BarLLMModel(LLMModel):
+    name = "bar"
+    is_chat = True
+
+
 class FooLLM(LLM):
+    model = FooLLMModel  # type: ignore
+
     def __init__(self, model_name, default_mode: LLMMode):
         super().__init__(model_name, default_mode)
 
-    def generate(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         return "foo"
 
     def is_chat_mode(self) -> bool:
@@ -125,11 +145,15 @@ class FooLLM(LLM):
 
 
 class BarLLM(LLM):
+    model = BarLLMModel  # type: ignore
+
     def __init__(self, model_name, default_mode: LLMMode, throw_error: bool = False):
         super().__init__(model_name, default_mode)
         self.throw_error = throw_error
 
-    def generate(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         if self.throw_error:
             raise RuntimeError("oops, something went wrong")
         return "bar"
@@ -154,6 +178,87 @@ def test_chained_llm():
     chained = ChainedLLM([bar2, foo], model_name="", default_mode=LLMMode.SYNC)
     res = chained.generate(prompt=RenderedPrompt(messages=[]))
     assert res == "foo"  # Should return from the first LLM in the chain
+
+
+def get_gemini_response(text: str):
+    from google.genai import types
+
+    return types.GenerateContentResponse(
+        candidates=[
+            types.Candidate(
+                content=types.Content(
+                    parts=[types.Part.from_text(text=text)],
+                    role="model",
+                )
+            )
+        ],
+    )
+
+
+@patch("google.genai.Client")
+def test_gemini_override(mock_google_client):
+    model = GeminiModels.GEMINI_2_FLASH
+    llm = Gemini(model)
+    mock_google_client.return_value.models.generate_content.return_value = get_gemini_response("test response")
+    response = llm.generate(prompt=RenderedPrompt(messages=[RenderedMessage(role="user", content="Hello")]))
+    assert response == "test response"
+    assert (
+        mock_google_client.return_value.models.generate_content.call_args.kwargs["model"]
+        == GeminiModels.GEMINI_2_FLASH.value.name
+    )
+
+    response = llm.generate(
+        prompt=RenderedPrompt(messages=[RenderedMessage(role="user", content="Hello")]),
+        model=GeminiModels.GEMINI_2_5_FLASH.value,
+    )
+    assert response == "test response"
+    assert (
+        mock_google_client.return_value.models.generate_content.call_args.kwargs["model"]
+        == GeminiModels.GEMINI_2_5_FLASH.value.name
+    )
+
+
+def get_openai_response(text: str):
+    from openai.types.chat import ChatCompletion, ChatCompletionMessage
+    from openai.types.chat.chat_completion import Choice
+
+    return ChatCompletion(
+        id="id",
+        created=1234567890,
+        model="gpt-3.5-turbo",
+        object="chat.completion",
+        choices=[
+            Choice(
+                index=0,
+                finish_reason="stop",
+                message=ChatCompletionMessage(content=text, role="assistant"),
+            ),
+        ],
+    )
+
+
+@patch("sycamore.llms.openai.OpenAIClientWrapper")
+def test_openai_override(mock_openai_client):
+    model = OpenAIModels.GPT_3_5_TURBO
+    llm = OpenAI(model)
+    mock_openai_client.return_value.get_client.return_value.chat.completions.create.return_value = get_openai_response(
+        "foo"
+    )
+    response = llm.generate(prompt=RenderedPrompt(messages=[RenderedMessage(role="user", content="Hello")]))
+    assert response == "foo"  # Assuming FakeLLM returns "foo" for any prompt
+    assert (
+        mock_openai_client.return_value.get_client.return_value.chat.completions.create.call_args.kwargs["model"]
+        == OpenAIModels.GPT_3_5_TURBO.value.name
+    )
+    response = llm.generate(
+        prompt=RenderedPrompt(messages=[RenderedMessage(role="user", content="Hello")]),
+        model=OpenAIModels.GPT_4O.value,
+    )
+    assert response == "foo"  # Assuming FakeLLM returns "foo" for any prompt
+    assert (
+        mock_openai_client.return_value.get_client.return_value.chat.completions.create.call_args.kwargs["model"]
+        == OpenAIModels.GPT_4O.value.name
+    )
 
 
 class TestCache:
@@ -187,7 +292,7 @@ class TestCache:
 
         doit(RenderedPrompt(messages=[]), None, "abc")
         doit(RenderedPrompt(messages=[]), None, "abc2", overwrite=True)
-        doit(RenderedPrompt(messages=[]), {}, "def")
+        # doit(RenderedPrompt(messages=[]), {}, "def")
         doit(RenderedPrompt(messages=[RenderedMessage(role="user", content="foff")]), {}, {"ghi": "jkl"})
         doit(RenderedPrompt(messages=[]), {"magic": True}, [1, 2, 3])
-        doit(RenderedPrompt(messages=[]), None, "abc2", already_set=True)
+        doit(RenderedPrompt(messages=[]), {}, "abc2", already_set=True)

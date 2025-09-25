@@ -5,17 +5,28 @@ from typing import Optional
 from sycamore.utils.deprecate import deprecated
 
 
+class LLMModel:
+    name: str
+    is_chat: bool
+
+
+@dataclass
+class AnthropicModel(LLMModel):
+    name: str
+    is_chat: bool = False
+
+
 class AnthropicModels(Enum):
     """Represents available Claude models."""
 
-    CLAUDE_4_OPUS = "claude-opus-4-20250514"
-    CLAUDE_4_SONNET = "claude-sonnet-4-20250514"
-    CLAUDE_3_7_SONNET = "claude-3-7-sonnet-latest"
-    CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest"
-    CLAUDE_3_5_HAIKU = "claude-3-5-haiku-latest"
-    CLAUDE_3_OPUS = "claude-3-opus-latest"
-    CLAUDE_3_SONNET = "claude-3-sonnet-20240229"
-    CLAUDE_3_HAIKU = "claude-3-haiku-20240307"
+    CLAUDE_4_OPUS = AnthropicModel(name="claude-opus-4-20250514", is_chat=True)
+    CLAUDE_4_SONNET = AnthropicModel(name="claude-sonnet-4-20250514", is_chat=True)
+    CLAUDE_3_7_SONNET = AnthropicModel(name="claude-3-7-sonnet-latest", is_chat=True)
+    CLAUDE_3_5_SONNET = AnthropicModel(name="claude-3-5-sonnet-latest", is_chat=True)
+    CLAUDE_3_5_HAIKU = AnthropicModel(name="claude-3-5-haiku-latest", is_chat=True)
+    CLAUDE_3_OPUS = AnthropicModel(name="claude-3-opus-latest", is_chat=True)
+    CLAUDE_3_SONNET = AnthropicModel(name="claude-3-sonnet-20240229", is_chat=True)
+    CLAUDE_3_HAIKU = AnthropicModel(name="claude-3-haiku-20240307", is_chat=True)
 
     @classmethod
     def from_name(cls, name: str) -> Optional["AnthropicModels"]:
@@ -26,7 +37,7 @@ class AnthropicModels(Enum):
 
 
 @dataclass
-class BedrockModel:
+class BedrockModel(LLMModel):
     name: str
     is_chat: bool = False
 
@@ -50,7 +61,7 @@ class BedrockModels(Enum):
 
 
 @dataclass
-class GeminiModel:
+class GeminiModel(LLMModel):
     name: str
     is_chat: bool = False
 
@@ -87,7 +98,7 @@ class GeminiModels(Enum):
 
 
 @dataclass
-class OpenAIModel:
+class OpenAIModel(LLMModel):
     name: str
     is_chat: bool = False
 
@@ -119,3 +130,10 @@ class OpenAIModels(Enum):
             if m.value.name == name:
                 return m
         return None
+
+
+class ChainedModel(LLMModel):
+
+    def __init__(self, chain: list[LLMModel]):
+        self.chain = chain
+        self.is_chat = True  # This is not used anywhere.

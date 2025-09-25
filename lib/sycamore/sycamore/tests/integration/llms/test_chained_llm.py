@@ -66,7 +66,7 @@ def test_model_override():
 
     chained = ChainedLLM(chain=[openai, gemini], model_name="", default_mode=LLMMode.SYNC)
 
-    model_override = ChainedModel(chain=[GeminiModels.GEMINI_2_FLASH.value, OpenAIModels.GPT_4O.value])
+    model_override = ChainedModel(chain=[OpenAIModels.GPT_4O.value, GeminiModels.GEMINI_2_FLASH.value])
     res = chained.generate(prompt=prompt, model=model_override)
 
     assert len(res) > 0

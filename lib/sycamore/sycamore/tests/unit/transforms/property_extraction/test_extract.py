@@ -30,7 +30,9 @@ class FakeLLM(LLM):
     def is_chat_mode(self):
         return True
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         self.ncalls += 1
         return f"""{{
             "doc_id": "{prompt.messages[0].content[6:]}",
@@ -39,7 +41,9 @@ class FakeLLM(LLM):
         }}
         """
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         return self.generate(prompt=prompt, llm_kwargs=llm_kwargs)
 
 

@@ -46,11 +46,15 @@ class FakeLLM(LLM):
     def is_chat_mode(self):
         return True
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         ret_val = [ast.literal_eval(msg.content[9:]) for msg in prompt.messages]
         return f"""{json.dumps(ret_val)}"""
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         return self.generate(prompt=prompt, llm_kwargs=llm_kwargs)
 
 

@@ -365,7 +365,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         element: TableElement,
         doc_image: Image.Image,
         union_tokens=False,
-        model_selection: str = "pixels > 500 -> deformable_detr; table_transformer",
+        model_selection: str = "deformable_detr",
         resolve_overlaps=False,
     ) -> TableElement:
         """Extracts the table structure from the specified element using a either a DeformableDETR or

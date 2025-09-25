@@ -42,7 +42,7 @@ def test_openai_override_defaults():
     prompt = RenderedPrompt(
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
     )
-    res = llm.generate(prompt=prompt, model=OpenAIModels.GPT_4O_MINI.value.name)
+    res = llm.generate(prompt=prompt, model=OpenAIModels.GPT_4O_MINI.value)
 
     assert len(res) > 0
 
@@ -53,7 +53,7 @@ def test_openai_override_defaults():
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")],
         response_format=StringResponseFormat,
     )
-    res = llm.generate(prompt=prompt, model=OpenAIModels.GPT_4O_MINI.value.name)
+    res = llm.generate(prompt=prompt, model=OpenAIModels.GPT_4O_MINI.value)
 
     assert len(res) > 0
 

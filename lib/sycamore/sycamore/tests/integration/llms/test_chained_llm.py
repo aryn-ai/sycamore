@@ -1,5 +1,6 @@
 from sycamore.llms import GeminiModels, OpenAIModels
 from sycamore.llms.chained_llm import ChainedLLM
+from sycamore.llms.config import ChainedModel
 from sycamore.llms.gemini import Gemini
 from sycamore.llms.llms import LLMMode
 from sycamore.llms.openai import OpenAI
@@ -58,14 +59,14 @@ def test_model_override():
 
     chained = ChainedLLM(chain=[gemini, openai], model_name="", default_mode=LLMMode.SYNC)
 
-    models = {0: GeminiModels.GEMINI_2_FLASH.value.name, 1: OpenAIModels.GPT_4O.value.name}
-    res = chained.generate(prompt=prompt, llm_kwargs={"models": models})
+    model_override = ChainedModel(chain=[GeminiModels.GEMINI_2_FLASH.value, OpenAIModels.GPT_4O.value])
+    res = chained.generate(prompt=prompt, model=model_override)
 
     assert len(res) > 0
 
     chained = ChainedLLM(chain=[openai, gemini], model_name="", default_mode=LLMMode.SYNC)
 
-    models = {1: GeminiModels.GEMINI_2_FLASH.value.name, 0: OpenAIModels.GPT_4O.value.name}
-    res = chained.generate(prompt=prompt, llm_kwargs={"models": models})
+    model_override = ChainedModel(chain=[GeminiModels.GEMINI_2_FLASH.value, OpenAIModels.GPT_4O.value])
+    res = chained.generate(prompt=prompt, model=model_override)
 
     assert len(res) > 0

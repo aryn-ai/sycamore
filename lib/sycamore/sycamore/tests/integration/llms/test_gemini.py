@@ -193,5 +193,5 @@ def test_model_override():
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
     )
 
-    res = llm.generate(prompt=prompt, model=model.value.name)
+    res = llm.generate(prompt=prompt, model=model.value)
     assert len(res) > 0

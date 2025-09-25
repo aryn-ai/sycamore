@@ -1,5 +1,4 @@
-from typing import Optional, Union
-from collections.abc import Callable
+from typing import Optional, Union, Literal, Protocol
 
 from sycamore.data import Document, Element
 from sycamore.data.document import DocumentPropertyTypes
@@ -7,11 +6,18 @@ from sycamore.utils.bbox_sort import bbox_sort_page
 from sycamore.utils.xycut import xycut_sort_page
 
 
-def nop_page(p: list[Element]) -> None:
+ReadingDirection = Literal["ltr", "rtl"]
+
+
+class PageSorter(Protocol):
+    def __call__(self, elems: list[Element], *, reading_direction: ReadingDirection = "ltr") -> None: ...
+
+
+def nop_page(p: list[Element], *, reading_direction: ReadingDirection = "ltr") -> None:  # noqa: ARG001
     pass
 
 
-PAGE_SORT = {
+PAGE_SORT: dict[Optional[str], PageSorter] = {
     "bbox": bbox_sort_page,
     "xycut": xycut_sort_page,
     "nop": nop_page,
@@ -43,26 +49,28 @@ def collect_pages(elems: list[Element]) -> list[list[Element]]:
 
 # This allows specification of the "page sort" building block either
 # as a string ("bbox", "xycut") or Callable.
-SortSpec = Union[Optional[str], Callable[[list[Element]], None]]
+SortSpec = Union[Optional[str], PageSorter]
 
 
-def sort_page(elems: list[Element], *, mode: SortSpec = None) -> None:
+def sort_page(elems: list[Element], *, mode: SortSpec = None, reading_direction: ReadingDirection = "ltr") -> None:
     if callable(mode):
-        mode(elems)
+        mode(elems, reading_direction=reading_direction)
     else:
         func = PAGE_SORT[mode]
-        func(elems)
+        func(elems, reading_direction=reading_direction)
 
 
-def sort_elements(elements: list[Element], *, mode: SortSpec = None) -> None:
+def sort_elements(
+    elements: list[Element], *, mode: SortSpec = None, reading_direction: ReadingDirection = "ltr"
+) -> None:
     pages = collect_pages(elements)
     for page in pages:
-        sort_page(page, mode=mode)
+        sort_page(page, mode=mode, reading_direction=reading_direction)
     ordered = [elem for elems in pages for elem in elems]  # flatten
     for idx, elem in enumerate(ordered):
         elem.element_index = idx
     elements[:] = ordered  # replace contents
 
 
-def sort_document(doc: Document, *, mode: SortSpec = None) -> None:
-    sort_elements(doc.elements, mode=mode)
+def sort_document(doc: Document, *, mode: SortSpec = None, reading_direction: ReadingDirection = "ltr") -> None:
+    sort_elements(doc.elements, mode=mode, reading_direction=reading_direction)

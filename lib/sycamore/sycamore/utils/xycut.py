@@ -5,13 +5,14 @@ Best to access this through element_sort.py
 """
 
 from io import StringIO
-from typing import Generator, Optional
+from typing import Generator, Literal, Optional
 
 from sycamore.data import Element
 from sycamore.utils.bbox_sort import bbox_sort_page  # for fallback
 
 ElemList = list[Element]
 BeginEndList = list[tuple[float, int, Element]]
+ReadingDirection = Literal["ltr", "rtl"]
 
 XAXIS = 0  # bbox[0] and bbox[2] are x
 YAXIS = 1  # bbox[1] and bbox[3] are y
@@ -194,7 +195,7 @@ def widest_cut(order: BeginEndList) -> tuple[float, Element]:
     return rv
 
 
-def choose_axis(elems: ElemList) -> Optional[tuple[BeginEndList, Element]]:
+def choose_axis(elems: ElemList) -> Optional[tuple[int, BeginEndList, Element]]:
     """Note that coordinate system is square, but pages are not."""
     xorder = make_begin_end(elems, XAXIS)
     yorder = make_begin_end(elems, YAXIS)
@@ -207,61 +208,66 @@ def choose_axis(elems: ElemList) -> Optional[tuple[BeginEndList, Element]]:
             yval = get_bbox(ye)[3]
             s = elem_to_str(ye)
             print(f"Horiz cut y={yval:.3f} {s}")
-        return (yorder, ye)
+        return (YAXIS, yorder, ye)
     else:
         if DEBUG:
             xval = get_bbox(xe)[2]
             s = elem_to_str(xe)
             print(f"Vert cut x={xval:.3f} {s}")
-        return (xorder, xe)
+        return (XAXIS, xorder, xe)
 
 
-def cleave_elems(elems: ElemList) -> NodeLeaf:
+def cleave_elems(elems: ElemList, reading_direction: ReadingDirection) -> NodeLeaf:
     """Binary split across widest gap."""
     node = NodeLeaf()
+    split_axis: Optional[int] = None
     if len(elems) < 2:
         node.extend(elems)
     elif (choice := choose_axis(elems)) is None:
         node.extend(elems)
     else:
-        order, cut_after = choice
+        split_axis, order, cut_after = choice
         for _, isopen, elem, cnt, width in gen_overlap(order):
             if not isopen:
                 node.append(elem)
                 if elem == cut_after:
                     node.advance()
-    return node.finalize()
+    node = node.finalize()
+    if (split_axis == XAXIS) and (reading_direction == "rtl") and (len(node.elists) > 1):
+        node.elists.reverse()
+    return node
 
 
-def divide_node(node: NodeLeaf) -> NodeInner:
+def divide_node(node: NodeLeaf, reading_direction: ReadingDirection) -> NodeInner:
     """Return replacement Node.  Assume input is leaf."""
     inner = NodeInner()
     for elist in node.elists:
-        subnode = cleave_elems(elist)
+        subnode = cleave_elems(elist, reading_direction)
         if DEBUG:
             print("....................")
             print(subnode)
             print("^^^^^^^^^^^^^^^^^^^^")
         if subnode.cansplit():
-            inner.append(divide_node(subnode))  # recursive step
+            inner.append(divide_node(subnode, reading_direction))  # recursive step
         else:
             inner.append(subnode)
     return inner
 
 
-def xycut_sort_page(elems: ElemList) -> None:
+def xycut_sort_page(elems: ElemList, *, reading_direction: ReadingDirection = "ltr") -> None:
     if len(elems) < 2:
         return
-    flat = NodeLeaf().extend(elems)
+    flat = NodeLeaf()
+    flat.extend(elems)
     if DEBUG:
         print("VVVVVVVVVVVVVVVVVVVV")
         print(flat)
         print("AAAAAAAAAAAAAAAAAAAA")
-    tree = divide_node(flat)
+    tree = divide_node(flat, reading_direction)
     if (len(tree.nodes) == 1) and isinstance(tree.nodes[0], NodeLeaf) and (len(tree.nodes[0].elists) == 1):
         # If we didn't make any cuts, fall back to old algorithm
         if DEBUG:
             print("Falling back to bbox_sort")
-        bbox_sort_page(elems)
+        bbox_sort_page(elems, reading_direction=reading_direction)
         return
     elems[:] = tree.to_elems()  # replace contents of list

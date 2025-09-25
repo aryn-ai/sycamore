@@ -74,6 +74,18 @@ def test_page_basic() -> None:
     assert elems == answer
 
 
+def test_page_basic_rtl() -> None:
+    e0 = mkElem(0.52, 0.21, 0.90, 0.45)
+    e1 = mkElem(0.10, 0.21, 0.48, 0.46)
+    e2 = mkElem(0.10, 0.58, 0.48, 0.90)
+    e3 = mkElem(0.58, 0.51, 0.90, 0.85)
+    e4 = mkElem(0.15, 0.10, 0.85, 0.15)
+    elems = [e0, e1, e2, e3, e4]
+    bbox_sort_page(elems, reading_direction="rtl")
+    answer = [e4, e0, e3, e1, e2]
+    assert elems == answer
+
+
 def test_elements_basic() -> None:
     # e1.top < e0.top = e2.top, e0.left < e2.left both on left
     e0 = mkElem(0.20, 0.50, 0.45, 0.70, 3)
@@ -99,6 +111,18 @@ def test_elements_basic() -> None:
     assert_element_index_sorted(elems)
 
 
+def test_sort_elements_rtl_bbox() -> None:
+    e0 = mkElem(0.70, 0.10, 0.90, 0.30, 1)
+    e1 = mkElem(0.10, 0.10, 0.30, 0.30, 1)
+    e2 = mkElem(0.70, 0.35, 0.90, 0.55, 1)
+    e3 = mkElem(0.10, 0.35, 0.30, 0.55, 1)
+    elems = [e1, e2, e3, e0]
+    sort_elements(elems, mode="bbox", reading_direction="rtl")
+    answer = [e0, e2, e1, e3]
+    assert elems == answer
+    assert_element_index_sorted(elems)
+
+
 def test_document_basic() -> None:
     e0 = mkElem(0.1, 0.5, 0.9, 0.2, 3)
     e1 = mkElem(0.1, 0.1, 0.9, 0.2, 3)
@@ -110,6 +134,19 @@ def test_document_basic() -> None:
     doc.elements = [e0, e1, e2, e3, e4, e5]
     sort_document(doc, mode="bbox")
     answer = [e3, e2, e5, e4, e1, e0]
+    assert doc.elements == answer
+    assert_element_index_sorted(doc.elements)
+
+
+def test_document_rtl_bbox() -> None:
+    doc = Document()
+    e0 = mkElem(0.65, 0.15, 0.90, 0.30, 1)
+    e1 = mkElem(0.15, 0.15, 0.35, 0.30, 1)
+    e2 = mkElem(0.65, 0.55, 0.90, 0.70, 2)
+    e3 = mkElem(0.15, 0.55, 0.35, 0.70, 2)
+    doc.elements = [e1, e3, e0, e2]
+    sort_document(doc, mode="bbox", reading_direction="rtl")
+    answer = [e0, e1, e2, e3]
     assert doc.elements == answer
     assert_element_index_sorted(doc.elements)
 

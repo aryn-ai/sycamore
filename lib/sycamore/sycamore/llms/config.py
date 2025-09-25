@@ -2,8 +2,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from sycamore.utils.deprecate import deprecated
-
 
 class LLMModel:
     name: str

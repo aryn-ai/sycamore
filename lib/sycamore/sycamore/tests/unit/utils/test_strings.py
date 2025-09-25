@@ -17,3 +17,7 @@ def test_dedent():
     )
 
     assert dedent(s) == exp
+
+
+def test_dedent_edge_cases():
+    assert dedent("") == ""

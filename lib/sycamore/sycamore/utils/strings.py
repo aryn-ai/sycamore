@@ -21,6 +21,8 @@ def dedent(text: str) -> str:
 
     Entirely blank lines are normalized to a newline character.
     """
+    if len(text) == 0:
+        return text
     if text[0] == "\n":
         text = text[1:]
     return textwrap.dedent(text)

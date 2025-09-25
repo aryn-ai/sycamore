@@ -36,6 +36,18 @@ def test_gemini_defaults():
     assert len(res) > 0
 
 
+def test_gemini_latest():
+    llms = [Gemini(GeminiModels.GEMINI_FLASH_LATEST), Gemini(GeminiModels.GEMINI_FLASH_LITE_LATEST)]
+    prompt = RenderedPrompt(
+        messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+    )
+
+    for llm in llms:
+        res = llm.generate(prompt=prompt, llm_kwargs={})
+        print(f"{llm.model.name}:\n{res}")
+        assert len(res) > 0
+
+
 @pytest.mark.anyio
 async def test_gemini_async_defaults():
     llm = Gemini(GeminiModels.GEMINI_2_FLASH)
@@ -46,6 +58,19 @@ async def test_gemini_async_defaults():
     res = await llm.generate_async(prompt=prompt, llm_kwargs={})
 
     assert len(res) > 0
+
+
+@pytest.mark.anyio
+async def test_gemini_async_with_latest():
+    llms = [Gemini(GeminiModels.GEMINI_FLASH_LATEST), Gemini(GeminiModels.GEMINI_FLASH_LITE_LATEST)]
+    prompt = RenderedPrompt(
+        messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+    )
+
+    for llm in llms:
+        res = await llm.generate_async(prompt=prompt, llm_kwargs={})
+        print(f"{llm.model.name}:\n{res}")
+        assert len(res) > 0
 
 
 def test_gemini_messages_defaults():

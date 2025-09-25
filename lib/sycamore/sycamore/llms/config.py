@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
+from sycamore.utils.deprecate import deprecated
+
 
 class AnthropicModels(Enum):
     """Represents available Claude models."""
@@ -57,13 +59,17 @@ class GeminiModels(Enum):
     """Represents available Gemini models. More info: https://googleapis.github.io/python-genai/"""
 
     # Note that the models available on a given Gemini account may vary.
-    GEMINI_2_5_FLASH = GeminiModel(name="gemini-2.5-flash", is_chat=True)
+    GEMINI_2_5_FLASH_LATEST = GeminiModel(name="gemini-2.5-flash-latest", is_chat=True)  # latest including preview
+    GEMINI_2_5_FLASH = GeminiModel(name="gemini-2.5-flash", is_chat=True)  # stable
+    # This should be deprecated in favor of LATEST
     GEMINI_2_5_FLASH_PREVIEW = GEMINI_2_5_FLASH  # Alias for the preview model
 
     GEMINI_2_5_PRO = GeminiModel(name="gemini-2.5-pro", is_chat=True)
     GEMINI_2_5_PRO_PREVIEW = GEMINI_2_5_PRO  # Alias for the preview model
 
-    GEMINI_2_5_FLASH_LITE = GeminiModel(name="gemini-2.5-flash-lite", is_chat=True)
+    GEMINI_2_5_FLASH_LITE_LATEST = GeminiModel(name="gemini-2.5-flash-lite-latest", is_chat=True)  # latest including preview
+    GEMINI_2_5_FLASH_LITE = GeminiModel(name="gemini-2.5-flash-lite", is_chat=True)  # stable
+    # This should be deprecated in favor of LATEST
     GEMINI_2_5_FLASH_LITE_PREVIEW = GEMINI_2_5_FLASH_LITE  # Alias for the preview model
 
     GEMINI_2_FLASH = GeminiModel(name="gemini-2.0-flash", is_chat=True)

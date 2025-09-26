@@ -66,7 +66,6 @@ def timed_import(name, globals=None, locals=None, fromlist=(), level=0):
     return result
 
 
-# TODO: figure out a tree display; that would be nicer to figure out what to fix
 def show(sort_by="time", min_time=None):
     """
     Print the import timing results.
@@ -103,6 +102,24 @@ def show(sort_by="time", min_time=None):
         count = import_counts[name]
 
         print(f"{name:<{max_name_len+2}} {elapsed:10.6f} {count:>5} {depth:>5} {parent}")
+
+    print("\nDependency Tree by Time:")
+    tree("__main__")
+
+
+def tree(parent, prefix=""):
+    ary = []
+    for key, val in parent_imports.items():
+        if parent == val:
+            t = import_times[key]
+            if t >= 0.001:
+                ary.append((key, int(t * 1000)))  # ms
+    ary.sort(key=lambda x: x[1], reverse=True)
+    prefix += "  "
+    for key, t in ary:
+        cnt = import_counts[key]
+        print(f"{prefix}{key} {t}ms ({cnt}x)")
+        tree(key, prefix)
 
 
 def initialize():

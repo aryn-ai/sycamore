@@ -3,11 +3,19 @@ import pytest
 
 from sycamore.data.document import Document
 from sycamore.data.element import Element
-from sycamore.llms.llms import LLM, LLMMode
+from sycamore.llms.llms import LLM, LLMMode, FakeLLM as SetAnsLLM
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
 from sycamore.transforms.property_extraction.extract import Extract
 from sycamore.transforms.property_extraction.strategy import NoSchemaSplitting, OneElementAtATime
-from sycamore.schema import IntProperty, NamedProperty, RegexValidator, SchemaV2, StringProperty, DataType
+from sycamore.schema import (
+    IntProperty,
+    NamedProperty,
+    RegexValidator,
+    SchemaV2,
+    StringProperty,
+    DataType,
+    ObjectProperty,
+)
 
 
 class FakeExtractionPrompt(SycamorePrompt):
@@ -300,3 +308,25 @@ class TestExtract:
         assert llm.ncalls == 5
         assert extracted[0].field_to_value("properties.entity.missing") is None
         assert extracted[1].field_to_value("properties.entity.missing") is None
+
+    def test_double_object(self):
+        docs = [Document(doc_id="0", elements=[Element(text_representation="aaa", properties={"_element_index": 2})])]
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(
+                    name="outer", type=ObjectProperty(properties=[NamedProperty(name="inner", type=StringProperty())])
+                )
+            ]
+        )
+
+        llm = SetAnsLLM(return_value='{"outer": {"inner": "value"}}')
+        extract = Extract(
+            None,
+            schema=schema,
+            step_through_strategy=OneElementAtATime(),
+            schema_partition_strategy=NoSchemaSplitting(),
+            llm=llm,
+            prompt=FakeExtractionPrompt(),
+        )
+        extracted = extract.run(docs)
+        assert extracted[0].field_to_value("properties.entity.outer.inner") == "value"

@@ -159,6 +159,10 @@ class Extract(MapBatch):
                     continue
                 if v_new is not None and v_new.type is not DataType.OBJECT:
                     p_work.value[k] = v_new
+                if v_new is not None and v_new.type is DataType.OBJECT:
+                    p_work.value[k] = RichProperty(
+                        name=k if isinstance(k, str) else None, type=DataType.OBJECT, value={}
+                    )
 
             sch = self.validate_prediction(sch, working_results)
             retries += 1

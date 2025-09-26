@@ -72,11 +72,17 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
         proc = Popen(args, stdout=PIPE, stderr=PIPE)
         q: Queue = Queue(4)
         t_out = Thread(
-            target=capture_exception, daemon=True, args=(q, lambda: read_stdout(proc.stdout, q), StdoutEOF())
+            target=capture_exception,
+            name=f"ThrStdoutCaptureOld-{pdf_path}",
+            args=(q, lambda: read_stdout(proc.stdout, q), StdoutEOF()),
+            daemon=True,
         )
         t_out.start()
         t_err = Thread(
-            target=capture_exception, daemon=True, args=(q, lambda: read_stderr(proc.stderr, q), StderrEOF())
+            target=capture_exception,
+            name=f"ThrStderrCaptureOld-{pdf_path}",
+            args=(q, lambda: read_stderr(proc.stderr, q), StderrEOF()),
+            daemon=True,
         )
         t_err.start()
 
@@ -197,11 +203,17 @@ def pdf_to_image_files(pdf_path: str, file_dir: Path, resolution: int = 200) -> 
         proc = Popen(args, stdout=PIPE, stderr=PIPE)
         q: Queue = Queue(1)
         t_out = Thread(
-            target=capture_exception, daemon=True, args=(q, lambda: read_stdout(proc.stdout, q), StdoutEOF())
+            target=capture_exception,
+            name=f"ThrStdoutCapture-{pdf_path}",
+            args=(q, lambda: read_stdout(proc.stdout, q), StdoutEOF()),
+            daemon=True,
         )
         t_out.start()
         t_err = Thread(
-            target=capture_exception, daemon=True, args=(q, lambda: read_stderr(proc.stderr, q), StderrEOF())
+            target=capture_exception,
+            name=f"ThrStderrCapture-{pdf_path}",
+            args=(q, lambda: read_stderr(proc.stderr, q), StderrEOF()),
+            daemon=True,
         )
         t_err.start()
 

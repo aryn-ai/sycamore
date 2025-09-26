@@ -3,6 +3,7 @@ import pytest
 
 from sycamore.data.document import Document
 from sycamore.data.element import Element
+from sycamore.llms.config import LLMModel
 from sycamore.llms.llms import LLM, LLMMode, FakeLLM as SetAnsLLM
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
 from sycamore.transforms.property_extraction.extract import Extract
@@ -37,7 +38,9 @@ class FakeLLM(LLM):
     def is_chat_mode(self):
         return True
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         self.ncalls += 1
         return f"""{{
             "doc_id": "{prompt.messages[0].content[6:]}",
@@ -46,7 +49,9 @@ class FakeLLM(LLM):
         }}
         """
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         return self.generate(prompt=prompt, llm_kwargs=llm_kwargs)
 
 

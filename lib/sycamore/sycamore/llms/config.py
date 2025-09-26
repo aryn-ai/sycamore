@@ -3,17 +3,34 @@ from enum import Enum
 from typing import Optional
 
 
+class LLMMode(Enum):
+    SYNC = 1
+    ASYNC = 2
+    BATCH = 3
+
+
+class LLMModel:
+    name: str
+    is_chat: bool
+
+
+@dataclass
+class AnthropicModel(LLMModel):
+    name: str
+    is_chat: bool = False
+
+
 class AnthropicModels(Enum):
     """Represents available Claude models."""
 
-    CLAUDE_4_OPUS = "claude-opus-4-20250514"
-    CLAUDE_4_SONNET = "claude-sonnet-4-20250514"
-    CLAUDE_3_7_SONNET = "claude-3-7-sonnet-latest"
-    CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest"
-    CLAUDE_3_5_HAIKU = "claude-3-5-haiku-latest"
-    CLAUDE_3_OPUS = "claude-3-opus-latest"
-    CLAUDE_3_SONNET = "claude-3-sonnet-20240229"
-    CLAUDE_3_HAIKU = "claude-3-haiku-20240307"
+    CLAUDE_4_OPUS = AnthropicModel(name="claude-opus-4-20250514", is_chat=True)
+    CLAUDE_4_SONNET = AnthropicModel(name="claude-sonnet-4-20250514", is_chat=True)
+    CLAUDE_3_7_SONNET = AnthropicModel(name="claude-3-7-sonnet-latest", is_chat=True)
+    CLAUDE_3_5_SONNET = AnthropicModel(name="claude-3-5-sonnet-latest", is_chat=True)
+    CLAUDE_3_5_HAIKU = AnthropicModel(name="claude-3-5-haiku-latest", is_chat=True)
+    CLAUDE_3_OPUS = AnthropicModel(name="claude-3-opus-latest", is_chat=True)
+    CLAUDE_3_SONNET = AnthropicModel(name="claude-3-sonnet-20240229", is_chat=True)
+    CLAUDE_3_HAIKU = AnthropicModel(name="claude-3-haiku-20240307", is_chat=True)
 
     @classmethod
     def from_name(cls, name: str) -> Optional["AnthropicModels"]:
@@ -24,7 +41,7 @@ class AnthropicModels(Enum):
 
 
 @dataclass
-class BedrockModel:
+class BedrockModel(LLMModel):
     name: str
     is_chat: bool = False
 
@@ -48,7 +65,7 @@ class BedrockModels(Enum):
 
 
 @dataclass
-class GeminiModel:
+class GeminiModel(LLMModel):
     name: str
     is_chat: bool = False
 
@@ -57,13 +74,17 @@ class GeminiModels(Enum):
     """Represents available Gemini models. More info: https://googleapis.github.io/python-genai/"""
 
     # Note that the models available on a given Gemini account may vary.
-    GEMINI_2_5_FLASH = GeminiModel(name="gemini-2.5-flash", is_chat=True)
+    GEMINI_FLASH_LATEST = GeminiModel(name="gemini-flash-latest", is_chat=True)  # latest including preview
+    GEMINI_2_5_FLASH = GeminiModel(name="gemini-2.5-flash", is_chat=True)  # stable
+    # This should be deprecated in favor of LATEST
     GEMINI_2_5_FLASH_PREVIEW = GEMINI_2_5_FLASH  # Alias for the preview model
 
     GEMINI_2_5_PRO = GeminiModel(name="gemini-2.5-pro", is_chat=True)
     GEMINI_2_5_PRO_PREVIEW = GEMINI_2_5_PRO  # Alias for the preview model
 
-    GEMINI_2_5_FLASH_LITE = GeminiModel(name="gemini-2.5-flash-lite", is_chat=True)
+    GEMINI_FLASH_LITE_LATEST = GeminiModel(name="gemini-flash-lite-latest", is_chat=True)  # latest including preview
+    GEMINI_2_5_FLASH_LITE = GeminiModel(name="gemini-2.5-flash-lite", is_chat=True)  # stable
+    # This should be deprecated in favor of LATEST
     GEMINI_2_5_FLASH_LITE_PREVIEW = GEMINI_2_5_FLASH_LITE  # Alias for the preview model
 
     GEMINI_2_FLASH = GeminiModel(name="gemini-2.0-flash", is_chat=True)
@@ -81,7 +102,7 @@ class GeminiModels(Enum):
 
 
 @dataclass
-class OpenAIModel:
+class OpenAIModel(LLMModel):
     name: str
     is_chat: bool = False
 
@@ -113,3 +134,10 @@ class OpenAIModels(Enum):
             if m.value.name == name:
                 return m
         return None
+
+
+class ChainedModel(LLMModel):
+
+    def __init__(self, chain: list[LLMModel]):
+        self.chain = chain
+        self.is_chat = True  # This is not used anywhere.

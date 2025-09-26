@@ -6,9 +6,12 @@ TODO:
 - handle bbox not (always) present
 """
 
-from typing import Optional
+from typing import Literal, Optional
 
 from sycamore.data import Element
+
+
+ReadingDirection = Literal["ltr", "rtl"]
 
 
 def elem_top_left(elem: Element) -> tuple:
@@ -18,11 +21,26 @@ def elem_top_left(elem: Element) -> tuple:
     return (0.0, 0.0)
 
 
+def elem_top_right(elem: Element) -> tuple:
+    bbox = elem.data.get("bbox")
+    if bbox:
+        return (bbox[1], -bbox[0])
+    return (0.0, 0.0)
+
+
 def elem_left_top(elem: Element) -> tuple:
     bbox = elem.data.get("bbox")
     if bbox:
         left = int(5 * bbox[0])  # !!! quantize
         return (left, bbox[1])
+    return (0.0, 0.0)
+
+
+def elem_right_top(elem: Element) -> tuple:
+    bbox = elem.data.get("bbox")
+    if bbox:
+        left = int(5 * bbox[0])
+        return (-left, bbox[1])
     return (0.0, 0.0)
 
 
@@ -85,12 +103,13 @@ def tag_two_columns(elems: list[Element]) -> None:
                 ee.data["_coltag"] = "2col"
 
 
-def bbox_sort_two_columns(elems: list[Element], beg: int, end: int) -> None:
+def bbox_sort_two_columns(elems: list[Element], beg: int, end: int, *, reading_direction: ReadingDirection) -> None:
     if (end - beg) > 1:
-        elems[beg:end] = sorted(elems[beg:end], key=elem_left_top)
+        key = elem_left_top if reading_direction == "ltr" else elem_right_top
+        elems[beg:end] = sorted(elems[beg:end], key=key)
 
 
-def bbox_sort_based_on_tags(elems: list[Element]) -> None:
+def bbox_sort_based_on_tags(elems: list[Element], *, reading_direction: ReadingDirection) -> None:
     """
     Find sections that are two-column and sort them specially.
     Assumes elems already sorted vertically.
@@ -101,20 +120,21 @@ def bbox_sort_based_on_tags(elems: list[Element]) -> None:
         tag = elem.data["_coltag"]
         if (tag in ("full", "2col")) and (tag != ltag):
             if ltag == "2col":
-                bbox_sort_two_columns(elems, lidx, idx)
+                bbox_sort_two_columns(elems, lidx, idx, reading_direction=reading_direction)
             lidx = idx
             ltag = tag
     if ltag == "2col":
-        bbox_sort_two_columns(elems, lidx, len(elems))
+        bbox_sort_two_columns(elems, lidx, len(elems), reading_direction=reading_direction)
 
 
-def bbox_sort_page(elems: list[Element]) -> None:
+def bbox_sort_page(elems: list[Element], *, reading_direction: ReadingDirection = "ltr") -> None:
     if len(elems) < 2:
         return
-    elems.sort(key=elem_top_left)  # sort top-to-bottom, left-to-right
+    sort_key = elem_top_left if reading_direction == "ltr" else elem_top_right
+    elems.sort(key=sort_key)  # sort top-to-bottom, respecting reading direction
     for elem in elems:  # tag left/right/full based on width/position
         elem.data["_coltag"] = col_tag(elem)
     tag_two_columns(elems)
-    bbox_sort_based_on_tags(elems)
+    bbox_sort_based_on_tags(elems, reading_direction=reading_direction)
     for elem in elems:
         elem.data.pop("_coltag", None)  # clean up tags

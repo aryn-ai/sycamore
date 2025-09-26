@@ -1,7 +1,6 @@
 import inspect
 from abc import ABC, abstractmethod
 import copy
-from enum import Enum
 import logging
 import pickle
 import base64

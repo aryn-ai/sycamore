@@ -32,6 +32,7 @@ from sycamore.materialize_config import MaterializeSourceMode
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
     from sycamore.grouped_data import GroupedData
+    from sycamore.llms.llms import LLM
     from sycamore.schema import SchemaV2
     from sycamore.transforms.augment_text import TextAugmentor
     from sycamore.transforms.embed import Embedder

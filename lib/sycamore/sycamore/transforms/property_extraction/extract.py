@@ -159,7 +159,7 @@ class Extract(MapBatch):
                     continue
                 if v_new is not None and v_new.type is not DataType.OBJECT:
                     p_work.value[k] = v_new
-                if v_new is not None and v_new.type is DataType.OBJECT:
+                if v_new is not None and v_new.type is DataType.OBJECT and v_work is None:
                     p_work.value[k] = RichProperty(
                         name=k if isinstance(k, str) else None, type=DataType.OBJECT, value={}
                     )

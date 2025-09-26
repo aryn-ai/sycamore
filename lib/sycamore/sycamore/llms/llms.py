@@ -8,19 +8,13 @@ import base64
 from PIL import Image
 from typing import Any, Optional
 
-from sycamore.llms.config import LLMModel
+from sycamore.llms.config import LLMMode, LLMModel
 from sycamore.utils.cache import Cache
 from sycamore.utils.thread_local import ThreadLocalAccess, ADD_METADATA_TO_OUTPUT
 from sycamore.data.metadata import add_metadata
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 
 from sycamore.utils.deprecate import deprecated
-
-
-class LLMMode(Enum):
-    SYNC = 1
-    ASYNC = 2
-    BATCH = 3
 
 
 class LLM(ABC):

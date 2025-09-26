@@ -107,16 +107,19 @@ def show(sort_by="time", min_time=None):
     tree("__main__")
 
 
-def tree(parent, prefix=""):
-    ary = []
+def tree(parent, prefix="", minsecs=0.001):
+    """
+    parent_imports represents a dag. To make a tree, we duplicate shared nodes.
+    """
+    name_time = []
     for key, val in parent_imports.items():
         if parent == val:
             t = import_times[key]
-            if t >= 0.001:
-                ary.append((key, int(t * 1000)))  # ms
-    ary.sort(key=lambda x: x[1], reverse=True)
+            if t >= minsecs:
+                name_time.append((key, int(t * 1000)))  # ms
+    name_time.sort(key=lambda x: x[1], reverse=True)
     prefix += "  "
-    for key, t in ary:
+    for key, t in name_time:
         cnt = import_counts[key]
         print(f"{prefix}{key} {t}ms ({cnt}x)")
         tree(key, prefix)

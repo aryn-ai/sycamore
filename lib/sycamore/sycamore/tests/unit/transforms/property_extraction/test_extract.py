@@ -4,7 +4,7 @@ import pytest
 from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.llms.config import LLMModel
-from sycamore.llms.llms import LLM, LLMMode, FakeLLM as SetAnsLLM
+from sycamore.llms.llms import LLM, LLMMode, FakeLLM
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
 from sycamore.transforms.property_extraction.extract import Extract
 from sycamore.transforms.property_extraction.strategy import NoSchemaSplitting, OneElementAtATime
@@ -30,7 +30,7 @@ class FakeExtractionPrompt(SycamorePrompt):
         )
 
 
-class FakeLLM(LLM):
+class LocalFakeLLM(LLM):
     def __init__(self):
         super().__init__(model_name="fake", default_mode=LLMMode.ASYNC)
         self.ncalls = 0
@@ -99,7 +99,7 @@ class TestExtract:
             schema=schema,
             step_through_strategy=OneElementAtATime(),
             schema_partition_strategy=NoSchemaSplitting(),
-            llm=FakeLLM(),
+            llm=LocalFakeLLM(),
             prompt=FakeExtractionPrompt(),
         )
 
@@ -161,7 +161,7 @@ class TestExtract:
             schema=schema,
             step_through_strategy=OneElementAtATime(),
             schema_partition_strategy=NoSchemaSplitting(),
-            llm=FakeLLM(),
+            llm=LocalFakeLLM(),
             prompt=FakeExtractionPrompt(),
             output_pydantic_models=False,
         )
@@ -204,7 +204,7 @@ class TestExtract:
                 schema=schema,
                 step_through_strategy=OneElementAtATime(),
                 schema_partition_strategy=NoSchemaSplitting(),
-                llm=FakeLLM(),
+                llm=LocalFakeLLM(),
                 prompt=NotImplPrompt(),
                 output_pydantic_models=False,
             )
@@ -214,7 +214,7 @@ class TestExtract:
             schema=schema,
             step_through_strategy=OneElementAtATime(),
             schema_partition_strategy=NoSchemaSplitting(),
-            llm=FakeLLM(),
+            llm=LocalFakeLLM(),
             prompt=ImplButCrashPrompt(),
             output_pydantic_models=False,
         )
@@ -259,7 +259,7 @@ class TestExtract:
             ]
         )
 
-        llm = FakeLLM()
+        llm = LocalFakeLLM()
         extract = Extract(
             None,
             schema=schema,
@@ -299,7 +299,7 @@ class TestExtract:
             ]
         )
 
-        llm = FakeLLM()
+        llm = LocalFakeLLM()
         extract = Extract(
             None,
             schema=schema,
@@ -324,7 +324,7 @@ class TestExtract:
             ]
         )
 
-        llm = SetAnsLLM(return_value='{"outer": {"inner": "value"}}')
+        llm = FakeLLM(return_value='{"outer": {"inner": "value"}}')
         extract = Extract(
             None,
             schema=schema,

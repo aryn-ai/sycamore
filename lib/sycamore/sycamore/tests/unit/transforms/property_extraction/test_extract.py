@@ -4,11 +4,19 @@ import pytest
 from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.llms.config import LLMModel
-from sycamore.llms.llms import LLM, LLMMode
+from sycamore.llms.llms import LLM, LLMMode, FakeLLM
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
 from sycamore.transforms.property_extraction.extract import Extract
 from sycamore.transforms.property_extraction.strategy import NoSchemaSplitting, OneElementAtATime
-from sycamore.schema import IntProperty, NamedProperty, RegexValidator, SchemaV2, StringProperty, DataType
+from sycamore.schema import (
+    IntProperty,
+    NamedProperty,
+    RegexValidator,
+    SchemaV2,
+    StringProperty,
+    DataType,
+    ObjectProperty,
+)
 
 
 class FakeExtractionPrompt(SycamorePrompt):
@@ -22,7 +30,7 @@ class FakeExtractionPrompt(SycamorePrompt):
         )
 
 
-class FakeLLM(LLM):
+class LocalFakeLLM(LLM):
     def __init__(self):
         super().__init__(model_name="fake", default_mode=LLMMode.ASYNC)
         self.ncalls = 0
@@ -91,7 +99,7 @@ class TestExtract:
             schema=schema,
             step_through_strategy=OneElementAtATime(),
             schema_partition_strategy=NoSchemaSplitting(),
-            llm=FakeLLM(),
+            llm=LocalFakeLLM(),
             prompt=FakeExtractionPrompt(),
         )
 
@@ -153,7 +161,7 @@ class TestExtract:
             schema=schema,
             step_through_strategy=OneElementAtATime(),
             schema_partition_strategy=NoSchemaSplitting(),
-            llm=FakeLLM(),
+            llm=LocalFakeLLM(),
             prompt=FakeExtractionPrompt(),
             output_pydantic_models=False,
         )
@@ -196,7 +204,7 @@ class TestExtract:
                 schema=schema,
                 step_through_strategy=OneElementAtATime(),
                 schema_partition_strategy=NoSchemaSplitting(),
-                llm=FakeLLM(),
+                llm=LocalFakeLLM(),
                 prompt=NotImplPrompt(),
                 output_pydantic_models=False,
             )
@@ -206,7 +214,7 @@ class TestExtract:
             schema=schema,
             step_through_strategy=OneElementAtATime(),
             schema_partition_strategy=NoSchemaSplitting(),
-            llm=FakeLLM(),
+            llm=LocalFakeLLM(),
             prompt=ImplButCrashPrompt(),
             output_pydantic_models=False,
         )
@@ -251,7 +259,7 @@ class TestExtract:
             ]
         )
 
-        llm = FakeLLM()
+        llm = LocalFakeLLM()
         extract = Extract(
             None,
             schema=schema,
@@ -291,7 +299,7 @@ class TestExtract:
             ]
         )
 
-        llm = FakeLLM()
+        llm = LocalFakeLLM()
         extract = Extract(
             None,
             schema=schema,
@@ -305,3 +313,25 @@ class TestExtract:
         assert llm.ncalls == 5
         assert extracted[0].field_to_value("properties.entity.missing") is None
         assert extracted[1].field_to_value("properties.entity.missing") is None
+
+    def test_double_object(self):
+        docs = [Document(doc_id="0", elements=[Element(text_representation="aaa", properties={"_element_index": 2})])]
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(
+                    name="outer", type=ObjectProperty(properties=[NamedProperty(name="inner", type=StringProperty())])
+                )
+            ]
+        )
+
+        llm = FakeLLM(return_value='{"outer": {"inner": "value"}}')
+        extract = Extract(
+            None,
+            schema=schema,
+            step_through_strategy=OneElementAtATime(),
+            schema_partition_strategy=NoSchemaSplitting(),
+            llm=llm,
+            prompt=FakeExtractionPrompt(),
+        )
+        extracted = extract.run(docs)
+        assert extracted[0].field_to_value("properties.entity.outer.inner") == "value"

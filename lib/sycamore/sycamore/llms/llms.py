@@ -264,5 +264,10 @@ class FakeLLM(LLM):
     ) -> str:
         return self._return_value
 
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
+        return self.generate(prompt=prompt, llm_kwargs=llm_kwargs)
+
     def is_chat_mode(self) -> bool:
         return False

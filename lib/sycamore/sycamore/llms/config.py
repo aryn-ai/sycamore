@@ -23,6 +23,7 @@ class AnthropicModel(LLMModel):
 class AnthropicModels(Enum):
     """Represents available Claude models."""
 
+    CLAUDE_4_5_SONNET = AnthropicModel(name="claude-sonnet-4-5-20250929", is_chat=True)
     CLAUDE_4_OPUS = AnthropicModel(name="claude-opus-4-20250514", is_chat=True)
     CLAUDE_4_SONNET = AnthropicModel(name="claude-sonnet-4-20250514", is_chat=True)
     CLAUDE_3_7_SONNET = AnthropicModel(name="claude-3-7-sonnet-latest", is_chat=True)
@@ -55,6 +56,7 @@ class BedrockModels(Enum):
     CLAUDE_3_OPUS = BedrockModel(name="anthropic.claude-3-opus-20240229-v1:0", is_chat=True)
     CLAUDE_3_5_SONNET = BedrockModel(name="anthropic.claude-3-5-sonnet-20241022-v2:0", is_chat=True)
     CLAUDE_3_7_SONNET = BedrockModel(name="anthropic.claude-3-7-sonnet-20250219-v1:0", is_chat=True)
+    CLAUDE_4_5_SONNET = BedrockModel(name="anthropic.claude-sonnet-4-5-20250929-v1:0", is_chat=True)
 
     @classmethod
     def from_name(cls, name: str):

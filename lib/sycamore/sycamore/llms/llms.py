@@ -1,26 +1,19 @@
 import inspect
 from abc import ABC, abstractmethod
 import copy
-from enum import Enum
 import logging
 import pickle
 import base64
 from PIL import Image
 from typing import Any, Optional
 
-from sycamore.llms.config import LLMModel
+from sycamore.llms.config import LLMMode, LLMModel
 from sycamore.utils.cache import Cache
 from sycamore.utils.thread_local import ThreadLocalAccess, ADD_METADATA_TO_OUTPUT
 from sycamore.data.metadata import add_metadata
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 
 from sycamore.utils.deprecate import deprecated
-
-
-class LLMMode(Enum):
-    SYNC = 1
-    ASYNC = 2
-    BATCH = 3
 
 
 class LLM(ABC):
@@ -270,6 +263,11 @@ class FakeLLM(LLM):
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
         return self._return_value
+
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
+        return self.generate(prompt=prompt, llm_kwargs=llm_kwargs)
 
     def is_chat_mode(self) -> bool:
         return False

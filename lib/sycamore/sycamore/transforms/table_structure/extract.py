@@ -332,9 +332,9 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         model_selection: str,
     ) -> Union[TableTransformerStructureExtractor, DeformableTableStructureExtractor]:
         """Use the model_selection expression to choose the model to use for table extraction.
-        If the expression returns None, use table transformer."""
+        If the expression returns None, use deformable table transformer."""
         if element.bbox is None:
-            return self._tatr
+            return self._deformable
 
         select_fn = self.parse_model_selection(model_selection)
 
@@ -353,7 +353,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         elif selection == "deformable_detr":
             return self._deformable
         elif selection is None:
-            return self._tatr
+            return self._deformable
         raise ValueError(f"Somehow we got an invalid selection: {selection}. This should be unreachable.")
 
     def _init_structure_model(self):
@@ -365,7 +365,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         element: TableElement,
         doc_image: Image.Image,
         union_tokens=False,
-        model_selection: str = "pixels > 500 -> deformable_detr; table_transformer",
+        model_selection: str = "deformable_detr",
         resolve_overlaps=False,
     ) -> TableElement:
         """Extracts the table structure from the specified element using a either a DeformableDETR or
@@ -442,7 +442,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
             if len(pieces) > 2:
                 raise ValueError(
                     f"Bad model selection: {selection}\n"
-                    f"Invalid statement: '{statement}'. Found more than 2 instances of '->'"
+                    f"Invalid statement: '{statement}'. Found more than 1 instance of '->'"
                 )
 
             result = pieces[1].strip()

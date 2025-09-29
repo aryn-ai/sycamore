@@ -112,7 +112,7 @@ def test_cached_bedrock_different_prompts(tmp_path: Path):
 def test_cached_anthropic_different_models(tmp_path: Path):
     cache = DiskCache(str(tmp_path))
     llm_HAIKU = Anthropic(AnthropicModels.CLAUDE_3_5_HAIKU, cache=cache)
-    llm_SONNET = Anthropic(AnthropicModels.CLAUDE_3_5_SONNET, cache=cache)
+    llm_SONNET = Anthropic(AnthropicModels.CLAUDE_4_5_SONNET, cache=cache)
 
     prompt = RenderedPrompt(
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
@@ -132,7 +132,7 @@ def test_cached_anthropic_different_models(tmp_path: Path):
     assert cacheget(cache, key_SONNET).get("result")["output"] == res_SONNET
     assert cacheget(cache, key_SONNET).get("prompt") == prompt
     assert cacheget(cache, key_SONNET).get("llm_kwargs") == {}
-    assert cacheget(cache, key_SONNET).get("model_name") == AnthropicModels.CLAUDE_3_5_SONNET.value.name
+    assert cacheget(cache, key_SONNET).get("model_name") == AnthropicModels.CLAUDE_4_5_SONNET.value.name
 
     # check for difference with model change
     assert key_HAIKU != key_SONNET

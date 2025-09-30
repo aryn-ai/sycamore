@@ -1,4 +1,5 @@
-from sycamore.schema import SchemaV2, make_property, make_named_property, NamedProperty
+import json
+from sycamore.schema import SchemaV2, make_property, make_named_property, NamedProperty, RegexValidator
 
 single_property_dict_old = {
     "name": "state",
@@ -347,3 +348,15 @@ def test_ziptraverse():
         if v.name in ("start", "end"):
             assert p.name == "years_resident"
             continue
+
+
+def test_validator_json_serialize():
+    r = RegexValidator(regex=r"[0-9]{3}")
+    res, _ = r.validate_property("123")
+    assert res
+
+    js = json.dumps(r.model_dump())
+    r2 = RegexValidator.model_validate_json(js)
+
+    assert r.regex == r2.regex
+    assert r.allowable_types == r2.allowable_types

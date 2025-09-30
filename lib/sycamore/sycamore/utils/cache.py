@@ -3,7 +3,6 @@ import hashlib
 import json
 import logging
 import threading
-from datetime import timedelta
 from pathlib import Path
 import time
 from tempfile import SpooledTemporaryFile
@@ -13,7 +12,7 @@ import diskcache
 from botocore.exceptions import ClientError
 
 BLOCK_SIZE = 1048576  # 1 MiB
-DDB_CACHE_TTL: int = int(timedelta(days=10).total_seconds())
+DDB_CACHE_TTL: int = 10 * 24 * 60 * 60  # 10 days in seconds
 
 
 class HashContext:
@@ -41,33 +40,35 @@ class Cache:
 
     def __init__(self):
         self.mutex = threading.Lock()
-        self.cache_hits: int = 0
-        self.cache_misses: int = 0
+        self.hits: int = 0
+        self.misses: int = 0
 
-    def get(self, hash_key: str):
+    def get(self, key: str):
         pass
 
-    def set(self, hash_key: str, hash_value):
+    def set(self, key: str, value):
         pass
 
     def inc_hits(self):
         with self.mutex:
-            self.cache_hits += 1
+            self.hits += 1
 
     def inc_misses(self):
         with self.mutex:
-            self.cache_misses += 1
+            self.misses += 1
 
     def get_hit_rate(self) -> float:
         with self.mutex:
-            total = self.cache_hits + self.cache_misses
-            if total == 0:
-                return 0.0
-            return self.cache_hits / total
+            hits, misses = self.get_hit_info()
+
+        total = hits + misses
+        if total == 0:
+            return 0.0
+        return hits / total
 
     def get_hit_info(self) -> tuple[int, int]:
         with self.mutex:
-            return self.cache_hits, self.cache_misses
+            return self.hits, self.misses
 
     @staticmethod
     def get_hash_context(data: bytes, hash_ctx: Optional[HashContext] = None) -> HashContext:
@@ -133,16 +134,16 @@ class DiskCache(Cache):
         super().__init__()
         self._cache = diskcache.Cache(directory=cache_loc)
 
-    def get(self, hash_key: str):
-        v = self._cache.get(hash_key)
+    def get(self, key: str):
+        v = self._cache.get(key)
         if v is not None:
             self.inc_hits()
-            return v
-        self.inc_misses()
+        else:
+            self.inc_misses()
         return v
 
-    def set(self, hash_key: str, hash_value):
-        self._cache.set(hash_key, hash_value)
+    def set(self, key: str, value):
+        self._cache.set(key, value)
 
 
 def s3_cache_deserializer(kwargs):
@@ -211,13 +212,13 @@ class S3Cache(Cache):
         return s3_cache_deserializer, (kwargs,)
 
 
-class DynamoDBCache(Cache):
+class DynamoDbCache(Cache):
     """
     A DynamoDB cache items are specified as follows:
 
-    ddb://<region_name>/<table_name>[/<hash_key_name>]
+    ddb://<region_name>/<table_name>[/<cache_key>]
 
-    where 'hash_key_name' defaults to 'hash_key' if left unspecified.
+    where 'cache_key' defaults to 'cache_key' if left unspecified.
 
     This cache uses an attribute called 'expire_at' to use DynamoDB's TTL feature for cache expiration.
     The DynamoDB table backing this cache must have TTL enabled on this attribute for this to work properly.
@@ -227,8 +228,10 @@ class DynamoDBCache(Cache):
         import boto3
 
         super().__init__()
-        scheme, _, region_name, table_name, hash_key_name = self.parse_path(path)
-        self.hash_key_name = hash_key_name if hash_key_name is not None else "hash_key"
+        scheme, _, region_name, table_name, cache_key = self.parse_path(path)
+        if not cache_key:
+            raise ValueError("Missing cache key !!")
+        self.cache_key = cache_key
         self.client = boto3.client("dynamodb", region_name=region_name)
         self.table_name = table_name
         self.ttl = ttl
@@ -238,17 +241,16 @@ class DynamoDBCache(Cache):
         assert path.startswith("ddb://"), "DynamoDB cache paths must start with ddb://"
 
         parts = path.split("/", 5)
-        if len(parts) < 4:
-            raise ValueError("DynamoDB cache paths must have 'region_name' (us-east-1, e.g.) and 'table_name'")
-
-        if len(parts) == 4:
-            return (*parts, None)
+        if len(parts) < 5:
+            raise ValueError(
+                "DynamoDB cache paths must have 'region_name' (us-east-1, e.g.) and 'table_name' and 'cache_key'"
+            )
 
         return tuple(parts)
 
-    def get(self, hash_key: str) -> Optional[bytes]:
-        key = {self.hash_key_name: hash_key}
-        res: dict[Any, Any] = {}
+    def get(self, key: str) -> Optional[bytes]:
+        key = {self.cache_key: key}
+        res: dict[str, Any] = {}
         try:
             res = self.client.get_item(TableName=self.table_name, Key=key)
         except ClientError as error:
@@ -262,11 +264,11 @@ class DynamoDBCache(Cache):
         self.inc_misses()
         return None
 
-    def set(self, hash_key: str, hash_value: bytes):
+    def set(self, key: str, value: bytes):
         ttl = int(time.time()) + self.ttl
         item = {
-            self.hash_key_name: {"S": hash_key},
-            "payload": {"B": hash_value},
+            self.cache_key: {"S": key},
+            "payload": {"B": value},
             "expire_at": {"N": f"{ttl}"},
         }
         self.client.put_item(TableName=self.table_name, Item=item)
@@ -278,7 +280,7 @@ def cache_from_path(path: Optional[str]) -> Optional[Cache]:
     if path.startswith("s3://"):
         return S3Cache(path)
     if path.startswith("ddb://"):
-        return DynamoDBCache(path)
+        return DynamoDbCache(path)
     if path.startswith("/"):
         return DiskCache(path)
     if Path(path).is_dir():

@@ -137,6 +137,7 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
             ):
                 if prop.get_type() is DataType.OBJECT:
                     opc = prop.unwrap().model_copy()
+                    assert isinstance(opc, ObjectProperty), "Type narrowing, unreachable"
                     opc.properties = []
                     np = NamedProperty(name=prop.name, type=opc)
                 else:

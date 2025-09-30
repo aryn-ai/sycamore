@@ -136,7 +136,9 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                 and not isinstance(out_prop_p, ZTLeaf)
             ):
                 if prop.get_type() is DataType.OBJECT:
-                    np = NamedProperty(name=prop.name, type=ObjectProperty(properties=[]))
+                    opc = prop.unwrap().model_copy()
+                    opc.properties = []
+                    np = NamedProperty(name=prop.name, type=opc)
                 else:
                     np = prop
                 obj_p = out_prop_p.type if isinstance(out_prop_p, NamedProperty) else out_prop_p

@@ -10,6 +10,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    field_serializer,
     TypeAdapter,
     ValidatorFunctionWrapHandler,
     WrapValidator,
@@ -134,6 +135,12 @@ class PropertyValidator(BaseModel, ABC):
     @abstractmethod
     def validate_property(self, propval: Any) -> tuple[bool, Any]:
         pass
+
+    # Not all consumers of this class handle sets well, so we convert to list
+    # on the way out.
+    @field_serializer("allowable_types")
+    def serialize_allowable_types(self, allowable_types: set[DataType]) -> list[DataType]:
+        return list(allowable_types)
 
 
 class RegexValidator(PropertyValidator):

@@ -260,7 +260,7 @@ class PdfToImageFiles:
     Note: model service will call this to get images for processing
     """
 
-    def __init__(self, *, pdf_path: str, file_dir: str | Path, resolution: int = 200) -> None:
+    def __init__(self, *, pdf_path: str | Path, file_dir: str | Path, resolution: int = 200) -> None:
         self.file_dir = Path(file_dir)
         self.in_cm = False
         self.timer = LogTime("convert_to_image")

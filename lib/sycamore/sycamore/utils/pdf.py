@@ -3,7 +3,7 @@ import logging
 from io import BytesIO
 from PIL import Image
 from pathlib import Path
-from queue import Queue
+from queue import Empty, Queue
 from subprocess import PIPE, Popen, TimeoutExpired
 from threading import Thread
 from typing import List, Generator, Iterator
@@ -262,7 +262,7 @@ class PdfToImageFiles:
 
     def __init__(self, *, pdf_path: str | Path, file_dir: str | Path, resolution: int = 200) -> None:
         self.file_dir = Path(file_dir)
-        self.in_cm = False
+        self.in_context = False
         self.timer = LogTime("convert_to_image")
         self.timer.start()
         args = ["pdftoppm", "-r", str(resolution), str(pdf_path)]
@@ -275,7 +275,7 @@ class PdfToImageFiles:
         self.t_err.start()
 
     def __enter__(self) -> "PdfToImageFiles":
-        self.in_cm = True
+        self.in_context = True
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -283,23 +283,29 @@ class PdfToImageFiles:
         assert proc.stdout
         assert proc.stderr
         if proc.poll() is None:
+            t_out = self.t_out
+            t_err = self.t_err
             self.running = False
             proc.terminate()
             try:
                 proc.wait(2)
             except TimeoutExpired:
+                logging.warning(f"pdftoppm {proc.pid} did not terminate; killing")
                 proc.kill()
                 proc.wait(1)
             proc.stdout.close()  # will wake up readers
             proc.stderr.close()
-            while not self.q.empty():
-                self.q.get_nowait()  # avoid deadlock
-            self.t_out.join()
-            self.t_err.join()
+            while t_out.is_alive() or t_err.is_alive():
+                try:
+                    self.q.get(timeout=0.01)  # avoid deadlock
+                except Empty:
+                    pass
+            t_out.join()
+            t_err.join()
             self.timer.measure()
 
     def __iter__(self) -> Iterator[Path]:
-        assert self.in_cm, "PdfToImageFiles must be used as context manager"
+        assert self.in_context, "Use PdfToImageFiles as a context manager"
         proc = self.proc
         more_out = True
         more_err = True

@@ -262,6 +262,7 @@ class PdfToImageFiles:
 
     def __init__(self, *, pdf_path: str, file_dir: str | Path, resolution: int = 200) -> None:
         self.file_dir = Path(file_dir)
+        self.in_cm = False
         self.timer = LogTime("convert_to_image")
         self.timer.start()
         args = ["pdftoppm", "-r", str(resolution), str(pdf_path)]
@@ -274,6 +275,7 @@ class PdfToImageFiles:
         self.t_err.start()
 
     def __enter__(self) -> "PdfToImageFiles":
+        self.in_cm = True
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -297,6 +299,7 @@ class PdfToImageFiles:
             self.timer.measure()
 
     def __iter__(self) -> Iterator[Path]:
+        assert self.in_cm, "PdfToImageFiles must be used as context manager"
         proc = self.proc
         more_out = True
         more_err = True

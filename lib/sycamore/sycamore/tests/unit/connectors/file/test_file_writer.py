@@ -1,7 +1,7 @@
 import glob
 import json
 import tempfile
-from datetime import date, datetime
+from datetime import datetime
 
 import sycamore
 from sycamore.data import Document

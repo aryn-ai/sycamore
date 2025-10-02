@@ -8,11 +8,13 @@ from pathlib import Path
 from queue import Queue
 from subprocess import PIPE, Popen, TimeoutExpired
 from threading import Thread
-from typing import List, Generator, Iterator
+from typing import Generator, IO, Iterator
 from sycamore.utils.time_trace import LogTime
 
 
 HEADER_BYTES = 40
+TIMEOUT_SEC = 60
+TIMEOUT_MSEC = 1000 * TIMEOUT_SEC
 
 
 def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, None]:
@@ -120,7 +122,7 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
         t_err.join()
 
 
-def convert_from_path_streamed_batched(filename: str, batch_size: int) -> Generator[List[Image.Image], None, None]:
+def convert_from_path_streamed_batched(filename: str, batch_size: int) -> Generator[list[Image.Image], None, None]:
     """Deprecated. Switch to pdf_to_image_files
     Note: model service will call this to get batches of images for processing"""
     batch = []
@@ -247,12 +249,42 @@ def pdf_to_image_files(pdf_path: str, file_dir: Path, resolution: int = 200) -> 
         t_err.join()
 
 
-class StdoutEof:
-    "sentinel class"
+class NbReader:
+    def __init__(self, stream: IO[bytes], poller: select.poll) -> None:
+        self.stream = stream
+        self.poller = poller
+        self.fd = stream.fileno()
+        os.set_blocking(stream.fileno(), False)
+        poller.register(stream.fileno(), select.POLLIN)
+        self.buf = BytesIO()
+        self.view = memoryview(bytearray(65536))  # 64kB
+        self.eof = False
+        self.blocked = True
 
+    def do_read(self) -> None:
+        if self.eof:
+            self.blocked = True  # allows us to poll on the non-eof stream
+            return
+        nb = self.stream.readinto(self.view)  # type: ignore[attr-defined]
+        if nb:
+            self.buf.write(self.view[0:nb])
+            self.blocked = False
+        elif nb == 0:
+            self.poller.unregister(self.stream.fileno())
+            self.eof = True
+            self.blocked = False
+        else:
+            self.blocked = True
 
-class StderrEof:
-    "sentinel class"
+    def slide(self, nb: int) -> None:
+        old = self.buf.getbuffer()
+        self.buf = BytesIO(old[nb:])
+        self.buf.seek(0, os.SEEK_END)
+
+    def log(self, prefix: str) -> None:
+        for bline in self.buf.readlines():
+            line = bline.rstrip().decode()
+            logging.warning(f"{prefix}{line}")
 
 
 class PdfToImageFiles:
@@ -270,7 +302,7 @@ class PdfToImageFiles:
         self.timer = LogTime("convert_to_image")
         self.timer.start()
         args = ["pdftoppm", "-r", str(resolution), self.pdf_path]
-        self.proc = Popen(args, stdout=PIPE, stderr=PIPE)
+        self.proc = Popen(args, bufsize=0, stdout=PIPE, stderr=PIPE)
 
     def __enter__(self) -> "PdfToImageFiles":
         self.in_context = True
@@ -291,91 +323,53 @@ class PdfToImageFiles:
 
     def __iter__(self) -> Iterator[Path]:
         assert self.in_context, "Use PdfToImageFiles as a context manager"
-        file_dir = self.file_dir
         proc = self.proc
-        stdout = proc.stdout
-        stderr = proc.stderr
-        assert stdout
-        assert stderr
-        outfd = stdout.fileno()
-        errfd = stderr.fileno()
-        os.set_blocking(outfd, False)
-        os.set_blocking(errfd, False)
+        assert proc.stdout and proc.stderr
         poller = select.poll()
-        poller.register(outfd, select.POLLIN)
-        poller.register(errfd, select.POLLIN)
-
-        outbuf = BytesIO()
-        errbuf = BytesIO()
-        outview = memoryview(bytearray(131072))  # 128kB
-        errview = memoryview(bytearray(8192))  # 8kB
-        more_out = True
-        more_err = True
+        out = NbReader(proc.stdout, poller)
+        err = NbReader(proc.stderr, poller)
         seen_header = False
-        need_bytes = 0
+        image_size = 0
         image_num = 0
 
-        while more_out or more_err:
-            # readinto returns 0 for EOF; None if no bytes available
-            if more_out:
-                out_bytes = stdout.readinto(outview)  # type: ignore[attr-defined]
-            else:
-                out_bytes = None
-            if more_err:
-                err_bytes = stderr.readinto(errview)  # type: ignore[attr-defined]
-            else:
-                err_bytes = None
-            if (out_bytes is None) and (err_bytes is None):
-                nfds = poller.poll(60 * 1000)  # one minute is too long to wait
-                if nfds == 0:
+        while not (out.eof and err.eof):
+            out.do_read()
+            err.do_read()
+            if out.blocked and err.blocked:
+                if not poller.poll(TIMEOUT_MSEC):  # avoid hangs
+                    err.log("pdftoppm stderr: ")
                     raise TimeoutError(f"pdftoppm {self.pdf_path}")
                 continue
 
-            if err_bytes == 0:
-                more_err = False
-                poller.unregister(errfd)
-            elif err_bytes:
-                errbuf.write(errview[0:err_bytes])
-
-            if out_bytes == 0:
-                more_out = False
-                poller.unregister(outfd)
-            elif out_bytes:
-                outbuf.write(outview[0:out_bytes])
-
             if not seen_header:
-                if outbuf.tell() < HEADER_BYTES:
+                if out.buf.tell() < HEADER_BYTES:
                     continue
-                hdr = outbuf.getvalue()[0:HEADER_BYTES]
+                hdr = out.buf.getvalue()[0:HEADER_BYTES]
                 code, size, rgb = hdr.split(b"\n")[0:3]
                 width, height = [int(s) for s in size.split(b" ")]
-                need_bytes = len(code) + len(size) + len(rgb) + 3 + (width * height * 3)
+                image_size = len(code) + len(size) + len(rgb) + 3 + (width * height * 3)
                 seen_header = True
                 # !!! fall through
             if seen_header:
-                if outbuf.tell() < need_bytes:
+                if out.buf.tell() < image_size:
                     continue
-                out_path = file_dir / f"image.{image_num}.ppm"
+                out_path = self.file_dir / f"image.{image_num}.ppm"
                 with (
                     open(out_path, "wb") as fp,
-                    outbuf.getbuffer() as view,
+                    out.buf.getbuffer() as view,
                 ):
-                    fp.write(view[0:need_bytes])
-                outbuf = BytesIO(outbuf.getbuffer()[need_bytes:])  # slide
-                outbuf.seek(0, os.SEEK_END)
+                    fp.write(view[0:image_size])
+                out.slide(image_size)
                 seen_header = False
                 image_num += 1
                 yield out_path
 
+        err.log("pdftoppm stderr: ")
         with LogTime("wait_for_pdftoppm_to_exit", log_start=True):
-            proc.wait()
+            proc.wait(TIMEOUT_SEC)  # just in case; should be instant
         self.timer.measure()
-
-        for bmsg in errbuf.readlines():
-            msg = bmsg.decode()
-            logging.warning(f"pdftoppm stderr: {msg}")
 
         assert proc.returncode is not None
         if proc.returncode != 0:
-            msg = errbuf.getvalue().decode()
+            msg = err.buf.getvalue().decode()
             raise ValueError(f"pdftoppm failed {proc.returncode}.  All stderr:{msg}")

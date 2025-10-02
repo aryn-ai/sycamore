@@ -3,6 +3,8 @@ import sys
 import logging
 from tempfile import TemporaryDirectory
 
+from PIL import Image
+
 from sycamore.tests.config import TEST_DIR
 from sycamore.utils.pdf import PdfToImageFiles
 
@@ -22,22 +24,28 @@ def full(fn: str, dir: str) -> int:
     cnt = 0
     with PdfToImageFiles(pdf_path=fn, file_dir=dir) as gen:
         for p in gen:
+            with Image.open(p) as img:
+                img.load()  # verify file is an uncorrupted image
             p.unlink()
             cnt += 1
     return cnt
 
 
 def bail(fn: str, dir: str, limit: int) -> None:
-    with PdfToImageFiles(pdf_path=fn, file_dir=dir) as gen:
-        cnt = 0
-        for p in gen:
-            logging.info(f"{cnt} {p}")
-            p.unlink()
-            cnt += 1
-            if cnt > limit:
-                break
-        logging.info("done loop")
-    logging.info("after with")
+    try:
+        with PdfToImageFiles(pdf_path=fn, file_dir=dir) as gen:
+            cnt = 0
+            for p in gen:
+                logging.info(f"{cnt} {p}")
+                with Image.open(p) as img:
+                    img.load()  # verify
+                p.unlink()
+                cnt += 1
+                if cnt > limit:
+                    raise RuntimeError("bail out")
+        assert False, "should not reach here"
+    except RuntimeError as e:
+        logging.info(str(e))
 
 
 def main(args=None) -> int:

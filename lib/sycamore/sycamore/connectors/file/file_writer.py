@@ -1,3 +1,5 @@
+import datetime
+
 from sycamore.data import Document, mkdocid
 from sycamore.plan_nodes import Node, Write
 
@@ -33,6 +35,15 @@ class JSONEncodeWithUserDict(json.JSONEncoder):
             import base64
 
             return base64.b64encode(obj).decode("utf-8")
+        elif isinstance(
+            obj,
+            (
+                datetime.datetime,
+                datetime.date,
+                datetime.time,
+            ),
+        ):
+            return obj.isoformat()
         else:
             return json.JSONEncoder.default(self, obj)
 

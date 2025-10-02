@@ -51,6 +51,7 @@ def main(args=None) -> int:
     fn = args.pop(0)
     with TemporaryDirectory(prefix="test_pdf") as dir:
         n = full(fn, dir)
+        logging.info(f"total_pages={n}")
         bail(fn, dir, n // 2)
     return 0
 

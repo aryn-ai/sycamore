@@ -2,17 +2,24 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import threading
 from pathlib import Path
 import time
 from tempfile import SpooledTemporaryFile
+from threading import Lock
 from typing import Any, Optional, Union, BinaryIO
 
 import diskcache
 from botocore.exceptions import ClientError
+from botocore.utils import InstanceMetadataRegionFetcher
 
 BLOCK_SIZE = 1048576  # 1 MiB
 DDB_CACHE_TTL: int = 10 * 24 * 60 * 60  # 10 days in seconds
+
+
+detected_region_lock = Lock()
+detected_region: Optional[str] = None
 
 
 class HashContext:
@@ -216,9 +223,11 @@ class DynamoDbCache(Cache):
     """
     A DynamoDB cache items are specified as follows:
 
-    ddb://<region_name>/<table_name>[/<cache_key>]
+    ddb://<table_name>[/<cache_key>]
 
     where 'cache_key' defaults to 'cache_key' if left unspecified.
+
+    The region for the table (or the DynamoDB service endpoint) will be determinted by 'get_region_name'.
 
     This cache uses an attribute called 'expire_at' to use DynamoDB's TTL feature for cache expiration.
     The DynamoDB table backing this cache must have TTL enabled on this attribute for this to work properly.
@@ -228,10 +237,11 @@ class DynamoDbCache(Cache):
         import boto3
 
         super().__init__()
-        scheme, _, region_name, table_name, cache_key = self.parse_path(path)
+        scheme, _, table_name, cache_key = self.parse_path(path)
         if not cache_key:
             raise ValueError("Missing cache key !!")
         self.cache_key = cache_key
+        region_name = get_region_name()
         self.client = boto3.client("dynamodb", region_name=region_name)
         self.table_name = table_name
         self.ttl = ttl
@@ -240,11 +250,9 @@ class DynamoDbCache(Cache):
     def parse_path(path: str):
         assert path.startswith("ddb://"), "DynamoDB cache paths must start with ddb://"
 
-        parts = path.split("/", 5)
-        if len(parts) < 5:
-            raise ValueError(
-                "DynamoDB cache paths must have 'region_name' (us-east-1, e.g.) and 'table_name' and 'cache_key'"
-            )
+        parts = path.split("/", 4)
+        if len(parts) < 4:
+            raise ValueError("DynamoDB cache paths must have 'table_name' and 'cache_key'")
 
         return tuple(parts)
 
@@ -289,3 +297,31 @@ def cache_from_path(path: Optional[str]) -> Optional[Cache]:
     raise ValueError(
         f"Unable to interpret {path} as path for cache. Expected s3://, /... or a directory path that exists"
     )
+
+
+class NoopCache(Cache):
+    def get(self, key: str) -> Optional[bytes]:
+        return None
+
+    def set(self, key: str, value: bytes):
+        pass
+
+
+def get_region_name() -> str:
+    # Manual Override
+    if region := os.getenv("REGION"):
+        return region
+
+    # Fargate
+    if region := os.getenv("AWS_REGION"):
+        return region
+
+    # EC2
+    with detected_region_lock:
+        global detected_region
+        detected_region = detected_region or InstanceMetadataRegionFetcher().retrieve_region()
+        if detected_region is not None:
+            return detected_region
+
+    # Failure
+    raise RuntimeError("Unable to determine region")

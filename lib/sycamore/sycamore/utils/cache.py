@@ -64,15 +64,6 @@ class Cache:
         with self.mutex:
             self.misses += 1
 
-    def get_hit_rate(self) -> float:
-        with self.mutex:
-            hits, misses = self.get_hit_info()
-
-        total = hits + misses
-        if total == 0:
-            return 0.0
-        return hits / total
-
     def get_hit_info(self) -> tuple[int, int]:
         with self.mutex:
             return self.hits, self.misses
@@ -257,12 +248,13 @@ class DynamoDbCache(Cache):
         return tuple(parts)
 
     def get(self, key: str) -> Optional[bytes]:
-        key = {self.cache_key: key}
-        res: dict[str, Any] = {}
+        cache_key: dict[str, str] = {self.cache_key: key}
+        res: Optional[dict[str, Any]] = None
         try:
-            res = self.client.get_item(TableName=self.table_name, Key=key)
+            # get_item return type is 'GetItemOutputTypeDef' which resolves to 'dict' at runtime.
+            res = self.client.get_item(TableName=self.table_name, Key=cache_key)  # type: ignore[assignment]
         except ClientError as error:
-            logging.error(f"Error calling get_item({key}) on {self.table_name} : {error}")
+            logging.error(f"Error calling get_item({cache_key}) on {self.table_name} : {error}")
 
         if res is not None:
             if item := res.get("Item"):
@@ -273,11 +265,11 @@ class DynamoDbCache(Cache):
         return None
 
     def set(self, key: str, value: bytes):
-        ttl = int(time.time()) + self.ttl
-        item = {
+        expiration = int(time.time()) + self.ttl
+        item: dict[str, Any] = {
             self.cache_key: {"S": key},
             "payload": {"B": value},
-            "expire_at": {"N": f"{ttl}"},
+            "expire_at": {"N": f"{expiration}"},
         }
         self.client.put_item(TableName=self.table_name, Item=item)
 

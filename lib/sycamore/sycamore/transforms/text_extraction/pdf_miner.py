@@ -1,5 +1,5 @@
 from sycamore.data import Element, BoundingBox
-from sycamore.utils.cache import DiskCache
+from sycamore.utils.cache import DiskCache, safediv
 from typing import Any, BinaryIO, Tuple, Iterable, Literal, Optional, cast, Generator, TYPE_CHECKING, Union
 from pathlib import Path
 from sycamore.utils.import_utils import requires_modules
@@ -76,7 +76,9 @@ class PdfMinerExtractor(TextExtractor):
     def extract_document(self, filename: str, hash_key: str, use_cache=False, **kwargs) -> list[list[Element]]:
         cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:
-            logger.info(f"Cache Hit for PdfMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")
+            hits, misses = pdf_miner_cache.get_hit_info()
+            hit_rate = safediv(hits, hits + misses)
+            logger.info(f"Cache Hit for PdfMiner. Cache hit-rate is {hit_rate}")
             return cached_result
         else:
             pages = []

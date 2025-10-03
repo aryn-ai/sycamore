@@ -16,6 +16,8 @@ HEADER_BYTES = 40
 TIMEOUT_SEC = 60
 TIMEOUT_MSEC = 1000 * TIMEOUT_SEC
 
+g_logger = logging.getLogger(__name__)
+
 
 def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, None]:
     """Deprecated. Switch to pdf_to_image_files"""
@@ -39,14 +41,14 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
         data = b""
         while True:
             if need_bytes > len(data):
-                logging.debug(f"reading. have {len(data)}/{need_bytes}")
+                g_logger.debug(f"reading. have {len(data)}/{need_bytes}")
                 part = fh.read(need_bytes - len(data))
                 if part == b"":  # Eof
                     assert len(data) == 0  # nothing left
                     break
                 data = data + part
             else:
-                logging.debug(f"no reading. have {len(data)}/{need_bytes}")
+                g_logger.debug(f"no reading. have {len(data)}/{need_bytes}")
 
             if len(data) < need_bytes:
                 continue
@@ -102,7 +104,7 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
             elif isinstance(e, Image.Image):
                 yield e
             elif isinstance(e, str):
-                logging.warning(f"pdftoppm stderr: {e}")
+                g_logger.warning(f"pdftoppm stderr: {e}")
                 stderr.append(e)
             elif isinstance(e, StdoutEOF):
                 more_out = False
@@ -159,14 +161,14 @@ def pdf_to_image_files(pdf_path: str, file_dir: Path, resolution: int = 200) -> 
         image_num = 0
         while True:
             if need_bytes > len(data):
-                logging.debug(f"reading. have {len(data)}/{need_bytes}")
+                g_logger.debug(f"reading. have {len(data)}/{need_bytes}")
                 part = fh.read(need_bytes - len(data))
                 if part == b"":  # Eof
                     assert len(data) == 0  # nothing left
                     break
                 data = data + part
             else:
-                logging.debug(f"no reading. have {len(data)}/{need_bytes}")
+                g_logger.debug(f"no reading. have {len(data)}/{need_bytes}")
 
             if len(data) < need_bytes:
                 continue
@@ -229,7 +231,7 @@ def pdf_to_image_files(pdf_path: str, file_dir: Path, resolution: int = 200) -> 
             elif isinstance(e, Path):
                 yield e
             elif isinstance(e, str):
-                logging.warning(f"pdftoppm stderr: {e}")
+                g_logger.warning(f"pdftoppm stderr: {e}")
                 stderr.append(e)
             elif isinstance(e, StdoutEOF):
                 more_out = False
@@ -249,42 +251,47 @@ def pdf_to_image_files(pdf_path: str, file_dir: Path, resolution: int = 200) -> 
         t_err.join()
 
 
-class NbReader:
+class NonBlockReader:
+    """
+    This provides services to PdfToImageFiles below:
+    1. Makes sure reads do not block or cause deadlocks across streams
+    2. Makes sure the file is in the poller until it reaches EOF
+    3. Buffers data as it's read, allowing callers to peek at it
+    4. Resets the buffer when a range of bytes are done being processed
+    """
+
     def __init__(self, stream: IO[bytes], poller: select.poll) -> None:
         self.stream = stream
         self.poller = poller
-        self.fd = stream.fileno()
         os.set_blocking(stream.fileno(), False)
         poller.register(stream.fileno(), select.POLLIN)
         self.buf = BytesIO()
-        self.view = memoryview(bytearray(65536))  # 64kB
+        self.view = memoryview(bytearray(64 * 1024))
         self.eof = False
-        self.blocked = True
 
-    def do_read(self) -> None:
+    def do_read(self) -> bool:
+        "Returns if the caller is advised to poll for additional input."
         if self.eof:
-            self.blocked = True  # allows us to poll on the non-eof stream
-            return
-        nb = self.stream.readinto(self.view)  # type: ignore[attr-defined]
-        if nb:
-            self.buf.write(self.view[0:nb])
-            self.blocked = False
-        elif nb == 0:
+            return True  # allows us to poll on the other stream
+        nbytes = self.stream.readinto(self.view)  # type: ignore[attr-defined]
+        if nbytes:
+            self.buf.write(self.view[0:nbytes])
+            return False
+        elif nbytes == 0:
             self.poller.unregister(self.stream.fileno())
             self.eof = True
-            self.blocked = False
-        else:
-            self.blocked = True
+            return False
+        return True
 
-    def slide(self, nb: int) -> None:
+    def reset(self, nbytes: int) -> None:
         old = self.buf.getbuffer()
-        self.buf = BytesIO(old[nb:])
+        self.buf = BytesIO(old[nbytes:])  # move trailing bytes to front
         self.buf.seek(0, os.SEEK_END)
 
     def log(self, prefix: str) -> None:
         for bline in self.buf.readlines():
             line = bline.rstrip().decode()
-            logging.warning(f"{prefix}{line}")
+            g_logger.warning(f"{prefix}{line}")
 
 
 class PdfToImageFiles:
@@ -299,6 +306,7 @@ class PdfToImageFiles:
         self.pdf_path = str(pdf_path)
         self.file_dir = Path(file_dir)
         self.in_context = False
+        self.image_num = 0
         self.timer = LogTime("convert_to_image")
         self.timer.start()
         args = ["pdftoppm", "-r", str(resolution), self.pdf_path]
@@ -316,7 +324,7 @@ class PdfToImageFiles:
             try:
                 proc.wait(2)
             except TimeoutExpired:
-                logging.warning(f"pdftoppm {proc.pid} did not terminate; killing")
+                g_logger.warning(f"pdftoppm {proc.pid} did not terminate; killing")
                 proc.kill()
                 proc.wait(1)
             self.timer.measure()
@@ -326,43 +334,26 @@ class PdfToImageFiles:
         proc = self.proc
         assert proc.stdout and proc.stderr
         poller = select.poll()
-        out = NbReader(proc.stdout, poller)
-        err = NbReader(proc.stderr, poller)
-        seen_header = False
-        image_size = 0
-        image_num = 0
+        out = NonBlockReader(proc.stdout, poller)
+        err = NonBlockReader(proc.stderr, poller)
+        image_size = -1  # indicates we haven't parsed header yet
 
         while not (out.eof and err.eof):
-            out.do_read()
-            err.do_read()
-            if out.blocked and err.blocked:
+            out_should_poll = out.do_read()
+            err_should_poll = err.do_read()
+            if out_should_poll and err_should_poll:
                 if not poller.poll(TIMEOUT_MSEC):  # avoid hangs
                     err.log("pdftoppm stderr: ")
                     raise TimeoutError(f"pdftoppm {self.pdf_path}")
                 continue
 
-            if not seen_header:
-                if out.buf.tell() < HEADER_BYTES:
-                    continue
-                hdr = out.buf.getvalue()[0:HEADER_BYTES]
-                code, size, rgb = hdr.split(b"\n")[0:3]
-                width, height = [int(s) for s in size.split(b" ")]
-                image_size = len(code) + len(size) + len(rgb) + 3 + (width * height * 3)
-                seen_header = True
-                # !!! fall through
-            if seen_header:
-                if out.buf.tell() < image_size:
-                    continue
-                out_path = self.file_dir / f"image.{image_num}.ppm"
-                with (
-                    open(out_path, "wb") as fp,
-                    out.buf.getbuffer() as view,
-                ):
-                    fp.write(view[0:image_size])
-                out.slide(image_size)
-                seen_header = False
-                image_num += 1
-                yield out_path
+            if image_size < 0:
+                image_size = self.try_parse_header(out)
+
+            if image_size >= 0:
+                if out_path := self.try_write_image(out, image_size):
+                    image_size = -1
+                    yield out_path
 
         err.log("pdftoppm stderr: ")
         with LogTime("wait_for_pdftoppm_to_exit", log_start=True):
@@ -373,3 +364,26 @@ class PdfToImageFiles:
         if proc.returncode != 0:
             msg = err.buf.getvalue().decode()
             raise ValueError(f"pdftoppm failed {proc.returncode}.  All stderr:{msg}")
+
+    def try_parse_header(self, out: NonBlockReader) -> int:
+        "Returns image size in bytes if header parsed, else -1."
+        if out.buf.tell() < HEADER_BYTES:
+            return -1
+        hdr = out.buf.getvalue()[0:HEADER_BYTES]
+        code, size, rgb = hdr.split(b"\n")[0:3]
+        width, height = [int(s) for s in size.split(b" ")]
+        return len(code) + len(size) + len(rgb) + 3 + (width * height * 3)
+
+    def try_write_image(self, out: NonBlockReader, image_size: int) -> Path | None:
+        "Returns path if complete image was written out, else None."
+        if out.buf.tell() < image_size:
+            return None
+        out_path = self.file_dir / f"image.{self.image_num}.ppm"
+        with (
+            open(out_path, "wb") as fp,
+            out.buf.getbuffer() as view,
+        ):
+            fp.write(view[0:image_size])
+        out.reset(image_size)  # slide to front
+        self.image_num += 1
+        return out_path

@@ -65,8 +65,7 @@ class Cache:
             self.misses += 1
 
     def get_hit_info(self) -> tuple[int, int]:
-        with self.mutex:
-            return self.hits, self.misses
+        return self.hits, self.misses
 
     @staticmethod
     def get_hash_context(data: bytes, hash_ctx: Optional[HashContext] = None) -> HashContext:
@@ -248,7 +247,7 @@ class DynamoDbCache(Cache):
         return tuple(parts)
 
     def get(self, key: str) -> Optional[bytes]:
-        cache_key: dict[str, str] = {self.cache_key: key}
+        cache_key: dict[str, dict[str, str]] = {self.cache_key: {"S": key}}
         res: Optional[dict[str, Any]] = None
         try:
             # get_item return type is 'GetItemOutputTypeDef' which resolves to 'dict' at runtime.

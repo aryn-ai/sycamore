@@ -105,3 +105,21 @@ def test_duckdb_reader():
     assert DuckDBReader.Record == DuckDBReaderQueryResponse
     assert DuckDBReader.ClientParams == DuckDBReaderClientParams
     assert DuckDBReader.QueryParams == DuckDBReaderQueryParams
+
+
+def test_duckdb_reader_query_params_compatible_with():
+    params1 = DuckDBReaderQueryParams(table_name="test_table", query=None, create_hnsw_table=None)
+    params2 = DuckDBReaderQueryParams(table_name="test_table", query=None, create_hnsw_table=None)
+    assert params1.compatible_with(params2)
+
+    params3 = DuckDBReaderQueryParams(table_name="different_table", query=None, create_hnsw_table=None)
+    with pytest.raises(ValueError, match="Incompatible table names: Expected test_table, found different_table"):
+        params1.compatible_with(params3)
+
+    params4 = DuckDBReaderQueryParams(table_name="test_table", query="SELECT * FROM test_table", create_hnsw_table=None)
+    with pytest.raises(ValueError, match="Incompatible queries: Expected None, found SELECT * FROM test_table"):
+        params1.compatible_with(params4)
+
+    params5 = DuckDBReaderQueryParams(table_name="test_table", query=None, create_hnsw_table="CREATE TABLE hnsw AS SELECT * FROM test_table")
+    with pytest.raises(ValueError, match="Incompatible HNSW table creation queries: Expected None, found CREATE TABLE hnsw AS SELECT * FROM test_table"):
+        params1.compatible_with(params5)

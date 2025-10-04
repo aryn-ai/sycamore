@@ -149,3 +149,24 @@ def test_elasticsearch_writer_target_params_compatible_with_different_mappings()
         index_name="test_index", mappings={"properties": {"field2": {"type": "text"}}}
     )
     assert params1.compatible_with(params2) is False
+
+
+def test_elasticsearch_writer_target_params_compatible_with_error_messages():
+    params1 = ElasticsearchWriterTargetParams(index_name="test_index")
+    params2 = ElasticsearchWriterTargetParams(index_name="different_index")
+    with pytest.raises(ValueError, match="Incompatible index names: Expected test_index, found different_index"):
+        params1.compatible_with(params2)
+
+    params3 = ElasticsearchWriterTargetParams(index_name="test_index", settings={"number_of_shards": 1})
+    params4 = ElasticsearchWriterTargetParams(index_name="test_index", settings={"number_of_shards": 2})
+    with pytest.raises(ValueError, match="Incompatible settings: Key number_of_shards has different values: 1 != 2"):
+        params3.compatible_with(params4)
+
+    params5 = ElasticsearchWriterTargetParams(
+        index_name="test_index", mappings={"properties": {"field1": {"type": "text"}}}
+    )
+    params6 = ElasticsearchWriterTargetParams(
+        index_name="test_index", mappings={"properties": {"field2": {"type": "text"}}}
+    )
+    with pytest.raises(ValueError, match="Incompatible mappings: {'properties.field1.type': 'text'} != {'properties.field2.type': 'text'}"):
+        params5.compatible_with(params6)

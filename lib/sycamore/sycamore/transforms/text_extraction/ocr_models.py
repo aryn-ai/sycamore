@@ -45,6 +45,8 @@ class OcrModel(TextExtractor):
     def extract_document(
         self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs
     ) -> list[list[Element]]:
+        if kwargs.pop("max_image_size", None) is not None:
+            Image.MAX_IMAGE_PIXELS = kwargs.pop("max_image_size")
         if use_cache and (cached_result := ocr_cache.get(hash_key)):
             logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")
             return cached_result

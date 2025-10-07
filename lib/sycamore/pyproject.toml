@@ -104,6 +104,7 @@ google-genai = {version = "^1.14.0", optional = true}
 tiktoken = "^0.8.0"
 msgpack = "^1.1.1"
 cydifflib = "^1.2.0"
+pyiceberg = "^0.10.0"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"

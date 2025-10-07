@@ -78,6 +78,8 @@ pinecone = { version = "^7.3.0", extras = ["grpc"], optional = true }
 pinecone-text = { version = "^0.11.0", optional = true }
 weaviate-client = { version = "^4.16.10", optional = true }
 qdrant-client = { version = "^1.11.2", optional = true }
+pyiceberg = { version = "^0.10.0", optional = true}
+
 
 # Local inference dependencies
 easyocr = { version = "^1.7.1", optional = true }
@@ -143,6 +145,7 @@ opensearch = ["opensearch-py"]
 pinecone = ["pinecone", "pinecone-text"]
 weaviate = ["weaviate-client"]
 qdrant = ["qdrant-client"]
+iceberg = ["pyiceberg"]
 
 # Partitioner extras
 local-inference = [

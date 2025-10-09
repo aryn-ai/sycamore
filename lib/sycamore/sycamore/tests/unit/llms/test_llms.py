@@ -5,7 +5,8 @@ from unittest.mock import patch, MagicMock
 
 from sycamore.llms import get_llm, MODELS
 from sycamore.llms.chained_llm import ChainedLLM
-from sycamore.llms.config import LLMModel
+from sycamore.llms.config import LLMModel, AnthropicModels
+from sycamore.llms.anthropic import Anthropic
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.llms.bedrock import Bedrock, BedrockModels
 from sycamore.llms.gemini import Gemini, GeminiModels
@@ -115,14 +116,24 @@ def test_get_llm(mock_openai_client, mock_boto3_client):
     mock_boto3_instance = MagicMock()
     mock_boto3_client.return_value = mock_boto3_instance
 
-    model_name = OpenAIModels.TEXT_DAVINCI.value.name
-    llm = get_llm("openai." + OpenAIModels.TEXT_DAVINCI.value.name)()
+    model_name = OpenAIModels.GPT_4_1.value.name
+    llm = get_llm("openai." + model_name)(api_key="...")
     assert isinstance(llm, OpenAI)
     assert llm._model_name == model_name, f"{llm._model_name} != {model_name}"
 
     model_name = BedrockModels.CLAUDE_3_5_SONNET.value.name
-    llm = get_llm("bedrock." + BedrockModels.CLAUDE_3_5_SONNET.value.name)()
+    llm = get_llm("bedrock." + model_name)()
     assert isinstance(llm, Bedrock)
+    assert llm._model_name == model_name, f"{llm._model_name} != {model_name}"
+
+    model_name = AnthropicModels.CLAUDE_3_5_HAIKU.value.name
+    llm = get_llm("anthropic." + model_name)()
+    assert isinstance(llm, Anthropic)
+    assert llm._model_name == model_name, f"{llm._model_name} != {model_name}"
+
+    model_name = GeminiModels.GEMINI_2_5_FLASH.value.name
+    llm = get_llm("gemini." + model_name)(api_key="...")
+    assert isinstance(llm, Gemini)
     assert llm._model_name == model_name, f"{llm._model_name} != {model_name}"
 
 

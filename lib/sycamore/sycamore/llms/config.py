@@ -36,7 +36,7 @@ class AnthropicModels(Enum):
     @classmethod
     def from_name(cls, name: str) -> Optional["AnthropicModels"]:
         for m in iter(cls):
-            if m.value == name:
+            if m.value.name == name:
                 return m
         return None
 

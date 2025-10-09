@@ -115,8 +115,15 @@ def test_get_llm(mock_openai_client, mock_boto3_client):
     mock_boto3_instance = MagicMock()
     mock_boto3_client.return_value = mock_boto3_instance
 
-    assert isinstance(get_llm("openai." + OpenAIModels.TEXT_DAVINCI.value.name)(), OpenAI)
-    assert isinstance(get_llm("bedrock." + BedrockModels.CLAUDE_3_5_SONNET.value.name)(), Bedrock)
+    model_name = OpenAIModels.TEXT_DAVINCI.value.name
+    llm = get_llm("openai." + OpenAIModels.TEXT_DAVINCI.value.name)()
+    assert isinstance(llm, OpenAI)
+    assert llm._model_name == model_name, f"{llm._model_name} != {model_name}"
+
+    model_name = BedrockModels.CLAUDE_3_5_SONNET.value.name
+    llm = get_llm("bedrock." + BedrockModels.CLAUDE_3_5_SONNET.value.name)()
+    assert isinstance(llm, Bedrock)
+    assert llm._model_name == model_name, f"{llm._model_name} != {model_name}"
 
 
 class FooLLMModel(LLMModel):

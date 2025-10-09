@@ -1,3 +1,5 @@
+from datetime import date, datetime
+from dateutil.parser import isoparser
 from typing import Any, TYPE_CHECKING
 
 from sycamore.data import Document
@@ -8,8 +10,9 @@ if TYPE_CHECKING:
 
 def named_property_to_pyarrow(np: NamedProperty) -> "pa.Field":
     import pyarrow as pa
-    print(f"nullable={not np.type.required}")
-    return pa.field(name=np.name, type=property_to_pyarrow(np.type), nullable=not np.type.required)
+    #print(f"nullable={not np.type.required}")
+    #return pa.field(name=np.name, type=property_to_pyarrow(np.type), nullable=not np.type.required)
+    return pa.field(name=np.name, type=property_to_pyarrow(np.type), nullable=True)
 
 
 def property_to_pyarrow(property: Property) -> "pa.DataType":
@@ -34,7 +37,8 @@ def property_to_pyarrow(property: Property) -> "pa.DataType":
         case DataType.OBJECT:
             return pa.struct(fields=[named_property_to_pyarrow(np) for np in property.properties])
         case DataType.CHOICE:
-            raise ValueError("Choice types not supported in pyarrow conversion")
+            # TODO: This is not quite right. We should be making a union type.
+            return pa.string()
         case DataType.CUSTOM:
             raise ValueError("Custom types not supported in pyarrow conversion")
         case _:
@@ -47,6 +51,7 @@ def schema_to_pyarrow(schema: SchemaV2) -> "pa.schema":
     return pa.schema(fields=list(dt))
     
         
+date_parser = isoparser()
 
 def _build_array(data: list[Any], arrow_type: "pa.DataType") -> "pa.Array":
     """
@@ -65,11 +70,16 @@ def _build_array(data: list[Any], arrow_type: "pa.DataType") -> "pa.Array":
     """
     import pyarrow as pa
 
-    print(f"In _build_array {data=} {arrow_type=}")
-    
+    #print(f"In _build_array {data=} {arrow_type=}")
+
+    # TODO: Hack around date formats. Need a story around this. 
+    if pa.types.is_date32(arrow_type):
+        return pa.array([date_parser.parse_isodate(d) if isinstance(d, str) else d for d in data], type=arrow_type)
+    elif pa.types.is_date64(arrow_type):
+        return pa.array([date_parser.isoparse(d) if isinstance(d, str) else d for d in data], type=arrow_type)
+
     if not pa.types.is_nested(arrow_type):
         return pa.array(data, type=arrow_type)
-
     # Recursive Case: Handle Structs.
     if pa.types.is_struct(arrow_type):
         child_arrays = []
@@ -84,11 +94,11 @@ def _build_array(data: list[Any], arrow_type: "pa.DataType") -> "pa.Array":
 
         # A struct is considered null if the input element was not a dictionary.
         validity_mask = pa.array([isinstance(d, dict) for d in data], type=pa.bool_())
-        print(f"In struct case {validity_mask=}")
+        #print(f"In struct case {validity_mask=}")
 
         #res = pa.StructArray.from_arrays(child_arrays, fields=list(arrow_type), mask=validity_mask)
         res = pa.StructArray.from_arrays(child_arrays, fields=list(arrow_type))
-        print(f"{res=} {list(arrow_type)=}")
+        #print(f"{res=} {list(arrow_type)=}")
         
         return res
 
@@ -108,17 +118,17 @@ def _build_array(data: list[Any], arrow_type: "pa.DataType") -> "pa.Array":
             # the length is 0, so the offset doesn't change.
             offsets.append(len(flattened_data))
 
-        print(f"In list case: {offsets=} {flattened_data=} {validity=} {arrow_type.value_type=}")
+        #print(f"In list case: {offsets=} {flattened_data=} {validity=} {arrow_type.value_type=}")
             
         # Recursively build the array for the flattened child data.
         child_array = _build_array(flattened_data, arrow_type.value_type)
 
-        print(f"After recurse {child_array=}")
+        #print(f"After recurse {child_array=}")
         
         validity_mask = pa.array(validity, type=pa.bool_())
 
 
-        print(f"returning {offsets=} {child_array=} {validity_mask=}")
+        #print(f"returning {offsets=} {child_array=} {validity_mask=}")
         #return pa.ListArray.from_arrays(offsets, child_array, mask=validity_mask)
         return pa.ListArray.from_arrays(offsets, child_array)
 
@@ -158,15 +168,36 @@ def docs_to_pyarrow(docs: list[Document], schema: "pa.Schema | SchemaV2") -> "pa
 
         columns.append(column_array)
 
-    print(f"{columns=}")
+    #print(f"{columns=}")
     
     return pa.Table.from_arrays(columns, schema=pa_schema)
 
 
 def docs_to_pivoted_pyarrow(docs: list[Document], schema: SchemaV2) -> dict[str, "pa.Table"]:
+    # TODO: Make this more efficient. Right now it requires multiple passes over the data.
+    array_properties = {}
+    array_docs = {}
+    new_properties = []
+    
     for prop in schema.properties:
-        pass
+        if prop.type.type == DataType.ARRAY and prop.type.type.item_type.type == DataType.OBJECT:
+            # This is a candidate for pivoting.
+            # TODO: Might be an issue here with duplicate names? Need to decide on a semantics for that. 
+            array_properties[prop.name] = prop
+        else:
+            new_properties.append(prop)
+            
+    for d in docs:
+        entity = d.properties.get("entity", {})
+        for p in array_properties.keys():
+            if p in entity:
 
+                array_docs.setdefault(p, []).append()
+
+
+                del entity[p]
+
+            
 
 # --- Example Usage ---
 if __name__ == '__main__':

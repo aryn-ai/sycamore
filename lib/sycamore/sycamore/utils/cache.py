@@ -1,15 +1,22 @@
 from __future__ import annotations
 import hashlib
 import json
+import logging
+import os
 from pathlib import Path
 import time
 from tempfile import SpooledTemporaryFile
+from threading import Lock
 from typing import Any, Optional, Union, BinaryIO
 
 import diskcache
-from botocore.exceptions import ClientError
 
 BLOCK_SIZE = 1048576  # 1 MiB
+DDB_CACHE_TTL: int = 10 * 24 * 60 * 60  # 10 days in seconds
+
+
+detected_region_lock = Lock()
+detected_region: Optional[str] = None
 
 
 class HashContext:
@@ -36,19 +43,27 @@ class HashContext:
 class Cache:
 
     def __init__(self):
-        self.cache_hits = 0
-        self.total_accesses = 0
+        self.mutex = Lock()
+        self.hits: int = 0
+        self.misses: int = 0
 
-    def get(self, hash_key: str):
-        pass
+    def get(self, key: str):
+        raise NotImplementedError()
 
-    def set(self, hash_key: str, hash_value):
-        pass
+    def set(self, key: str, value):
+        raise NotImplementedError
 
-    def get_hit_rate(self):
-        if self.total_accesses == 0:
-            return 0.0
-        return self.cache_hits / self.total_accesses
+    def inc_hits(self):
+        with self.mutex:
+            self.hits += 1
+
+    def inc_misses(self):
+        with self.mutex:
+            self.misses += 1
+
+    def get_hit_info(self) -> tuple[int, int]:
+        with self.mutex:
+            return self.hits, self.misses
 
     @staticmethod
     def get_hash_context(data: bytes, hash_ctx: Optional[HashContext] = None) -> HashContext:
@@ -114,15 +129,16 @@ class DiskCache(Cache):
         super().__init__()
         self._cache = diskcache.Cache(directory=cache_loc)
 
-    def get(self, hash_key: str):
-        v = self._cache.get(hash_key)
+    def get(self, key: str):
+        v = self._cache.get(key)
         if v is not None:
-            self.cache_hits += 1
-        self.total_accesses += 1
+            self.inc_hits()
+        else:
+            self.inc_misses()
         return v
 
-    def set(self, hash_key: str, hash_value):
-        self._cache.set(hash_key, hash_value)
+    def set(self, key: str, value):
+        self._cache.set(key, value)
 
 
 def s3_cache_deserializer(kwargs):
@@ -143,6 +159,8 @@ class S3Cache(Cache):
         return parts[0], "/".join([parts[1], key]) if len(parts) == 2 else key
 
     def get(self, key: str):
+        from botocore.exceptions import ClientError
+
         if not self._s3_client:
             import boto3
 
@@ -159,17 +177,16 @@ class S3Cache(Cache):
                 self._freshness_in_seconds >= 0
                 and self._freshness_in_seconds + content.get("cached_at", 0) < time.time()
             ):
+                self.inc_misses()
                 return None
             data = content["value"]
-            self.cache_hits += 1
+            self.inc_hits()
             return data
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchKey":
                 return None
             else:
                 raise
-        finally:
-            self.total_accesses += 1
 
     def set(self, key: str, value: Any):
         if not self._s3_client:
@@ -192,16 +209,120 @@ class S3Cache(Cache):
         return s3_cache_deserializer, (kwargs,)
 
 
+class DynamoDbCache(Cache):
+    """
+    A DynamoDB cache items are specified as follows:
+
+    ddb://<table_name>[/[region_name]/<cache_key>]
+
+    where 'cache_key' defaults to 'cache_key' if left unspecified.
+
+    The region for the table (or the DynamoDB service endpoint), if not provided in the path, will be determined by 'get_region_name'.
+
+    This cache uses an attribute called 'expire_at' to use DynamoDB's TTL feature for cache expiration.
+    The DynamoDB table backing this cache must have TTL enabled on this attribute for this to work properly.
+    """
+
+    def __init__(self, path: str, ttl: int = DDB_CACHE_TTL):
+        import boto3
+
+        super().__init__()
+        table_name, region_name, cache_key = self.parse_path(path)
+        self.cache_key = cache_key if cache_key else "cache_key"
+        if not region_name:
+            region_name = get_region_name()
+        self.client = boto3.client("dynamodb", region_name=region_name)
+        self.table_name = table_name
+        self.ttl = ttl
+
+    @staticmethod
+    def parse_path(path: str):
+        assert path.startswith("ddb://"), "DynamoDB cache paths must start with ddb://"
+
+        parts = path[6:].split("/", 2)
+        if len(parts) < 1:
+            raise ValueError("DynamoDB cache paths must have 'table_name' at a minimum.")
+
+        return tuple(parts)
+
+    def get(self, key: str) -> Optional[bytes]:
+        from botocore.exceptions import ClientError
+
+        cache_key: dict[str, dict[str, str]] = {self.cache_key: {"S": key}}
+        res: Optional[dict[str, Any]] = None
+        try:
+            # get_item return type is 'GetItemOutputTypeDef' which resolves to 'dict' at runtime.
+            res = self.client.get_item(TableName=self.table_name, Key=cache_key)  # type: ignore[assignment]
+        except ClientError as error:
+            logging.error(f"Error calling get_item({cache_key}) on {self.table_name} : {error}")
+
+        if res is not None:
+            if item := res.get("Item"):
+                if payload := item.get("payload"):
+                    self.inc_hits()
+                    return payload.value
+        self.inc_misses()
+        return None
+
+    def set(self, key: str, value: bytes):
+        expiration = int(time.time()) + self.ttl
+        item: dict[str, Any] = {
+            self.cache_key: {"S": key},
+            "payload": {"B": value},
+            "expire_at": {"N": f"{expiration}"},
+        }
+        self.client.put_item(TableName=self.table_name, Item=item)
+
+
 def cache_from_path(path: Optional[str]) -> Optional[Cache]:
     if path is None:
         return None
     if path.startswith("s3://"):
         return S3Cache(path)
+    if path.startswith("ddb://"):
+        return DynamoDbCache(path)
     if path.startswith("/"):
         return DiskCache(path)
+    if path.startswith("null://"):
+        return NullCache()
     if Path(path).is_dir():
         return DiskCache(path)
 
     raise ValueError(
         f"Unable to interpret {path} as path for cache. Expected s3://, /... or a directory path that exists"
     )
+
+
+class NullCache(Cache):
+    def get(self, key: str) -> Optional[bytes]:
+        self.inc_misses()
+        return None
+
+    def set(self, key: str, value: bytes):
+        pass
+
+
+def get_region_name() -> str:
+    # Manual Override
+    if region := os.getenv("REGION"):
+        return region
+
+    # Fargate
+    if region := os.getenv("AWS_REGION"):
+        return region
+
+    from botocore.utils import InstanceMetadataRegionFetcher
+
+    # EC2
+    with detected_region_lock:
+        global detected_region
+        detected_region = detected_region or InstanceMetadataRegionFetcher().retrieve_region()
+        if detected_region is not None:
+            return detected_region
+
+    # Failure
+    raise RuntimeError("Unable to determine region")
+
+
+def safediv(n, d):
+    return n / d if d else 0

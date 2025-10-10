@@ -2,7 +2,7 @@ from abc import abstractmethod
 from PIL import Image
 from typing import Any, Union, TYPE_CHECKING, Optional
 from sycamore.data import BoundingBox, Element
-from sycamore.utils.cache import DiskCache
+from sycamore.utils.cache import DiskCache, safediv
 from pathlib import Path
 from io import IOBase, BytesIO
 from sycamore.utils.pdf import pdf_to_image_files
@@ -46,7 +46,9 @@ class OcrModel(TextExtractor):
         self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs
     ) -> list[list[Element]]:
         if use_cache and (cached_result := ocr_cache.get(hash_key)):
-            logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")
+            hits, misses = ocr_cache.get_hit_info()
+            hit_rate = safediv(hits, hits + misses)
+            logger.info(f"Cache Hit for OCR. Cache hit-rate is {hit_rate}")
             return cached_result
         with tempfile.TemporaryDirectory() as tempdirname:  # type: ignore
             assert isinstance(filename, str)

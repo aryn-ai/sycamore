@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 # FIXME: disabled caching, in preparation for changing default to on
 # ocr_cache = cache_from_path(str(Path.home() / ".sycamore/OcrCache"))
 ocr_cache = cache_from_path("null://")
+assert ocr_cache
 
 logger = logging.getLogger(__name__)
 

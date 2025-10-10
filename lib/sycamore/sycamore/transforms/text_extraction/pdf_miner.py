@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 # FIXME: disabled caching, in preparation for changing default to on
 # pdf_miner_cache = cache_from_path(str(Path.home() / ".sycamore/PDFMinerCache"))
 pdf_miner_cache = cache_from_path("null://")
+assert pdf_miner_cache
 
 
 @requires_modules(["pdfminer.layout"], extra="local-inference")

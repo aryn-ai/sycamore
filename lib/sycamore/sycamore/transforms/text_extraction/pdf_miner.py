@@ -75,19 +75,19 @@ class PdfMinerExtractor(TextExtractor):
 
     @timetrace("PdfMinerDocEx")
     def extract_document(self, filename: str, hash_key: str, use_cache=False, **kwargs) -> list[list[Element]]:
-        cached_result = pdf_miner_cache.get(hash_key) if (pdf_miner_cache and use_cache) else None
-        if cached_result:
-            logger.info(f"Cache Hit for PdfMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")
-            return cached_result
-        else:
-            pages = []
-            for page in PdfMinerExtractor.pdf_to_pages(filename):
-                texts = self.extract_page(page)
-                pages.append(texts)
-            if pdf_miner_cache and use_cache:
-                logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
-                pdf_miner_cache.set(hash_key, pages)
-            return pages
+        if pdf_miner_cache and use_cache:
+            if cached_result := pdf_miner_cache.get(hash_key):
+                hr = pdf_miner_cache.get_hit_rate()
+                logger.info(f"Cache Hit for PdfMiner. Cache hit-rate is {hr}")
+                return cached_result
+        pages = []
+        for page in PdfMinerExtractor.pdf_to_pages(filename):
+            texts = self.extract_page(page)
+            pages.append(texts)
+        if pdf_miner_cache and use_cache:
+            logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
+            pdf_miner_cache.set(hash_key, pages)
+        return pages
 
     @staticmethod
     def _get_font_size(objs) -> float:

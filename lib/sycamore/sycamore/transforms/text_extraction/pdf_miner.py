@@ -77,6 +77,7 @@ class PdfMinerExtractor(TextExtractor):
     def extract_document(self, filename: str, hash_key: str, use_cache=False, **kwargs) -> list[list[Element]]:
         if pdf_miner_cache and use_cache:
             if cached_result := pdf_miner_cache.get(hash_key):
+                assert pdf_miner_cache  # mypy is stupid
                 hr = pdf_miner_cache.get_hit_rate()
                 logger.info(f"Cache Hit for PdfMiner. Cache hit-rate is {hr}")
                 return cached_result

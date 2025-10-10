@@ -1,7 +1,6 @@
 from sycamore.data import Element, BoundingBox
-from sycamore.utils.cache import DiskCache
+from sycamore.utils.cache import cache_from_path
 from typing import Any, BinaryIO, Tuple, Iterable, Literal, Optional, cast, Generator, TYPE_CHECKING, Union
-from pathlib import Path
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import timetrace
 from sycamore.transforms.text_extraction.text_extractor import TextExtractor
@@ -14,7 +13,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # TODO: Add cache support for PDFMiner per page
-pdf_miner_cache = DiskCache(str(Path.home() / ".sycamore/PDFMinerCache"))
+# FIXME: disabled caching, in preparation for changing default to on
+# pdf_miner_cache = cache_from_path(str(Path.home() / ".sycamore/PDFMinerCache"))
+pdf_miner_cache = cache_from_path("null://")
 
 
 @requires_modules(["pdfminer.layout"], extra="local-inference")

@@ -2,7 +2,7 @@ from abc import abstractmethod
 from PIL import Image
 from typing import Any, Union, TYPE_CHECKING, Optional
 from sycamore.data import BoundingBox, Element
-from sycamore.utils.cache import DiskCache
+from sycamore.utils.cache import cache_from_path
 from pathlib import Path
 from io import IOBase, BytesIO
 from sycamore.utils.pdf import pdf_to_image_files
@@ -19,7 +19,9 @@ if TYPE_CHECKING:
     from pdfminer.pdfpage import PDFPage
 
 # TODO: Add cache support for OCR per page
-ocr_cache = DiskCache(str(Path.home() / ".sycamore/OcrCache"))
+# FIXME: disabled caching, in preparation for changing default to on
+# ocr_cache = cache_from_path(str(Path.home() / ".sycamore/OcrCache"))
+ocr_cache = cache_from_path("null://")
 
 logger = logging.getLogger(__name__)
 

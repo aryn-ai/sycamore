@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 # FIXME: disabled caching, in preparation for changing default to on
 # ocr_cache = cache_from_path(str(Path.home() / ".sycamore/OcrCache"))
 ocr_cache = cache_from_path("null://")
-assert ocr_cache
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ class OcrModel(TextExtractor):
     def extract_document(
         self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs
     ) -> list[list[Element]]:
-        if use_cache and (cached_result := ocr_cache.get(hash_key)):
+        if (ocr_cache and use_cache) and (cached_result := ocr_cache.get(hash_key)):
             logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")
             return cached_result
         with tempfile.TemporaryDirectory() as tempdirname:  # type: ignore
@@ -65,7 +64,7 @@ class OcrModel(TextExtractor):
                 width, height = image.size
                 texts: list[Element] = self.parse_output(ocr_output, width, height)
                 pages.append(texts)
-            if use_cache:
+            if ocr_cache and use_cache:
                 logger.info("Cache Miss for OCR. Storing the result to the cache.")
                 ocr_cache.set(hash_key, pages)
             return pages

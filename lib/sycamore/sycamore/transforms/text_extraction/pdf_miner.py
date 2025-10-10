@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 # FIXME: disabled caching, in preparation for changing default to on
 # pdf_miner_cache = cache_from_path(str(Path.home() / ".sycamore/PDFMinerCache"))
 pdf_miner_cache = cache_from_path("null://")
-assert pdf_miner_cache
 
 
 @requires_modules(["pdfminer.layout"], extra="local-inference")
@@ -76,7 +75,7 @@ class PdfMinerExtractor(TextExtractor):
 
     @timetrace("PdfMinerDocEx")
     def extract_document(self, filename: str, hash_key: str, use_cache=False, **kwargs) -> list[list[Element]]:
-        cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
+        cached_result = pdf_miner_cache.get(hash_key) if (pdf_miner_cache and use_cache) else None
         if cached_result:
             logger.info(f"Cache Hit for PdfMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")
             return cached_result
@@ -85,7 +84,7 @@ class PdfMinerExtractor(TextExtractor):
             for page in PdfMinerExtractor.pdf_to_pages(filename):
                 texts = self.extract_page(page)
                 pages.append(texts)
-            if use_cache:
+            if pdf_miner_cache and use_cache:
                 logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
                 pdf_miner_cache.set(hash_key, pages)
             return pages

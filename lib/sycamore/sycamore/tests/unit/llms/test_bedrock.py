@@ -126,8 +126,7 @@ def test_bedrock_with_cache(mock_boto3_client):
     with tempfile.TemporaryDirectory() as temp_dir:
         cache = DiskCache(temp_dir)
 
-        assert cache.cache_hits == 0
-        assert cache.total_accesses == 0
+        assert cache.get_hit_info() == (0, 0)
 
         client = Bedrock(BedrockModels.CLAUDE_3_5_SONNET, cache=cache)
         assert client.is_chat_mode()
@@ -142,8 +141,7 @@ def test_bedrock_with_cache(mock_boto3_client):
         )
         assert result == "Here is your result: 56"
 
-        assert cache.cache_hits == 0
-        assert cache.total_accesses == 1
+        assert cache.get_hit_info() == (0, 1)
 
         assert mock_boto3_client.call_args.kwargs["service_name"] == "bedrock-runtime"
         assert json.loads(mock_boto3_client.return_value.invoke_model.call_args.kwargs["body"]) == {
@@ -162,5 +160,4 @@ def test_bedrock_with_cache(mock_boto3_client):
         )
         assert result == "Here is your result: 56"
 
-        assert cache.cache_hits == 1
-        assert cache.total_accesses == 2
+        assert cache.get_hit_info() == (1, 1)

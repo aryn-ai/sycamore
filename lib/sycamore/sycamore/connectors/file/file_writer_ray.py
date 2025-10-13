@@ -63,7 +63,7 @@ class _JsonBlockDataSink(BlockBasedFileDatasink):
         filesystem: Optional[FileSystem] = None,
     ) -> None:
         class BlockFilenameProvider(FilenameProvider):
-            def get_filename_for_block(self, block: Block, task_index: int, block_index: int) -> str:
+            def get_filename_for_block(self, block: Block, write_uuid: str, task_index: int, block_index: int) -> str:
                 return f"block_{block_index}_{task_index}.jsonl"
 
         super().__init__(path, filesystem=filesystem, filename_provider=BlockFilenameProvider())

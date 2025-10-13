@@ -16,7 +16,7 @@ class Union(Node):
         super().__init__([child.plan for child in children])
 
     def execute(self, **kwargs) -> "Dataset":
-        child_datasets = [c.execute() for c in self.children]
+        child_datasets = [c.execute() for c in self.children if c is not None]
         return self.merge(child_datasets)
         ds = child_datasets[0]
         for cds in child_datasets[1:]:

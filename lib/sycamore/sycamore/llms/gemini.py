@@ -115,12 +115,14 @@ class Gemini(LLM):
         out_tokens = int(md.candidates_token_count) if md and md.candidates_token_count else 0
         reason = response.candidates[0].finish_reason
         from google.genai.types import FinishReason
+
         if reason != FinishReason.STOP:
             logger.warning(f"Gemini model stopped for unexpected reason {reason}. Full response:\n{response}")
         if response.candidates[0].content is None:
             import json
-            logger.info(f"Gemini model returned no content: {json.dumps(response.model_dump(), indent=4)}")
-            output = "_NO_VALUE_"
+
+            logger.debug(f"Gemini model returned no content: {json.dumps(response.model_dump(), indent=4)}")
+            output = ""
         else:
             output = " ".join(part.text if part else "" for part in response.candidates[0].content.parts)
 

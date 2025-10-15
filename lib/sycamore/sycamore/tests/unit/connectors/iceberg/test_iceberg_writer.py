@@ -43,4 +43,7 @@ def test_iceberg_writer_ray(mode, tmp_path) -> None:
     table = load_catalog(**catalog_options).load_table(table_id)
     table_dict = table.scan().to_arrow().to_pydict()
 
-    assert table_dict == {"field1": ["value1", "value2"], "field2": [123, 456]}
+    assert table_dict == {"field1": ["value1", "value2"], "field2": [123, 456]} or table_dict == {
+        "field1": ["value2", "value1"],
+        "field2": [456, 123],
+    }

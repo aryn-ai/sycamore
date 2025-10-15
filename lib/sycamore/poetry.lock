@@ -2910,7 +2910,7 @@ description = "Lightweight in-process concurrent programming"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "(platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\") and extra == \"local-inference\""
+markers = "(platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\") and (extra == \"iceberg\" or extra == \"local-inference\")"
 files = [
     {file = "greenlet-3.2.3-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:1afd685acd5597349ee6d7a88a8bec83ce13c106ac78c196ee9dde7c04fe87be"},
     {file = "greenlet-3.2.3-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:761917cac215c61e9dc7324b2606107b3b292a8349bdebb31503ab4de3f559ac"},
@@ -8219,6 +8219,7 @@ pyroaring = ">=1.0.0,<2.0.0"
 requests = ">=2.20.0,<3.0.0"
 rich = ">=10.11.0,<15.0.0"
 sortedcontainers = "2.4.0"
+sqlalchemy = {version = ">=2.0.18,<3.0.0", optional = true, markers = "extra == \"sql-postgres\" or extra == \"sql-sqlite\""}
 strictyaml = ">=1.7.0,<2.0.0"
 tenacity = ">=8.2.3,<10.0.0"
 
@@ -10479,7 +10480,7 @@ description = "Database Abstraction Library"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"local-inference\""
+markers = "extra == \"iceberg\" or extra == \"local-inference\""
 files = [
     {file = "SQLAlchemy-2.0.41-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:6854175807af57bdb6425e47adbce7d20a4d79bbfd6f6d6519cd10bb7109a7f8"},
     {file = "SQLAlchemy-2.0.41-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:05132c906066142103b83d9c250b60508af556982a385d96c4eaa9fb9720ac2b"},
@@ -12474,4 +12475,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "9fb146eb9bb26f0dbe677106f50bcbdf4e2f3b48a7a7361803c1b42a351ede41"
+content-hash = "f5c669f76468ef711305d07ddb94c5a0ca104f91c955beafef5633fe9edd8193"

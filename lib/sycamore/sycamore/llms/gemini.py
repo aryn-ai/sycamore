@@ -113,12 +113,19 @@ class Gemini(LLM):
         md = response.usage_metadata
         in_tokens = int(md.prompt_token_count) if md and md.prompt_token_count else 0
         out_tokens = int(md.candidates_token_count) if md and md.candidates_token_count else 0
-        output = " ".join(part.text if part else "" for part in response.candidates[0].content.parts)
+        reason = response.candidates[0].finish_reason
         from google.genai.types import FinishReason
 
-        reason = response.candidates[0].finish_reason
         if reason != FinishReason.STOP:
             logger.warning(f"Gemini model stopped for unexpected reason {reason}. Full response:\n{response}")
+        if response.candidates[0].content is None or response.candidates[0].content.parts is None:
+            import json
+
+            logger.debug(f"Gemini model returned no content: {json.dumps(response.model_dump(), indent=4)}")
+            output = ""
+        else:
+            output = " ".join(part.text if part else "" for part in response.candidates[0].content.parts)
+
         ret = {
             "output": output,
             "wall_latency": wall_latency,

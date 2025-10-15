@@ -17,7 +17,7 @@ class IcebergWriter(Write):
     @requires_modules(["pyiceberg"], extra="iceberg")
     def __init__(
         self,
-        child: Optional[Node],
+        child: Node,
         catalog_kwargs: dict[str, Any],
         schema: SchemaV2,
         table_identifier: str,

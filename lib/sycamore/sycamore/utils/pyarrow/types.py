@@ -2,7 +2,16 @@ from dateutil.parser import isoparser
 from typing import Any, TYPE_CHECKING
 
 from sycamore.data import Document
-from sycamore.schema import DataType, make_property, NamedProperty, Property, SchemaV2
+from sycamore.schema import (
+    ArrayProperty,
+    ChoiceProperty,
+    DataType,
+    make_property,
+    NamedProperty,
+    ObjectProperty,
+    Property,
+    SchemaV2,
+)
 
 if TYPE_CHECKING:
     import pyarrow as pa
@@ -32,10 +41,13 @@ def property_to_pyarrow(property: Property) -> "pa.DataType":
         case DataType.DATETIME:
             return pa.date64()
         case DataType.ARRAY:
+            assert isinstance(property, ArrayProperty)  # mypy
             return pa.list_(property_to_pyarrow(property.item_type))
         case DataType.OBJECT:
+            assert isinstance(property, ObjectProperty)  # mypy
             return pa.struct(fields=[named_property_to_pyarrow(np) for np in property.properties])
         case DataType.CHOICE:
+            assert isinstance(property, ChoiceProperty)  # mypy
             # TODO: Currently this takes the type of the first element in the list of choices.
             dt = DataType.from_python(property.choices[0])
             return property_to_pyarrow(make_property(type=dt))

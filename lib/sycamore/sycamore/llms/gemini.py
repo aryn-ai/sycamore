@@ -118,7 +118,7 @@ class Gemini(LLM):
 
         if reason != FinishReason.STOP:
             logger.warning(f"Gemini model stopped for unexpected reason {reason}. Full response:\n{response}")
-        if response.candidates[0].content is None:
+        if response.candidates[0].content is None or response.candidates[0].content.parts is None:
             import json
 
             logger.debug(f"Gemini model returned no content: {json.dumps(response.model_dump(), indent=4)}")

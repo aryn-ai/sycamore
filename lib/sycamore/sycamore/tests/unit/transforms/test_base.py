@@ -21,7 +21,6 @@ class Common:
 
     @staticmethod
     def input_node(mocker):
-        # input_dataset = ray.data.from_items([{"doc": Document(d).serialize()} for d in TestBaseMapTransform.dicts], override_num_blocks=1)
         input_dataset = ray.data.from_items([{"doc": Document(d).serialize()} for d in TestBaseMapTransform.dicts])
 
         node = mocker.Mock(spec=Node)

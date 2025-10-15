@@ -1,7 +1,6 @@
 import os
 import pickle
 from pathlib import Path
-import logging
 
 import ray
 import pytest
@@ -179,14 +178,11 @@ class TestBaseMapTransform(Common):
     def test_class(self, mocker) -> None:
         class Test:
             def __init__(self, a, *, b="unset"):
-                print("Initializing test!!!")
-                logging.info("Initializing test!!!")
                 self.a = a
                 self.b = b
                 self.c = 0
 
             def __call__(self, docs: list[Document], e, *, f="unset"):
-                # print(f"In __call__ len(docs)={len(docs)}")
                 ret = docs.copy()
                 for d in docs:
                     ret.append(MetadataDocument(id=d.doc_id, lid=d.lineage_id, a=self.a, b=self.b, c=self.c, e=e, f=f))

@@ -115,7 +115,7 @@ def docs_to_pyarrow(docs: list[Document], schema: "pa.Schema | SchemaV2", proper
 
     Args:
         docs: The list of documents to convert.
-        schema: The Scyamore or PyArrow Schema defining the structure of the
+        schema: The Sycamore or PyArrow Schema defining the structure of the
            target table.
         property_root: The subtree of the properties dict to export. Defaults
            to "entity"
@@ -132,7 +132,7 @@ def docs_to_pyarrow(docs: list[Document], schema: "pa.Schema | SchemaV2", proper
     else:
         pa_schema = schema
 
-    for field in schema:
+    for field in pa_schema:
         column_data = [doc.properties.get(property_root, {}).get(field.name) for doc in docs]
         column_array = _build_array(column_data, field.type)
         columns.append(column_array)

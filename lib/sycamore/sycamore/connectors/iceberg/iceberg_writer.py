@@ -54,7 +54,6 @@ class IcebergWriter(Write):
         schema = self._pa_schema
 
         def f(batch: "pa.Table") -> "pa.Table":
-            print(type(batch))
             doc_dict = batch.to_pydict()
             all_docs = [Document.deserialize(s) for s in doc_dict["doc"]]
             docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]

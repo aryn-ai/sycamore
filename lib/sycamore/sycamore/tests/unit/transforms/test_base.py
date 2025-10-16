@@ -22,6 +22,7 @@ class Common:
     @staticmethod
     def input_node(mocker):
         input_dataset = ray.data.from_items([{"doc": Document(d).serialize()} for d in TestBaseMapTransform.dicts])
+
         node = mocker.Mock(spec=Node)
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
@@ -216,6 +217,7 @@ class TestBaseMapTransform(Common):
         lineage = 0
         custom = 0
         c = 0
+        c_actual = set()
         for d in mds:
             md = d.metadata
             if "lineage_links" in md:
@@ -232,11 +234,19 @@ class TestBaseMapTransform(Common):
                 assert lid_to_did[md["lid"]] == md["id"]
                 assert md["a"] == "c1"
                 assert md["b"] == "c2"
-                # relies on ray preserving order, verifies we make a single instance of the class.
-                assert md["c"] == c
+
+                # Ray creates a single instance of the Test class. Previously
+                # we were asserting this by checking that the c values came in
+                # order here. However, it now appears that Ray does not always
+                # preserve the order in which it returns the records, so
+                # instead we assert that we see all of the expected c values
+                # after the loop.
+                c_actual.add(md["c"])
                 c = c + 1
                 assert md["e"] == "a1"
                 assert md["f"] == "a2"
+
+        assert c_actual == set(range(c))
 
     def test_object(self, mocker) -> None:
         class Test:

@@ -194,7 +194,11 @@ def test_get_source_docs_complex(fake_docset_with_scores, fake_docset_2):
         retrieved_docs = result.retrieved_docs()
 
     assert mock_context.read.materialize.call_count == 2
-    assert retrieved_docs == ["path2.txt", "path1.txt", "path4.txt", "path3.txt", "path5.txt", "path6.txt"]
+
+    # The order of the final two paths is not guaranteed, since there are no
+    # scores to sort by, so it depends on the ordering that take_all returns.
+    assert retrieved_docs[0:4] == ["path2.txt", "path1.txt", "path4.txt", "path3.txt"]
+    assert set(retrieved_docs[4:6]) == {"path5.txt", "path6.txt"}
 
 
 def test_get_metadata_simpleplan(fake_docset_with_metadata, tmpdir):

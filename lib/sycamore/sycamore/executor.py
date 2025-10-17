@@ -162,6 +162,13 @@ class Execution:
             d = self.recursive_execute(n.children[0])
             logger.info(f"Executing node {get_name(n)}")
             return n.local_execute(d)
+        if len(n.children) > 1:
+            assert hasattr(n, "local_execute_many"), f"Transform {n.__class__.__name__} needs a local_execute method"
+            assert all(c is not None for c in n.children)
+            # Not sure why mypy doesn't understand the above assert.
+            child_docs = [self.recursive_execute(c) for c in n.children if c is not None]
+            logger.info(f"Executing node {get_name(n)}")
+            return n.local_execute_many(child_docs)
 
         assert f"Unable to handle node {n} with multiple children"
         return []

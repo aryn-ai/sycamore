@@ -992,6 +992,24 @@ class DocSet:
         mapping = Map(self.plan, f=f, **resource_args)
         return DocSet(self.context, mapping)
 
+    def apply(self, f: Callable[[Document], Any], **kwargs) -> "DocSet":
+        """
+        Applies a function to all documents in the docset. Returns the input documents,
+        so f is useful for functions that do in-place mutations.
+
+        Args:
+            f: The function to apply to each document. Return values are dropped.
+
+        """
+        from sycamore.transforms.base import rename, get_name_from_callable
+
+        @rename(f"wrap_{get_name_from_callable(f)}")
+        def wrap(doc: Document) -> Document:
+            f(doc)
+            return doc
+
+        return self.map(wrap)
+
     def kmeans(
         self,
         K: int,

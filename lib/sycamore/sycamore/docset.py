@@ -1634,6 +1634,20 @@ class DocSet:
 
         return joined_docset
 
+    def union(self, *others: "DocSet") -> "DocSet":
+        """Concatenate other docsets to this docset,
+
+        Args:
+            others: other docsets to Union
+
+        Returns:
+            A Docset containing all the documents in this and the unioned docsets
+        """
+
+        from sycamore.transforms.union import Union
+
+        return DocSet(self.context, Union(self, *others))
+
     @property
     def write(self) -> "DocSetWriter":
         """

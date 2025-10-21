@@ -1646,8 +1646,7 @@ class DocSet:
 
         from sycamore.transforms.union import Union
 
-        u = Union(self, *others)
-        return DocSet(self.context, u)
+        return DocSet(self.context, Union(self, *others))
 
     @property
     def write(self) -> "DocSetWriter":

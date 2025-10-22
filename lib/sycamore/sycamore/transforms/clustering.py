@@ -41,7 +41,7 @@ class KMeans:
             raise Exception("Unknown init mode")
 
     @staticmethod
-    def update(embeddings, centroids, iterations, epsilon):
+    def update(embeddings, centroids, iterations, epsilon, num_partitions=None):
         i = 0
         d = len(centroids[0])
 
@@ -60,7 +60,12 @@ class KMeans:
                 idx = KMeans.closest(row["vector"], centroids)
                 return {"vector": row["vector"], "cluster": idx}
 
-            aggregated = embeddings.map(_find_cluster).groupby("cluster").aggregate(update_centroids).take()
+            aggregated = (
+                embeddings.map(_find_cluster)
+                .groupby("cluster", num_partitions=num_partitions)
+                .aggregate(update_centroids)
+                .take()
+            )
             import numpy as np
 
             new_centroids = [list(np.array(c["centroids"]["v"]) / c["centroids"]["c"]) for c in aggregated]

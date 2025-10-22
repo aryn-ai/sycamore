@@ -999,6 +999,7 @@ class DocSet:
         init_mode: str = "random",
         epsilon: float = 1e-4,
         field_name: Optional[str] = None,
+        num_partitions: Optional[int] = None,
     ):
         """
         Apply kmeans over embedding field
@@ -1009,6 +1010,7 @@ class DocSet:
             init_mode: how the initial centroids are select
             epsilon: the condition for determining if it's converged
             field_name: the field used to run kmeans, use default embedding if it's None
+            num_partitions: number of partitions to use in ray for the underlying shuffle
         Return a list of max K centroids
         """
 
@@ -1029,7 +1031,7 @@ class DocSet:
         embeddings = self.plan.execute().filter(filter_meta).map(init_embedding).materialize()
 
         initial_centroids = KMeans.init(embeddings, K, init_mode)
-        centroids = KMeans.update(embeddings, initial_centroids, iterations, epsilon)
+        centroids = KMeans.update(embeddings, initial_centroids, iterations, epsilon, num_partitions)
         return centroids
 
     def clustering(self, centroids, cluster_field_name, field_name=None, **resource_args) -> "DocSet":

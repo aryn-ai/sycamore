@@ -5475,14 +5475,14 @@ diagrams = ["jinja2", "railroad-diagrams"]
 
 [[package]]
 name = "pypdf"
-version = "6.0.0"
+version = "6.1.3"
 description = "A pure-python PDF library capable of splitting, merging, cropping, and transforming PDF files"
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "pypdf-6.0.0-py3-none-any.whl", hash = "sha256:56ea60100ce9f11fc3eec4f359da15e9aec3821b036c1f06d2b660d35683abb8"},
-    {file = "pypdf-6.0.0.tar.gz", hash = "sha256:282a99d2cc94a84a3a3159f0d9358c0af53f85b4d28d76ea38b96e9e5ac2a08d"},
+    {file = "pypdf-6.1.3-py3-none-any.whl", hash = "sha256:eb049195e46f014fc155f566fa20e09d70d4646a9891164ac25fa0cbcfcdbcb5"},
+    {file = "pypdf-6.1.3.tar.gz", hash = "sha256:8d420d1e79dc1743f31a57707cabb6dcd5b17e8b9a302af64b30202c5700ab9d"},
 ]
 
 [package.dependencies]
@@ -5596,7 +5596,7 @@ description = "Python for Window Extensions"
 optional = false
 python-versions = "*"
 groups = ["main"]
-markers = "sys_platform == \"win32\" and platform_python_implementation != \"PyPy\""
+markers = "platform_python_implementation != \"PyPy\" and sys_platform == \"win32\""
 files = [
     {file = "pywin32-308-cp310-cp310-win32.whl", hash = "sha256:796ff4426437896550d2981b9c2ac0ffd75238ad9ea2d3bfa67a1abd546d262e"},
     {file = "pywin32-308-cp310-cp310-win_amd64.whl", hash = "sha256:4fc888c59b3c0bef905ce7eb7e2106a07712015ea1c8234b703a088d46110e8e"},
@@ -6613,7 +6613,7 @@ pillow = "^11.3.0"
 protobuf = "^5.29.5"
 pyarrow = "^20.0.0"
 pydantic = "^2.8.2"
-pypdf = "^6.0.0"
+pypdf = "^6.1.3"
 ray = {version = "^2.49.1", extras = ["default"]}
 rich = "^13.7.1"
 setuptools = ">=78.1.1"
@@ -6631,6 +6631,7 @@ duckdb = ["duckdb (>=1.1.1,<2.0.0)"]
 elasticsearch = ["elasticsearch (==8.14.0)"]
 eval = ["apted (>=1.0.3,<2.0.0)", "datasets (>=2.16.1,<3.0.0)", "rouge (>=1.0.1,<2.0.0)"]
 google-genai = ["google-genai (>=1.14.0,<2.0.0)"]
+iceberg = ["pyiceberg[sql-sqlite] (>=0.10.0,<0.11.0)"]
 legacy-partitioners = ["nltk (>=3.9.0,<4.0.0)", "python-pptx (>=0.6.22,<0.7.0)", "unstructured[pdf] (>=0.18.4,<0.19.0)"]
 local-inference = ["easyocr (>=1.7.1,<2.0.0)", "langchain-community (>=0.3.31,<0.4.0)", "paddleocr (==3.1.0)", "pdfminer-six (>=20250506)", "pytesseract (>=0.3.10,<0.4.0)", "sentence-transformers (>=3.0.1,<4.0.0)", "timm (>=0.9.12,<0.10.0)", "torch (>=2.8.0,<3.0.0)", "torchvision (>=0.23.0,<0.24.0)", "transformers (>=4.53.1,<5.0.0)"]
 neo4j = ["neo4j (>=5.21.0,<6.0.0)"]

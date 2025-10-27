@@ -60,7 +60,7 @@ black = ">=25.1"
 pre-commit = ">=4.2.0"
 mypy = ">=1.15.0"
 nbmake = "^1.4.5"
-pip = "^25.2"
+pip = "^25.3"
 devtools = "^0.12"
 
 [tool.poetry.group.notebook.dependencies]

@@ -477,7 +477,7 @@ class OpenAI(LLM):
             completion_tokens = 0
             prompt_tokens = 0
 
-        self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens, completion.usage, model=model)
+        self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens, model=model)
         return response_text
 
     async def _generate_awaitable_using_openai_structured(
@@ -496,7 +496,7 @@ class OpenAI(LLM):
             response_text = completion.choices[0].message.content
             assert response_text is not None, "OpenAI refused to respond to the query"
             completion_tokens, prompt_tokens = self.validate_tokens(completion)
-            self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens, completion.usage, model=model)
+            self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens, model=model)
             return response_text
         except Exception as e:
             # OpenAI will not respond in two scenarios:

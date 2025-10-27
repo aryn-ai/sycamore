@@ -220,7 +220,7 @@ class LLM(ABC):
             datastr,
         )
 
-    def get_metadata(self, model, kwargs, response_text, wall_latency, in_tokens, out_tokens) -> dict:
+    def get_metadata(self, model, kwargs, response_text, wall_latency, in_tokens, out_tokens, usage) -> dict:
         """Generate metadata for the LLM response."""
         return {
             "model": model,
@@ -230,18 +230,19 @@ class LLM(ABC):
                 "prompt_tokens": in_tokens,
                 "total_tokens": in_tokens + out_tokens,
             },
+            "orig_usage": usage,
             "wall_latency": wall_latency,
             "prompt": kwargs.get("prompt") or kwargs.get("messages"),
             "output": response_text,
         }
 
     def add_llm_metadata(
-        self, kwargs, output, wall_latency, in_tokens, out_tokens, model: Optional[str] = None
+        self, kwargs, output, wall_latency, in_tokens, out_tokens, usage, model: Optional[str] = None
     ) -> None:
         tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
         if tls.present():
             model = model or self._model_name
-            metadata = self.get_metadata(model, kwargs, output, wall_latency, in_tokens, out_tokens)
+            metadata = self.get_metadata(model, kwargs, output, wall_latency, in_tokens, out_tokens, usage)
             add_metadata(**metadata)
 
 

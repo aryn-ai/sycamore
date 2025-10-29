@@ -326,12 +326,7 @@ class SchemaExtract(MapBatch):
             return {ii["name"]: ii for ii in extract_json(result)}
 
         results = await asyncio.gather(
-            *(
-                do_one_step(
-                    elements, document
-                )
-                for elements in self._step_through.step_through(document)
-            )
+            *(do_one_step(elements, document) for elements in self._step_through.step_through(document))
         )
 
         for rd in results:

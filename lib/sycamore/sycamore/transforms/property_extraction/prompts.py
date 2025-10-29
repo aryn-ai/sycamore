@@ -362,8 +362,7 @@ _schema_extraction_page_image_prompt = ExtractionJinjaPrompt(
         You are a helpful document schema extractor. You are provided a page of a document. You only return a JSON schema which is a list of properties as defined below. Return only the relevant properties; for example, if it's a form, you might want to return several properties whereas if it's an article, you might want to return only the relevant properties. Be very careful about what properties you return.
         """
     ),
-
-user_pre_elements=textwrap.dedent(
+    user_pre_elements=textwrap.dedent(
         """\
         Extract a JSON schema from the page image.
 

@@ -182,7 +182,7 @@ class ExtractionJinjaPrompt(SycamorePrompt):
             if self.image_mode == ImageMode.PAGE:
                 assert (
                     doc.binary_representation is not None
-                ), "Cannot extract from an image because the document has no binary"
+                ), f"Cannot extract from an image because the document has no binary: {doc}"
                 pages = {e.properties.get("page_number", -1) for e in elts}
                 pages.discard(-1)
                 if len(pages) > 0:
@@ -251,6 +251,121 @@ _schema_extraction_prompt = ExtractionJinjaPrompt(
     user_pre_elements=textwrap.dedent(
         """\
         Extract a JSON schema from the following document text.
+
+        Each property must have:
+        - `name`: lowercase, underscore-separated string representing the name of the property. The name should be descriptive and concise. It should describe the kind of property, **not its value**.
+        - `type`: the parent object of the property which contains the following fields:
+            - `type`: one of "bool", "int", "float", "string", "date", "datetime", "array", "object", "choice"
+            - `description`: a brief human-readable explanation of what the property represents
+            - `examples`: the values of the property extracted from the document.
+        - For properties of type `array`, include `item_type` describing the type of items (can be "bool", "int", "float", "string", "date", "datetime", "array", "object", "choice")
+        - For properties of type `object`, include `properties`, a list of named sub-properties following the same schema
+        - For properties of type `choice`, include `choices`, a list of possible values for the property
+
+        Guidelines:
+        - Nested properties must follow this schema recursively
+        - Do not return any explanation or extra text outside the JSON
+        - Examples MUST be present ONLY at the top level of each property (never in sub-properties). For each property, include at most 5 examples; if there are more, select the most representative 5. NEVER include an 'examples' field in any nested sub-property.
+        - If a property has no examples, assign its 'examples' field to null.
+        - properties of type "bool" should be either `true` or `false`
+        - properties of type "date" should be in ISO format (YYYY-MM-DD)
+        - properties of type "datetime" should be in ISO format (YYYY-MM-DDTHH:MM:SS)
+
+        Example output:
+        [
+            {
+                'name': 'company_name',
+                'type':
+                    {
+                        'type': 'string',
+                        'examples': ['Acme Corp', 'Globex Corporation'],
+                        'description': 'The name of the company'
+                    }
+            },
+            {
+                'name': 'founded_year',
+                'type':
+                    {
+                        'type': 'int',
+                        'examples': [1999, 2001],
+                        'description': 'The year the company was founded'
+                    }
+            },
+            {
+                'name': 'is_public',
+                'type':
+                    {
+                        'type': 'bool',
+                        'examples': [true, false],
+                        'description': 'Whether the company is publicly listed'
+                    }
+            },
+            {
+                'name': 'headquarters',
+                'type':
+                    {
+                        'type': 'object',
+                        'properties': [
+                            {
+                                'name': 'city',
+                                'type':
+                                    {
+                                        'type': 'string',
+                                        'description': 'City of the headquarters'
+                                    }
+                            },
+                            {
+                                'name': 'state',
+                                'type':
+                                    {
+                                        'type': 'string',
+                                        'description': 'State of the headquarters'
+                                    }
+                            }
+                        ],
+                        'description': "Information about the headquarters",
+                        'examples': [{'city': 'San Francisco', 'state': 'CA'}, {'city': 'New York', 'state': 'NY'}]
+                    }
+            },
+            {
+                'name': 'tags',
+                'type':
+                    {
+                        'type': 'array',
+                        'item_type': {
+                            'type': 'string',
+                            'description': 'A tag associated with the company'
+                        },
+                        'examples': [['technology', 'innovation'], ['finance', 'investment']],
+                        'description': 'List of tags associated with the company'
+                    }
+            },
+            {
+                'name': 'status',
+                'type':
+                    {
+                        'type': 'choice',
+                        'choices': ['active', 'inactive', 'acquired'],
+                        'examples': ['active', 'inactive'],
+                        'description': 'Current status of the company'
+                    }
+            }
+        ]
+        """
+    ),
+    element_template="Element {{ elt.element_index }}: {{ elt.text_representation }}",
+)
+
+_schema_extraction_page_image_prompt = ExtractionJinjaPrompt(
+    system=textwrap.dedent(
+        """\
+        You are a helpful document schema extractor. You are provided a page of a document. You only return a JSON schema which is a list of properties as defined below. Return only the relevant properties; for example, if it's a form, you might want to return several properties whereas if it's an article, you might want to return only the relevant properties. Be very careful about what properties you return.
+        """
+    ),
+
+user_pre_elements=textwrap.dedent(
+        """\
+        Extract a JSON schema from the page image.
 
         Each property must have:
         - `name`: lowercase, underscore-separated string representing the name of the property. The name should be descriptive and concise. It should describe the kind of property, **not its value**.

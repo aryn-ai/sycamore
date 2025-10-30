@@ -130,6 +130,7 @@ class DiskCache(Cache):
             cache_loc = cache_loc[16:]  # leave leading slash
         elif cache_loc.startswith("file:///"):
             cache_loc = cache_loc[7:]
+        self._cache_loc = cache_loc
         self._cache = diskcache.Cache(directory=cache_loc)
 
     def get(self, hash_key: str):
@@ -142,6 +143,15 @@ class DiskCache(Cache):
 
     def set(self, hash_key: str, hash_value):
         self._cache.set(hash_key, hash_value)
+
+    def __reduce__(self):
+        # Return a function and args to recreate this object
+        # We only need the cache location, the Lock will be recreated in __init__
+        return (disk_cache_deserializer, ({"cache_loc": self._cache_loc},))
+
+
+def disk_cache_deserializer(kwargs):
+    return DiskCache(**kwargs)
 
 
 def s3_cache_deserializer(kwargs):

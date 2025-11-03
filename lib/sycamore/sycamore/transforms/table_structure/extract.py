@@ -529,7 +529,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
 class VLMTableStructureExtractor(TableStructureExtractor):
     """Table structure extractor that uses a VLM model to extract the table structure."""
 
-    EXTRACT_TABLE_STRUCTURE_PROMPT = """You are given an image of a table from a document. Please convert this table into HTML. Be sure to include the table header and all rows. Use 'colspan' and 'rowspan' in the output to indicate merged cells. Return the HTML as a string. Do not include any other text in the response.
+    EXTRACT_TABLE_STRUCTURE_PROMPT = """You are given an image of a table from a document. Please convert this table into HTML. Be sure to include the table header and all rows. Use 'colspan' and 'rowspan' in the output to indicate merged cells. Return the HTML as a string. Do not include any other text in the response, leave missing cells empty.
 +"""
 
     DEFAULT_RETRIES = 2

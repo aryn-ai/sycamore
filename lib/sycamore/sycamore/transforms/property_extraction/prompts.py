@@ -271,6 +271,9 @@ _schema_extraction_prompt = ExtractionJinjaPrompt(
         - properties of type "date" should be in ISO format (YYYY-MM-DD)
         - properties of type "datetime" should be in ISO format (YYYY-MM-DDTHH:MM:SS)
 
+        Additional instructions:
+        {{ additional_instructions }}
+
         Example output:
         [
             {

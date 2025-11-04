@@ -318,7 +318,6 @@ class SchemaExtract(MapBatch):
     async def extract_schema_from_document(self, document: Document) -> list[dict[str, Any]]:
 
         result_dict = dict()
-        print(document)
 
         async def do_one_step(elements, document):
             rendered = self._prompt.render_multiple_elements(elements, document)

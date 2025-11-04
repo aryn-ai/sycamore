@@ -509,7 +509,7 @@ class DocSet:
         from sycamore.transforms.property_extraction.strategy import BatchElements
 
         if prompt is None:
-            prompt = _schema_extraction_prompt
+            prompt = _schema_extraction_prompt.fork(element_description="following document text")
 
         if step_through_strategy is None:
             step_through_strategy = BatchElements(batch_size=50)

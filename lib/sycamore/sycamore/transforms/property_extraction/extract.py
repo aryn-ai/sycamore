@@ -269,7 +269,13 @@ class SchemaExtract(MapBatch):
         else:
             self._prompt = prompt
         # Try calling the render method I need at constructor to make sure it's implemented
-        self._prompt.render_multiple_elements(elts=[], doc=Document())
+        try:
+            self._prompt.render_multiple_elements(elts=[], doc=Document())
+        except NotImplementedError as e:
+            raise e
+        except Exception:
+            # Other errors are ok, probably dummy document is malformed for the prompt
+            pass
 
     @staticmethod
     def _cast_to_type(val: Any, val_type: str) -> Any:
@@ -313,12 +319,16 @@ class SchemaExtract(MapBatch):
 
         result_dict = dict()
 
-        for elements in self._step_through.step_through(document):
-
+        async def do_one_step(elements, document):
             rendered = self._prompt.render_multiple_elements(elements, document)
             result = await self._llm.generate_async(prompt=rendered)
-            rd = {ii["name"]: ii for ii in extract_json(result)}
+            return {ii["name"]: ii for ii in extract_json(result)}
 
+        results = await asyncio.gather(
+            *(do_one_step(elements, document) for elements in self._step_through.step_through(document))
+        )
+
+        for rd in results:
             for k, v in rd.items():
 
                 v_type = v.get("type", {}).get("type", "string")  # Default to string if type is not specified

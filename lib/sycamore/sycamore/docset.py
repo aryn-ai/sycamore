@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     from sycamore.transforms.embed import Embedder
     from sycamore.transforms.extract_table import TableExtractor
     from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
+    from sycamore.transforms.property_extraction.prompts import ExtractionJinjaPrompt
+    from sycamore.transforms.property_extraction.strategy import StepThroughStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -479,6 +481,8 @@ class DocSet:
         llm: "LLM",
         existing_schema: Optional["SchemaV2"] = None,
         reduce_fn: Optional[Callable[[list[Document]], Document]] = None,
+        prompt: Optional["ExtractionJinjaPrompt"] = None,
+        step_through_strategy: Optional["StepThroughStrategy"] = None,
     ) -> "SchemaV2":
         """
         Extracts a common schema from the documents in this DocSet.
@@ -500,15 +504,20 @@ class DocSet:
         """
         from sycamore.schema import SchemaV2
         from sycamore.transforms.property_extraction.extract import SchemaExtract
-        from sycamore.transforms.property_extraction.strategy import BatchElements
         from sycamore.transforms.property_extraction.prompts import _schema_extraction_prompt
         from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields
+        from sycamore.transforms.property_extraction.strategy import BatchElements
 
+        if prompt is None:
+            prompt = _schema_extraction_prompt.fork(element_description="following document text")
+
+        if step_through_strategy is None:
+            step_through_strategy = BatchElements(batch_size=50)
         schema_ext = SchemaExtract(
             self.plan,
-            step_through_strategy=BatchElements(batch_size=50),
+            step_through_strategy=step_through_strategy,
             llm=llm,
-            prompt=_schema_extraction_prompt,
+            prompt=prompt,
             existing_schema=existing_schema,
         )
         if reduce_fn is None:

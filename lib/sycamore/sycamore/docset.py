@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
     from sycamore.grouped_data import GroupedData
     from sycamore.llms.llms import LLM
-    from sycamore.schema import SchemaV2
+    from sycamore.schema import SchemaV2, NamedProperty
     from sycamore.transforms.augment_text import TextAugmentor
     from sycamore.transforms.embed import Embedder
     from sycamore.transforms.extract_table import TableExtractor
@@ -528,6 +528,19 @@ class DocSet:
             for named_prop in existing_schema.properties:
                 schema.properties.append(named_prop)
 
+        deduped: dict[str, NamedProperty] = {}
+        unique_props: list[NamedProperty] = []
+        for prop in schema.properties:
+            if prop.name not in deduped:
+                deduped[prop.name] = prop
+                unique_props.append(prop)
+            else:
+                if prop != deduped[prop.name]:
+                    unique_props.append(prop)
+                else:
+                    logger.info(f"Removing a duplicate property {prop.name}")
+
+        schema.properties = unique_props
         return schema
 
     def extract_document_structure(self, structure: DocumentStructure, **kwargs):

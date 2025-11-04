@@ -2,6 +2,7 @@ from typing import Optional
 import ast
 import json
 import sycamore
+from sycamore import ExecMode
 from sycamore.docset import DocSet
 from sycamore.data.document import Document
 from sycamore.data.element import Element
@@ -11,7 +12,7 @@ from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, Render
 from sycamore.schema import SchemaV2
 from sycamore.transforms.property_extraction.extract import SchemaExtract
 from sycamore.transforms.property_extraction.strategy import BatchElements
-from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields
+from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields, make_freq_filter_fn
 
 
 class FakeExtractionPrompt(SycamorePrompt):
@@ -128,3 +129,62 @@ class TestSchemaExtract:
         assert set(agg_schema_pred.properties[0].type.examples) == set(
             agg_schema_true.properties[0].type.examples
         ), f"Expected examples {agg_schema_true.properties[0].type.examples}, got {agg_schema_pred.properties[0].type.examples}"
+
+    def test_schema_extract_deduped(self):
+        doc_0 = Document(
+            doc_id="0", elements=[Element(text_representation="d0e0"), Element(text_representation="d0e1")]
+        )
+        doc_0.properties["_schema_temp"] = [
+            {
+                "name": "company_name",
+                "type": {
+                    "type": "string",
+                    "description": "Name of the company",
+                    "examples": ["Acme Corp"],
+                },
+            },
+            {
+                "name": "ceo",
+                "type": {
+                    "type": "string",
+                    "description": "CEO name",
+                    "examples": ["Jane Doe"],
+                },
+            },
+        ]
+
+        doc_1 = Document(
+            doc_id="1", elements=[Element(text_representation="d1e0"), Element(text_representation="d1e1")]
+        )
+        doc_1.properties["_schema_temp"] = [
+            {
+                "name": "company_name",
+                "type": {
+                    "type": "string",
+                    "description": "Name of the company",
+                    "examples": ["Beta LLC"],
+                },
+            },
+            {
+                "name": "company_name",
+                "type": {
+                    "type": "string",
+                    "description": "Name of the company",
+                    "examples": ["Beta LLC"],
+                },
+            },
+            {
+                "name": "revenue",
+                "type": {
+                    "type": "float",
+                    "description": "Annual revenue",
+                    "examples": [1000000.0],
+                },
+            },
+        ]
+
+        docs = [doc_0, doc_1]
+        context = sycamore.init(exec_mode=ExecMode.LOCAL)
+        read_ds = context.read.document(docs)
+        agg_schema = read_ds.suggest_schema(llm=FakeLLM(), prompt=FakeExtractionPrompt(), reduce_fn=make_freq_filter_fn(min_occurence_ratio=0.5))
+        assert len(agg_schema.properties) == 3

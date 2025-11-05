@@ -186,5 +186,7 @@ class TestSchemaExtract:
         docs = [doc_0, doc_1]
         context = sycamore.init(exec_mode=ExecMode.LOCAL)
         read_ds = context.read.document(docs)
-        agg_schema = read_ds.suggest_schema(llm=FakeLLM(), prompt=FakeExtractionPrompt(), reduce_fn=make_freq_filter_fn(min_occurence_ratio=0.5))
+        agg_schema = read_ds.suggest_schema(
+            llm=FakeLLM(), prompt=FakeExtractionPrompt(), reduce_fn=make_freq_filter_fn(min_occurence_ratio=0.5)
+        )
         assert len(agg_schema.properties) == 3

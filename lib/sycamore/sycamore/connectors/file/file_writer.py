@@ -146,6 +146,7 @@ class FileWriter(Write):
         filesystem: Optional[FileSystem] = None,
         filename_fn: Callable[[Document], str] = default_filename,
         doc_to_bytes_fn: Callable[[Document], bytes] = default_doc_to_bytes,
+        include_metadata: bool = False,
         **ray_remote_args,
     ):
         """Initializes a FileWriter instance.
@@ -167,6 +168,7 @@ class FileWriter(Write):
         self.filesystem = filesystem
         self.filename_fn = filename_fn
         self.doc_to_bytes_fn = doc_to_bytes_fn
+        self.include_metadata = include_metadata
         self.ray_remote_args = ray_remote_args
 
     def execute(self, **kwargs) -> "Dataset":
@@ -193,7 +195,7 @@ class FileWriter(Write):
         (filesystem, path) = cross_check_infer_fs(self.filesystem, self.path)
 
         for d in all_docs:
-            if isinstance(d, MetadataDocument):
+            if isinstance(d, MetadataDocument) and not self.include_metadata:
                 continue
             bytes = self.doc_to_bytes_fn(d)
             file_path = posixpath.join(path, self.filename_fn(d))
@@ -219,6 +221,7 @@ class JsonWriter(FileWriter):
         plan: Node,
         path: str,
         filesystem: Optional[FileSystem] = None,
+        include_metadata: bool = False,
         **ray_remote_args,
     ) -> None:
         """
@@ -232,13 +235,18 @@ class JsonWriter(FileWriter):
         """
 
         super().__init__(
-            plan, path=path, filesystem=filesystem, doc_to_bytes_fn=document_to_json_bytes, **ray_remote_args
+            plan,
+            path=path,
+            filesystem=filesystem,
+            doc_to_bytes_fn=document_to_json_bytes,
+            include_metadata=include_metadata,
+            **ray_remote_args,
         )
 
     def execute(self, **kwargs) -> "Dataset":
         ds = self.child().execute()
         from sycamore.connectors.file.file_writer_ray import _JsonBlockDataSink
 
-        sink = _JsonBlockDataSink(self.path, filesystem=self.filesystem)
+        sink = _JsonBlockDataSink(self.path, filesystem=self.filesystem, include_metadata=self.include_metadata)
         ds.write_datasink(sink, ray_remote_args=self.ray_remote_args)
         return ds

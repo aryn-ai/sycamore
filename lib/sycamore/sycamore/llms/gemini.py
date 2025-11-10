@@ -41,6 +41,7 @@ class Gemini(LLM):
         disable_helicone: bool = True,
     ):
         from google.genai import Client
+        from google.genai.types import HttpOptionsDict
 
         self.model_name = model_name  # Is this supposed to a string?
 
@@ -56,10 +57,10 @@ class Gemini(LLM):
             raise TypeError("model_name must be an instance of str, GeminiAIModel, or GeminiAIModels")
 
         api_key = api_key if api_key else os.getenv("GEMINI_API_KEY")
-        extra_kwargs = {}
         # Helicone implementation from https://docs.helicone.ai/integrations/gemini/api/python
+        http_options: Optional[HttpOptionsDict] = None
         if not disable_helicone and "SYCAMORE_HELICONE_API_KEY" in os.environ:
-            extra_kwargs["http_options"] = {
+            http_options = {
                 "base_url": HELICONE_BASE_URL,
                 "headers": {
                     "helicone-auth": f"Bearer {os.environ['SYCAMORE_HELICONE_API_KEY']}",
@@ -67,9 +68,10 @@ class Gemini(LLM):
                 },
             }
             if "SYCAMORE_HELICONE_TAG" in os.environ:
-                extra_kwargs["default_headers"].update({"Helicone-Property-Tag": os.environ["SYCAMORE_HELICONE_TAG"]})
+                assert http_options["headers"] is not None, "type checking, unreachable"
+                http_options["headers"].update({"Helicone-Property-Tag": os.environ["SYCAMORE_HELICONE_TAG"]})
 
-        self._client = Client(api_key=api_key, **extra_kwargs)
+        self._client = Client(api_key=api_key, http_options=http_options)
         super().__init__(self.model.name, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
     def __reduce__(self):

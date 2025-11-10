@@ -15,7 +15,7 @@ from sycamore.utils.import_utils import requires_modules
 logger = logging.getLogger(__name__)
 
 # Base URL for Helicone API, if configured using the SYCAMORE_HELICONE_API_KEY environment variable.
-HELICONE_BASE_URL = "https://oai.helicone.ai/v1"
+HELICONE_BASE_URL = "https://gateway.helicone.ai"
 
 
 def gemini_deserializer(kwargs):

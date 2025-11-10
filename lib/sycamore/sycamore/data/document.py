@@ -409,11 +409,6 @@ class MetadataDocument(Document):
         """Delete all the metadata of this document."""
         self.data["metadata"] = {}
 
-    @binary_representation.deleter
-    def binary_representation(self) -> None:
-        """Delete the raw content of the document."""
-        pass
-
 
 def split_data_metadata(all: list[Document]) -> tuple[list[Document], list[MetadataDocument]]:
     return (

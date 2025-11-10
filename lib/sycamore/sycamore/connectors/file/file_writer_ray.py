@@ -76,8 +76,10 @@ class _JsonBlockDataSink(BlockBasedFileDatasink):
         with TimeTrace("jsonSink"):
             for row in block.iter_rows(True):  # type: ignore[var-annotated]
                 doc = Document.from_row(row)
-                if isinstance(doc, MetadataDocument) and not self.include_metadata:
-                    continue
-                del doc.binary_representation  # Doesn't make sense in JSON
+                if isinstance(doc, MetadataDocument):
+                    if not self.include_metadata:
+                        continue
+                else:
+                    del doc.binary_representation  # Doesn't make sense in JSON
                 binary = document_to_json_bytes(doc)
                 file.write(binary)

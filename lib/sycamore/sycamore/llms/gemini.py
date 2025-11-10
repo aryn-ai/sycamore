@@ -14,6 +14,9 @@ from sycamore.utils.import_utils import requires_modules
 
 logger = logging.getLogger(__name__)
 
+# Base URL for Helicone API, if configured using the SYCAMORE_HELICONE_API_KEY environment variable.
+HELICONE_BASE_URL = "https://oai.helicone.ai/v1"
+
 
 def gemini_deserializer(kwargs):
     return Gemini(**kwargs)
@@ -35,6 +38,7 @@ class Gemini(LLM):
         cache: Optional[Cache] = None,
         api_key: Optional[str] = None,
         default_llm_kwargs: Optional[dict[str, Any]] = None,
+        disable_helicone: bool = True,
     ):
         from google.genai import Client
 
@@ -52,7 +56,20 @@ class Gemini(LLM):
             raise TypeError("model_name must be an instance of str, GeminiAIModel, or GeminiAIModels")
 
         api_key = api_key if api_key else os.getenv("GEMINI_API_KEY")
-        self._client = Client(api_key=api_key)
+        extra_kwargs = {}
+        # Helicone implementation from https://docs.helicone.ai/integrations/gemini/api/python
+        if not disable_helicone and "SYCAMORE_HELICONE_API_KEY" in os.environ:
+            extra_kwargs["http_options"] = {
+                "base_url": HELICONE_BASE_URL,
+                "headers": {
+                    "helicone-auth": f"Bearer {os.environ['SYCAMORE_HELICONE_API_KEY']}",
+                    "helicone-target-url": "https://generativelanguage.googleapis.com",
+                },
+            }
+            if "SYCAMORE_HELICONE_TAG" in os.environ:
+                extra_kwargs["default_headers"].update({"Helicone-Property-Tag": os.environ["SYCAMORE_HELICONE_TAG"]})
+
+        self._client = Client(api_key=api_key, **extra_kwargs)
         super().__init__(self.model.name, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
     def __reduce__(self):

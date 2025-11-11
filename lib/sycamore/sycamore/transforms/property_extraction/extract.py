@@ -3,6 +3,8 @@ import asyncio
 import logging
 import json
 
+from pydantic import ValidationError
+
 from sycamore.data.document import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.schema import NamedProperty, ObjectProperty, SchemaV2 as Schema, DataType
@@ -320,17 +322,19 @@ class SchemaExtract(MapBatch):
         result_dict = dict()
 
         async def do_one_step(elements, document):
-            max_retries = 2
+            max_retries = 2  # Up to 3 calls
             retries = 0
-            while retries < max_retries:
+            while retries <= max_retries:
                 try:
                     rendered = self._prompt.render_multiple_elements(elements, document)
                     result = await self._llm.generate_async(prompt=rendered)
                     extracted = extract_json(result)
-                    return {ii["name"]: ii for ii in extracted}
-                except ValueError as exc:
+                    candidate = {ii["name"]: ii for ii in extracted}
+                    Schema(properties=[candidate])
+                    return candidate
+                except (ValueError, ValidationError) as exc:
                     _logger.exception(exc)
-                    if retries > max_retries:
+                    if retries >= max_retries:
                         _logger.warning("All retries failed, returning empty schema.")
                         break
                     retries += 1

@@ -71,10 +71,15 @@ class FlakyLLM(LLM):
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
         self.call_count += 1
+        bad_output = '["properties": ['
+        if self.max_fails < 0:
+            return bad_output
+
         if self.call_count >= self.max_fails:
             ret_val = [ast.literal_eval(msg.content[9:]) for msg in prompt.messages]
             return f"""{json.dumps(ret_val)}"""
-        return '["properties": ['
+
+        return bad_output
 
     async def generate_async(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
@@ -501,7 +506,7 @@ class TestSchemaExtract:
         schema_ext = SchemaExtract(
             read_ds.plan,
             step_through_strategy=BatchElements(batch_size=50),
-            llm=FlakyLLM(max_fails=4 * 3),
+            llm=FlakyLLM(max_fails=-1),
             prompt=FakeExtractionPrompt(),
         )
         ds = DocSet(context, schema_ext).reduce(make_freq_filter_fn(min_occurence_ratio=0.5))

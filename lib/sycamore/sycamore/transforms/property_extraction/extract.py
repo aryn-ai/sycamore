@@ -330,7 +330,7 @@ class SchemaExtract(MapBatch):
                     result = await self._llm.generate_async(prompt=rendered)
                     extracted = extract_json(result)
                     candidate = {ii["name"]: ii for ii in extracted}
-                    Schema(properties=[candidate])
+                    Schema(properties=[*candidate.values()])
                     return candidate
                 except (ValueError, ValidationError) as exc:
                     _logger.exception(exc)

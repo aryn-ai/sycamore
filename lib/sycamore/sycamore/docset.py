@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
     from sycamore.grouped_data import GroupedData
     from sycamore.llms.llms import LLM
-    from sycamore.schema import SchemaV2
+    from sycamore.schema import SchemaV2, NamedProperty
     from sycamore.transforms.augment_text import TextAugmentor
     from sycamore.transforms.embed import Embedder
     from sycamore.transforms.extract_table import TableExtractor

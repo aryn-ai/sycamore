@@ -797,6 +797,7 @@ class DocSetWriter:
         self,
         path: str,
         filesystem: Optional[FileSystem] = None,
+        include_metadata: bool = False,
         **resource_args,
     ) -> None:
         """
@@ -810,7 +811,9 @@ class DocSetWriter:
             resource_args: Arguments to pass to the underlying execution environment.
         """
 
-        node: Node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
+        node: Node = JsonWriter(
+            self.plan, path, filesystem=filesystem, include_metadata=include_metadata, **resource_args
+        )
 
         self._maybe_execute(node, True)
 

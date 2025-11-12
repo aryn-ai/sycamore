@@ -326,6 +326,7 @@ class NullCache(Cache):
 def safediv(n: int | float, d: int | float) -> float:
     return n / d if d else 0.0
 
+
 def get_region_name() -> str:
     # Manual Override
     if region := os.getenv("REGION"):

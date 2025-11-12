@@ -144,6 +144,14 @@ class DocSet:
                             e.data["embedding"] = _format_embedding(e.embedding)
             pprint.pp(document, stream=stream)
 
+    def get_doc_info(self, limit: int = -1):
+        doc_info = []
+        for document in self.take(limit):
+            num_elems = len(document.elements)
+            document.data["elements"] = f"<{num_elems} elements>"
+            doc_info.append(document)
+        return doc_info
+
     def count(self, include_metadata=False, **kwargs) -> int:
         """
         Counts the number of documents in the resulting dataset.

@@ -2,7 +2,7 @@ from abc import abstractmethod
 from PIL import Image
 from typing import Any, Union, TYPE_CHECKING, Optional
 from sycamore.data import BoundingBox, Element
-from sycamore.utils.cache import DiskCache, safediv
+from sycamore.utils.cache import cache_from_path
 from pathlib import Path
 from io import IOBase, BytesIO
 from sycamore.utils.pdf import pdf_to_image_files
@@ -19,7 +19,9 @@ if TYPE_CHECKING:
     from pdfminer.pdfpage import PDFPage
 
 # TODO: Add cache support for OCR per page
-ocr_cache = DiskCache(str(Path.home() / ".sycamore/OcrCache"))
+# FIXME: disabled caching, in preparation for changing default to on
+# ocr_cache = cache_from_path(str(Path.home() / ".sycamore/OcrCache"))
+ocr_cache = cache_from_path("null://")
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +47,8 @@ class OcrModel(TextExtractor):
     def extract_document(
         self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs
     ) -> list[list[Element]]:
-        if use_cache and (cached_result := ocr_cache.get(hash_key)):
-            hits, misses = ocr_cache.get_hit_info()
-            hit_rate = safediv(hits, hits + misses)
-            logger.info(f"Cache Hit for OCR. Cache hit-rate is {hit_rate}")
+        if (ocr_cache and use_cache) and (cached_result := ocr_cache.get(hash_key)):
+            logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")
             return cached_result
         with tempfile.TemporaryDirectory() as tempdirname:  # type: ignore
             assert isinstance(filename, str)
@@ -64,7 +64,7 @@ class OcrModel(TextExtractor):
                 width, height = image.size
                 texts: list[Element] = self.parse_output(ocr_output, width, height)
                 pages.append(texts)
-            if use_cache:
+            if ocr_cache and use_cache:
                 logger.info("Cache Miss for OCR. Storing the result to the cache.")
                 ocr_cache.set(hash_key, pages)
             return pages

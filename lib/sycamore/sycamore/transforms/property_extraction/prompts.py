@@ -182,7 +182,7 @@ class ExtractionJinjaPrompt(SycamorePrompt):
             if self.image_mode == ImageMode.PAGE:
                 assert (
                     doc.binary_representation is not None
-                ), "Cannot extract from an image because the document has no binary"
+                ), f"Cannot extract from an image because the document has no binary: {doc}"
                 pages = {e.properties.get("page_number", -1) for e in elts}
                 pages.discard(-1)
                 if len(pages) > 0:
@@ -242,15 +242,17 @@ Extracted schema:
 {existing_schema}
 """
 
+schema_extraction_system_prompt = textwrap.dedent(
+    """\
+    You are a helpful property extractor. You only return a JSON schema which is a list of properties as defined below. Return only the relevant properties; for example, if it's a form, you might want to return several properties whereas if it's an article, you might want to return only the relevant properties. Be very careful about what properties you return.
+    """
+)
+
 _schema_extraction_prompt = ExtractionJinjaPrompt(
-    system=textwrap.dedent(
-        """\
-        You are a helpful property extractor. You only return a JSON schema which is a list of properties as defined below. Return only the relevant properties; for example, if it's a form, you might want to return several properties whereas if it's an article, you might want to return only the relevant properties. Be very careful about what properties you return.
-        """
-    ),
+    system=schema_extraction_system_prompt,
     user_pre_elements=textwrap.dedent(
         """\
-        Extract a JSON schema from the following document text.
+        Extract a JSON schema from the {{ element_description }}.
 
         Each property must have:
         - `name`: lowercase, underscore-separated string representing the name of the property. The name should be descriptive and concise. It should describe the kind of property, **not its value**.
@@ -270,6 +272,8 @@ _schema_extraction_prompt = ExtractionJinjaPrompt(
         - properties of type "bool" should be either `true` or `false`
         - properties of type "date" should be in ISO format (YYYY-MM-DD)
         - properties of type "datetime" should be in ISO format (YYYY-MM-DDTHH:MM:SS)
+
+        {{ additional_instructions }}
 
         Example output:
         [

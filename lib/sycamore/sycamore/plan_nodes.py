@@ -78,6 +78,7 @@ class Node(ABC):
         parallelism: Optional[int] = None,
         **resource_args,
     ):
+        # TODO: make children list["Node"] rather than list[Optional["Node"]]
         self.children = children
         assert parallelism is None or parallelism > 0
         self.parallelism = parallelism

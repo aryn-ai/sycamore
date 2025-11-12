@@ -105,6 +105,7 @@ class TestSketchUniquify:
                 {"doc": self.doc1.serialize()},
             ]
         )
+
         execute = mocker.patch.object(node, "execute")
         execute.return_value = in_ds
         if uq.parallelism is not None:
@@ -114,7 +115,11 @@ class TestSketchUniquify:
         ds = uq.execute()
         (docs, _) = take_separate(ds)
         assert len(docs) == 1
-        assert docs[0].doc_id == "doc0"
+
+        # Note: We used to assert that docs[0].doc_id == "doc0", but we
+        # started seeing non-deterministic failures, presumably because the
+        # order of ray.data.from_items is not guaranteed.
+        assert docs[0].doc_id in {"doc0", "doc1"}
 
     def test_cleanup(self):
         ray.shutdown()

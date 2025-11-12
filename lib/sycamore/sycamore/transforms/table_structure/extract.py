@@ -223,6 +223,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         import torch
 
+        # We tried torch.autocast() here, but it introduced errors...
         with torch.no_grad():
             outputs = self.structure_model(pixel_values)
 
@@ -331,9 +332,9 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         model_selection: str,
     ) -> Union[TableTransformerStructureExtractor, DeformableTableStructureExtractor]:
         """Use the model_selection expression to choose the model to use for table extraction.
-        If the expression returns None, use table transformer."""
+        If the expression returns None, use deformable table transformer."""
         if element.bbox is None:
-            return self._tatr
+            return self._deformable
 
         select_fn = self.parse_model_selection(model_selection)
 
@@ -352,7 +353,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         elif selection == "deformable_detr":
             return self._deformable
         elif selection is None:
-            return self._tatr
+            return self._deformable
         raise ValueError(f"Somehow we got an invalid selection: {selection}. This should be unreachable.")
 
     def _init_structure_model(self):
@@ -364,7 +365,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
         element: TableElement,
         doc_image: Image.Image,
         union_tokens=False,
-        model_selection: str = "pixels > 500 -> deformable_detr; table_transformer",
+        model_selection: str = "deformable_detr",
         resolve_overlaps=False,
     ) -> TableElement:
         """Extracts the table structure from the specified element using a either a DeformableDETR or
@@ -441,7 +442,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
             if len(pieces) > 2:
                 raise ValueError(
                     f"Bad model selection: {selection}\n"
-                    f"Invalid statement: '{statement}'. Found more than 2 instances of '->'"
+                    f"Invalid statement: '{statement}'. Found more than 1 instance of '->'"
                 )
 
             result = pieces[1].strip()
@@ -528,7 +529,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
 class VLMTableStructureExtractor(TableStructureExtractor):
     """Table structure extractor that uses a VLM model to extract the table structure."""
 
-    EXTRACT_TABLE_STRUCTURE_PROMPT = """You are given an image of a table from a document. Please convert this table into HTML. Be sure to include the table header and all rows. Use 'colspan' and 'rowspan' in the output to indicate merged cells. Return the HTML as a string. Do not include any other text in the response.
+    EXTRACT_TABLE_STRUCTURE_PROMPT = """You are given an image of a table from a document. Please convert this table into HTML. Be sure to include the table header and all rows. Use 'colspan' and 'rowspan' in the output to indicate merged cells. Return the HTML as a string. Do not include any other text in the response, leave missing cells empty.
 +"""
 
     DEFAULT_RETRIES = 2

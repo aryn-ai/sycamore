@@ -7,7 +7,7 @@ import time
 
 from PIL import Image
 
-from sycamore.llms.config import AnthropicModels
+from sycamore.llms.config import AnthropicModels, AnthropicModel, LLMModel
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
@@ -110,7 +110,7 @@ class Anthropic(LLM):
     @requires_modules("anthropic", extra="anthropic")
     def __init__(
         self,
-        model_name: Union[AnthropicModels, str],
+        model_name: Union[AnthropicModels, AnthropicModel, str],
         default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
         default_llm_kwargs: Optional[dict[str, Any]] = None,
@@ -124,16 +124,18 @@ class Anthropic(LLM):
         self.model_name = model_name
 
         if isinstance(model_name, AnthropicModels):
-            self.model: AnthropicModels = model_name
+            self.model = model_name.value
+        elif isinstance(model_name, AnthropicModel):
+            self.model = model_name
         elif isinstance(model_name, str):
             model = AnthropicModels.from_name(name=model_name)
             if model is None:
                 raise ValueError(f"Invalid model name: {model_name}")
-            self.model = model
+            self.model = model.value
 
         self._client = AnthropicClient()
         self._async_client = AsyncAnthropicClient()
-        super().__init__(self.model.value, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
+        super().__init__(self.model.name, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
     def __reduce__(self):
         kwargs = {
@@ -156,7 +158,7 @@ class Anthropic(LLM):
     def format_image(self, image: Image.Image) -> dict[str, Any]:
         return format_image(image)
 
-    def _metadata_from_response(self, kwargs, response, starttime) -> dict:
+    def _metadata_from_response(self, model: str, kwargs, response, starttime) -> dict:
         wall_latency = datetime.now() - starttime
         in_tokens = response.usage.input_tokens
         out_tokens = response.usage.output_tokens
@@ -168,36 +170,45 @@ class Anthropic(LLM):
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }
-        self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
+        self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens, model=model)
         return ret
 
-    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def generate_metadata(self, *, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
         if isinstance(ret, dict):
             return ret
 
         kwargs = get_generate_kwargs(prompt, llm_kwargs)
         start = datetime.now()
 
-        response = self._client.messages.create(model=self.model.value, **kwargs)
-        ret = self._metadata_from_response(kwargs, response, start)
+        response = self._client.messages.create(model=model, **kwargs)
+        ret = self._metadata_from_response(model, kwargs, response, start)
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
-        self._llm_cache_set(prompt, llm_kwargs, ret)
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
         return ret
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
+        model_name: str = model.name if model else self.model.name
+        if self.model.name != model_name:
+            logging.info(f"Overriding Anthropic model from {self.model.name} to {model_name}")
+        d = self.generate_metadata(model=model_name, prompt=prompt, llm_kwargs=llm_kwargs)
         return d["output"]
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         from anthropic import RateLimitError, APIConnectionError
 
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
-
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        model_name: str = model.name if model else self.model.name
+        if self.model.name != model_name:
+            logging.info(f"Overriding Anthropic model from {self.model.name} to {model_name}")
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if isinstance(ret, dict):
             return ret["output"]
 
@@ -208,7 +219,7 @@ class Anthropic(LLM):
         response = None
         while not done:
             try:
-                response = await self._async_client.messages.create(model=self.model.value, **kwargs)
+                response = await self._async_client.messages.create(model=model_name, **kwargs)
                 done = True
             except (RateLimitError, APIConnectionError):
                 backoff = INITIAL_BACKOFF * (2**retries)
@@ -216,26 +227,32 @@ class Anthropic(LLM):
                 await asyncio.sleep(backoff + jitter)
                 retries += 1
 
-        ret = self._metadata_from_response(kwargs, response, start)
+        ret = self._metadata_from_response(model_name, kwargs, response, start)
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
-        self._llm_cache_set(prompt, llm_kwargs, ret)
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret["output"]
 
-    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+    def generate_batch(
+        self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> list[str]:
         from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
         from anthropic.types.messages.batch_create_params import Request
 
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
-        cache_hits = [self._llm_cache_get(p, llm_kwargs) for p in prompts]
+        model_name: str = model.name if model else self.model.name
+        if self.model.name != model_name:
+            logging.info(f"Overriding Anthropic model from {self.model.name} to {model_name}")
+
+        cache_hits = [self._llm_cache_get(p, llm_kwargs, model=model_name) for p in prompts]
 
         calls = []
         for p, ch, i in zip(prompts, cache_hits, range(len(prompts))):
             if ch is not None:
                 continue
             kwargs = get_generate_kwargs(p, llm_kwargs)
-            kwargs["model"] = self.model.value
+            kwargs["model"] = model
             kwargs["max_tokens"] = kwargs.get("max_tokens", 1024)
             mparams = MessageCreateParamsNonStreaming(**kwargs)  # type: ignore
             rq = Request(custom_id=str(i), params=mparams)
@@ -254,8 +271,8 @@ class Anthropic(LLM):
                 raise ValueError(f"Call failed: {rs}")
             id = int(rs.custom_id)
             in_kwargs = get_generate_kwargs(prompts[id], llm_kwargs)
-            ret = self._metadata_from_response(in_kwargs, rs.result.message, starttime)
+            ret = self._metadata_from_response(model_name, in_kwargs, rs.result.message, starttime)
             cache_hits[id] = ret
-            self._llm_cache_set(prompts[id], llm_kwargs, ret)
+            self._llm_cache_set(prompts[id], llm_kwargs, ret, model=model_name)
 
         return [ch["output"] for ch in cache_hits]

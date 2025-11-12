@@ -22,6 +22,7 @@ from boto3.session import Session
 if TYPE_CHECKING:
     from neo4j import Auth
     from neo4j.auth_management import AuthManager
+    from sycamore.schema import SchemaV2
 
 from sycamore.connectors.base_writer import BaseDBWriter
 
@@ -796,6 +797,7 @@ class DocSetWriter:
         self,
         path: str,
         filesystem: Optional[FileSystem] = None,
+        include_metadata: bool = False,
         **resource_args,
     ) -> None:
         """
@@ -809,7 +811,31 @@ class DocSetWriter:
             resource_args: Arguments to pass to the underlying execution environment.
         """
 
-        node: Node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
+        node: Node = JsonWriter(
+            self.plan, path, filesystem=filesystem, include_metadata=include_metadata, **resource_args
+        )
+
+        self._maybe_execute(node, True)
+
+    @requires_modules("pyiceberg", extra="iceberg")
+    def iceberg(
+        self,
+        catalog_kwargs: dict[str, Any],
+        schema: "SchemaV2",
+        table_identifier: str,
+        property_root: str = "entity",
+        location: Optional[str] = None,
+    ) -> None:
+        from sycamore.connectors.iceberg.iceberg_writer import IcebergWriter
+
+        node: Node = IcebergWriter(
+            child=self.plan,
+            catalog_kwargs=catalog_kwargs,
+            schema=schema,
+            table_identifier=table_identifier,
+            property_root=property_root,
+            location=location,
+        )
 
         self._maybe_execute(node, True)
 

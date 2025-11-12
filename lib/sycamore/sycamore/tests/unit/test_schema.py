@@ -1,4 +1,5 @@
-from sycamore.schema import SchemaV2, make_property, make_named_property, NamedProperty
+import json
+from sycamore.schema import SchemaV2, make_property, make_named_property, NamedProperty, RegexValidator
 
 single_property_dict_old = {
     "name": "state",
@@ -347,3 +348,45 @@ def test_ziptraverse():
         if v.name in ("start", "end"):
             assert p.name == "years_resident"
             continue
+
+
+def test_validator_json_serialize():
+    r = RegexValidator(regex=r"[0-9]{3}")
+    res, _ = r.validate_property("123")
+    assert res
+
+    js = json.dumps(r.model_dump())
+    r2 = RegexValidator.model_validate_json(js)
+
+    assert r.regex == r2.regex
+    assert r.allowable_types == r2.allowable_types
+
+
+# In order to facilitate compatibility, if deserialization fails, we fallback
+# to the old schema format. In the past, this could cause weird error messages
+# if you passed in a malformed schema, as you would always get an exception
+# message from the old schema. This test verifies that we now raise the
+# exception from the new schema. This could still be confusing if you have a
+# malformed old schema, but given that we eventually expect people to use the
+# new schema, this changes seems directionally correct.
+def test_exception_fallback_message():
+    bad_schema = {
+        "properties": [
+            {
+                "name": "state",
+                "type": {
+                    "type": "strng",  # misspelled string
+                    "description": "Two-letter state code",
+                    "examples": ["NC"],
+                },
+            }
+        ]
+    }
+
+    try:
+        _ = SchemaV2.model_validate(bad_schema)
+    except Exception as e:
+        assert "strng" in str(e), "Exception should mention the invalid type 'strng'"
+    else:
+        # The old schema deserialization error is for missing 'field_type'.
+        assert False, "Expected exception was not raised for invalid schema"

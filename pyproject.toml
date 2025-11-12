@@ -50,6 +50,7 @@ sycamore-ai = { path = "lib/sycamore", develop = true, extras = [
     "legacy-partitioners",
     "anthropic",
     "google-genai",
+    "iceberg",
 ] }
 integration = { path = "apps/integration", develop = true }
 sycamore-poetry-lock = { path = "lib/poetry-lock", develop = true }
@@ -59,11 +60,11 @@ black = ">=25.1"
 pre-commit = ">=4.2.0"
 mypy = ">=1.15.0"
 nbmake = "^1.4.5"
-pip = "^24.2"
+pip = "^25.3"
 devtools = "^0.12"
 
 [tool.poetry.group.notebook.dependencies]
-jupyterlab = "^4.0.11"
+jupyterlab = "^4.4.8"
 jupyter-lsp = "^2.2.2"
 jupyter-core = "^5.8.1"
 ipywidgets = "^8.1.0"

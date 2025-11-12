@@ -36,6 +36,18 @@ def test_gemini_defaults():
     assert len(res) > 0
 
 
+def test_gemini_latest():
+    llms = [Gemini(GeminiModels.GEMINI_FLASH_LATEST), Gemini(GeminiModels.GEMINI_FLASH_LITE_LATEST)]
+    prompt = RenderedPrompt(
+        messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+    )
+
+    for llm in llms:
+        res = llm.generate(prompt=prompt, llm_kwargs={})
+        print(f"{llm.model.name}:\n{res}")
+        assert len(res) > 0
+
+
 @pytest.mark.anyio
 async def test_gemini_async_defaults():
     llm = Gemini(GeminiModels.GEMINI_2_FLASH)
@@ -46,6 +58,19 @@ async def test_gemini_async_defaults():
     res = await llm.generate_async(prompt=prompt, llm_kwargs={})
 
     assert len(res) > 0
+
+
+@pytest.mark.anyio
+async def test_gemini_async_with_latest():
+    llms = [Gemini(GeminiModels.GEMINI_FLASH_LATEST), Gemini(GeminiModels.GEMINI_FLASH_LITE_LATEST)]
+    prompt = RenderedPrompt(
+        messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+    )
+
+    for llm in llms:
+        res = await llm.generate_async(prompt=prompt, llm_kwargs={})
+        print(f"{llm.model.name}:\n{res}")
+        assert len(res) > 0
 
 
 def test_gemini_messages_defaults():
@@ -159,12 +184,13 @@ def test_cached_gemini_different_models(tmp_path: Path):
 
 
 def test_metadata():
-    llm = Gemini(GeminiModels.GEMINI_2_FLASH)
+    model = GeminiModels.GEMINI_2_FLASH
+    llm = Gemini(model)
     prompt = RenderedPrompt(
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
     )
 
-    res = llm.generate_metadata(prompt=prompt, llm_kwargs={})
+    res = llm.generate_metadata(model=model.value.name, prompt=prompt, llm_kwargs={})
 
     assert "output" in res
     assert "wall_latency" in res
@@ -173,11 +199,24 @@ def test_metadata():
 
 
 def test_default_llm_kwargs():
-    llm = Gemini(GeminiModels.GEMINI_2_5_FLASH_LITE, default_llm_kwargs={"max_output_tokens": 5})
+    model = GeminiModels.GEMINI_2_FLASH_LITE
+    llm = Gemini(model, default_llm_kwargs={"max_output_tokens": 5})
     res = llm.generate_metadata(
+        model=model.value.name,
         prompt=RenderedPrompt(
             messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
         ),
         llm_kwargs={},
     )
     assert res["out_tokens"] <= 5
+
+
+def test_model_override():
+    model = GeminiModels.GEMINI_2_FLASH_LITE
+    llm = Gemini(model, default_llm_kwargs={"max_output_tokens": 5})
+    prompt = RenderedPrompt(
+        messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+    )
+
+    res = llm.generate(prompt=prompt, model=model.value)
+    assert len(res) > 0

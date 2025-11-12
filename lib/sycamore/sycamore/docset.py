@@ -8,7 +8,7 @@ from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
-from sycamore.llms.llms import LLM, LLMMode
+from sycamore.llms.config import LLMMode
 from sycamore.llms.prompts.prompts import SycamorePrompt
 
 from sycamore.plan_nodes import Node, Transform
@@ -28,15 +28,18 @@ from sycamore.utils.deprecate import deprecated
 from sycamore.decorators import experimental
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
-from sycamore.schema import SchemaV2
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
     from sycamore.grouped_data import GroupedData
+    from sycamore.llms.llms import LLM
+    from sycamore.schema import SchemaV2, NamedProperty
     from sycamore.transforms.augment_text import TextAugmentor
     from sycamore.transforms.embed import Embedder
     from sycamore.transforms.extract_table import TableExtractor
     from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
+    from sycamore.transforms.property_extraction.prompts import ExtractionJinjaPrompt
+    from sycamore.transforms.property_extraction.strategy import StepThroughStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -457,7 +460,7 @@ class DocSet:
         return DocSet(self.context, embeddings)
 
     @experimental
-    def extract(self, schema: SchemaV2, llm: LLM) -> "DocSet":
+    def extract(self, schema: "SchemaV2", llm: "LLM") -> "DocSet":
         from sycamore.transforms.property_extraction.extract import Extract
         from sycamore.transforms.property_extraction.strategy import default_stepthrough, default_schema_partition
         from sycamore.transforms.property_extraction.prompts import default_prompt
@@ -475,9 +478,11 @@ class DocSet:
     @experimental
     def suggest_schema(
         self,
-        llm: LLM,
-        existing_schema: Optional[SchemaV2] = None,
+        llm: "LLM",
+        existing_schema: Optional["SchemaV2"] = None,
         reduce_fn: Optional[Callable[[list[Document]], Document]] = None,
+        prompt: Optional["ExtractionJinjaPrompt"] = None,
+        step_through_strategy: Optional["StepThroughStrategy"] = None,
     ) -> "SchemaV2":
         """
         Extracts a common schema from the documents in this DocSet.
@@ -497,16 +502,22 @@ class DocSet:
                 docset = context.read.binary(paths, binary_format="pdf").partition(partitioner=ArynPartitioner())
                 schema = docset.suggest_schema(llm=openai_llm, reduce_fn=intersection_of_fields)
         """
+        from sycamore.schema import SchemaV2
         from sycamore.transforms.property_extraction.extract import SchemaExtract
-        from sycamore.transforms.property_extraction.strategy import BatchElements
         from sycamore.transforms.property_extraction.prompts import _schema_extraction_prompt
         from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields
+        from sycamore.transforms.property_extraction.strategy import BatchElements
 
+        if prompt is None:
+            prompt = _schema_extraction_prompt.fork(element_description="following document text")
+
+        if step_through_strategy is None:
+            step_through_strategy = BatchElements(batch_size=50)
         schema_ext = SchemaExtract(
             self.plan,
-            step_through_strategy=BatchElements(batch_size=50),
+            step_through_strategy=step_through_strategy,
             llm=llm,
-            prompt=_schema_extraction_prompt,
+            prompt=prompt,
             existing_schema=existing_schema,
         )
         if reduce_fn is None:
@@ -517,6 +528,19 @@ class DocSet:
             for named_prop in existing_schema.properties:
                 schema.properties.append(named_prop)
 
+        deduped: dict[str, NamedProperty] = {}
+        unique_props: list[NamedProperty] = []
+        for prop in schema.properties:
+            if prop.name not in deduped:
+                deduped[prop.name] = prop
+                unique_props.append(prop)
+            else:
+                if prop != deduped[prop.name]:
+                    unique_props.append(prop)
+                else:
+                    logger.info(f"Removing a duplicate property {prop.name}")
+
+        schema.properties = unique_props
         return schema
 
     def extract_document_structure(self, structure: DocumentStructure, **kwargs):
@@ -990,6 +1014,24 @@ class DocSet:
         mapping = Map(self.plan, f=f, **resource_args)
         return DocSet(self.context, mapping)
 
+    def apply(self, f: Callable[[Document], Any], **kwargs) -> "DocSet":
+        """
+        Applies a function to all documents in the docset. Returns the input documents,
+        so f is useful for functions that do in-place mutations.
+
+        Args:
+            f: The function to apply to each document. Return values are dropped.
+
+        """
+        from sycamore.transforms.base import rename, get_name_from_callable
+
+        @rename(f"wrap_{get_name_from_callable(f)}")
+        def wrap(doc: Document) -> Document:
+            f(doc)
+            return doc
+
+        return self.map(wrap)
+
     def kmeans(
         self,
         K: int,
@@ -1073,7 +1115,7 @@ class DocSet:
         return DocSet(self.context, flat_map)
 
     def llm_map(
-        self, prompt: SycamorePrompt, output_field: str, llm: LLM, llm_mode: LLMMode = LLMMode.SYNC, **kwargs
+        self, prompt: SycamorePrompt, output_field: str, llm: "LLM", llm_mode: LLMMode = LLMMode.SYNC, **kwargs
     ) -> "DocSet":
         """
         Renders and runs a prompt on every Document of the DocSet.
@@ -1090,7 +1132,7 @@ class DocSet:
         return DocSet(self.context, llm_map)
 
     def llm_map_elements(
-        self, prompt: SycamorePrompt, output_field: str, llm: LLM, llm_mode: LLMMode = LLMMode.SYNC, **kwargs
+        self, prompt: SycamorePrompt, output_field: str, llm: "LLM", llm_mode: LLMMode = LLMMode.SYNC, **kwargs
     ) -> "DocSet":
         """
         Renders and runs a prompt on every Element of every Document in the DocSet.
@@ -1154,7 +1196,7 @@ class DocSet:
     @context_params(OperationTypes.TEXT_SIMILARITY)
     def llm_filter(
         self,
-        llm: LLM,
+        llm: "LLM",
         new_field: str,
         prompt: SycamorePrompt,
         field: str = "text_representation",
@@ -1435,7 +1477,7 @@ class DocSet:
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def top_k(
         self,
-        llm: Optional[LLM],
+        llm: Optional["LLM"],
         field: str,
         k: Optional[int],
         descending: bool = True,
@@ -1479,7 +1521,7 @@ class DocSet:
         return docset
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
-    def llm_generate_group(self, llm: LLM, instruction: str, field: str, **kwargs):
+    def llm_generate_group(self, llm: "LLM", instruction: str, field: str, **kwargs):
         # Not all documents will have a value for the given field, so we filter those out.
         from sycamore.llms.prompts.default_prompts import LlmClusterEntityFormGroupsMessagesPrompt
 
@@ -1503,7 +1545,7 @@ class DocSet:
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def llm_clustering(
-        self, llm: LLM, groups: list[str], field: str, new_field: str = "_autogen_ClusterAssignment", **kwargs
+        self, llm: "LLM", groups: list[str], field: str, new_field: str = "_autogen_ClusterAssignment", **kwargs
     ) -> "DocSet":
         """
         Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
@@ -1538,7 +1580,7 @@ class DocSet:
         return docset
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
-    def llm_cluster_entity(self, llm: LLM, instruction: str, field: str, **kwargs) -> "DocSet":
+    def llm_cluster_entity(self, llm: "LLM", instruction: str, field: str, **kwargs) -> "DocSet":
         """
         Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
 
@@ -1631,6 +1673,20 @@ class DocSet:
         joined_docset = self.filter(lambda doc: filter_fn_join(doc))
 
         return joined_docset
+
+    def union(self, *others: "DocSet") -> "DocSet":
+        """Concatenate other docsets to this docset,
+
+        Args:
+            others: other docsets to Union
+
+        Returns:
+            A Docset containing all the documents in this and the unioned docsets
+        """
+
+        from sycamore.transforms.union import Union
+
+        return DocSet(self.context, Union(self, *others))
 
     @property
     def write(self) -> "DocSetWriter":

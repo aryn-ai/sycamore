@@ -329,8 +329,9 @@ class SchemaExtract(MapBatch):
                     rendered = self._prompt.render_multiple_elements(elements, document)
                     result = await self._llm.generate_async(prompt=rendered)
                     extracted = extract_json(result)
+                    for p in extracted:
+                        NamedProperty.model_validate(p)
                     candidate = {ii["name"]: ii for ii in extracted}
-                    Schema(properties=[*candidate.values()])
                     return candidate
                 except (ValueError, ValidationError) as exc:
                     _logger.exception(exc)

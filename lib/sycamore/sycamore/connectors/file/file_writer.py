@@ -1,4 +1,5 @@
 import datetime
+from datetime import timedelta
 
 from sycamore.data import Document, mkdocid
 from sycamore.plan_nodes import Node, Write
@@ -44,6 +45,8 @@ class JSONEncodeWithUserDict(json.JSONEncoder):
             ),
         ):
             return obj.isoformat()
+        elif isinstance(obj, timedelta):
+            return obj.total_seconds()
         else:
             return json.JSONEncoder.default(self, obj)
 

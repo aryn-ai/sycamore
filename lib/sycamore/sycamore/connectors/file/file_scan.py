@@ -415,6 +415,7 @@ class JsonDocumentScan(FileScan):
 
     @staticmethod
     def json_as_document(json: dict[str, Any]) -> list[dict[str, Any]]:
+        doc: Optional[Document | MetadataDocument] = None
         if "metadata" in json:
             doc = MetadataDocument()
         else:

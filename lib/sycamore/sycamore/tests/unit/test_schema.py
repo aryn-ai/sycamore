@@ -287,7 +287,7 @@ def test_type_alias():
     str_prop = make_property(type="str")
     assert str_prop.type == "string", "Type alias 'str' should be converted to 'string'"
 
-    bool_prop = make_property(type="booleann")
+    bool_prop = make_property(type="boolean")
     assert bool_prop.type == "bool", "Type alias 'boolean' should be converted to 'bool'"
 
     obj_prop = make_property(type="struct", properties=[make_named_property(name="field", type="str")])

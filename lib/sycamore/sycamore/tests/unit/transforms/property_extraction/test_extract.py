@@ -273,7 +273,8 @@ class TestExtract:
         # Incoming properties are assumed to be valid unless they say otherwise
         assert extracted[0].field_to_value("properties.entity_metadata.doc_id").is_valid
         assert not extracted[1].field_to_value("properties.entity_metadata.doc_id").is_valid
-        assert llm.ncalls == 1 + 3 + 3
+        # assert llm.ncalls == 1 + 3 + 3
+        assert llm.ncalls == 3 + 3 + 3
 
     def test_extract_validator_no_retry_null(self):
         docs = [

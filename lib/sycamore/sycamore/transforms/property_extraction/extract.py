@@ -12,7 +12,7 @@ from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,
     SchemaUpdateStrategy,
-    SchemaUpdateResult,
+    # SchemaUpdateResult,
     StepThroughStrategy,
     TakeFirstTrimSchema,
 )
@@ -124,19 +124,36 @@ class Extract(MapBatch):
         if update.completed:
             return result_dict
 
-        for elements in self._step_through.step_through(document):
-            update = await self.extract_schema_partition_from_element_batch(
-                document, elements, schema_part, result_dict
-            )
-            result_dict = update.out_fields
-            schema_part = update.out_schema
-            if update.completed:
-                return result_dict
-        return result_dict
+        coros = [
+            self.extract_schema_partition_from_element_batch(document, elements, schema_part)
+            for elements in self._step_through.step_through(document)
+        ]
+        all_results = await asyncio.gather(*coros)
+        new_fields: dict[str, RichProperty] = {}
+        for r in reversed(all_results):
+            new_fields.update(r.value)
+
+        update = self._schema_update.update_schema(
+            in_schema=schema_part, new_fields=new_fields, existing_fields=result_dict
+        )
+        return update.out_fields
+
+        # for elements in self._step_through.step_through(document):
+        #    update = await self.extract_schema_partition_from_element_batch(
+        #        document, elements, schema_part, result_dict
+        #    )
+        #    result_dict = update.out_fields
+        #    schema_part = update.out_schema
+        #    if update.completed:
+        #        return result_dict
+        # return result_dict
 
     async def extract_schema_partition_from_element_batch(
-        self, document: Document, elements: list[Element], schema_part: Schema, result_dict: dict[str, RichProperty]
-    ) -> SchemaUpdateResult:
+        self,
+        document: Document,
+        elements: list[Element],
+        schema_part: Schema,  # result_dict: dict[str, RichProperty]
+    ) -> RichProperty:  # SchemaUpdateResult:
         sch: Optional[Schema] = schema_part
         retries = 0
 
@@ -175,10 +192,12 @@ class Extract(MapBatch):
                 element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
             )
         working_results = refine_attribution(working_results, document)
-        update = self._schema_update.update_schema(
-            in_schema=schema_part, new_fields=working_results.value, existing_fields=result_dict
-        )
-        return update
+        return working_results
+
+        # update = self._schema_update.update_schema(
+        #    in_schema=schema_part, new_fields=working_results.value, existing_fields=result_dict
+        # )
+        # return update
 
     def validate_prediction(self, schema_part: Schema, prediction: RichProperty) -> Optional[Schema]:
         out_sch_obj = schema_part.model_copy(deep=True).as_object_property()

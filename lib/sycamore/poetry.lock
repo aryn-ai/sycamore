@@ -6911,15 +6911,15 @@ pillow = "*"
 
 [[package]]
 name = "pdfminer-six"
-version = "20250506"
+version = "20251107"
 description = "PDF parser and analyzer"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
 markers = "extra == \"local-inference\" or extra == \"legacy-partitioners\""
 files = [
-    {file = "pdfminer_six-20250506-py3-none-any.whl", hash = "sha256:d81ad173f62e5f841b53a8ba63af1a4a355933cfc0ffabd608e568b9193909e3"},
-    {file = "pdfminer_six-20250506.tar.gz", hash = "sha256:b03cc8df09cf3c7aba8246deae52e0bca7ebb112a38895b5e1d4f5dd2b8ca2e7"},
+    {file = "pdfminer_six-20251107-py3-none-any.whl", hash = "sha256:c09df33e4cbe6b26b2a79248a4ffcccafaa5c5d39c9fff0e6e81567f165b5401"},
+    {file = "pdfminer_six-20251107.tar.gz", hash = "sha256:5fb0c553799c591777f22c0c72b77fc2522d7d10c70654e25f4c5f1fd996e008"},
 ]
 
 [package.dependencies]
@@ -12475,4 +12475,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "f178168b21e7ff5268cbb2f5af11a6e72437becefd5a1ce4b7cf1bb33e43e162"
+content-hash = "ff714969a57bdfd6afe01b8a3ab904918119eb40623d0458cee150810ac88719"

@@ -142,10 +142,8 @@ class Extract(MapBatch):
                 for elements in self._step_through.step_through(document)
             ]
             all_results = await asyncio.gather(*coros)
-            # new_fields: dict[str, RichProperty] = {}
             for r in all_results:
-                # new_fields.update(r.value)
-                # _logger.info(f"Processing one result: {r}")
+                assert isinstance(r, RichProperty)
                 update = self._schema_update.update_schema(
                     in_schema=schema_part, new_fields=r.value, existing_fields=result_dict
                 )
@@ -154,7 +152,7 @@ class Extract(MapBatch):
             return update.out_fields
 
         for elements in self._step_through.step_through(document):
-            update = await self.extract_schema_partition_from_element_batch(
+            update = await self.extract_schema_partition_from_element_batch(  # type: ignore[assignment]
                 document, elements, schema_part, result_dict
             )
             result_dict = update.out_fields

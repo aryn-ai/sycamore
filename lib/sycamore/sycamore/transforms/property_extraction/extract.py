@@ -1,4 +1,5 @@
-from typing import Optional, Any
+from enum import Enum
+from typing import Optional, Any, Union
 import asyncio
 import logging
 import json
@@ -12,7 +13,7 @@ from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,
     SchemaUpdateStrategy,
-    # SchemaUpdateResult,
+    SchemaUpdateResult,
     StepThroughStrategy,
     TakeFirstTrimSchema,
 )
@@ -31,6 +32,12 @@ from sycamore.utils.zip_traverse import zip_traverse
 _logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
+MAX_LLM_RETRIES = 3
+
+
+class ExtractProcessingMode(str, Enum):
+    SEQUENTIAL = "sequential"
+    PARALLEL = "parallel"
 
 
 class Extract(MapBatch):
@@ -46,6 +53,7 @@ class Extract(MapBatch):
         prompt: SycamorePrompt,
         schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchema(),
         output_pydantic_models: bool = True,
+        processing_mode: ExtractProcessingMode = ExtractProcessingMode.PARALLEL,
     ):
         super().__init__(node, f=self.extract)
         self._schema = schema
@@ -55,6 +63,10 @@ class Extract(MapBatch):
         self._llm = llm
         self._prompt = prompt
         self._output_pydantic = output_pydantic_models
+        self.processing_mode: ExtractProcessingMode = processing_mode
+
+        print(f"Got processing mode: {self.processing_mode}")
+
         # Try calling the render method I need at constructor to make sure it's implemented
         try:
             self._prompt.render_multiple_elements(elts=[], doc=Document())
@@ -124,36 +136,40 @@ class Extract(MapBatch):
         if update.completed:
             return result_dict
 
-        coros = [
-            self.extract_schema_partition_from_element_batch(document, elements, schema_part)
-            for elements in self._step_through.step_through(document)
-        ]
-        all_results = await asyncio.gather(*coros)
-        new_fields: dict[str, RichProperty] = {}
-        for r in reversed(all_results):
-            new_fields.update(r.value)
+        if self.processing_mode == ExtractProcessingMode.PARALLEL:
+            coros = [
+                self.extract_schema_partition_from_element_batch(document, elements, schema_part, result_dict)
+                for elements in self._step_through.step_through(document)
+            ]
+            all_results = await asyncio.gather(*coros)
+            # new_fields: dict[str, RichProperty] = {}
+            for r in all_results:
+                # new_fields.update(r.value)
+                # _logger.info(f"Processing one result: {r}")
+                update = self._schema_update.update_schema(
+                    in_schema=schema_part, new_fields=r.value, existing_fields=result_dict
+                )
+                result_dict = update.out_fields
 
-        update = self._schema_update.update_schema(
-            in_schema=schema_part, new_fields=new_fields, existing_fields=result_dict
-        )
-        return update.out_fields
+            return update.out_fields
 
-        # for elements in self._step_through.step_through(document):
-        #    update = await self.extract_schema_partition_from_element_batch(
-        #        document, elements, schema_part, result_dict
-        #    )
-        #    result_dict = update.out_fields
-        #    schema_part = update.out_schema
-        #    if update.completed:
-        #        return result_dict
-        # return result_dict
+        for elements in self._step_through.step_through(document):
+            update = await self.extract_schema_partition_from_element_batch(
+                document, elements, schema_part, result_dict
+            )
+            result_dict = update.out_fields
+            schema_part = update.out_schema
+            if update.completed:
+                return result_dict
+        return result_dict
 
     async def extract_schema_partition_from_element_batch(
         self,
         document: Document,
         elements: list[Element],
-        schema_part: Schema,  # result_dict: dict[str, RichProperty]
-    ) -> RichProperty:  # SchemaUpdateResult:
+        schema_part: Schema,
+        result_dict: dict[str, RichProperty],
+    ) -> Union[RichProperty | SchemaUpdateResult]:
         sch: Optional[Schema] = schema_part
         retries = 0
 
@@ -163,9 +179,19 @@ class Extract(MapBatch):
             prompt = self._prompt.fork(schema=sch_str)
 
             rendered = prompt.render_multiple_elements(elements, document)
-            result = await self._llm.generate_async(prompt=rendered)
-            rd = extract_json(result)
-            rp = RichProperty.from_prediction(rd)
+            retries = 0
+            rp: Optional[RichProperty] = None
+            while retries < MAX_LLM_RETRIES:
+                try:
+                    result = await self._llm.generate_async(prompt=rendered)
+                    rd = extract_json(result)
+                    rp = RichProperty.from_prediction(rd)
+                    break
+                except (ValueError, ValidationError) as e:
+                    _logger.exception(f"Failed to get a valid JSON response: {e}")
+                    retries += 1
+
+            assert rp is not None, f"Failed to get a valid JSON response after {retries} calls."
 
             for k, (v_new, v_work, prop), (p_new, p_work, prop_p) in zip_traverse(
                 rp, working_results, sch.as_object_property(), order="before"
@@ -192,12 +218,14 @@ class Extract(MapBatch):
                 element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
             )
         working_results = refine_attribution(working_results, document)
-        return working_results
 
-        # update = self._schema_update.update_schema(
-        #    in_schema=schema_part, new_fields=working_results.value, existing_fields=result_dict
-        # )
-        # return update
+        if self.processing_mode == ExtractProcessingMode.PARALLEL:
+            return working_results
+
+        update = self._schema_update.update_schema(
+            in_schema=schema_part, new_fields=working_results.value, existing_fields=result_dict
+        )
+        return update
 
     def validate_prediction(self, schema_part: Schema, prediction: RichProperty) -> Optional[Schema]:
         out_sch_obj = schema_part.model_copy(deep=True).as_object_property()

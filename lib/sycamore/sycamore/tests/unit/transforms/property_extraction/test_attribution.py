@@ -1,10 +1,12 @@
 from sycamore.transforms.property_extraction.types import RichProperty, AttributionValue
-from sycamore.transforms.property_extraction.attribution import refine_attribution
+from sycamore.transforms.property_extraction.attribution import TextMatchAttributionStrategy
 from sycamore.data import Document, Element
 from sycamore.utils.zip_traverse import zip_traverse
 
 
 def test_refine_attribution():
+    strategy = TextMatchAttributionStrategy()
+
     element_texts = [
         "Extreme caution required Subject Page ref. As long as the airbag is activated, persons with disability are advised not to travel in the Child safety Page"
         " 40 vehicle in order to avoid the risk of serious injuries or death, even in minor crashes. Transport of person with disability The airbag is not a"
@@ -49,7 +51,7 @@ def test_refine_attribution():
         )
     richprops = rp.value
 
-    atta = refine_attribution(richprops["a"], doc).attribution
+    atta = strategy.refine_attribution(richprops["a"], doc).attribution
     assert atta is not None
     assert atta.element_indices == [5]
     assert atta.page == 1
@@ -57,7 +59,7 @@ def test_refine_attribution():
     assert atta.text_match_score == 1.0
     assert atta.text_span == (49, 68)
 
-    attb = refine_attribution(richprops["b"], doc).attribution
+    attb = strategy.refine_attribution(richprops["b"], doc).attribution
     assert attb is not None
     assert attb.element_indices == [10]
     assert attb.page == 2
@@ -66,7 +68,7 @@ def test_refine_attribution():
     assert attb.text_match_score < 1.0
     assert attb.text_span == (0, 7)
 
-    pc = refine_attribution(richprops["c"], doc)
+    pc = strategy.refine_attribution(richprops["c"], doc)
     assert pc.attribution is None
 
     pd = pc.value["d"]

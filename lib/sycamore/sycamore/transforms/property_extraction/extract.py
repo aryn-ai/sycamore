@@ -24,7 +24,7 @@ from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe
 from sycamore.transforms.property_extraction.utils import stitch_together_objects, dedup_examples
-from sycamore.transforms.property_extraction.attribution import refine_attribution
+from sycamore.transforms.property_extraction.attribution import AttributionStrategy, TextMatchAttributionStrategy
 from sycamore.transforms.property_extraction.prompts import format_schema_v2
 from sycamore.utils.zip_traverse import zip_traverse
 
@@ -46,6 +46,7 @@ class Extract(MapBatch):
         prompt: SycamorePrompt,
         schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchema(),
         output_pydantic_models: bool = True,
+        attribution_strategy: AttributionStrategy = TextMatchAttributionStrategy(),
     ):
         super().__init__(node, f=self.extract)
         self._schema = schema
@@ -55,6 +56,8 @@ class Extract(MapBatch):
         self._llm = llm
         self._prompt = prompt
         self._output_pydantic = output_pydantic_models
+        self._attribution = attribution_strategy
+
         # Try calling the render method I need at constructor to make sure it's implemented
         try:
             self._prompt.render_multiple_elements(elts=[], doc=Document())
@@ -148,7 +151,12 @@ class Extract(MapBatch):
             rendered = prompt.render_multiple_elements(elements, document)
             result = await self._llm.generate_async(prompt=rendered)
             rd = extract_json(result)
-            rp = RichProperty.from_prediction(rd)
+
+            rp = self._attribution.prediction_to_rich_property(rd)
+            # rp = RichProperty.from_prediction(
+            #     rd, single_prop_fn=self._attribution.process_prediction)
+
+            print(f"Extracted schema partition prediction: {rp}")
 
             for k, (v_new, v_work, prop), (p_new, p_work, prop_p) in zip_traverse(
                 rp, working_results, sch.as_object_property(), order="before"
@@ -164,17 +172,21 @@ class Extract(MapBatch):
                 # If this is an object prop which does not exist yet, add it to the parent
                 if v_new is not None and v_new.type is DataType.OBJECT and v_work is None:
                     p_work.value[k] = RichProperty(
-                        name=k if isinstance(k, str) else None, type=DataType.OBJECT, value={}
+                        name=k if isinstance(k, str) else None,
+                        type=DataType.OBJECT,
+                        value={},
+                        attribution=v_new.attribution,
                     )
 
             sch = self.validate_prediction(sch, working_results)
             retries += 1
 
         for k, (v,), (p,) in zip_traverse(working_results):
-            v.attribution = AttributionValue(
-                element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
-            )
-        working_results = refine_attribution(working_results, document)
+            if v.attribution is None:
+                v.attribution = AttributionValue(
+                    element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
+                )
+        working_results = self._attribution.refine_attribution(working_results, document)
         update = self._schema_update.update_schema(
             in_schema=schema_part, new_fields=working_results.value, existing_fields=result_dict
         )

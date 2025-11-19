@@ -137,11 +137,26 @@ class Extract(MapBatch):
             return result_dict
 
         if self.processing_mode == ExtractProcessingMode.PARALLEL:
+            # coros = [
+            #    self.extract_schema_partition_from_element_batch(document, elements, schema_part, result_dict)
+            #    for elements in self._step_through.step_through(document)
+            # ]
+            # all_results = await asyncio.gather(*coros)
+
+            max_concurrent_calls = 3
+            # all_results = []
+            semaphore = asyncio.Semaphore(max_concurrent_calls)
+
+            async def sem_task(coro):
+                async with semaphore:
+                    return await coro
+
             coros = [
-                self.extract_schema_partition_from_element_batch(document, elements, schema_part, result_dict)
+                sem_task(self.extract_schema_partition_from_element_batch(document, elements, schema_part, result_dict))
                 for elements in self._step_through.step_through(document)
             ]
             all_results = await asyncio.gather(*coros)
+
             for r in all_results:
                 assert isinstance(r, RichProperty)
                 update = self._schema_update.update_schema(

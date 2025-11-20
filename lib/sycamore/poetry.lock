@@ -6911,15 +6911,15 @@ pillow = "*"
 
 [[package]]
 name = "pdfminer-six"
-version = "20250506"
+version = "20251107"
 description = "PDF parser and analyzer"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
 markers = "extra == \"local-inference\" or extra == \"legacy-partitioners\""
 files = [
-    {file = "pdfminer_six-20250506-py3-none-any.whl", hash = "sha256:d81ad173f62e5f841b53a8ba63af1a4a355933cfc0ffabd608e568b9193909e3"},
-    {file = "pdfminer_six-20250506.tar.gz", hash = "sha256:b03cc8df09cf3c7aba8246deae52e0bca7ebb112a38895b5e1d4f5dd2b8ca2e7"},
+    {file = "pdfminer_six-20251107-py3-none-any.whl", hash = "sha256:c09df33e4cbe6b26b2a79248a4ffcccafaa5c5d39c9fff0e6e81567f165b5401"},
+    {file = "pdfminer_six-20251107.tar.gz", hash = "sha256:5fb0c553799c591777f22c0c72b77fc2522d7d10c70654e25f4c5f1fd996e008"},
 ]
 
 [package.dependencies]
@@ -10041,14 +10041,14 @@ test = ["Cython", "array-api-strict (>=2.3.1)", "asv", "gmpy2", "hypothesis (>=6
 
 [[package]]
 name = "scrapy"
-version = "2.12.0"
+version = "2.13.4"
 description = "A high-level Web Crawling and Web Scraping framework"
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "Scrapy-2.12.0-py2.py3-none-any.whl", hash = "sha256:c33e2dc7da42e727390bacb32dd9938a54ac210fa71972b5c392754f478669cd"},
-    {file = "scrapy-2.12.0.tar.gz", hash = "sha256:d66d6e76009b12447604196875a463b61d10721140032a8084a0a52df7f4788f"},
+    {file = "scrapy-2.13.4-py3-none-any.whl", hash = "sha256:9bf36700aefa4983cc48b2cb0e1564161a340e19f73862778e2ed44ec5bbde6a"},
+    {file = "scrapy-2.13.4.tar.gz", hash = "sha256:e09bce40c56b56f9f86b0d078a0e5cdd08283c83076170ce7a8eec7189ac2493"},
 ]
 
 [package.dependencies]
@@ -10061,15 +10061,15 @@ lxml = ">=4.6.0"
 packaging = "*"
 parsel = ">=1.5.0"
 protego = ">=0.1.15"
-PyDispatcher = {version = ">=2.0.5", markers = "platform_python_implementation == \"CPython\""}
-pyOpenSSL = ">=22.0.0"
-PyPyDispatcher = {version = ">=2.1.0", markers = "platform_python_implementation == \"PyPy\""}
+pydispatcher = {version = ">=2.0.5", markers = "platform_python_implementation == \"CPython\""}
+pyopenssl = ">=22.0.0"
+pypydispatcher = {version = ">=2.1.0", markers = "platform_python_implementation == \"PyPy\""}
 queuelib = ">=1.4.2"
 service-identity = ">=18.1.0"
 tldextract = "*"
-Twisted = ">=21.7.0"
+twisted = ">=21.7.0,<=25.5.0"
 w3lib = ">=1.17.0"
-"zope.interface" = ">=5.1.0"
+zope-interface = ">=5.1.0"
 
 [[package]]
 name = "send2trash"
@@ -10655,7 +10655,7 @@ pytest = "7.4.0"
 ray = "^2.49.1"
 requests = "^2.32.4"
 scipy = "^1.15.0"
-scrapy = ">=2.11.2"
+scrapy = ">=2.13.4"
 setuptools = ">=78.1.1"
 tornado = ">=6.5.0"
 weaviate-client = "^4.16.10"
@@ -12475,4 +12475,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "f178168b21e7ff5268cbb2f5af11a6e72437becefd5a1ce4b7cf1bb33e43e162"
+content-hash = "ff714969a57bdfd6afe01b8a3ab904918119eb40623d0458cee150810ac88719"

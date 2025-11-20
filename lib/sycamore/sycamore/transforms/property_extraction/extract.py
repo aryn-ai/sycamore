@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Optional, Any, Protocol
 import asyncio
 import logging
@@ -37,22 +36,17 @@ MAX_LLM_RETRIES = 3
 MAX_CONCURRENT_CALLS = 20
 
 
-class ExtractProcessingMode(str, Enum):
-    SEQUENTIAL = "sequential"
-    PARALLEL = "parallel"
-
-
 class ProcessingMode(Protocol):
     async def extract_schema_partition_from_document(
-        self, document: Document, schema_part: Schema, result_dict, extract_node: "Extract"
+        self, document: Document, schema_part: Schema, result_dict: dict[str, RichProperty], extract_node: "Extract"
     ) -> dict[str, RichProperty]:
-        """"""
+        """Extract a dict of property key to RichProperty on a document against a schema part."""
         ...
 
 
 class SerialBatches(ProcessingMode):
     async def extract_schema_partition_from_document(
-        self, document: Document, schema_part: Schema, result_dict, extract_node: "Extract"
+        self, document: Document, schema_part: Schema, result_dict: dict[str, RichProperty], extract_node: "Extract"
     ) -> dict[str, RichProperty]:
 
         for elements in extract_node._step_through.step_through(document):
@@ -67,14 +61,17 @@ class SerialBatches(ProcessingMode):
 
 
 class ParallelBatches(ProcessingMode):
+    def __init__(self, max_concurrency: int = MAX_CONCURRENT_CALLS):
+        self.semaphore = asyncio.Semaphore(max_concurrency)
+
     async def extract_schema_partition_from_document(
-        self, document: Document, schema_part: Schema, result_dict, extract_node: "Extract"
+        self, document: Document, schema_part: Schema, result_dict: dict[str, RichProperty], extract_node: "Extract"
     ) -> dict[str, RichProperty]:
 
         _logger.info("Running in parallel batch mode")
 
         coros = [
-            sem_task(extract_node.get_working_results(document, elements, schema_part), extract_node._semaphore)
+            sem_task(extract_node.get_working_results(document, elements, schema_part), self.semaphore)
             for elements in extract_node._step_through.step_through(document)
         ]
         all_results = await asyncio.gather(*coros)
@@ -102,8 +99,7 @@ class Extract(MapBatch):
         prompt: SycamorePrompt,
         schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchema(),
         output_pydantic_models: bool = True,
-        processing_mode: ExtractProcessingMode = ExtractProcessingMode.SEQUENTIAL,
-        per_batch_concurrency: int = MAX_CONCURRENT_CALLS,
+        batch_processing_mode: ProcessingMode = SerialBatches(),
     ):
         super().__init__(node, f=self.extract)
         self._schema = schema
@@ -113,11 +109,7 @@ class Extract(MapBatch):
         self._llm = llm
         self._prompt = prompt
         self._output_pydantic = output_pydantic_models
-        self._semaphore = None
-        self._batches: ProcessingMode = SerialBatches()
-        if processing_mode == ExtractProcessingMode.PARALLEL:
-            self._batches = ParallelBatches()
-            self._semaphore = asyncio.Semaphore(per_batch_concurrency)
+        self._batches = batch_processing_mode
 
         # Try calling the render method I need at constructor to make sure it's implemented
         try:

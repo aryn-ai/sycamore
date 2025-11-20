@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Any, Union
+from typing import Optional, Any, Protocol
 import asyncio
 import logging
 import json
@@ -23,7 +23,7 @@ from sycamore.transforms.property_extraction.utils import remove_keys_recursive
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
-from sycamore.utils.threading import run_coros_threadsafe
+from sycamore.utils.threading import run_coros_threadsafe, sem_task
 from sycamore.transforms.property_extraction.utils import stitch_together_objects, dedup_examples
 from sycamore.transforms.property_extraction.attribution import refine_attribution
 from sycamore.transforms.property_extraction.prompts import format_schema_v2
@@ -34,10 +34,59 @@ _logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
 MAX_LLM_RETRIES = 3
 
+MAX_CONCURRENT_CALLS = 20
+
 
 class ExtractProcessingMode(str, Enum):
     SEQUENTIAL = "sequential"
     PARALLEL = "parallel"
+
+
+class ProcessingMode(Protocol):
+    async def extract_schema_partition_from_document(
+        self, document: Document, schema_part: Schema, result_dict, extract_node: "Extract"
+    ) -> dict[str, RichProperty]:
+        """"""
+        ...
+
+
+class SerialBatches(ProcessingMode):
+    async def extract_schema_partition_from_document(
+        self, document: Document, schema_part: Schema, result_dict, extract_node: "Extract"
+    ) -> dict[str, RichProperty]:
+
+        for elements in extract_node._step_through.step_through(document):
+            update = await extract_node.extract_schema_partition_from_element_batch(
+                document, elements, schema_part, result_dict
+            )
+            result_dict = update.out_fields
+            schema_part = update.out_schema
+            if update.completed:
+                return result_dict
+        return result_dict
+
+
+class ParallelBatches(ProcessingMode):
+    async def extract_schema_partition_from_document(
+        self, document: Document, schema_part: Schema, result_dict, extract_node: "Extract"
+    ) -> dict[str, RichProperty]:
+
+        _logger.info("Running in parallel batch mode")
+
+        coros = [
+            sem_task(extract_node.get_working_results(document, elements, schema_part), extract_node._semaphore)
+            for elements in extract_node._step_through.step_through(document)
+        ]
+        all_results = await asyncio.gather(*coros)
+
+        for r in all_results:
+            assert isinstance(r, RichProperty)
+            update = extract_node._schema_update.update_schema(
+                in_schema=schema_part, new_fields=r.value, existing_fields=result_dict
+            )
+            result_dict = update.out_fields
+
+        return update.out_fields
 
 
 class Extract(MapBatch):
@@ -53,7 +102,8 @@ class Extract(MapBatch):
         prompt: SycamorePrompt,
         schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchema(),
         output_pydantic_models: bool = True,
-        processing_mode: ExtractProcessingMode = ExtractProcessingMode.PARALLEL,
+        processing_mode: ExtractProcessingMode = ExtractProcessingMode.SEQUENTIAL,
+        per_batch_concurrency: int = MAX_CONCURRENT_CALLS,
     ):
         super().__init__(node, f=self.extract)
         self._schema = schema
@@ -63,9 +113,11 @@ class Extract(MapBatch):
         self._llm = llm
         self._prompt = prompt
         self._output_pydantic = output_pydantic_models
-        self.processing_mode: ExtractProcessingMode = processing_mode
-
-        print(f"Got processing mode: {self.processing_mode}")
+        self._semaphore = None
+        self._batches: ProcessingMode = SerialBatches()
+        if processing_mode == ExtractProcessingMode.PARALLEL:
+            self._batches = ParallelBatches()
+            self._semaphore = asyncio.Semaphore(per_batch_concurrency)
 
         # Try calling the render method I need at constructor to make sure it's implemented
         try:
@@ -122,6 +174,7 @@ class Extract(MapBatch):
     async def extract_schema_partition(
         self, documents: list[Document], schema_part: Schema
     ) -> list[dict[str, RichProperty]]:
+
         coros = [self.extract_schema_partition_from_document(d, schema_part) for d in documents]
         return await asyncio.gather(*coros)
 
@@ -136,38 +189,7 @@ class Extract(MapBatch):
         if update.completed:
             return result_dict
 
-        if self.processing_mode == ExtractProcessingMode.PARALLEL:
-            max_concurrent_calls = 20
-            semaphore = asyncio.Semaphore(max_concurrent_calls)
-
-            async def sem_task(coro):
-                async with semaphore:
-                    return await coro
-
-            coros = [
-                sem_task(self.extract_schema_partition_from_element_batch(document, elements, schema_part, result_dict))
-                for elements in self._step_through.step_through(document)
-            ]
-            all_results = await asyncio.gather(*coros)
-
-            for r in all_results:
-                assert isinstance(r, RichProperty)
-                update = self._schema_update.update_schema(
-                    in_schema=schema_part, new_fields=r.value, existing_fields=result_dict
-                )
-                result_dict = update.out_fields
-
-            return update.out_fields
-
-        for elements in self._step_through.step_through(document):
-            update = await self.extract_schema_partition_from_element_batch(  # type: ignore[assignment]
-                document, elements, schema_part, result_dict
-            )
-            result_dict = update.out_fields
-            schema_part = update.out_schema
-            if update.completed:
-                return result_dict
-        return result_dict
+        return await self._batches.extract_schema_partition_from_document(document, schema_part, result_dict, self)
 
     async def extract_schema_partition_from_element_batch(
         self,
@@ -175,7 +197,20 @@ class Extract(MapBatch):
         elements: list[Element],
         schema_part: Schema,
         result_dict: dict[str, RichProperty],
-    ) -> Union[RichProperty | SchemaUpdateResult]:
+    ) -> SchemaUpdateResult:
+
+        working_results = await self.get_working_results(document, elements, schema_part)
+        update = self._schema_update.update_schema(
+            in_schema=schema_part, new_fields=working_results.value, existing_fields=result_dict
+        )
+        return update
+
+    async def get_working_results(
+        self,
+        document: Document,
+        elements: list[Element],
+        schema_part: Schema,
+    ) -> RichProperty:
         sch: Optional[Schema] = schema_part
         retries = 0
 
@@ -223,15 +258,7 @@ class Extract(MapBatch):
             v.attribution = AttributionValue(
                 element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
             )
-        working_results = refine_attribution(working_results, document)
-
-        if self.processing_mode == ExtractProcessingMode.PARALLEL:
-            return working_results
-
-        update = self._schema_update.update_schema(
-            in_schema=schema_part, new_fields=working_results.value, existing_fields=result_dict
-        )
-        return update
+        return refine_attribution(working_results, document)
 
     def validate_prediction(self, schema_part: Schema, prediction: RichProperty) -> Optional[Schema]:
         out_sch_obj = schema_part.model_copy(deep=True).as_object_property()

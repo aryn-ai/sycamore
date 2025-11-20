@@ -30,3 +30,8 @@ def run_coros_threadsafe(coros):
     if tls.present():
         tls.get().extend(metadata)
     return results
+
+
+async def sem_task(coro, semaphore):
+    async with semaphore:
+        return await coro

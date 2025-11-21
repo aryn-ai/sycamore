@@ -9,7 +9,12 @@ from sycamore.llms.config import LLMModel
 from sycamore.llms.llms import LLM, LLMMode, FakeLLM
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
 from sycamore.transforms.property_extraction.extract import Extract, ParallelBatches
-from sycamore.transforms.property_extraction.strategy import NoSchemaSplitting, OneElementAtATime, NPagesAtATime
+from sycamore.transforms.property_extraction.strategy import (
+    NoSchemaSplitting,
+    OneElementAtATime,
+    NPagesAtATime,
+    NPagesAtATimeWithOverlap,
+)
 from sycamore.schema import (
     IntProperty,
     NamedProperty,
@@ -559,3 +564,65 @@ class TestExtract:
         )
         extracted = extract.run(docs)
         assert extracted[0].field_to_value("properties.entity.outer.inner") == "value"
+
+    def test_extract_pages_with_overlap(self):
+        doc = Document(
+            doc_id="0",
+            elements=[
+                Element(text_representation="d0e0", properties={"_element_index": 1, "page_number": 1}),
+                Element(text_representation="d0e1", properties={"_element_index": 2, "page_number": 2}),
+                Element(text_representation="d0e2", properties={"_element_index": 3, "page_number": 3}),
+                Element(text_representation="d0e2", properties={"_element_index": 4, "page_number": 4}),
+                Element(text_representation="d0e2", properties={"_element_index": 5, "page_number": 5}),
+                Element(text_representation="d0e2", properties={"_element_index": 6, "page_number": 6}),
+            ],
+            properties={
+                "entity": {"doc_id": "flarglhavn"},
+                "entity_metadata": {
+                    "doc_id": {
+                        "name": "doc_id",
+                        "type": DataType.STRING,
+                        "value": "flarglhavn",
+                        "attribution": {"element_indices": [0], "page": 0, "bbox": [0, 0, 1, 1]},
+                    }
+                },
+            },
+        )
+
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(name="doc_id", type=StringProperty()),
+                NamedProperty(name="missing", type=StringProperty()),
+                NamedProperty(name="telts", type=IntProperty()),
+            ]
+        )
+
+        llm = LocalFakeLLM()
+        step_size = 2
+        extract = Extract(
+            None,
+            schema=schema,
+            step_through_strategy=NPagesAtATime(step_size),
+            schema_partition_strategy=NoSchemaSplitting(),
+            llm=llm,
+            prompt=FakeExtractionPrompt(),
+        )
+
+        extract.run([doc])
+
+        assert llm.ncalls == len(doc.elements) // step_size
+
+        llm = LocalFakeLLM()
+        step_size = 2
+        overlap = 1
+        extract = Extract(
+            None,
+            schema=schema,
+            step_through_strategy=NPagesAtATimeWithOverlap(step_size, overlap=overlap),
+            schema_partition_strategy=NoSchemaSplitting(),
+            llm=llm,
+            prompt=FakeExtractionPrompt(),
+        )
+
+        extract.run([doc])
+        assert llm.ncalls == len(doc.elements) - 1

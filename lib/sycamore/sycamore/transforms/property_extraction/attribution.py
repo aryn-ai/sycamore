@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Any, Optional
 import cydifflib
 
@@ -11,17 +11,28 @@ from sycamore.transforms.property_extraction.types import AttributionValue, Rich
 MAX_FUZZY_FIND_PADDING = 30
 
 
-class AttributionStrategy:
+class AttributionStrategy(ABC):
+    """Class describing how attribution is computed for extracted properties."""
+
     @abstractmethod
     def prediction_to_rich_property(self, prediction: dict[str, Any]) -> RichProperty:
+        """Returns a RichProperty constructed from the given prediction dictionary.
+
+        In many cases this will just be RichProperty.from_prediction, but some
+        strategies may encode attribution information in the prediction
+        dictionary.
+        """
         pass
 
     @abstractmethod
     def refine_attribution(self, prop: RichProperty, doc: Document) -> RichProperty:
+        """Compute the final attribution given the initial RichProperty and the source Document"""
         pass
 
 
 class TextMatchAttributionStrategy(AttributionStrategy):
+    """Attribution strategy that uses text matching on the returned values."""
+
     def prediction_to_rich_property(self, prediction: dict[str, Any]) -> RichProperty:
         return RichProperty.from_prediction(prediction)
 
@@ -92,12 +103,15 @@ class TextMatchAttributionStrategy(AttributionStrategy):
 
 
 class LLMAttributionStrategy(AttributionStrategy):
+    """Attribution strategy that asks the LLM to provide element indices directly."""
+
     def prediction_to_rich_property(self, prediction: dict[str, Any]) -> RichProperty:
         def _recurse(parent: RichProperty, name: Optional[str], prediction: Any) -> None:
 
-            if isinstance(prediction, list) and len(prediction) == 2 and isinstance(prediction[1], int):
+            if isinstance(prediction, list) and len(prediction) == 2 and isinstance(prediction[1], (int, type(None))):
                 actual_pred = prediction[0]
-                attribution = AttributionValue(element_indices=[prediction[1]])
+                if prediction[1] is not None:
+                    attribution = AttributionValue(element_indices=[prediction[1]])
             else:
                 actual_pred = prediction
                 attribution = None
@@ -120,10 +134,15 @@ class LLMAttributionStrategy(AttributionStrategy):
 
         return root
 
-    # Each property should be in the form [key, element_index]. The
-    # element_index is relative to the document.
     def refine_attribution(self, prop: RichProperty, doc: Document) -> RichProperty:
         eid_map = {e.element_index: i for i, e in enumerate(doc.elements)}
+
+        def elt_to_page(idx: tuple[int]) -> Optional[int]:
+            if idx[0] not in eid_map:
+                page = None
+            else:
+                page = doc.elements[eid_map[idx[0]]].properties.get("page_number")
+            return page
 
         def _recurse(prop: RichProperty) -> RichProperty:
             # TODO: Rewrite with zip_traverse
@@ -144,12 +163,9 @@ class LLMAttributionStrategy(AttributionStrategy):
                     source_elems.add(tuple(child_indices))
 
                 if len(source_elems) == 1 and (idx := source_elems.pop()) != (None,):
-                    prop.attribution = AttributionValue(
-                        element_indices=list(idx), page=doc.elements[eid_map[idx[0]]].properties.get("page_number")
-                    )
-                    prop.attribution.page = doc.elements[eid_map[idx[0]]].properties.get("page_number")
-
+                    prop.attribution = AttributionValue(element_indices=list(idx), page=elt_to_page(idx))
                 return prop
+
             if prop.type == DataType.ARRAY:
                 prop.attribution = None
                 ls = prop.value
@@ -160,21 +176,18 @@ class LLMAttributionStrategy(AttributionStrategy):
                     ls[i] = self.refine_attribution(v, doc)
 
                     child_attribution = ls[i].attribution
-                    child_indices = [None] if not child_attribution else child_attribution.element_indices
+                    child_indices = (None,) if not child_attribution else child_attribution.element_indices
                     source_elems.add(tuple(child_indices))
 
                 if len(source_elems) == 1 and (idx := source_elems.pop()) != (None,):
-                    prop.attribution = AttributionValue(
-                        element_indices=list(idx), page=doc.elements[eid_map[idx[0]]].properties.get("page_number")
-                    )
+                    prop.attribution = AttributionValue(element_indices=list(idx), page=elt_to_page(idx))
 
                 return prop
 
             att = prop.attribution
-            if att is None:
-                return prop
 
-            att.page = doc.elements[eid_map[att.element_indices[0]]].properties.get("page_number")
+            if prop.attribution is not None:
+                att.page = elt_to_page(att.element_indices)
 
             return prop
 

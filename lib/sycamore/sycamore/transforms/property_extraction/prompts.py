@@ -224,8 +224,6 @@ extract_system = """\
 You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is valid.
 
 {rules}
-
-For array fields, extract **every** instance of the type described in the array.
 """.format(
     rules=_format_rules(base_system_extraction_rules)
 )
@@ -246,8 +244,6 @@ extract_system_attribution = """\
 You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is valid.
 
 {rules}
-
-For array fields, extract **every** instance of the type described in the array.
 """.format(
     rules=_format_rules([attribution_rule] + base_system_extraction_rules)
 )

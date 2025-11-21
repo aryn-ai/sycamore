@@ -24,7 +24,7 @@ from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.threading import run_coros_threadsafe, sem_task
 from sycamore.transforms.property_extraction.utils import stitch_together_objects, dedup_examples
-from sycamore.transforms.property_extraction.attribution import refine_attribution
+from sycamore.transforms.property_extraction.attribution import AttributionStrategy, TextMatchAttributionStrategy
 from sycamore.transforms.property_extraction.prompts import format_schema_v2
 from sycamore.utils.zip_traverse import zip_traverse
 
@@ -99,6 +99,7 @@ class Extract(MapBatch):
         prompt: SycamorePrompt,
         schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchema(),
         output_pydantic_models: bool = True,
+        attribution_strategy: AttributionStrategy = TextMatchAttributionStrategy(),
         batch_processing_mode: ProcessingMode = SerialBatches(),
     ):
         super().__init__(node, f=self.extract)
@@ -109,6 +110,7 @@ class Extract(MapBatch):
         self._llm = llm
         self._prompt = prompt
         self._output_pydantic = output_pydantic_models
+        self._attribution = attribution_strategy
         self._batches = batch_processing_mode
 
         # Try calling the render method I need at constructor to make sure it's implemented
@@ -218,7 +220,7 @@ class Extract(MapBatch):
                 try:
                     result = await self._llm.generate_async(prompt=rendered)
                     rd = extract_json(result)
-                    rp = RichProperty.from_prediction(rd)
+                    rp = self._attribution.prediction_to_rich_property(rd)
                     break
                 except (ValueError, ValidationError) as e:
                     _logger.exception(f"Failed to get a valid JSON response: {e}")
@@ -240,17 +242,21 @@ class Extract(MapBatch):
                 # If this is an object prop which does not exist yet, add it to the parent
                 if v_new is not None and v_new.type is DataType.OBJECT and v_work is None:
                     p_work.value[k] = RichProperty(
-                        name=k if isinstance(k, str) else None, type=DataType.OBJECT, value={}
+                        name=k if isinstance(k, str) else None,
+                        type=DataType.OBJECT,
+                        value={},
+                        attribution=v_new.attribution,
                     )
 
             sch = self.validate_prediction(sch, working_results)
             retries += 1
 
         for k, (v,), (p,) in zip_traverse(working_results):
-            v.attribution = AttributionValue(
-                element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
-            )
-        return refine_attribution(working_results, document)
+            if v.attribution is None:
+                v.attribution = AttributionValue(
+                    element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
+                )
+        return self._attribution.refine_attribution(working_results, document)
 
     def validate_prediction(self, schema_part: Schema, prediction: RichProperty) -> Optional[Schema]:
         out_sch_obj = schema_part.model_copy(deep=True).as_object_property()

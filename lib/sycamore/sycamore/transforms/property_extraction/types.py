@@ -90,6 +90,16 @@ class RichProperty(BaseModel):
             self.value[other.name] = other
 
     @staticmethod
+    def from_single_property(name: Optional[str], value: Any) -> "RichProperty":
+        dt = DataType.from_python(value)
+        rp = RichProperty(name=name, type=dt, value=value)
+        if dt is DataType.OBJECT:
+            rp.value = {}
+        if dt is DataType.ARRAY:
+            rp.value = []
+        return rp
+
+    @staticmethod
     def from_prediction(prediction: dict[str, Any]) -> "RichProperty":
         res = RichProperty(name=None, value={}, type=DataType.OBJECT)
         ztp = ZTDict(prediction)
@@ -100,12 +110,8 @@ class RichProperty(BaseModel):
                 # but would need a reference to the schema to determine
                 # the type
                 continue
-            dt = DataType.from_python(pred_v)
-            new_rp = RichProperty(name=name, type=dt, value=pred_v)
-            if dt is DataType.OBJECT:
-                new_rp.value = {}
-            if dt is DataType.ARRAY:
-                new_rp.value = []
+
+            new_rp = RichProperty.from_single_property(name, pred_v)
             res_p._add_subprop(new_rp)
         return res
 

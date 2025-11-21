@@ -153,10 +153,6 @@ class Extract(MapBatch):
             rd = extract_json(result)
 
             rp = self._attribution.prediction_to_rich_property(rd)
-            # rp = RichProperty.from_prediction(
-            #     rd, single_prop_fn=self._attribution.process_prediction)
-
-            print(f"Extracted schema partition prediction: {rp}")
 
             for k, (v_new, v_work, prop), (p_new, p_work, prop_p) in zip_traverse(
                 rp, working_results, sch.as_object_property(), order="before"

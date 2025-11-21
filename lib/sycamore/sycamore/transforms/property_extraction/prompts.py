@@ -205,18 +205,30 @@ class ExtractionJinjaPrompt(SycamorePrompt):
         return RenderedPrompt(messages=messages, response_format=self.response_format)
 
 
+base_system_extraction_rules = [
+    "Numerical values must contain only numeric characters and up to one decimal point; e.g. 3,201.6 should be returned as 3201.6",
+    "Numerical values MUST NOT contain any non-numeric characters, including '?', '_', ','. Don't mess this up!",
+    'Date/Datetime values should always be quoted, e.g. 2025-09-04 should be returned as "2025-09-04"',
+    "Values must not contain any mathematical expressions. If necessary, perform the calculation yourself.",
+    "Quotes in strings must be properly escaped.",
+    'Always output an object type at the root level, e.g. {"key": "value"}, not a list.',
+    "For array fields, extract **every** instance of the type described in the array.",
+]
+
+
+def _format_rules(rules: list[str]) -> str:
+    return "\n".join(f"- {rule}" for rule in rules)
+
+
 extract_system = """\
 You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is valid.
 
-- Numerical values must contain only numeric characters and up to one decimal point; e.g. 3,201.6 should be returned as 3201.6
-- Numerical values MUST NOT contain any non-numeric characters, including '?', '_', ','. Don't mess this up!
-- Date/Datetime values should always be quoted, e.g. 2025-09-04 should be returned as "2025-09-04"
-- Values must not contain any mathematical expressions. If necessary, preform the calculation yourself.
-- Quotes in strings must be properly escaped.
-- Always output an object type at the root level, e.g. {"key": "value"}, not a list.
+{rules}
 
 For array fields, extract **every** instance of the type described in the array.
-"""
+""".format(
+    rules=_format_rules(base_system_extraction_rules)
+)
 
 _elt_at_a_time_full_schema = ExtractionJinjaPrompt(
     system=extract_system,
@@ -226,19 +238,20 @@ schema as JSON. If a field is not present in the element, output `null` in the o
     user_post_elements="Schema: \n```\n{{ schema }}\n```",
 )
 
+
+attribution_rule = "All extracted fields should be in the form [value, element_index]. The element_index can be null."
+
+
 extract_system_attribution = """\
 You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is valid.
 
-- All extracted fields should be in the form [value, element_index]. The element_index can be null.
-- Numerical values must contain only numeric characters and up to one decimal point; e.g. 3,201.6 should be returned as 3201.6
-- Numerical values MUST NOT contain any non-numeric characters, including '?', '_', ','. Don't mess this up!
-- Date/Datetime values should always be quoted, e.g. 2025-09-04 should be returned as "2025-09-04"
-- Values must not contain any mathematical expressions. If necessary, preform the calculation yourself.
-- Quotes in strings must be properly escaped.
-- Always output an object type at the root level, e.g. {"key": "value"}, not a list.
+{rules}
 
 For array fields, extract **every** instance of the type described in the array.
-"""
+""".format(
+    rules=_format_rules([attribution_rule] + base_system_extraction_rules)
+)
+
 
 _elt_at_a_time_full_schema_attribution = ExtractionJinjaPrompt(
     system=extract_system_attribution,

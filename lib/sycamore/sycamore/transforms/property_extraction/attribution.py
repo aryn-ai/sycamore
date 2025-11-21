@@ -126,8 +126,6 @@ class LLMAttributionStrategy(AttributionStrategy):
         eid_map = {e.element_index: i for i, e in enumerate(doc.elements)}
 
         def _recurse(prop: RichProperty) -> RichProperty:
-            print(f"In _refine_attribution::_recurse with prop: {prop}")
-
             # TODO: Rewrite with zip_traverse
             if prop.value is None:
                 prop.attribution = None
@@ -146,7 +144,10 @@ class LLMAttributionStrategy(AttributionStrategy):
                     source_elems.add(tuple(child_indices))
 
                 if len(source_elems) == 1 and (idx := source_elems.pop()) != (None,):
-                    prop.attribution = AttributionValue(element_indices=list(idx))
+                    prop.attribution = AttributionValue(
+                        element_indices=list(idx), page=doc.elements[eid_map[idx[0]]].properties.get("page_number")
+                    )
+                    prop.attribution.page = doc.elements[eid_map[idx[0]]].properties.get("page_number")
 
                 return prop
             if prop.type == DataType.ARRAY:
@@ -162,10 +163,10 @@ class LLMAttributionStrategy(AttributionStrategy):
                     child_indices = [None] if not child_attribution else child_attribution.element_indices
                     source_elems.add(tuple(child_indices))
 
-                    source_elems.add(tuple(child_indices))
-
                 if len(source_elems) == 1 and (idx := source_elems.pop()) != (None,):
-                    prop.attribution = AttributionValue(element_indices=list(idx))
+                    prop.attribution = AttributionValue(
+                        element_indices=list(idx), page=doc.elements[eid_map[idx[0]]].properties.get("page_number")
+                    )
 
                 return prop
 
@@ -173,7 +174,6 @@ class LLMAttributionStrategy(AttributionStrategy):
             if att is None:
                 return prop
 
-            print(f"Refining {len(att.element_indices)} indices")
             att.page = doc.elements[eid_map[att.element_indices[0]]].properties.get("page_number")
 
             return prop

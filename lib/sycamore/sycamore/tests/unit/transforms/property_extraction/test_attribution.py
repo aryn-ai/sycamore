@@ -190,14 +190,14 @@ def test_llm_refine_attribution_rolls_up_uniform_children():
     hq = refined.value["hq"]
     assert hq.attribution is not None
     assert hq.attribution.element_indices == [1]
-    assert hq.attribution.page is None
+    assert hq.attribution.page == 4
     assert hq.value["city"].attribution is not None
     assert hq.value["city"].attribution.page == 4
 
     locations = refined.value["locations"]
     assert locations.attribution is not None
     assert locations.attribution.element_indices == [1]
-    assert locations.attribution.page is None
+    assert locations.attribution.page == 4
     assert all(loc.attribution is not None and loc.attribution.element_indices == [1] for loc in locations.value)
 
     leaders = refined.value["leaders"]

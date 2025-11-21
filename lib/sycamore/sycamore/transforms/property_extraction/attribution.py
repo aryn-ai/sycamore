@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Optional, override
+from typing import Any, Optional
 import cydifflib
 
 from sycamore.schema import DataType
@@ -22,7 +22,6 @@ class AttributionStrategy:
 
 
 class TextMatchAttributionStrategy(AttributionStrategy):
-    @override
     def prediction_to_rich_property(self, prediction: dict[str, Any]) -> RichProperty:
         return RichProperty.from_prediction(prediction)
 

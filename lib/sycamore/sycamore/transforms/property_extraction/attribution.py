@@ -186,7 +186,7 @@ class LLMAttributionStrategy(AttributionStrategy):
 
             att = prop.attribution
 
-            if prop.attribution is not None:
+            if att is not None:
                 att.page = elt_to_page(att.element_indices)
 
             return prop

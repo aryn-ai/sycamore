@@ -17,6 +17,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def dict_to_document(doc: dict[str, Any]) -> Document:
+    doc_id = doc.get("doc_id")
+    assert doc_id is not None
+
+    elements = doc.get("elements", [])
+    document = Document(**doc)
+    document.doc_id = doc_id
+    document.data["elements"] = []
+    for json_element in elements:
+        element = create_element(**json_element)
+        element.data["doc_id"] = json_element["id"]
+        document.data["elements"].append(element)
+    return document
+
+
 @dataclass
 class DocFilter:
     doc_ids: Optional[list[str]] = None
@@ -65,9 +80,7 @@ class ArynQueryResponse(BaseDBReader.QueryResponse):
     def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
         docs = []
         for doc in self.docs:
-            elements = doc.get("elements", [])
-            _doc = Document(**doc)
-            _doc.data["elements"] = [create_element(**element) for element in elements]
+            _doc = dict_to_document(doc)
             docs.append(_doc)
 
         return docs
@@ -88,11 +101,13 @@ class ArynReaderClient(BaseDBReader.Client):
         doc_list = self._client.list_docs(query_params.docset_id)
         if query_params.doc_filter is not None:
             doc_list = query_params.doc_filter.select(doc_list)
-        logger.debug(f"Found {doc_list} docs in docset: {query_params.docset_id}")
+
         for doc_id in doc_list:
-            docs.append(self._client.get_doc(query_params.docset_id, doc_id))
+            doc = self._client.get_doc(query_params.docset_id, doc_id)
+            doc["doc_id"] = doc_id
+            docs.append(doc)
         t1 = time()
-        print(f"Reading took: {t1 - t0} seconds")
+        logger.info(f"Reading took: {t1 - t0} seconds")
         return ArynQueryResponse(docs)
 
     def check_target_presence(self, query_params: "BaseDBReader.QueryParams") -> bool:
@@ -128,15 +143,9 @@ class ArynReader(BaseDBReader):
         aryn_client = client._client
 
         doc_id = doc["doc_id"]
-        doc = aryn_client.get_doc(self._query_params.docset_id, doc["doc_id"])
-        elements = doc.get("elements", [])
-        document = Document(**doc)
-        document.doc_id = doc_id
-        document.data["elements"] = []
-        for json_element in elements:
-            element = create_element(**json_element)
-            element.data["doc_id"] = json_element["id"]
-            document.data["elements"].append(element)
+        doc = aryn_client.get_doc(self._query_params.docset_id, doc_id)
+        doc["doc_id"] = doc_id
+        document = dict_to_document(doc)
         return {"doc": Document.serialize(document)}
 
     def execute(self, **kwargs) -> "Dataset":

@@ -7,7 +7,7 @@ from aryn_sdk.client import Client
 from sycamore.utils.aryn_config import ArynConfig
 
 
-def test_update_doc_properties():
+def test_update_doc_properties(exec_mode):
     doc_id = mkdocid("f")
     dicts = [
         {
@@ -31,7 +31,7 @@ def test_update_doc_properties():
 
     docs = [Document(item) for item in dicts]
 
-    context = sycamore.init(exec_mode=sycamore.EXEC_LOCAL)
+    context = sycamore.init(exec_mode=exec_mode)
 
     # Give it a unique name to avoid conflicts
     name = str(uuid.uuid4())
@@ -42,13 +42,14 @@ def test_update_doc_properties():
         context.read.document(docs).write.aryn(
             name=name,
             aryn_url=aryn_url,
-            api_key=api_key,
+            aryn_api_key=api_key,
         )
     )
 
     aryn_url_base = aryn_url[: -len("/v1/storage")]
     client = Client(aryn_url=aryn_url_base, aryn_api_key=api_key)
     res = client.list_docsets(name_eq=name)
+    docset_id = None
     for page in res.iter_page():
         if len(page.value) > 0:
             docset_id = page.value[0].docset_id
@@ -91,7 +92,7 @@ def test_update_doc_properties():
         context.read.document(docs).write.aryn(
             docset_id=docset_id,
             aryn_url=aryn_url,
-            api_key=api_key,
+            aryn_api_key=api_key,
             only_properties=True,
         )
     )
@@ -139,7 +140,7 @@ def test_update_doc_properties():
         context.read.document(docs).write.aryn(
             docset_id=docset_id,
             aryn_url=aryn_url,
-            api_key=api_key,
+            aryn_api_key=api_key,
             only_properties=True,
         )
     )

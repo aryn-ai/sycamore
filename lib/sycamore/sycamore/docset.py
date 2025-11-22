@@ -25,7 +25,6 @@ from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.deprecate import deprecated
-from sycamore.decorators import experimental
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
 
@@ -33,7 +32,7 @@ if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
     from sycamore.grouped_data import GroupedData
     from sycamore.llms.llms import LLM
-    from sycamore.schema import SchemaV2, NamedProperty
+    from sycamore.schema import SchemaV2
     from sycamore.transforms.augment_text import TextAugmentor
     from sycamore.transforms.embed import Embedder
     from sycamore.transforms.extract_table import TableExtractor
@@ -460,7 +459,6 @@ class DocSet:
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
 
-    @experimental
     def extract(
         self, schema: "SchemaV2", llm: "LLM", batch_processing_mode: Optional["ProcessingMode"] = None
     ) -> "DocSet":
@@ -482,15 +480,14 @@ class DocSet:
         )
         return DocSet(self.context, ext)
 
-    @experimental
-    def suggest_schema(
+    def infer_schema(
         self,
         llm: "LLM",
         existing_schema: Optional["SchemaV2"] = None,
         reduce_fn: Optional[Callable[[list[Document]], Document]] = None,
         prompt: Optional["ExtractionJinjaPrompt"] = None,
         step_through_strategy: Optional["StepThroughStrategy"] = None,
-    ) -> "SchemaV2":
+    ) -> "DocSet":
         """
         Extracts a common schema from the documents in this DocSet.
         This transform is similar to extract_schema, except that it will add the same schema
@@ -509,7 +506,6 @@ class DocSet:
                 docset = context.read.binary(paths, binary_format="pdf").partition(partitioner=ArynPartitioner())
                 schema = docset.suggest_schema(llm=openai_llm, reduce_fn=intersection_of_fields)
         """
-        from sycamore.schema import SchemaV2
         from sycamore.transforms.property_extraction.extract import SchemaExtract
         from sycamore.transforms.property_extraction.prompts import _schema_extraction_prompt
         from sycamore.transforms.property_extraction.merge_schemas import intersection_of_fields
@@ -530,25 +526,29 @@ class DocSet:
         if reduce_fn is None:
             reduce_fn = intersection_of_fields
         ds = DocSet(self.context, schema_ext).reduce(reduce_fn)
-        schema = ds.take()[0].properties.get("_schema", SchemaV2(properties=[]))
         if existing_schema is not None and len(existing_schema.properties) > 0:
-            for named_prop in existing_schema.properties:
-                schema.properties.append(named_prop)
 
-        deduped: dict[str, NamedProperty] = {}
-        unique_props: list[NamedProperty] = []
-        for prop in schema.properties:
-            if prop.name not in deduped:
-                deduped[prop.name] = prop
-                unique_props.append(prop)
-            else:
-                if prop != deduped[prop.name]:
-                    unique_props.append(prop)
-                else:
-                    logger.info(f"Removing a duplicate property {prop.name}")
+            def append_existing_properties(d: Document) -> Document:
+                schema = d.properties.get("_schema", SchemaV2(properties=[]))
+                for named_prop in existing_schema.properties:
+                    schema.properties.append(named_prop)
+                return d
 
-        schema.properties = unique_props
-        return schema
+            ds = ds.map(append_existing_properties)
+        return ds
+
+    def suggest_schema(
+        self,
+        llm: "LLM",
+        existing_schema: Optional["SchemaV2"] = None,
+        reduce_fn: Optional[Callable[[list[Document]], Document]] = None,
+        prompt: Optional["ExtractionJinjaPrompt"] = None,
+        step_through_strategy: Optional["StepThroughStrategy"] = None,
+    ) -> "SchemaV2":
+        from sycamore.schema import SchemaV2
+
+        ds = self.infer_schema(llm, existing_schema, reduce_fn, prompt, step_through_strategy)
+        return ds.take()[0].properties.get("_schema", SchemaV2(properties=[]))
 
     def extract_document_structure(self, structure: DocumentStructure, **kwargs):
         """

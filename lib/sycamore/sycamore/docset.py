@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
     from sycamore.transforms.property_extraction.prompts import ExtractionJinjaPrompt
     from sycamore.transforms.property_extraction.strategy import StepThroughStrategy
+    from sycamore.transforms.property_extraction.extract import ProcessingMode
 
 logger = logging.getLogger(__name__)
 
@@ -458,10 +459,15 @@ class DocSet:
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
 
-    def extract(self, schema: "SchemaV2", llm: "LLM") -> "DocSet":
-        from sycamore.transforms.property_extraction.extract import Extract
+    def extract(
+        self, schema: "SchemaV2", llm: "LLM", batch_processing_mode: Optional["ProcessingMode"] = None
+    ) -> "DocSet":
+        from sycamore.transforms.property_extraction.extract import Extract, SerialBatches
         from sycamore.transforms.property_extraction.strategy import default_stepthrough, default_schema_partition
         from sycamore.transforms.property_extraction.prompts import default_prompt
+
+        if batch_processing_mode is None:
+            batch_processing_mode = SerialBatches()
 
         ext = Extract(
             self.plan,
@@ -470,6 +476,7 @@ class DocSet:
             schema_partition_strategy=default_schema_partition,
             llm=llm,
             prompt=default_prompt,
+            batch_processing_mode=batch_processing_mode,
         )
         return DocSet(self.context, ext)
 

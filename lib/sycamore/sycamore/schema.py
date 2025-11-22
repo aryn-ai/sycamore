@@ -106,6 +106,8 @@ class DataType(str, Enum):
         # Handle common type names that are not in the enum
         if v in {"str", "text"}:
             return cls.STRING
+        elif v in {"boolean"}:
+            return cls.BOOL
         elif v in {"integer"}:
             return cls.INT
         elif v in {"list"}:

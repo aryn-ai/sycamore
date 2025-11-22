@@ -10,7 +10,7 @@ import logging
 from functools import partial
 from pyarrow._fs import FileInfo
 from pyarrow.fs import FileSystem, FileSelector
-from sycamore.data import Document, mkdocid
+from sycamore.data import Document, mkdocid, MetadataDocument
 from sycamore.plan_nodes import Scan
 from sycamore.utils.time_trace import timetrace
 from sycamore.materialize import RayPathParser
@@ -415,7 +415,11 @@ class JsonDocumentScan(FileScan):
 
     @staticmethod
     def json_as_document(json: dict[str, Any]) -> list[dict[str, Any]]:
-        doc = Document()
+        doc: Optional[Document | MetadataDocument] = None
+        if "metadata" in json:
+            doc = MetadataDocument()
+        else:
+            doc = Document()
         doc.data = json
         return [{"doc": doc.serialize()}]  # Make Ray row
 

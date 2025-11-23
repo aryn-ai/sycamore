@@ -137,7 +137,7 @@ class LLMAttributionStrategy(AttributionStrategy):
     def refine_attribution(self, prop: RichProperty, doc: Document) -> RichProperty:
         eid_map = {e.element_index: i for i, e in enumerate(doc.elements)}
 
-        def elt_to_page(idx: tuple[int]) -> Optional[int]:
+        def elt_to_page(idx: tuple[int] | list[int]) -> Optional[int]:
             if idx[0] not in eid_map:
                 page = None
             else:

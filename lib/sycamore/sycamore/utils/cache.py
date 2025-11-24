@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import time
 from tempfile import SpooledTemporaryFile
+from threading import Lock
 from typing import Any, Optional, Union, BinaryIO
 
 import diskcache
@@ -36,8 +37,9 @@ class HashContext:
 class Cache:
 
     def __init__(self):
-        self.cache_hits = 0
-        self.total_accesses = 0
+        self.mutex = Lock()
+        self.hits = 0
+        self.misses = 0
 
     def get(self, hash_key: str):
         pass
@@ -45,10 +47,22 @@ class Cache:
     def set(self, hash_key: str, hash_value):
         pass
 
-    def get_hit_rate(self):
-        if self.total_accesses == 0:
-            return 0.0
-        return self.cache_hits / self.total_accesses
+    def inc_hits(self) -> None:
+        with self.mutex:
+            self.hits += 1
+
+    def inc_misses(self) -> None:
+        with self.mutex:
+            self.misses += 1
+
+    def get_hit_info(self) -> tuple[int, int]:
+        with self.mutex:
+            return self.hits, self.misses
+
+    def get_hit_rate(self) -> float:  # FIXME: remove this function
+        hits, misses = self.get_hit_info()
+        total = hits + misses
+        return safediv(hits, total)
 
     @staticmethod
     def get_hash_context(data: bytes, hash_ctx: Optional[HashContext] = None) -> HashContext:
@@ -112,17 +126,32 @@ class Cache:
 class DiskCache(Cache):
     def __init__(self, cache_loc: str):
         super().__init__()
+        if cache_loc.startswith("file://localhost/"):
+            cache_loc = cache_loc[16:]  # leave leading slash
+        elif cache_loc.startswith("file:///"):
+            cache_loc = cache_loc[7:]
+        self._cache_loc = cache_loc
         self._cache = diskcache.Cache(directory=cache_loc)
 
     def get(self, hash_key: str):
         v = self._cache.get(hash_key)
         if v is not None:
-            self.cache_hits += 1
-        self.total_accesses += 1
+            self.inc_hits()
+        else:
+            self.inc_misses()
         return v
 
     def set(self, hash_key: str, hash_value):
         self._cache.set(hash_key, hash_value)
+
+    def __reduce__(self):
+        # Return a function and args to recreate this object
+        # We only need the cache location, the Lock will be recreated in __init__
+        return (disk_cache_deserializer, ({"cache_loc": self._cache_loc},))
+
+
+def disk_cache_deserializer(kwargs):
+    return DiskCache(**kwargs)
 
 
 def s3_cache_deserializer(kwargs):
@@ -159,17 +188,16 @@ class S3Cache(Cache):
                 self._freshness_in_seconds >= 0
                 and self._freshness_in_seconds + content.get("cached_at", 0) < time.time()
             ):
+                self.inc_misses()
                 return None
             data = content["value"]
-            self.cache_hits += 1
+            self.inc_hits()
             return data
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchKey":
                 return None
             else:
                 raise
-        finally:
-            self.total_accesses += 1
 
     def set(self, key: str, value: Any):
         if not self._s3_client:
@@ -197,6 +225,10 @@ def cache_from_path(path: Optional[str]) -> Optional[Cache]:
         return None
     if path.startswith("s3://"):
         return S3Cache(path)
+    if path.startswith("file://"):
+        return DiskCache(path)
+    if path.startswith("null://"):
+        return NullCache()
     if path.startswith("/"):
         return DiskCache(path)
     if Path(path).is_dir():
@@ -205,3 +237,19 @@ def cache_from_path(path: Optional[str]) -> Optional[Cache]:
     raise ValueError(
         f"Unable to interpret {path} as path for cache. Expected s3://, /... or a directory path that exists"
     )
+
+
+class NullCache(Cache):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def get(self, key: str) -> Optional[bytes]:
+        self.inc_misses()
+        return None
+
+    def set(self, key: str, value) -> None:
+        pass
+
+
+def safediv(n: int | float, d: int | float) -> float:
+    return n / d if d else 0.0

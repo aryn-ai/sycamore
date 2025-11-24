@@ -1,7 +1,7 @@
 import sycamore
 from sycamore import DocSet
 from sycamore.context import Context, ExecMode
-from sycamore.data import Document, Element
+from sycamore.data import Document, Element, MetadataDocument
 from sycamore.plan_nodes import Node
 from sycamore.connectors.opensearch import OpenSearchWriter
 from sycamore.connectors.weaviate import WeaviateDocumentWriter, WeaviateCrossReferenceWriter
@@ -100,12 +100,16 @@ def _check_doc_blocks(
     rows.pop()  # Extra empty after split
     for r in rows:
         parsed = json.loads(r.strip())
-        del parsed["binary_representation"]
         id = parsed["doc_id"]
+        if not docs_by_id.get(id):
+            continue
         doc = docs_by_id[id]
+        if "binary_representation" in parsed:
+            del parsed["binary_representation"]
         # writing is after Map(noop), doc is before
-        assert doc["lineage_id"] != parsed["lineage_id"]
-        parsed["lineage_id"] = doc["lineage_id"]
+        if doc.get("lineage_id"):
+            assert doc["lineage_id"] != parsed["lineage_id"]
+            parsed["lineage_id"] = doc["lineage_id"]
         assert parsed == doc
 
 
@@ -210,6 +214,16 @@ class TestDocSetWriter:
         context = sycamore.init()
         doc_set = context.read.document(docs).map(noop_map)
         doc_set.write.json(str(tmp_path))
+        _check_doc_blocks(docs, tmp_path)
+
+    def test_file_writer_json_with_metadata(self, tmp_path: Path):
+        docs = generate_docs(5, num_elements=5)
+        md = MetadataDocument({"doc_id": "doc_5"})
+        md.metadata = {"key": "value"}
+        docs.append(md)
+        context = sycamore.init()
+        doc_set = context.read.document(docs).map(noop_map)
+        doc_set.write.json(str(tmp_path), include_metadata=True)
         _check_doc_blocks(docs, tmp_path)
 
     def test_file_writer_create_path(self, tmp_path: Path):

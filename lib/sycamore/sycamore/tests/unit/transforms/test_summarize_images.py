@@ -2,6 +2,7 @@ from typing import Optional, Any
 import json
 from sycamore.data.document import Document
 from sycamore.data.element import Element, ImageElement
+from sycamore.llms.config import LLMModel
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.tests.config import TEST_DIR
 from sycamore.llms import LLM
@@ -21,7 +22,9 @@ class MockLLM(LLM):
     def is_chat_mode(self):
         return True
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict[str, Any]] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict[str, Any]] = None, model: Optional[LLMModel] = None
+    ) -> str:
         promptstr = "\n".join(m.content for m in prompt.messages)
         return json.dumps({"summary": promptstr})
 

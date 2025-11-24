@@ -22,6 +22,7 @@ class _FileDataSink(Datasink):
         filename_fn: Callable[[Document], str] = default_filename,
         doc_to_bytes_fn: Callable[[Document], bytes] = default_doc_to_bytes,
         makedirs: bool = True,
+        include_metadata: bool = False,
     ):
         (paths, self._filesystem) = _resolve_paths_and_filesystem(path, filesystem)
         self._root = paths[0]
@@ -30,6 +31,7 @@ class _FileDataSink(Datasink):
         self._filename_fn = filename_fn
         self._doc_to_bytes_fn = doc_to_bytes_fn
         self._makedirs = makedirs
+        self._include_metadata = include_metadata
 
     def on_write_start(self) -> None:
         if not self._makedirs:
@@ -48,7 +50,7 @@ class _FileDataSink(Datasink):
             b = BlockAccessor.for_block(block).to_arrow().to_pylist()
             for _, row in enumerate(b):
                 doc = Document.from_row(row)
-                if isinstance(doc, MetadataDocument):
+                if isinstance(doc, MetadataDocument) and not self._include_metadata:
                     continue
                 bytes = self._doc_to_bytes_fn(doc)
                 path = posixpath.join(self._root, self._filename_fn(doc))
@@ -61,19 +63,23 @@ class _JsonBlockDataSink(BlockBasedFileDatasink):
         self,
         path: str,
         filesystem: Optional[FileSystem] = None,
+        include_metadata: bool = False,
     ) -> None:
         class BlockFilenameProvider(FilenameProvider):
-            def get_filename_for_block(self, block: Block, task_index: int, block_index: int) -> str:
+            def get_filename_for_block(self, block: Block, write_uuid: str, task_index: int, block_index: int) -> str:
                 return f"block_{block_index}_{task_index}.jsonl"
 
         super().__init__(path, filesystem=filesystem, filename_provider=BlockFilenameProvider())
+        self.include_metadata = include_metadata
 
     def write_block_to_file(self, block: BlockAccessor, file: NativeFile) -> None:
         with TimeTrace("jsonSink"):
             for row in block.iter_rows(True):  # type: ignore[var-annotated]
                 doc = Document.from_row(row)
                 if isinstance(doc, MetadataDocument):
-                    continue
-                del doc.binary_representation  # Doesn't make sense in JSON
+                    if not self.include_metadata:
+                        continue
+                else:
+                    del doc.binary_representation  # Doesn't make sense in JSON
                 binary = document_to_json_bytes(doc)
                 file.write(binary)

@@ -182,7 +182,7 @@ class ExtractionJinjaPrompt(SycamorePrompt):
             if self.image_mode == ImageMode.PAGE:
                 assert (
                     doc.binary_representation is not None
-                ), "Cannot extract from an image because the document has no binary"
+                ), f"Cannot extract from an image because the document has no binary: {doc}"
                 pages = {e.properties.get("page_number", -1) for e in elts}
                 pages.discard(-1)
                 if len(pages) > 0:
@@ -205,18 +205,28 @@ class ExtractionJinjaPrompt(SycamorePrompt):
         return RenderedPrompt(messages=messages, response_format=self.response_format)
 
 
+base_system_extraction_rules = [
+    "Numerical values must contain only numeric characters and up to one decimal point; e.g. 3,201.6 should be returned as 3201.6",
+    "Numerical values MUST NOT contain any non-numeric characters, including '?', '_', ','. Don't mess this up!",
+    'Date/Datetime values should always be quoted, e.g. 2025-09-04 should be returned as "2025-09-04"',
+    "Values must not contain any mathematical expressions. If necessary, perform the calculation yourself.",
+    "Quotes in strings must be properly escaped.",
+    'Always output an object type at the root level, e.g. {"key": "value"}, not a list.',
+    "For array fields, extract **every** instance of the type described in the array.",
+]
+
+
+def _format_rules(rules: list[str]) -> str:
+    return "\n".join(f"- {rule}" for rule in rules)
+
+
 extract_system = """\
 You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is valid.
 
-- Numerical values must contain only numeric characters and up to one decimal point; e.g. 3,201.6 should be returned as 3201.6
-- Numerical values MUST NOT contain any non-numeric characters, including '?', '_', ','. Don't mess this up!
-- Date/Datetime values should always be quoted, e.g. 2025-09-04 should be returned as "2025-09-04"
-- Values must not contain any mathematical expressions. If necessary, preform the calculation yourself.
-- Quotes in strings must be properly escaped.
-- Always output an object type at the root level, e.g. {"key": "value"}, not a list.
-
-For array fields, extract **every** instance of the type described in the array.
-"""
+{rules}
+""".format(
+    rules=_format_rules(base_system_extraction_rules)
+)
 
 _elt_at_a_time_full_schema = ExtractionJinjaPrompt(
     system=extract_system,
@@ -225,6 +235,28 @@ schema as JSON. If a field is not present in the element, output `null` in the o
     element_template="Element: {{ elt.text_representation }}",
     user_post_elements="Schema: \n```\n{{ schema }}\n```",
 )
+
+
+attribution_rule = "All extracted fields should be in the form [value, element_index]. The element_index can be null."
+
+
+extract_system_attribution = """\
+You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is valid.
+
+{rules}
+""".format(
+    rules=_format_rules([attribution_rule] + base_system_extraction_rules)
+)
+
+
+_elt_at_a_time_full_schema_attribution = ExtractionJinjaPrompt(
+    system=extract_system_attribution,
+    user_pre_elements="""You are provided some elements of a document and a schema. Extract all the fields in the
+schema as JSON. Each element has an associated id `element_index`. Extract each field as a pair [value, element_index] where `value` is the extracted value and `element_index` is the id of the element from which the value was extracted. If the element index is unclear, output `[value, null]`, If a field is not present at all, output `null` in the output result.""",
+    element_template="Element {{ elt.element_index }}: {{ elt.text_representation }}",
+    user_post_elements="Schema: \n```\n{{ schema }}\n```",
+)
+
 
 _page_image_full_schema = ExtractionJinjaPrompt(
     system=extract_system,
@@ -236,21 +268,25 @@ as JSON. If a field is not present on the page, output `null` in the output resu
 
 default_prompt = _elt_at_a_time_full_schema
 
+default_attribution_prompt = _elt_at_a_time_full_schema_attribution
+
 schema_extract_pre_elements_helper = """\n
 You are given a schema that has already been extracted from the document. Now extract only the new properties that are missing from this schema. Do not include any properties that are already in the schema. Use the structure of the schema (names and nesting) to decide what is already included.
 Extracted schema:
 {existing_schema}
 """
 
+schema_extraction_system_prompt = textwrap.dedent(
+    """\
+    You are a helpful property extractor. You only return a JSON schema which is a list of properties as defined below. Return only the relevant properties; for example, if it's a form, you might want to return several properties whereas if it's an article, you might want to return only the relevant properties. Be very careful about what properties you return.
+    """
+)
+
 _schema_extraction_prompt = ExtractionJinjaPrompt(
-    system=textwrap.dedent(
-        """\
-        You are a helpful property extractor. You only return a JSON schema which is a list of properties as defined below. Return only the relevant properties; for example, if it's a form, you might want to return several properties whereas if it's an article, you might want to return only the relevant properties. Be very careful about what properties you return.
-        """
-    ),
+    system=schema_extraction_system_prompt,
     user_pre_elements=textwrap.dedent(
         """\
-        Extract a JSON schema from the following document text.
+        Extract a JSON schema from the {{ element_description }}.
 
         Each property must have:
         - `name`: lowercase, underscore-separated string representing the name of the property. The name should be descriptive and concise. It should describe the kind of property, **not its value**.
@@ -270,6 +306,8 @@ _schema_extraction_prompt = ExtractionJinjaPrompt(
         - properties of type "bool" should be either `true` or `false`
         - properties of type "date" should be in ISO format (YYYY-MM-DD)
         - properties of type "datetime" should be in ISO format (YYYY-MM-DDTHH:MM:SS)
+
+        {{ additional_instructions }}
 
         Example output:
         [

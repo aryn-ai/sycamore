@@ -176,12 +176,17 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
 
             self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)
             self._model = AutoModelForSequenceClassification.from_pretrained(self.model_name).to(self.device)
+            assert self._model
+            self._model.eval()
 
         assert self._model is not None
         assert self._tokenizer is not None
 
         scores = []
-        with torch.no_grad():
+        with (
+            torch.no_grad(),
+            torch.autocast(self.device),
+        ):
             for i in range(0, len(inputs), self.model_batch_size):
                 input_batch = inputs[i : i + self.model_batch_size]
 

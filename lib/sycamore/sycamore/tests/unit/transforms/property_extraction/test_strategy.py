@@ -219,3 +219,26 @@ class TestSchemaUpdateStrategy:
         assert sur3.out_fields["b"].is_valid
         assert sur3.out_fields["b"].value == "4"
         assert sur3.out_fields["c"].value["d"].value == "dc000"
+
+    def test_takefirst_trimschema_keep_property_descriptions(self):
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(
+                    name="a",
+                    type=ObjectProperty(
+                        description="Hi",
+                        properties=[
+                            NamedProperty(name="b", type=StringProperty()),
+                            NamedProperty(name="c", type=StringProperty()),
+                        ],
+                    ),
+                )
+            ]
+        )
+
+        strat = TakeFirstTrimSchema()
+
+        props: dict[str, RichProperty] = dict()
+        p1 = RichProperty.from_prediction({})
+        sur = strat.update_schema(schema, p1.value, props)
+        assert sur.out_schema.properties[0].type.description == "Hi"

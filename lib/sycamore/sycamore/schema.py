@@ -10,6 +10,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    field_serializer,
     TypeAdapter,
     ValidatorFunctionWrapHandler,
     WrapValidator,
@@ -105,6 +106,8 @@ class DataType(str, Enum):
         # Handle common type names that are not in the enum
         if v in {"str", "text"}:
             return cls.STRING
+        elif v in {"boolean"}:
+            return cls.BOOL
         elif v in {"integer"}:
             return cls.INT
         elif v in {"list"}:
@@ -134,6 +137,12 @@ class PropertyValidator(BaseModel, ABC):
     @abstractmethod
     def validate_property(self, propval: Any) -> tuple[bool, Any]:
         pass
+
+    # Not all consumers of this class handle sets well, so we convert to list
+    # on the way out.
+    @field_serializer("allowable_types")
+    def serialize_allowable_types(self, allowable_types: set[DataType]) -> list[DataType]:
+        return list(allowable_types)
 
 
 class RegexValidator(PropertyValidator):
@@ -421,8 +430,12 @@ def _validate_new_schema(v: Any, handler: ValidatorFunctionWrapHandler) -> Named
         if any("valid validator" in ed["msg"] for ed in e.errors()):
             raise
         # Attempt to validate as a SchemaProperty and convert to NamedProperty
-        schema_prop = SchemaField.model_validate(v)
-        return _convert_to_named_property(schema_prop)
+        try:
+            schema_prop = SchemaField.model_validate(v)
+            return _convert_to_named_property(schema_prop)
+        except Exception as _:
+            # If the fallback fails, re-raise the original error
+            raise e
 
 
 # @experimental

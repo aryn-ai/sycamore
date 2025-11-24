@@ -1,4 +1,5 @@
 from sycamore.data import Document, Element
+from sycamore.llms.config import LLMModel
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts import RenderedPrompt, SycamorePrompt
 from sycamore.llms.prompts.prompts import RenderedMessage
@@ -16,11 +17,15 @@ class FakeLLM(LLM):
     def is_chat_mode(self) -> bool:
         return True
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         self.used_llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         return "".join(m.content for m in prompt.messages)
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         self.async_calls += 1
         return self.generate(prompt=prompt, llm_kwargs=llm_kwargs)
 

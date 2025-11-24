@@ -191,7 +191,7 @@ class TestHybridSelectionStatements:
             HTSE.parse_model_selection("pixels>500 -> deformable_detr; yo_mama")
 
     def test_multiple_arrows(self):
-        with pytest.raises(ValueError, match=r"Invalid statement.* Found more than 2 instances of '->'"):
+        with pytest.raises(ValueError, match=r"Invalid statement.* Found more than 1 instance of '->'"):
             HTSE.parse_model_selection("pixels>500 -> vrooooom -> vrooooooooooom")
 
     def test_no_comparison(self):

@@ -41,6 +41,15 @@ _VERSION = "0.2024.07.24"
 
 _TEN_MINUTES = 600
 
+# The retry logic is controlled by a decorator. Unclear how we could pass in
+# a flag to indicate we don't want retry.
+ENABLE_RETRY = True
+
+
+def disable_retry():
+    global ENABLE_RETRY
+    ENABLE_RETRY = False
+
 
 class ArynPDFPartitionerException(Exception):
     def __init__(self, message, can_retry=False):
@@ -49,18 +58,22 @@ class ArynPDFPartitionerException(Exception):
 
 
 def _can_retry(e: BaseException) -> bool:
-    def make_mypy_happy(e: BaseException):
+    def make_mypy_happy(msg: str, e: BaseException):
         import traceback
 
         # type(e), value=e needed for compatibility before 3.10; after that, just e should work
-        logger.warning(f"Automatically retrying because of error: {traceback.format_exception_only(type(e), value=e)}")
+        logger.warning(f"{msg}: {traceback.format_exception_only(type(e), value=e)}")
+
+    if not ENABLE_RETRY:
+        make_mypy_happy("Retry disabled, not retrying after", e)
+        return False
 
     if isinstance(e, ArynPDFPartitionerException):
         # make mypy happy, unneeded with mypy 1.15 + python 3.12
         ex: Optional[BaseException] = None
         assert isinstance(e, BaseException)
         ex = e
-        make_mypy_happy(ex)
+        make_mypy_happy("Automatically retrying because of error", ex)
         return e.can_retry
     else:
         return False
@@ -631,7 +644,7 @@ class DeformableDetr(SycamoreObjectDetection):
         from transformers import AutoImageProcessor
         from sycamore.utils.model_load import load_deformable_detr
 
-        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
+        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path, use_fast=True)
         self.model = load_deformable_detr(model_name_or_path, self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
@@ -697,8 +710,12 @@ class DeformableDetr(SycamoreObjectDetection):
         import torch
 
         results = []
-        inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
-        with torch.no_grad():
+        device = self._get_device()
+        inputs = self.processor(images=images, return_tensors="pt").to(device)
+        with (
+            torch.no_grad(),
+            torch.autocast(device),
+        ):
             outputs = self.model(**inputs)
         target_sizes = torch.tensor([image.size[::-1] for image in images])
         results.extend(

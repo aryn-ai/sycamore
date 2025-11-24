@@ -26,7 +26,7 @@ def test_aryn_reader(exec_mode):
 
     docs = [Document(item) for item in dicts]
 
-    context = sycamore.init()
+    context = sycamore.init(exec_mode)
 
     # Give it a unique name to avoid conflicts
     name = str(uuid.uuid4())
@@ -44,6 +44,7 @@ def test_aryn_reader(exec_mode):
 
     client = Client(aryn_url=aryn_url_base, aryn_api_key=api_key)
     res = client.list_docsets(name_eq=name)
+    docset_id = None
     for page in res.iter_page():
         if len(page.value) > 0:
             docset_id = page.value[0].docset_id

@@ -10,6 +10,7 @@ import httpx
 
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import RenderedPrompt
+from sycamore.llms.config import LLMModel
 from sycamore.utils.cache import Cache
 
 
@@ -36,10 +37,14 @@ class HttpLLM(LLM):
         self.max_retries = max_retries
         self.chat_completion_endpoint = chat_completion_endpoint
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        return asyncio.run(self.generate_async(prompt=prompt, llm_kwargs=llm_kwargs))
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
+        return asyncio.run(self.generate_async(prompt=prompt, llm_kwargs=llm_kwargs, model=model))
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         # Check cache first
         cached_result = self._llm_cache_get(prompt, llm_kwargs)
         if cached_result is not None:

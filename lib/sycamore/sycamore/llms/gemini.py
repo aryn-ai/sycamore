@@ -122,6 +122,10 @@ class Gemini(LLM):
         kwargs["config"] = None
         if thinking_budget := config.pop("thinking_budget", None):
             config["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
+        if thinking_level := config.pop("thinking_level", None):
+            if "thinking_config" in config:
+                logger.warning(f"Thinking level {thinking_level} overrides thinking budget {thinking_budget}")
+            config["thinking_config"] = types.ThinkingConfig(thinking_level=types.ThinkingLevel(thinking_level))
         if config:
             kwargs["config"] = types.GenerateContentConfig(**config)
         kwargs["content"] = content_list

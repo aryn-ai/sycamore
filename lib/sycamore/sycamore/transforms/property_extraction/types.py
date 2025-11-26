@@ -29,6 +29,8 @@ class AttributionValue(BaseModel):
     @classmethod
     def validate_bb(cls, value: Any) -> Any:
         if isinstance(value, (list, tuple)):
+            if not value:
+                return None
             assert len(value) == 4
             return BoundingBox(*value)
         return value

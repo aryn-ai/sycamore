@@ -45,8 +45,12 @@ class HttpLLM(LLM):
     async def generate_async(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
+        model_name = model.name if model else self._model_name
+        if model_name != self._model_name:
+            logging.info(f"Overriding HTTP LLM model from {self._model_name} to {model_name}")
+
         # Check cache first
-        cached_result = self._llm_cache_get(prompt, llm_kwargs)
+        cached_result = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if cached_result is not None:
             return cached_result
 
@@ -79,7 +83,7 @@ class HttpLLM(LLM):
             messages.insert(0, system_msg)
 
         payload = {
-            "engine": self._model_name,
+            "engine": model_name,
             "messages": messages,
             "max_tokens": merged_kwargs.get("max_output_tokens", merged_kwargs.get("max_tokens", 800)),
             "temperature": merged_kwargs.get("temperature", 0),
@@ -108,7 +112,7 @@ class HttpLLM(LLM):
                     content = result.get("content", "")
 
                     # Cache the result
-                    self._llm_cache_set(prompt, llm_kwargs, content)
+                    self._llm_cache_set(prompt, llm_kwargs, content, model=model_name)
                     return content
 
             except Exception as e:
@@ -117,7 +121,8 @@ class HttpLLM(LLM):
                     raise
                 await asyncio.sleep(2**retry * jitter)
 
-        return ""
+        # This should never be reached due to the retry logic above
+        raise RuntimeError("HTTP LLM request failed: exhausted all retries without returning or raising")
 
     def _image_to_data_url(self, image: Image.Image) -> str:
         buf = io.BytesIO()

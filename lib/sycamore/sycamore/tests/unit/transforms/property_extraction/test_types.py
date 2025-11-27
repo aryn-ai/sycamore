@@ -20,3 +20,19 @@ class TestRichProperty:
         rp_dump = rp0.model_dump()
         rp1 = RichProperty.validate_recursive(rp_dump)
         assert rp0 == rp1
+
+    def test_attribution_with_bbox(self):
+        p = {
+            "name": "test",
+            "type": "object",
+            "value": {
+                "foo": {
+                    "name": "foo",
+                    "value": None,
+                    "type": "string",
+                    "attribution": {"element_indices": [0], "bbox": []},
+                }
+            },
+        }
+        rp = RichProperty.validate_recursive(p)
+        assert rp.value["foo"].attribution.bbox is None

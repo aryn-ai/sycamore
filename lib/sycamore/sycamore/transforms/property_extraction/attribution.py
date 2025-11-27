@@ -110,8 +110,7 @@ class LLMAttributionStrategy(AttributionStrategy):
 
             if isinstance(prediction, list) and len(prediction) == 2 and isinstance(prediction[1], (int, type(None))):
                 actual_pred = prediction[0]
-                if prediction[1] is not None:
-                    attribution = AttributionValue(element_indices=[prediction[1]])
+                attribution = AttributionValue(element_indices=[prediction[1]]) if prediction[1] is not None else None
             else:
                 actual_pred = prediction
                 attribution = None

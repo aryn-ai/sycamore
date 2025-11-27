@@ -281,7 +281,7 @@ class TestHttpLLM:
         result = await llm.generate_async(prompt=prompt)
 
         assert result == "Fresh response"
-        llm._llm_cache_set.assert_called_once_with(prompt, None, "Fresh response")
+        llm._llm_cache_set.assert_called_once_with(prompt, None, "Fresh response", model="gpt-4o-mini")
 
     @patch.object(HttpLLM, "generate_async")
     def test_generate_sync_wrapper(self, mock_generate_async):
@@ -297,7 +297,7 @@ class TestHttpLLM:
         result = llm.generate(prompt=prompt)
 
         assert result == "Sync result"
-        mock_generate_async.assert_called_once_with(prompt=prompt, llm_kwargs=None)
+        mock_generate_async.assert_called_once_with(prompt=prompt, llm_kwargs=None, model=None)
 
     @pytest.mark.asyncio
     async def test_generate_async_with_existing_system_message(self):

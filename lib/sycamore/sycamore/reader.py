@@ -231,6 +231,7 @@ class DocSetReader:
         reconstruct_document: bool = False,
         doc_reconstructor: Optional[DocumentReconstructor] = None,
         result_filter: Optional[Dict] = None,
+        doc_filter: Optional[DocFilter] = None,
         query_kwargs=None,
         **kwargs,
     ) -> DocSet:
@@ -330,6 +331,7 @@ class DocSetReader:
             reconstruct_document=reconstruct_document,
             doc_reconstructor=doc_reconstructor,
             filter=result_filter,
+            doc_filter=doc_filter,
             kwargs=query_kwargs,
         )
 

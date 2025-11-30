@@ -135,6 +135,7 @@ class SycamoreQueryDatabase(SycamoreOperator):
             query=os_query,
             reconstruct_document=True,
             result_filter=self.logical_node.result_filter,
+            doc_filter=self.logical_node.doc_filter,
         ).map(remove_original_elements)
         return result
 
@@ -240,6 +241,7 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
                 else None
             ),
             result_filter=self.logical_node.result_filter,
+            doc_filter=self.logical_node.doc_filter,
             query_kwargs={"size": os_query["query"]["knn"]["embedding"].get("k", 500)},
         ).map(remove_original_elements)
         if self.rerank:

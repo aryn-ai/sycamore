@@ -35,6 +35,7 @@ def dict_to_document(doc: dict[str, Any]) -> Document:
 @dataclass
 class DocFilter:
     doc_ids: Optional[list[str]] = None
+    exclude: bool = False
     sample_ratio: Optional[float] = None
     seed: Optional[int] = None
 
@@ -46,7 +47,10 @@ class DocFilter:
 
     def select(self, doc_list: list[str]) -> list[str]:
         if self.doc_ids is not None:
-            return [doc_id for doc_id in doc_list if doc_id in self.doc_ids]
+            if not self.exclude:
+                return [doc_id for doc_id in doc_list if doc_id in self.doc_ids]
+            else:
+                return [doc_id for doc_id in doc_list if doc_id not in self.doc_ids]
         elif self.sample_ratio is not None:
             if self.seed is not None:
                 random.seed(self.seed)

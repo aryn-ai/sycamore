@@ -95,7 +95,6 @@ class Gemini(LLM):
     def get_generate_kwargs(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
         from google.genai import types
 
-        kwargs: dict[str, Any] = {}
         config = {
             "temperature": 0,
             "candidate_count": 1,
@@ -119,17 +118,18 @@ class Gemini(LLM):
                     assert content.parts is not None  # mypy
                     content.parts.append(types.Part.from_bytes(data=image_bytes, mime_type="image/png"))
             content_list.append(content)
-        kwargs["config"] = None
+
         if thinking_budget := config.pop("thinking_budget", None):
             config["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
         if thinking_level := config.pop("thinking_level", None):
             if "thinking_config" in config:
                 logger.warning(f"Thinking level {thinking_level} overrides thinking budget {thinking_budget}")
             config["thinking_config"] = types.ThinkingConfig(thinking_level=types.ThinkingLevel(thinking_level))
-        if config:
-            kwargs["config"] = types.GenerateContentConfig(**config)
-        kwargs["content"] = content_list
-        return kwargs
+
+        return {
+            "config": types.GenerateContentConfig(**config),
+            "content": content_list,
+        }
 
     def _metadata_from_response(self, model: str, kwargs, response, starttime) -> dict:
         wall_latency = datetime.datetime.now() - starttime
@@ -140,7 +140,9 @@ class Gemini(LLM):
         from google.genai.types import FinishReason
 
         if reason != FinishReason.STOP:
-            logger.warning(f"Gemini model stopped for unexpected reason {reason}. Full response:\n{response}")
+            logger.warning(
+                f"Gemini model stopped for unexpected reason {reason}. Kwargs: {kwargs}. Full response:\n{response}"
+            )
         if response.candidates[0].content is None or response.candidates[0].content.parts is None:
             import json
 

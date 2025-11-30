@@ -1,7 +1,7 @@
 from sycamore.data import Document
 from PIL import Image
-from datasets import load_dataset
-from datasets.load import IterableDataset
+from datasets import load_dataset  # type: ignore[attr-defined]
+from datasets.load import IterableDataset  # type: ignore[attr-defined]
 from ray.data import from_huggingface, Dataset
 from typing import Optional
 import io

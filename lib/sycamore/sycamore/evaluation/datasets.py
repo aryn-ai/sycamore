@@ -8,7 +8,7 @@ from sycamore import DocSet, Context
 from sycamore.connectors.file import MaterializedScan
 
 if typing.TYPE_CHECKING:
-    from datasets import IterableDataset
+    from datasets import IterableDataset  # type: ignore[attr-defined]
 
 
 class HuggingFaceScan(MaterializedScan):

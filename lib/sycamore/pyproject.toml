@@ -111,7 +111,8 @@ cydifflib = "^1.2.0"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
-pytest = "7.4.0" # See poetry-lock/pyproject.toml
+pytest = "^8.2.0" # See poetry-lock/pyproject.toml
+pytest-asyncio = "^1.2.0"
 pytest-mock = "^3.11"
 pytest-xdist = "^3.6.1"
 

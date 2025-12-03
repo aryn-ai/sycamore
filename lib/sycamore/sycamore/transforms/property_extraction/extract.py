@@ -16,7 +16,7 @@ from sycamore.transforms.property_extraction.strategy import (
     StepThroughStrategy,
     TakeFirstTrimSchema,
 )
-from sycamore.transforms.property_extraction.types import AttributionValue, RichProperty
+from sycamore.transforms.property_extraction.types import RichProperty
 from sycamore.transforms.property_extraction.prompts import schema_extract_pre_elements_helper, ExtractionJinjaPrompt
 from sycamore.transforms.property_extraction.utils import remove_keys_recursive
 from sycamore.llms.llms import LLM
@@ -253,9 +253,7 @@ class Extract(MapBatch):
 
         for k, (v,), (p,) in zip_traverse(working_results):
             if v.attribution is None:
-                v.attribution = AttributionValue(
-                    element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
-                )
+                v.attribution = self._attribution.default_attribution(v, document, elements)
         return self._attribution.refine_attribution(working_results, document)
 
     def validate_prediction(self, schema_part: Schema, prediction: RichProperty) -> Optional[Schema]:

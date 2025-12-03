@@ -25,6 +25,13 @@ class AttributionStrategy(ABC):
         pass
 
     @abstractmethod
+    def default_attribution(
+        self, prop: RichProperty, doc: Document, elements: list[Element]
+    ) -> Optional[AttributionValue]:
+        """Returns the default attribution for the given RichProperty"""
+        pass
+
+    @abstractmethod
     def refine_attribution(self, prop: RichProperty, doc: Document) -> RichProperty:
         """Compute the final attribution given the initial RichProperty and the source Document"""
         pass
@@ -35,6 +42,13 @@ class TextMatchAttributionStrategy(AttributionStrategy):
 
     def prediction_to_rich_property(self, prediction: dict[str, Any]) -> RichProperty:
         return RichProperty.from_prediction(prediction)
+
+    def default_attribution(
+        self, prop: RichProperty, doc: Document, elements: list[Element]
+    ) -> Optional[AttributionValue]:
+        return AttributionValue(
+            element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
+        )
 
     def refine_attribution(self, prop: RichProperty, doc: Document) -> RichProperty:
         # TODO: Rewrite with zip_traverse
@@ -132,6 +146,11 @@ class LLMAttributionStrategy(AttributionStrategy):
             _recurse(root, k, v)
 
         return root
+
+    def default_attribution(
+        self, prop: RichProperty, doc: Document, elements: list[Element]
+    ) -> Optional[AttributionValue]:
+        return None
 
     def refine_attribution(self, prop: RichProperty, doc: Document) -> RichProperty:
         eid_map = {e.element_index: i for i, e in enumerate(doc.elements)}

@@ -25,8 +25,8 @@ def dict_to_document(doc: dict[str, Any]) -> Document:
     document = Document(**doc)
     document.doc_id = doc_id
     document.data["elements"] = []
-    for json_element in elements:
-        element = create_element(**json_element)
+    for i, json_element in enumerate(elements):
+        element = create_element(element_index=i, **json_element)
         if (id := json_element.get("id")) is not None:
             element.data["doc_id"] = id
         document.data["elements"].append(element)

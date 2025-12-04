@@ -27,7 +27,8 @@ def dict_to_document(doc: dict[str, Any]) -> Document:
     document.data["elements"] = []
     for json_element in elements:
         element = create_element(**json_element)
-        element.data["doc_id"] = json_element["id"]
+        if (id := json_element.get("id")) is not None:
+            element.data["doc_id"] = id
         document.data["elements"].append(element)
     return document
 
@@ -68,9 +69,10 @@ class ArynClientParams(BaseDBReader.ClientParams):
 
 @dataclass
 class ArynQueryParams(BaseDBReader.QueryParams):
-    def __init__(self, docset_id: str, doc_filter: Optional[DocFilter] = None):
+    def __init__(self, docset_id: str, doc_filter: Optional[DocFilter] = None, use_original_elements: bool = False):
         self.docset_id = docset_id
         self.doc_filter = doc_filter
+        self.use_original_elements = use_original_elements
 
 
 class ArynQueryResponse(BaseDBReader.QueryResponse):
@@ -103,8 +105,15 @@ class ArynReaderClient(BaseDBReader.Client):
             doc_list = query_params.doc_filter.select(doc_list)
 
         for doc_id in doc_list:
-            doc = self._client.get_doc(query_params.docset_id, doc_id)
+            doc = self._client.get_doc(
+                query_params.docset_id, doc_id, include_original_elements=query_params.use_original_elements
+            )
             doc["doc_id"] = doc_id
+            if query_params.use_original_elements:
+                if oe := doc["properties"]["_original_elements"]:
+                    doc["elements"] = oe
+                else:
+                    logger.warning(f"No original elements found for doc_id: {doc_id}")
             docs.append(doc)
         t1 = time()
         logger.info(f"Reading took: {t1 - t0} seconds")
@@ -143,8 +152,15 @@ class ArynReader(BaseDBReader):
         aryn_client = client._client
 
         doc_id = doc["doc_id"]
-        doc = aryn_client.get_doc(self._query_params.docset_id, doc_id)
+        doc = aryn_client.get_doc(
+            self._query_params.docset_id, doc_id, include_original_elements=self._query_params.use_original_elements
+        )
         doc["doc_id"] = doc_id
+        if self._query_params.use_original_elements:
+            if oe := doc["properties"]["_original_elements"]:
+                doc["elements"] = oe
+            else:
+                logger.warning(f"No original elements found for doc_id: {doc_id}")
         document = dict_to_document(doc)
         return {"doc": Document.serialize(document)}
 

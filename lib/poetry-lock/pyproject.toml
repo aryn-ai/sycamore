@@ -31,6 +31,7 @@ onnx = "1.18.0"
 # Package versions from being yanked
 matplotlib = "3.10.3"
 
+
 # Package versions specified because of github vulnerability reports
 aiohttp = "^3.12.14"
 authlib = "^1.6.5"
@@ -42,6 +43,7 @@ cryptography = ">=44.0.1"
 tornado = ">=6.5.0"
 pillow = "^11.3.0"
 # black = ">=24.3.0"
+fonttools = "^4.60.2"
 
 httpcore = ">=1.0.9"
 setuptools = ">=78.1.1"

@@ -704,6 +704,7 @@ class DocSetReader:
         aryn_api_key: Optional[str] = None,
         aryn_url: Optional[str] = None,
         doc_filter: Optional[DocFilter] = None,
+        use_original_elements: bool = False,
         **kwargs,
     ) -> DocSet:
         """
@@ -729,7 +730,7 @@ class DocSetReader:
 
         dr = ArynReader(
             client_params=ArynClientParams(aryn_url, aryn_api_key),
-            query_params=ArynQueryParams(docset_id, doc_filter),
+            query_params=ArynQueryParams(docset_id, doc_filter, use_original_elements),
             **kwargs,
         )
         return DocSet(self._context, dr)

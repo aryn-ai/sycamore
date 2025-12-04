@@ -43,7 +43,7 @@ def check_table(catalog_options):
 def test_iceberg_writer(mode, catalog_options, tmp_path) -> None:
     ctx = sycamore.init(exec_mode=mode)
     (
-        ctx.read.document(docs)
+        ctx.read.document(docs, parallelism=1)
         .transform(
             IcebergWriter,
             catalog_kwargs=catalog_options,

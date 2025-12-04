@@ -11820,7 +11820,7 @@ pypdfium2 = {version = "^5.0.0", optional = true}
 pytesseract = {version = "^0.3.10", optional = true}
 python-pptx = {version = "^0.6.22", optional = true}
 qdrant-client = {version = "^1.11.2", optional = true}
-ray = {version = "^2.49.1", extras = ["default"]}
+ray = {version = "^2.52.1", extras = ["default"]}
 rich = "^13.7.1"
 rouge = {version = "^1.0.1", optional = true}
 sentence-transformers = {version = "^3.0.1", optional = true}
@@ -11887,7 +11887,7 @@ pandas = "2.3.0"
 pillow = "^11.3.0"
 protobuf = "^5.29.5"
 pytest = "7.4.0"
-ray = "^2.49.1"
+ray = "^2.52.1"
 requests = "^2.32.4"
 scipy = "^1.15.0"
 scrapy = ">=2.13.4"

@@ -3,6 +3,7 @@ from typing import Dict, Optional
 from pydantic import Field
 
 from sycamore import DocSet
+from sycamore.connectors.aryn.ArynReader import DocFilter
 from sycamore.query.logical_plan import Node
 
 
@@ -61,6 +62,11 @@ class QueryDatabase(Node):
     result_filter: Optional[Dict] = None
     """
     An additional filter that can be used to filter the results of the search.
+    """
+
+    doc_filter: Optional[DocFilter] = None
+    """
+    A filter for specifying what should be included or excluded from the result.
     """
 
     @property
@@ -124,6 +130,11 @@ class QueryVectorDatabase(Node):
     result_filter: Optional[Dict] = None
     """
     An additional filter that can be used to filter the results of the vector search.
+    """
+
+    doc_filter: Optional[DocFilter] = None
+    """
+    A filter for specifying what should be included or excluded from the result.
     """
 
     rag_mode: Optional[bool] = False

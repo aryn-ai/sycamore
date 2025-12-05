@@ -174,7 +174,9 @@ def test_query_with_doc_filter(mock_sycamore_docsetreader, mock_opensearch_num_d
             doc_filter=DocFilter(doc_ids=["doc2"]),
         )
         sycamore_operator = SycamoreQueryVectorDatabase(
-            context=context, logical_node=logical_node, query_id="test",
+            context=context,
+            logical_node=logical_node,
+            query_id="test",
         )
         sycamore_operator.execute()
 

@@ -391,9 +391,7 @@ class OpenSearchReader(BaseDBReader):
             slice_query = json.loads(doc["doc"])
 
             if self.filter or self._query_params.doc_filter:
-                print(f"Adding filter to slice query {slice_query}")
                 add_filter_to_query(slice_query, self.filter, self._query_params.doc_filter)
-                print(f"Modified slice query: {slice_query}")
 
             assert (
                 get_doc_count_for_slice(os_client, slice_query) < 10000
@@ -414,7 +412,6 @@ class OpenSearchReader(BaseDBReader):
                     **query_params,
                 )
                 hits = res["hits"]["hits"]
-                print(hits)
                 if hits is None or len(hits) == 0:
                     break
 

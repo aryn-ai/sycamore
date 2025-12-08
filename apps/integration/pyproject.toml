@@ -13,7 +13,7 @@ pytest = "7.4.0"
 opensearch-py = "^2.5.0"
 testcontainers = "^4.3.1"
 sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
-urllib3 = ">=2.5.0,<3"
+urllib3 = "^2.6.1"
 
 [build-system]
 requires = ["poetry-core"]

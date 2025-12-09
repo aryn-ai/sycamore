@@ -378,6 +378,11 @@ class OpenAI(LLM):
         self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret
 
+    def generate_v2(
+            self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> dict[str, Any]:
+        pass
+
     def _generate_using_openai(self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
         kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
         logging.debug("OpenAI prompt: %s", kwargs)

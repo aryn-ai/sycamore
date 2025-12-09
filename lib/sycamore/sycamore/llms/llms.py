@@ -54,6 +54,13 @@ class LLM(ABC):
         """Generates a response from the LLM for the given prompt and LLM parameters."""
         pass
 
+    @abstractmethod
+    def generate_v2(
+            self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> dict[str, Any]:
+        """Generates a response from the LLM for the given prompt and LLM parameters."""
+        pass
+
     @deprecated(version="0.1.31", reason="Use generate, with a RenderedPrompt, instead")
     def generate_old(self, *, prompt_kwargs: dict[str, Any], llm_kwargs: Optional[dict] = None) -> str:
         """Generates a response from the LLM"""

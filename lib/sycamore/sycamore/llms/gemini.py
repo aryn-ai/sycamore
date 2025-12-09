@@ -178,14 +178,19 @@ class Gemini(LLM):
         self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
         return ret
 
-    def generate(
+    def generate_v2(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
-    ) -> str:
+    ) -> dict[str, Any]:
         model_name: str = model.name if model else self.model.name
         if self.model.name != model_name:
             logger.info(f"Overriding Gemini model from {self.model.name} to {model_name}")
         d = self.generate_metadata(model=model_name, prompt=prompt, llm_kwargs=llm_kwargs)
-        return d["output"]
+        return d
+
+    def generate(
+            self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
+        return self.generate_v2(model=model, prompt=prompt, llm_kwargs=llm_kwargs)["output"]
 
     async def generate_async(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None

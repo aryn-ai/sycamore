@@ -539,7 +539,7 @@ class VLMTableStructureExtractor(TableStructureExtractor):
         self.llm = llm
         self.prompt_str = prompt_str
 
-    def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+    def extract_v2(self, element: TableElement, doc_image: Image.Image) -> dict[str, Any]:
         # We need a bounding box to be able to do anything.
         if element.bbox is None:
             return element
@@ -561,22 +561,27 @@ class VLMTableStructureExtractor(TableStructureExtractor):
             self.llm.response_checker = response_checker
 
         try:
-            res: str = self.llm.generate(prompt=prompt)
+            res_dict = self.llm.generate_v2(prompt=prompt)
 
+            res = res_dict.get("output", "")
             if res.startswith("```html"):
                 res = res[7:].rstrip("`")
             res = res.strip()
 
             table = Table.from_html(res)
             element.table = table
-            return element
+            res_dict["output"] = element
+            return res_dict
         except Exception as e:
             tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
             logging.warning(
                 f"Failed to extract a table due to:\n{tb_str}\nReturning the original element without a table."
             )
 
-        return element
+        return {"output": element}
+
+def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+    return self.extract_v2(element, doc_image)["output"]
 
 
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor

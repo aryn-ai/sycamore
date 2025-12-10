@@ -47,7 +47,11 @@ class DocScan(MaterializedScan):
     def execute(self, **kwargs) -> "Dataset":
         from ray.data import from_items
 
-        return from_items(items=[{"doc": doc.serialize()} for doc in self._docs])
+        kwargs = {"items": [{"doc": doc.serialize()} for doc in self._docs]}
+        if self.parallelism is not None:
+            kwargs["parallelism"] = self.parallelism
+
+        return from_items(**kwargs)
 
     def local_source(self) -> list[Document]:
         return self._docs

@@ -15,7 +15,7 @@ fsspec = "2024.2.0"   # sycamore (via datasets)
 # poetry run pytest lib/sycamore/sycamore/tests/unit/scans/test_materialized_scan.py lib/sycamore/sycamore/tests/unit/test_docset.py
 pytest = "7.4.0"
 guidance = "0.1.14" # They removed AzureOpenAIChat in https://github.com/guidance-ai/guidance/commit/a75896a851edf8b3cf15534af4fed8d15f277af1
-ray = "^2.49.1" # Latest version supported on linux/aarch64 https://github.com/ray-project/ray/issues/46104
+ray = "^2.52.1" 
 pandas = "2.3.0" # Bumped to a version that supports 3.13.
 scipy = "^1.15.0"
 weaviate-client = "^4.16.10"
@@ -31,6 +31,7 @@ onnx = "1.18.0"
 # Package versions from being yanked
 matplotlib = "3.10.3"
 
+
 # Package versions specified because of github vulnerability reports
 aiohttp = "^3.12.14"
 authlib = "^1.6.5"
@@ -42,6 +43,7 @@ cryptography = ">=44.0.1"
 tornado = ">=6.5.0"
 pillow = "^11.3.0"
 # black = ">=24.3.0"
+fonttools = "^4.60.2"
 
 httpcore = ">=1.0.9"
 setuptools = ">=78.1.1"

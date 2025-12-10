@@ -25,6 +25,21 @@ def _sample_llm_prediction() -> dict:
     }
 
 
+def _sample_llm_prediction_with_none() -> dict:
+    return {
+        "company": ["Aryn", 0],
+        "hq": [{"city": ["Seattle", 1], "state": ["WA", 1]}, 1],
+        "locations": [
+            {"city": ["Seattle", None]},
+            {"city": None},
+        ],
+        "leaders": [
+            {"name": ["Alice", 2]},
+            {"name": ["Bob", 3]},
+        ],
+    }
+
+
 def test_refine_attribution():
     strategy = TextMatchAttributionStrategy()
 
@@ -199,6 +214,53 @@ def test_llm_refine_attribution_rolls_up_uniform_children():
     assert locations.attribution.element_indices == [1]
     assert locations.attribution.page == 4
     assert all(loc.attribution is not None and loc.attribution.element_indices == [1] for loc in locations.value)
+
+    leaders = refined.value["leaders"]
+    assert leaders.attribution is None
+    assert all(loc.attribution is not None for loc in leaders.value)
+    assert {tuple(loc.attribution.element_indices) for loc in leaders.value if loc.attribution is not None} == {
+        (2,),
+        (3,),
+    }
+    assert leaders.value[0].value["name"].attribution.page == 5
+    assert leaders.value[1].value["name"].attribution.page == 6
+
+
+def test_llm_default_attribution():
+    strategy = LLMAttributionStrategy()
+
+    doc = Document(
+        elements=[
+            _make_element("Overview about Aryn", 0, 3),
+            _make_element("Seattle, WA headquarters", 1, 4),
+            _make_element("Alice leads operations", 2, 5),
+            _make_element("Bob oversees sales", 3, 6),
+        ]
+    )
+
+    rich_prop = strategy.prediction_to_rich_property(_sample_llm_prediction_with_none())
+
+    for k, (v,), (p,) in zip_traverse(rich_prop):
+        if v.attribution is None:
+            v.attribution = strategy.default_attribution(v, doc, doc.elements)
+
+    refined = strategy.refine_attribution(rich_prop, doc)
+
+    company = refined.value["company"]
+    assert company.attribution is not None
+    assert company.attribution.element_indices == [0]
+    assert company.attribution.page == 3
+
+    hq = refined.value["hq"]
+    assert hq.attribution is not None
+    assert hq.attribution.element_indices == [1]
+    assert hq.attribution.page == 4
+    assert hq.value["city"].attribution is not None
+    assert hq.value["city"].attribution.page == 4
+
+    locations = refined.value["locations"]
+    assert locations.attribution is None
+    assert all(loc.attribution is None for loc in locations.value)
 
     leaders = refined.value["leaders"]
     assert leaders.attribution is None

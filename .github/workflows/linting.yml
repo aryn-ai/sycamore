@@ -10,7 +10,7 @@ on:
 # reduce time, since it is unlikely that linting will be version
 # specific.
 jobs:
-  mypy:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: DF-1
@@ -46,20 +46,6 @@ jobs:
           poetry run mypy --version
           mkdir .mypy_cache/
           poetry run mypy --install-types --non-interactive .
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Install poetry
-        run: pipx install poetry
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          cache: 'poetry'
-      - name: Install sycamore
-        run: poetry install --all-extras --no-root
       - name: Lint with ruff
         run: poetry run ruff check .
       - name: Lint with black

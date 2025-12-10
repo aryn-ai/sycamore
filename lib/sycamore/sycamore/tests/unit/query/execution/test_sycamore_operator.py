@@ -248,6 +248,7 @@ def test_vector_query_database_with_rerank():
             doc_reconstructor=None,
             result_filter=None,
             query_kwargs={"size": 500},
+            doc_filter=None,
         )
         mock_docset.rerank.assert_called_once()
 
@@ -313,6 +314,7 @@ def test_vector_query_database():
             doc_reconstructor=None,
             result_filter=None,
             query_kwargs={"size": 500},
+            doc_filter=None,
         )
         mock_docset.rerank.assert_not_called()
 

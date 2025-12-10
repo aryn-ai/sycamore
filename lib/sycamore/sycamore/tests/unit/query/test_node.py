@@ -30,6 +30,7 @@ def test_node_cache_dict():
         "index": "ntsb",
         "query": {"match_all": {}},
         "result_filter": None,
+        "doc_filter": None,
     }
     assert node3.cache_key() == sha256(json.dumps(node3.cache_dict()).encode()).hexdigest()
 
@@ -46,6 +47,7 @@ def test_node_cache_dict():
                 "index": "ntsb",
                 "query": {"match_all": {}},
                 "result_filter": None,
+                "doc_filter": None,
             }
         ],
         "distinct_field": "temperature",

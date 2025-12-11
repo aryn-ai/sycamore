@@ -67,9 +67,6 @@ class TestGraphRelationshipExtractor:
         ) -> str:
             return ""
 
-        def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
-            raise NotImplementedError("MockEntityLLM does not support generate_metadata")
-
         def is_chat_mode(self):
             return True
 
@@ -93,9 +90,6 @@ class TestGraphRelationshipExtractor:
             self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
         ) -> str:
             return ""
-
-        def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
-            raise NotImplementedError("MockRelationshipLLM does not support generate_metadata")
 
         def is_chat_mode(self):
             return True

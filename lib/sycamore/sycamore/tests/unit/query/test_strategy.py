@@ -119,9 +119,6 @@ class DummyLLMClient(LLM):
     ) -> str:
         return "Dummy response from an LLM Client"
 
-    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
-        raise NotImplementedError("DummyLLMClient does not support generate_metadata")
-
 
 class TestStrategies(unittest.TestCase):
     def test_default(self):

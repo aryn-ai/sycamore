@@ -65,9 +65,6 @@ class TestGraphExtractor:
         ) -> str:
             return ""
 
-        def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
-            raise NotImplementedError("MockLLM does not support generate_metadata")
-
         def is_chat_mode(self):
             return True
 

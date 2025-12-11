@@ -152,6 +152,7 @@ class Gemini(LLM):
             output = " ".join(part.text if part else "" for part in response.candidates[0].content.parts)
 
         ret = {
+            "model": model,
             "output": output,
             "wall_latency": wall_latency,
             "in_tokens": in_tokens,
@@ -160,11 +161,15 @@ class Gemini(LLM):
         self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens, model=model)
         return ret
 
-    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
-        model = self.model.name
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
+        if model is not None and model != self.model:
+            logger.info(f"Generating response using {model=} instead of {self.model=}")
+        model_name = model.name if model else self.model.name
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
-        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if isinstance(ret, dict):
             return ret
         assert ret is None
@@ -172,23 +177,20 @@ class Gemini(LLM):
         kwargs = self.get_generate_kwargs(prompt, llm_kwargs)
 
         start = datetime.datetime.now()
-        response = self.generate_content(model=model, contents=kwargs["content"], config=kwargs["config"])
-        ret = self._metadata_from_response(model, kwargs, response, start)
-        self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
+        response = self.generate_content(model=model_name, contents=kwargs["content"], config=kwargs["config"])
+        ret = self._metadata_from_response(model_name, kwargs, response, start)
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret
 
     def generate(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
-        assert model is None or model == self.model, f"Model mismatch: {model} != {self.model}"
-        d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
+        d = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs)
         return d["output"]
 
     async def generate_async(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
-        assert model is None or model == self.model, f"Model mismatch: {model} != {self.model}"
-
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         model_name = model.name if model else self.model.name
         if self.model.name != model_name:

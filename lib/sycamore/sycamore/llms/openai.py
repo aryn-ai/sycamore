@@ -363,51 +363,55 @@ class OpenAI(LLM):
     ) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         llm_kwargs = self._convert_response_format(llm_kwargs)
-        assert model is None or model == self.model, f"Model mismatch: {model} != {self.model}"
-        model_name = model.name if model else self.model.name
 
         if prompt.response_format is not None:
+            model_name = model.name if model else self.model.name
             ret = self._generate_using_openai_structured(model_name, prompt, llm_kwargs)
         else:
-            ret = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
+            ret = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs)
 
         return ret["output"]
 
-    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
         assert prompt.response_format is None, "Unimplemented"
-        model = self.model.name
+        if model is not None and model != self.model:
+            logger.info(f"Generating response using {model=} instead of {self.model=}")
+        model_name = model.name if model else self.model.name
         kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
         logging.debug("OpenAI prompt: %s", kwargs)
 
-        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if isinstance(ret, dict):
             return ret
         assert ret is None
 
         if self.is_chat_mode():
             starttime = datetime.now()
-            completion = self.client_wrapper.get_client().chat.completions.create(model=model, **kwargs)
+            completion = self.client_wrapper.get_client().chat.completions.create(model=model_name, **kwargs)
             logging.debug("OpenAI completion: %s", completion)
             wall_latency = datetime.now() - starttime
             response_text = completion.choices[0].message.content
         else:
             starttime = datetime.now()
-            completion = self.client_wrapper.get_client().completions.create(model=model, **kwargs)
+            completion = self.client_wrapper.get_client().completions.create(model=model_name, **kwargs)
             logging.debug("OpenAI completion: %s", completion)
             wall_latency = datetime.now() - starttime
             response_text = completion.choices[0].text
 
         completion_tokens, prompt_tokens = self.validate_tokens(completion)
-        self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens, model=model)
+        self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens, model=model_name)
         if not response_text:
             raise ValueError("OpenAI returned empty response")
         ret = {
+            "model": model_name,
             "output": response_text,
             "wall_latency": wall_latency,
             "in_tokens": prompt_tokens,
             "out_tokens": completion_tokens,
         }
-        self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret
 
     def _generate_using_openai_structured(self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> dict:
@@ -444,7 +448,6 @@ class OpenAI(LLM):
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
-        assert model is None or model == self.model, f"Model mismatch: {model} != {self.model}"
         model_name: str = model.name if model else self._model_name
         if model_name != self._model_name:
             logger.info(f"Overriding OpenAI model from {self._model_name} to {model_name}")

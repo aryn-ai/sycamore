@@ -80,7 +80,7 @@ class AggregationNode(UnaryNode):
                 meta.extend(extra_metadata)
                 return {"doc": partial_result.serialize(), "key": key, "meta": pickle.dumps(meta)}
 
-            def combine(self, current_accumulator, new):
+            def combine(self, current_accumulator, new) -> dict:
                 assert current_accumulator["key"] == new["key"]
                 row1 = {"doc": current_accumulator["doc"]}
                 row2 = {"doc": new["doc"]}

@@ -1,6 +1,7 @@
 import inspect
 from abc import ABC, abstractmethod
 import copy
+import datetime
 import logging
 import pickle
 import base64
@@ -52,6 +53,11 @@ class LLM(ABC):
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters."""
+        pass
+
+    @abstractmethod
+    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+        """Generates a response from the LLM for the given prompt and LLM parameters and returns metadata."""
         pass
 
     @deprecated(version="0.1.31", reason="Use generate, with a RenderedPrompt, instead")
@@ -263,6 +269,14 @@ class FakeLLM(LLM):
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
         return self._return_value
+
+    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+        return {
+            "output": self._return_value,
+            "wall_latency": datetime.timedelta(seconds=0),
+            "in_tokens": 0,
+            "out_tokens": 0,
+        }
 
     async def generate_async(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None

@@ -363,24 +363,27 @@ class OpenAI(LLM):
     ) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         llm_kwargs = self._convert_response_format(llm_kwargs)
-        model_name: str = model.name if model else self._model_name
-        if model_name != self._model_name:
-            logger.info(f"Overriding OpenAI model from {self._model_name} to {model_name}")
-        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
-        if ret is not None:
-            return ret
+        assert model is None or model == self.model, f"Model mismatch: {model} != {self.model}"
+        model_name = model.name if model else self.model.name
 
         if prompt.response_format is not None:
             ret = self._generate_using_openai_structured(model_name, prompt, llm_kwargs)
         else:
-            ret = self._generate_using_openai(model_name, prompt, llm_kwargs)
+            ret = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
 
-        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
-        return ret
+        return ret["output"]
 
-    def _generate_using_openai(self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
+    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+        assert prompt.response_format is None, "Unimplemented"
+        model = self.model.name
         kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
         logging.debug("OpenAI prompt: %s", kwargs)
+
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
+        if isinstance(ret, dict):
+            return ret
+        assert ret is None
+
         if self.is_chat_mode():
             starttime = datetime.now()
             completion = self.client_wrapper.get_client().chat.completions.create(model=model, **kwargs)
@@ -398,35 +401,50 @@ class OpenAI(LLM):
         self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens, model=model)
         if not response_text:
             raise ValueError("OpenAI returned empty response")
-        return response_text
+        ret = {
+            "output": response_text,
+            "wall_latency": wall_latency,
+            "in_tokens": prompt_tokens,
+            "out_tokens": completion_tokens,
+        }
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
+        return ret
 
-    def _generate_using_openai_structured(self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
-        try:
-            kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
-            if self.is_chat_mode():
-                starttime = datetime.now()
-                completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=model, **kwargs)
-                completion_tokens, prompt_tokens = self.validate_tokens(completion)
-                wall_latency = datetime.now() - starttime
-                response_text = completion.choices[0].message.content
-                self.add_llm_metadata(
-                    kwargs, response_text, wall_latency, completion_tokens, prompt_tokens, model=model
-                )
-            else:
-                raise ValueError("This method doesn't support instruct models. Please use a chat model.")
-                # completion = self.client_wrapper.get_client().beta.completions.parse(model=self._model_name, **kwargs)
-            assert response_text is not None, "OpenAI refused to respond to the query"
-            return response_text
-        except Exception as e:
-            # OpenAI will not respond in two scenarios:
-            # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
-            # 2.) The LLM refused to respond to the request because it did not meet guidelines
-            raise e
+    def _generate_using_openai_structured(self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> dict:
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
+        if isinstance(ret, dict):
+            return ret
+        assert ret is None
+        # OpenAI can generate exceptions in at least two scenarios:
+        # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
+        # 2.) The LLM refused to respond to the request because it did not meet guidelines
+
+        kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
+        if self.is_chat_mode():
+            starttime = datetime.now()
+            completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=model, **kwargs)
+            completion_tokens, prompt_tokens = self.validate_tokens(completion)
+            wall_latency = datetime.now() - starttime
+            response_text = completion.choices[0].message.content
+            self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens, model=model)
+        else:
+            raise ValueError("This method doesn't support instruct models. Please use a chat model.")
+            # completion = self.client_wrapper.get_client().beta.completions.parse(model=self._model_name, **kwargs)
+        assert response_text is not None, "OpenAI refused to respond to the query"
+        ret = {
+            "output": response_text,
+            "wall_latency": wall_latency,
+            "in_tokens": prompt_tokens,
+            "out_tokens": completion_tokens,
+        }
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
+        return ret
 
     async def generate_async(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+        assert model is None or model == self.model, f"Model mismatch: {model} != {self.model}"
         model_name: str = model.name if model else self._model_name
         if model_name != self._model_name:
             logger.info(f"Overriding OpenAI model from {self._model_name} to {model_name}")

@@ -4,7 +4,7 @@ from sycamore.schema import SchemaV2, StringProperty, ObjectProperty, ArrayPrope
 
 
 class TestSchemaUpdateStrategy:
-    def test_takefirst_trimschema(self):
+    def test_takefirst_trimschema(self) -> None:
         start_schema = SchemaV2(
             properties=[
                 NamedProperty(name="a", type=StringProperty()),
@@ -56,7 +56,7 @@ class TestSchemaUpdateStrategy:
         assert sur3.out_fields["b"].value["b2"].value == "b23"
         assert sur3.out_fields["c"].value == "c3"
 
-    def test_takefirst_trimschema_with_array(self):
+    def test_takefirst_trimschema_with_array(self) -> None:
         start_schema = SchemaV2(
             properties=[
                 NamedProperty(name="a", type=ArrayProperty(item_type=StringProperty())),
@@ -101,7 +101,7 @@ class TestSchemaUpdateStrategy:
         assert sur3.out_fields["b"].value == "b2"
         assert sur3.out_fields["c"].value == "c3"
 
-    def test_takefirst_trimschema_with_array_of_array(self):
+    def test_takefirst_trimschema_with_array_of_array(self) -> None:
         start_schema = SchemaV2(
             properties=[
                 NamedProperty(
@@ -158,7 +158,7 @@ class TestSchemaUpdateStrategy:
         assert sur3.out_fields["b"].value == "b2"
         assert sur3.out_fields["c"].value == "c3"
 
-    def test_takefirst_trimschema_validated(self):
+    def test_takefirst_trimschema_validated(self) -> None:
         schema = SchemaV2(
             properties=[
                 NamedProperty(
@@ -220,7 +220,7 @@ class TestSchemaUpdateStrategy:
         assert sur3.out_fields["b"].value == "4"
         assert sur3.out_fields["c"].value["d"].value == "dc000"
 
-    def test_takefirst_trimschema_keep_property_descriptions(self):
+    def test_takefirst_trimschema_keep_property_descriptions(self) -> None:
         schema = SchemaV2(
             properties=[
                 NamedProperty(

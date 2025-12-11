@@ -36,7 +36,7 @@ def test_openai_defaults():
     assert len(res) > 0
 
 
-def test_openai_override_defaults():
+def test_openai_override_defaults() -> None:
     model = OpenAIModels.GPT_3_5_TURBO
     llm = OpenAI(model)
     prompt = RenderedPrompt(

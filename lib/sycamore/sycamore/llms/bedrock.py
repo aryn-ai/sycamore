@@ -66,7 +66,8 @@ class Bedrock(LLM):
             return format_image(image)
         raise NotImplementedError("Images not supported for non-Anthropic Bedrock models.")
 
-    def generate_metadata(self, *, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+        model = self.model.name
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
         ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
@@ -112,8 +113,12 @@ class Bedrock(LLM):
     def generate(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
-        model_name: str = model.name if model else self.model.name
-        if self.model.name != model_name:
-            logger.info(f"Overriding Gemini model from {self.model.name} to {model_name}")
-        d = self.generate_metadata(model=model_name, prompt=prompt, llm_kwargs=llm_kwargs)
+        assert model is None or model == self.model, f"Model mismatch: {model} != {self.model}"
+
+        d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
         return d["output"]
+
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
+        raise NotImplementedError("Asynchronous generation is not supported for Bedrock.")

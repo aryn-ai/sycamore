@@ -42,7 +42,7 @@ class LLMImageSummarizer:
          This version uses a Claude model via Bedrock.
 
          .. code-block:: python
-            llm = Bedrock(BedrockModels.CLAUDE_3_5_SONNET)
+            llm = Bedrock(BedrockModels.CLAUDE_4_5_HAIKU)
 
             context = sycamore.init()
             doc = context.read.binary(paths=paths, binary_format="pdf")\

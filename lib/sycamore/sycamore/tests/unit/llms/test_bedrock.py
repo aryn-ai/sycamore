@@ -35,9 +35,9 @@ def test_bedrock_simple(mock_boto3_client):
         '{ "content": [{"text": "Here is your result: 56"}]}'
     )
 
-    client = Bedrock(BedrockModels.CLAUDE_3_5_SONNET)
+    client = Bedrock(BedrockModels.CLAUDE_4_5_HAIKU)
     assert client.is_chat_mode()
-    assert client._model_name == BedrockModels.CLAUDE_3_5_SONNET.value.name
+    assert client._model_name == BedrockModels.CLAUDE_4_5_HAIKU.value.name
 
     result = client.generate(
         prompt=RenderedPrompt(
@@ -63,9 +63,9 @@ def test_bedrock_system_role(mock_boto3_client):
         '{"content": [{"text": "Here is your result: 56"}]}'
     )
 
-    client = Bedrock(BedrockModels.CLAUDE_3_5_SONNET)
+    client = Bedrock(BedrockModels.CLAUDE_4_5_HAIKU)
     assert client.is_chat_mode()
-    assert client._model_name == BedrockModels.CLAUDE_3_5_SONNET.value.name
+    assert client._model_name == BedrockModels.CLAUDE_4_5_HAIKU.value.name
 
     result = client.generate(
         prompt=RenderedPrompt(
@@ -94,9 +94,9 @@ def test_bedrock_with_llm_kwargs(mock_boto3_client):
         '{"content": [{"text": "Here is your result: 56"}]}'
     )
 
-    client = Bedrock(BedrockModels.CLAUDE_3_5_SONNET)
+    client = Bedrock(BedrockModels.CLAUDE_4_5_HAIKU)
     assert client.is_chat_mode()
-    assert client._model_name == BedrockModels.CLAUDE_3_5_SONNET.value.name
+    assert client._model_name == BedrockModels.CLAUDE_4_5_HAIKU.value.name
 
     result = client.generate(
         prompt=RenderedPrompt(
@@ -128,9 +128,9 @@ def test_bedrock_with_cache(mock_boto3_client):
 
         assert cache.get_hit_info() == (0, 0)
 
-        client = Bedrock(BedrockModels.CLAUDE_3_5_SONNET, cache=cache)
+        client = Bedrock(BedrockModels.CLAUDE_4_5_HAIKU, cache=cache)
         assert client.is_chat_mode()
-        assert client._model_name == BedrockModels.CLAUDE_3_5_SONNET.value.name
+        assert client._model_name == BedrockModels.CLAUDE_4_5_HAIKU.value.name
 
         result = client.generate(
             prompt=RenderedPrompt(

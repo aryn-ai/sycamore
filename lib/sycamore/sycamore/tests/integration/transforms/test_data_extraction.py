@@ -40,7 +40,7 @@ def get_docs():
 
 llms = [
     OpenAI(OpenAIModels.GPT_4O),
-    Anthropic(AnthropicModels.CLAUDE_3_5_SONNET),
+    Anthropic(AnthropicModels.CLAUDE_4_5_HAIKU),
 ]
 
 

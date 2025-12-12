@@ -29,10 +29,7 @@ class AnthropicModels(Enum):
     CLAUDE_4_OPUS = AnthropicModel(name="claude-opus-4-20250514", is_chat=True)
     CLAUDE_4_SONNET = AnthropicModel(name="claude-sonnet-4-20250514", is_chat=True)
     CLAUDE_3_7_SONNET = AnthropicModel(name="claude-3-7-sonnet-latest", is_chat=True)
-    CLAUDE_3_5_SONNET = AnthropicModel(name="claude-3-5-sonnet-latest", is_chat=True)  # Not on claude models page
     CLAUDE_3_5_HAIKU = AnthropicModel(name="claude-3-5-haiku-latest", is_chat=True)
-    CLAUDE_3_OPUS = AnthropicModel(name="claude-3-opus-latest", is_chat=True)  # Not on claude models page
-    CLAUDE_3_SONNET = AnthropicModel(name="claude-3-sonnet-20240229", is_chat=True)  # Not on claude models page
     CLAUDE_3_HAIKU = AnthropicModel(name="claude-3-haiku-20240307", is_chat=True)
 
     @classmethod
@@ -63,10 +60,7 @@ class BedrockModels(Enum):
     CLAUDE_4_OPUS = bedrock_derived(AnthropicModels.CLAUDE_4_OPUS)
     CLAUDE_4_SONNET = bedrock_derived(AnthropicModels.CLAUDE_4_SONNET)
     CLAUDE_3_7_SONNET = bedrock_derived(AnthropicModels.CLAUDE_3_7_SONNET)
-    CLAUDE_3_5_SONNET = bedrock_derived(AnthropicModels.CLAUDE_3_5_SONNET)  # Not on claude models page
     CLAUDE_3_5_HAIKU = bedrock_derived(AnthropicModels.CLAUDE_3_5_HAIKU)
-    CLAUDE_3_OPUS = bedrock_derived(AnthropicModels.CLAUDE_3_OPUS)  # Not on claude models page
-    CLAUDE_3_SONNET = bedrock_derived(AnthropicModels.CLAUDE_3_SONNET)  # Not on claude models page
     CLAUDE_3_HAIKU = bedrock_derived(AnthropicModels.CLAUDE_3_HAIKU)
 
     @classmethod

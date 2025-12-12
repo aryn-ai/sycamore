@@ -385,7 +385,7 @@ class OpenAI(LLM):
         ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if isinstance(ret, dict):
             return ret
-        assert ret is None
+        assert ret is None, f"Expected no cache entry, got {ret}"
 
         if self.is_chat_mode():
             starttime = datetime.now()

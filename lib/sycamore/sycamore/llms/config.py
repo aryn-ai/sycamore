@@ -47,6 +47,9 @@ class BedrockModel(LLMModel):
 
 
 def bedrock_derived(model: AnthropicModels) -> BedrockModel:
+    return BedrockModel(name=f"us.anthropic.{model.value.name}-v1:0", is_chat=model.value.is_chat)
+
+def old_bedrock_derived(model: AnthropicModels) -> BedrockModel:
     return BedrockModel(name=f"anthropic.{model.value.name}-v1:0", is_chat=model.value.is_chat)
 
 
@@ -61,7 +64,7 @@ class BedrockModels(Enum):
     CLAUDE_4_SONNET = bedrock_derived(AnthropicModels.CLAUDE_4_SONNET)
     CLAUDE_3_7_SONNET = bedrock_derived(AnthropicModels.CLAUDE_3_7_SONNET)
     CLAUDE_3_5_HAIKU = bedrock_derived(AnthropicModels.CLAUDE_3_5_HAIKU)
-    CLAUDE_3_HAIKU = bedrock_derived(AnthropicModels.CLAUDE_3_HAIKU)
+    CLAUDE_3_HAIKU = old_bedrock_derived(AnthropicModels.CLAUDE_3_HAIKU)
 
     @classmethod
     def from_name(cls, name: str):

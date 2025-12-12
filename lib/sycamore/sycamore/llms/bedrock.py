@@ -81,7 +81,7 @@ class Bedrock(LLM):
         assert ret is None
 
         kwargs = get_generate_kwargs(prompt, llm_kwargs)
-        if model_name.startswith("anthropic."):
+        if "anthropic." in model_name:
             anthropic_version = (
                 DEFAULT_ANTHROPIC_VERSION
                 if llm_kwargs is None

@@ -20,6 +20,7 @@ pandas = "2.3.0" # Bumped to a version that supports 3.13.
 scipy = "^1.15.0"
 weaviate-client = "^4.16.10"
 protobuf = "^5.29.5"
+urllib3 = "^2.6.1"
 
 # Required to continue supporting python 3.9; it may be possible to make these a bit more
 # current, but latest version no longer supports 3.9

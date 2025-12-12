@@ -96,8 +96,8 @@ def test_cached_openai(tmp_path: Path):
     assert cacheget(cache, key).get("model_name") == "gpt-3.5-turbo"
 
     # assert llm.generate is using cached result
-    custom_output = {
-        "result": { "output": "This is a custom response" },
+    custom_output: dict[str, Any] = {
+        "result": {"output": "This is a custom response"},
         "prompt": prompt,
         "prompt.response_format": None,
         "llm_kwargs": {},
@@ -126,8 +126,8 @@ def test_cached_guidance(tmp_path: Path):
     assert cacheget(cache, key).get("model_name") == "gpt-3.5-turbo"
 
     # assert llm.generate is using cached result
-    custom_output = {
-        "result": { "output": "This is a custom response" },
+    custom_output: dict[str, Any] = {
+        "result": {"output": "This is a custom response"},
         "prompt": TestPrompt().render_generic(),
         "prompt.response_format": None,
         "llm_kwargs": {},

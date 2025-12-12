@@ -49,6 +49,7 @@ class BedrockModel(LLMModel):
 def bedrock_derived(model: AnthropicModels) -> BedrockModel:
     return BedrockModel(name=f"us.anthropic.{model.value.name}-v1:0", is_chat=model.value.is_chat)
 
+
 def old_bedrock_derived(model: AnthropicModels) -> BedrockModel:
     return BedrockModel(name=f"anthropic.{model.value.name}-v1:0", is_chat=model.value.is_chat)
 

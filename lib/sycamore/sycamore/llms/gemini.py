@@ -164,8 +164,11 @@ class Gemini(LLM):
     def generate_metadata(
         self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
     ) -> dict:
+        assert model is None or isinstance(
+            model, GeminiModel
+        ), f"model must be a GeminiModel, got {type(model)} from {model=}"
         if model is not None and model != self.model:
-            logger.info(f"Generating response using {model=} instead of {self.model=}")
+            logger.warning(f"Generating response using {model=} instead of {self.model=}")
         model_name = model.name if model else self.model.name
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 

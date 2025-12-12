@@ -179,6 +179,10 @@ class Anthropic(LLM):
     def generate_metadata(
         self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
     ) -> dict:
+        assert model is None or isinstance(
+            model, AnthropicModel
+        ), f"model must be a AnthropicModel, got {type(model)} from {model=}"
+
         if model is not None and model != self.model:
             logger.info(f"Generating response using {model=} instead of {self.model=}")
         model_name = model.name if model else self.model.name

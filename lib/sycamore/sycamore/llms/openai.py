@@ -375,6 +375,10 @@ class OpenAI(LLM):
     def generate_metadata(
         self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
     ) -> dict:
+        assert model is None or isinstance(
+            model, OpenAIModel
+        ), f"model must be a OpenAIModel, got {type(model)} from {model=}"
+
         assert prompt.response_format is None, "Unimplemented"
         if model is not None and model != self.model:
             logger.info(f"Generating response using {model=} instead of {self.model=}")

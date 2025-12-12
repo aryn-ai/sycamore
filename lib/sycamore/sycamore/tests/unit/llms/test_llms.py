@@ -66,7 +66,7 @@ def test_openai_davinci_fallback(mock_openai_client):
 
 def test_model_list():
     assert "openai." + OpenAIModels.TEXT_DAVINCI.value.name in MODELS
-    assert "bedrock." + BedrockModels.CLAUDE_3_5_SONNET.value.name in MODELS
+    assert "bedrock." + BedrockModels.CLAUDE_4_5_HAIKU.value.name in MODELS
 
 
 def test_default_llm_mode():
@@ -121,7 +121,7 @@ def test_get_llm(mock_openai_client, mock_boto3_client):
     assert isinstance(llm, OpenAI)
     assert llm._model_name == model_name, f"{llm._model_name} != {model_name}"
 
-    model_name = BedrockModels.CLAUDE_3_5_SONNET.value.name
+    model_name = BedrockModels.CLAUDE_4_5_HAIKU.value.name
     llm = get_llm("bedrock." + model_name)()
     assert isinstance(llm, Bedrock)
     assert llm._model_name == model_name, f"{llm._model_name} != {model_name}"

@@ -18,6 +18,8 @@ DEFAULT_MAX_TOKENS = 1000
 INITIAL_BACKOFF = 1
 BATCH_POLL_INTERVAL = 10
 
+logger = logging.getLogger(__name__)
+
 
 def rewrite_system_messages(messages: Optional[list[dict]]) -> Optional[list[dict]]:
     # Anthropic models don't accept messages with "role" set to "system", and
@@ -165,6 +167,7 @@ class Anthropic(LLM):
         output = response.content[0].text
 
         ret = {
+            "model": model,
             "output": output,
             "wall_latency": wall_latency,
             "in_tokens": in_tokens,
@@ -173,30 +176,36 @@ class Anthropic(LLM):
         self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens, model=model)
         return ret
 
-    def generate_metadata(self, *, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
+        assert model is None or isinstance(
+            model, AnthropicModel
+        ), f"model must be a AnthropicModel, got {type(model)} from {model=}"
+
+        if model is not None and model != self.model:
+            logger.info(f"Generating response using {model=} instead of {self.model=}")
+        model_name = model.name if model else self.model.name
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
-        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if isinstance(ret, dict):
             return ret
 
         kwargs = get_generate_kwargs(prompt, llm_kwargs)
         start = datetime.now()
 
-        response = self._client.messages.create(model=model, **kwargs)
-        ret = self._metadata_from_response(model, kwargs, response, start)
+        response = self._client.messages.create(model=model_name, **kwargs)
+        ret = self._metadata_from_response(model_name, kwargs, response, start)
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
-        self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret
 
     def generate(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
-        model_name: str = model.name if model else self.model.name
-        if self.model.name != model_name:
-            logging.info(f"Overriding Anthropic model from {self.model.name} to {model_name}")
-        d = self.generate_metadata(model=model_name, prompt=prompt, llm_kwargs=llm_kwargs)
+        d = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs)
         return d["output"]
 
     async def generate_async(

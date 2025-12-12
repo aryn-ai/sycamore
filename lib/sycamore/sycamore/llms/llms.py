@@ -1,6 +1,7 @@
 import inspect
 from abc import ABC, abstractmethod
 import copy
+import datetime
 import logging
 import pickle
 import base64
@@ -14,6 +15,8 @@ from sycamore.data.metadata import add_metadata
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 
 from sycamore.utils.deprecate import deprecated
+
+logger = logging.getLogger(__name__)
 
 
 class LLM(ABC):
@@ -53,6 +56,17 @@ class LLM(ABC):
     ) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters."""
         pass
+
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
+        """Generates a response from the LLM for the given prompt and LLM parameters and returns metadata.
+
+        TODO: Implement generic_generate(model: LLMModel, ...) and generic_generate_args(model_class, kwargs)
+           to specify default arguments during model construction.  The former should cache the client if possible.
+           Then we can call generate on any model rather than only ones in the same family.  Potentially get rid of the
+           model argument to generate* at the same time to simplify the implementations."""
+        raise NotImplementedError("This LLM does not support metadata generation")
 
     @deprecated(version="0.1.31", reason="Use generate, with a RenderedPrompt, instead")
     def generate_old(self, *, prompt_kwargs: dict[str, Any], llm_kwargs: Optional[dict] = None) -> str:
@@ -263,6 +277,18 @@ class FakeLLM(LLM):
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
         return self._return_value
+
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
+        model_name = model.name if model else self._model_name
+        return {
+            "model": model_name,
+            "output": self._return_value,
+            "wall_latency": datetime.timedelta(seconds=0),
+            "in_tokens": 0,
+            "out_tokens": 0,
+        }
 
     async def generate_async(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None

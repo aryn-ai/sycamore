@@ -36,7 +36,7 @@ def test_openai_defaults():
     assert len(res) > 0
 
 
-def test_openai_override_defaults():
+def test_openai_override_defaults() -> None:
     model = OpenAIModels.GPT_3_5_TURBO
     llm = OpenAI(model)
     prompt = RenderedPrompt(
@@ -89,15 +89,15 @@ def test_cached_openai(tmp_path: Path):
     res = llm.generate(prompt=prompt, llm_kwargs={})
 
     # assert result is cached
-    assert cacheget(cache, key).get("result") == res
+    assert cacheget(cache, key).get("result", {}).get("output") == res
     assert cacheget(cache, key).get("prompt") == prompt
     assert cacheget(cache, key).get("prompt.response_format") is None
     assert cacheget(cache, key).get("llm_kwargs") == {}
     assert cacheget(cache, key).get("model_name") == "gpt-3.5-turbo"
 
     # assert llm.generate is using cached result
-    custom_output = {
-        "result": "This is a custom response",
+    custom_output: dict[str, Any] = {
+        "result": {"output": "This is a custom response"},
         "prompt": prompt,
         "prompt.response_format": None,
         "llm_kwargs": {},
@@ -105,7 +105,7 @@ def test_cached_openai(tmp_path: Path):
     }
     cacheset(cache, key, custom_output)
 
-    assert llm.generate(prompt=prompt, llm_kwargs={}) == custom_output["result"]
+    assert llm.generate(prompt=prompt, llm_kwargs={}) == custom_output["result"]["output"]
 
 
 def test_cached_guidance(tmp_path: Path):
@@ -119,15 +119,15 @@ def test_cached_guidance(tmp_path: Path):
 
     # assert result is cached
     assert isinstance(cacheget(cache, key), dict)
-    assert cacheget(cache, key).get("result") == res
+    assert cacheget(cache, key).get("result", {}).get("output") == res
     assert cacheget(cache, key).get("prompt") == prompt
     assert cacheget(cache, key).get("prompt.response_format") is None
     assert cacheget(cache, key).get("llm_kwargs") == {}  # We default this to {}
     assert cacheget(cache, key).get("model_name") == "gpt-3.5-turbo"
 
     # assert llm.generate is using cached result
-    custom_output = {
-        "result": "This is a custom response",
+    custom_output: dict[str, Any] = {
+        "result": {"output": "This is a custom response"},
         "prompt": TestPrompt().render_generic(),
         "prompt.response_format": None,
         "llm_kwargs": {},
@@ -135,7 +135,7 @@ def test_cached_guidance(tmp_path: Path):
     }
     cacheset(cache, key, custom_output)
 
-    assert llm.generate(prompt=TestPrompt().render_generic(), llm_kwargs=None) == custom_output["result"]
+    assert llm.generate(prompt=TestPrompt().render_generic(), llm_kwargs=None) == custom_output["result"]["output"]
 
 
 def test_cached_openai_different_prompts(tmp_path: Path):
@@ -187,11 +187,11 @@ def test_cached_openai_different_models(tmp_path: Path):
     res_GPT_4O_MINI = llm_GPT_4O_MINI.generate(prompt=prompt, llm_kwargs={})
 
     # check proper cached results
-    assert cacheget(cache, key_GPT_3_5_TURBO).get("result") == res_GPT_3_5_TURBO
+    assert cacheget(cache, key_GPT_3_5_TURBO).get("result").get("output") == res_GPT_3_5_TURBO
     assert cacheget(cache, key_GPT_3_5_TURBO).get("prompt") == prompt
     assert cacheget(cache, key_GPT_3_5_TURBO).get("llm_kwargs") == {}
     assert cacheget(cache, key_GPT_3_5_TURBO).get("model_name") == "gpt-3.5-turbo"
-    assert cacheget(cache, key_GPT_4O_MINI).get("result") == res_GPT_4O_MINI
+    assert cacheget(cache, key_GPT_4O_MINI).get("result").get("output") == res_GPT_4O_MINI
     assert cacheget(cache, key_GPT_4O_MINI).get("prompt") == prompt
     assert cacheget(cache, key_GPT_4O_MINI).get("llm_kwargs") == {}
     assert cacheget(cache, key_GPT_4O_MINI).get("model_name") == "gpt-4o-mini"
@@ -222,7 +222,7 @@ def test_cached_openai_pydantic_model(tmp_path: Path):
     print(res_GPT_4O_MINI)
     assert key_GPT_4O_MINI is not None
     # check cache
-    assert cacheget(cache, key_GPT_4O_MINI).get("result") == res_GPT_4O_MINI
+    assert cacheget(cache, key_GPT_4O_MINI).get("result").get("output") == res_GPT_4O_MINI
     assert cacheget(cache, key_GPT_4O_MINI).get("prompt") == RenderedPrompt(messages=prompt.messages)
     assert cacheget(cache, key_GPT_4O_MINI).get(
         "prompt.response_format"

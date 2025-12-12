@@ -146,7 +146,7 @@ def test_metadata():
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
     )
 
-    res = llm.generate_metadata(model=model.name, prompt=prompt, llm_kwargs={})
+    res = llm.generate_metadata(model=model, prompt=prompt, llm_kwargs={})
 
     assert "output" in res
     assert "wall_latency" in res
@@ -159,7 +159,7 @@ def test_default_llm_kwargs():
     llm = Anthropic(model, default_llm_kwargs={"max_tokens": 5})
 
     res = llm.generate_metadata(
-        model=model.name,
+        model=model,
         prompt=RenderedPrompt(
             messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
         ),

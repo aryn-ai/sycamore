@@ -66,17 +66,25 @@ class Bedrock(LLM):
             return format_image(image)
         raise NotImplementedError("Images not supported for non-Anthropic Bedrock models.")
 
-    def generate_metadata(self, *, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
+        assert model is None or isinstance(
+            model, BedrockModel
+        ), f"model must be a BedrockModel, got {type(model)} from {model=}"
+
+        if model is not None and model != self.model:
+            logger.info(f"Generating response using {model=} instead of {self.model=}")
+        model_name = model.name if model else self.model.name
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
-        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if isinstance(ret, dict):
-            print(f"cache return {ret}")
             return ret
         assert ret is None
 
         kwargs = get_generate_kwargs(prompt, llm_kwargs)
-        if model.startswith("anthropic."):
+        if "anthropic." in model_name:
             anthropic_version = (
                 DEFAULT_ANTHROPIC_VERSION
                 if llm_kwargs is None
@@ -87,7 +95,7 @@ class Bedrock(LLM):
         body = json.dumps(kwargs)
         start = datetime.datetime.now()
         response = self._client.invoke_model(
-            body=body, modelId=model, accept="application/json", contentType="application/json"
+            body=body, modelId=model_name, accept="application/json", contentType="application/json"
         )
         wall_latency = datetime.datetime.now() - start
         md = response["ResponseMetadata"]
@@ -99,21 +107,19 @@ class Bedrock(LLM):
         response_body = json.loads(response.get("body").read())
         output = response_body.get("content", {})[0].get("text", "")
         ret = {
+            "model": model_name,
             "output": output,
             "wall_latency": wall_latency,
             "server_latency": server_latency,
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }
-        self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens, model=model)
-        self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
+        self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens, model=model_name)
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret
 
     def generate(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> str:
-        model_name: str = model.name if model else self.model.name
-        if self.model.name != model_name:
-            logger.info(f"Overriding Gemini model from {self.model.name} to {model_name}")
-        d = self.generate_metadata(model=model_name, prompt=prompt, llm_kwargs=llm_kwargs)
+        d = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs)
         return d["output"]

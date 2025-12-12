@@ -363,65 +363,90 @@ class OpenAI(LLM):
     ) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         llm_kwargs = self._convert_response_format(llm_kwargs)
-        model_name: str = model.name if model else self._model_name
-        if model_name != self._model_name:
-            logger.info(f"Overriding OpenAI model from {self._model_name} to {model_name}")
-        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
-        if ret is not None:
-            return ret
 
         if prompt.response_format is not None:
+            model_name = model.name if model else self.model.name
             ret = self._generate_using_openai_structured(model_name, prompt, llm_kwargs)
         else:
-            ret = self._generate_using_openai(model_name, prompt, llm_kwargs)
+            ret = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs)
 
-        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
-        return ret
+        return ret["output"]
 
-    def _generate_using_openai(self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
+        assert model is None or isinstance(
+            model, OpenAIModel
+        ), f"model must be a OpenAIModel, got {type(model)} from {model=}"
+
+        assert prompt.response_format is None, "Unimplemented"
+        if model is not None and model != self.model:
+            logger.info(f"Generating response using {model=} instead of {self.model=}")
+        model_name = model.name if model else self.model.name
         kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
         logging.debug("OpenAI prompt: %s", kwargs)
+
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
+        if isinstance(ret, dict):
+            return ret
+        assert ret is None, f"Expected no cache entry, got {ret}"
+
         if self.is_chat_mode():
             starttime = datetime.now()
-            completion = self.client_wrapper.get_client().chat.completions.create(model=model, **kwargs)
+            completion = self.client_wrapper.get_client().chat.completions.create(model=model_name, **kwargs)
             logging.debug("OpenAI completion: %s", completion)
             wall_latency = datetime.now() - starttime
             response_text = completion.choices[0].message.content
         else:
             starttime = datetime.now()
-            completion = self.client_wrapper.get_client().completions.create(model=model, **kwargs)
+            completion = self.client_wrapper.get_client().completions.create(model=model_name, **kwargs)
             logging.debug("OpenAI completion: %s", completion)
             wall_latency = datetime.now() - starttime
             response_text = completion.choices[0].text
 
         completion_tokens, prompt_tokens = self.validate_tokens(completion)
-        self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens, model=model)
+        self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens, model=model_name)
         if not response_text:
             raise ValueError("OpenAI returned empty response")
-        return response_text
+        ret = {
+            "model": model_name,
+            "output": response_text,
+            "wall_latency": wall_latency,
+            "in_tokens": prompt_tokens,
+            "out_tokens": completion_tokens,
+        }
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
+        return ret
 
-    def _generate_using_openai_structured(self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
-        try:
-            kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
-            if self.is_chat_mode():
-                starttime = datetime.now()
-                completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=model, **kwargs)
-                completion_tokens, prompt_tokens = self.validate_tokens(completion)
-                wall_latency = datetime.now() - starttime
-                response_text = completion.choices[0].message.content
-                self.add_llm_metadata(
-                    kwargs, response_text, wall_latency, completion_tokens, prompt_tokens, model=model
-                )
-            else:
-                raise ValueError("This method doesn't support instruct models. Please use a chat model.")
-                # completion = self.client_wrapper.get_client().beta.completions.parse(model=self._model_name, **kwargs)
-            assert response_text is not None, "OpenAI refused to respond to the query"
-            return response_text
-        except Exception as e:
-            # OpenAI will not respond in two scenarios:
-            # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
-            # 2.) The LLM refused to respond to the request because it did not meet guidelines
-            raise e
+    def _generate_using_openai_structured(self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> dict:
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model)
+        if isinstance(ret, dict):
+            return ret
+        assert ret is None
+        # OpenAI can generate exceptions in at least two scenarios:
+        # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
+        # 2.) The LLM refused to respond to the request because it did not meet guidelines
+
+        kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
+        if self.is_chat_mode():
+            starttime = datetime.now()
+            completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=model, **kwargs)
+            completion_tokens, prompt_tokens = self.validate_tokens(completion)
+            wall_latency = datetime.now() - starttime
+            response_text = completion.choices[0].message.content
+            self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens, model=model)
+        else:
+            raise ValueError("This method doesn't support instruct models. Please use a chat model.")
+            # completion = self.client_wrapper.get_client().beta.completions.parse(model=self._model_name, **kwargs)
+        assert response_text is not None, "OpenAI refused to respond to the query"
+        ret = {
+            "output": response_text,
+            "wall_latency": wall_latency,
+            "in_tokens": prompt_tokens,
+            "out_tokens": completion_tokens,
+        }
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model)
+        return ret
 
     async def generate_async(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None

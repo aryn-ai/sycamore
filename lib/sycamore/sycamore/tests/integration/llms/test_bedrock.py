@@ -115,7 +115,7 @@ def test_cached_bedrock_different_prompts(tmp_path: Path):
 def test_cached_bedrock_different_models(tmp_path: Path):
     cache = DiskCache(str(tmp_path))
     llm_HAIKU = Bedrock(BedrockModels.CLAUDE_3_HAIKU, cache=cache)
-    llm_SONNET = Bedrock(BedrockModels.CLAUDE_3_SONNET, cache=cache)
+    llm_HAIKU45 = Bedrock(BedrockModels.CLAUDE_4_5_HAIKU, cache=cache)
 
     prompt = RenderedPrompt(
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
@@ -124,32 +124,32 @@ def test_cached_bedrock_different_models(tmp_path: Path):
     # populate cache
     key_HAIKU = llm_HAIKU._llm_cache_key(prompt, {})
     res_HAIKU = llm_HAIKU.generate(prompt=prompt, llm_kwargs={})
-    key_SONNET = llm_SONNET._llm_cache_key(prompt, {})
-    res_SONNET = llm_SONNET.generate(prompt=prompt, llm_kwargs={})
+    key_HAIKU45 = llm_HAIKU45._llm_cache_key(prompt, {})
+    res_HAIKU45 = llm_HAIKU45.generate(prompt=prompt, llm_kwargs={})
 
     # check proper cached results
     assert cacheget(cache, key_HAIKU).get("result")["output"] == res_HAIKU
     assert cacheget(cache, key_HAIKU).get("prompt") == prompt
     assert cacheget(cache, key_HAIKU).get("llm_kwargs") == {}
     assert cacheget(cache, key_HAIKU).get("model_name") == BedrockModels.CLAUDE_3_HAIKU.value.name
-    assert cacheget(cache, key_SONNET).get("result")["output"] == res_SONNET
-    assert cacheget(cache, key_SONNET).get("prompt") == prompt
-    assert cacheget(cache, key_SONNET).get("llm_kwargs") == {}
-    assert cacheget(cache, key_SONNET).get("model_name") == BedrockModels.CLAUDE_3_SONNET.value.name
+    assert cacheget(cache, key_HAIKU45).get("result")["output"] == res_HAIKU45
+    assert cacheget(cache, key_HAIKU45).get("prompt") == prompt
+    assert cacheget(cache, key_HAIKU45).get("llm_kwargs") == {}
+    assert cacheget(cache, key_HAIKU45).get("model_name") == BedrockModels.CLAUDE_4_5_HAIKU.value.name
 
     # check for difference with model change
-    assert key_HAIKU != key_SONNET
-    assert res_HAIKU != res_SONNET
+    assert key_HAIKU != key_HAIKU45
+    assert res_HAIKU != res_HAIKU45
 
 
-def test_metadata():
+def test_metadata() -> None:
     model = BedrockModels.CLAUDE_3_HAIKU
     llm = Bedrock(model)
     prompt = RenderedPrompt(
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
     )
 
-    res = llm.generate_metadata(model=model.value.name, prompt=prompt, llm_kwargs={})
+    res = llm.generate_metadata(model=model.value, prompt=prompt, llm_kwargs={})
 
     assert "output" in res
     assert "wall_latency" in res
@@ -162,7 +162,7 @@ def test_default_llm_kwargs():
     model = BedrockModels.CLAUDE_3_HAIKU
     llm = Bedrock(model, default_llm_kwargs={"max_tokens": 5})
     res = llm.generate_metadata(
-        model=model.value.name,
+        model=model.value,
         prompt=RenderedPrompt(
             messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
         ),

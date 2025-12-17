@@ -540,9 +540,17 @@ class VLMTableStructureExtractor(TableStructureExtractor):
         self.prompt_str = prompt_str
 
     def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+        ret: dict = self.extract_metadata(element, doc_image)
+        table_element = ret.get("output")
+        assert isinstance(table_element, TableElement)
+        return table_element
+
+    def extract_metadata(
+        self, element: TableElement, doc_image: Image.Image, llm_kwargs: Optional[dict] = None
+    ) -> dict[str, Any]:
         # We need a bounding box to be able to do anything.
         if element.bbox is None:
-            return element
+            return {"output": element}
 
         cropped_image, _ = _crop_bbox(doc_image, element.bbox)
 
@@ -561,22 +569,24 @@ class VLMTableStructureExtractor(TableStructureExtractor):
             self.llm.response_checker = response_checker
 
         try:
-            res: str = self.llm.generate(prompt=prompt)
+            res_with_md: dict[str, Any] = self.llm.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
 
+            res = res_with_md.pop("output")
             if res.startswith("```html"):
                 res = res[7:].rstrip("`")
             res = res.strip()
 
             table = Table.from_html(res)
             element.table = table
-            return element
+            res_with_md.update({"output": element})
+            return res_with_md
         except Exception as e:
             tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
             logging.warning(
                 f"Failed to extract a table due to:\n{tb_str}\nReturning the original element without a table."
             )
 
-        return element
+        return {"output": element}
 
 
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor

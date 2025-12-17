@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 
 from sycamore.llms import LLM
 from sycamore.llms.config import LLMModel, ChainedModel
@@ -49,6 +49,13 @@ class ChainedLLM(LLM):
             The list of LLMs in the chain.
         """
         return self._chain
+
+    # TODO implement this method for ChainedLLM
+    def generate_metadata(
+            self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> dict[str, Any]:
+        output = self.generate(prompt=prompt, llm_kwargs=llm_kwargs, model=model)
+        return {"output": output}
 
     def generate(
         self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None

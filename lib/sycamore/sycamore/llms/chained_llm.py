@@ -52,7 +52,7 @@ class ChainedLLM(LLM):
 
     # TODO implement this method for ChainedLLM
     def generate_metadata(
-            self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
     ) -> dict[str, Any]:
         output = self.generate(prompt=prompt, llm_kwargs=llm_kwargs, model=model)
         return {"output": output}

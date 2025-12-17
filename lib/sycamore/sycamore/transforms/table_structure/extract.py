@@ -545,7 +545,9 @@ class VLMTableStructureExtractor(TableStructureExtractor):
         assert isinstance(table_element, TableElement)
         return table_element
 
-    def extract_metadata(self, element: TableElement, doc_image: Image.Image, llm_kwargs: Optional[dict] = None) -> dict[str, Any]:
+    def extract_metadata(
+        self, element: TableElement, doc_image: Image.Image, llm_kwargs: Optional[dict] = None
+    ) -> dict[str, Any]:
         # We need a bounding box to be able to do anything.
         if element.bbox is None:
             return {"output": element}
@@ -580,7 +582,9 @@ class VLMTableStructureExtractor(TableStructureExtractor):
             return res_with_md
         except Exception as e:
             tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
-            logging.warning(f"Failed to extract a table due to:\n{tb_str}\nReturning the original element without a table.")
+            logging.warning(
+                f"Failed to extract a table due to:\n{tb_str}\nReturning the original element without a table."
+            )
 
         return {"output": element}
 

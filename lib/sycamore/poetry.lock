@@ -4454,14 +4454,14 @@ tenacity = ">=8.1.0,<8.4.0 || >8.4.0,<10.0.0"
 
 [[package]]
 name = "langchain-core"
-version = "0.3.80"
+version = "0.3.81"
 description = "Building applications with LLMs through composability"
 optional = true
 python-versions = "<4.0.0,>=3.9.0"
 groups = ["main"]
 files = [
-    {file = "langchain_core-0.3.80-py3-none-any.whl", hash = "sha256:2141e3838d100d17dce2359f561ec0df52c526bae0de6d4f469f8026c5747456"},
-    {file = "langchain_core-0.3.80.tar.gz", hash = "sha256:29636b82513ab49e834764d023c4d18554d3d719a185d37b019d0a8ae948c6bb"},
+    {file = "langchain_core-0.3.81-py3-none-any.whl", hash = "sha256:d0f34c88254d78ccb1b9a038f860d13dea90186045026fd8fc3e1265eed73a4e"},
+    {file = "langchain_core-0.3.81.tar.gz", hash = "sha256:0473e7cffbba06017393f2f1ee116da098c298e4ec478ada91d321f42dff921c"},
 ]
 
 [package.dependencies]
@@ -10656,6 +10656,7 @@ scipy = "^1.15.0"
 scrapy = ">=2.13.4"
 setuptools = ">=78.1.1"
 tornado = ">=6.5.0"
+urllib3 = "^2.6.1"
 weaviate-client = "^4.16.10"
 
 [package.source]
@@ -12472,4 +12473,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "4e5187712011d33230a3256d3efd3d938aa7b44a668e63e35225e30f6e03c9a0"
+content-hash = "4a143c60ae0bed84033d4ac89f565eeb08361f84a12bd81719e96ce1da8010fb"

@@ -71,3 +71,14 @@ class TestSplitElements:
 
         # Without early stopping, we get 1,013,259 elements.
         assert len(result) == 1
+
+    def test_unsplittable_table_with_header(self):
+        table_content = "one two three four five"
+        max_chunks_size = 10
+        assert len(table_content) > max_chunks_size, "Split precondition not met"
+
+        element = TableElement()
+        element.table = Table(cells=[TableCell(content=table_content, rows=[0], cols=[0])])
+        element.data["_header"] = "foo"  # Prepending 'foo\n' to the table content can cause an infinite loop.
+        result = SplitElements.split_one(element, CharacterTokenizer(), max=max_chunks_size)
+        assert len(result) < 21, "Max depth exceeded"

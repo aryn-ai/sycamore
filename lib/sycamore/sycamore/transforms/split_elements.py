@@ -50,13 +50,26 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
             logger.warning("Max split depth exceeded, truncating the splitting")
             return [elem]
 
+        if elem.get("_header") and len(tokenizer.tokenize(elem["_header"])) > max:
+            logger.warning("Header exceeds max tokens, stopping split")
+            return [elem]
+
         if elem.type == "table" and isinstance(elem, TableElement) and elem.table is not None:
             header_str = "".join(elem.table.column_headers)
             if len(tokenizer.tokenize(header_str)) > max:
                 logger.warning("Column header exceeds max tokens, stopping split")
                 return [elem]
 
-        txt = elem.text_representation
+        txt: Optional[str]
+        if (
+            elem.get("_header")
+            and elem.text_representation is not None
+            and elem.text_representation.startswith(elem["_header"])
+        ):
+            txt = elem.text_representation[len(elem["_header"]) + 1 :]
+        else:
+            txt = elem.text_representation
+
         if not txt:
             return [elem]
         num = len(tokenizer.tokenize(txt))

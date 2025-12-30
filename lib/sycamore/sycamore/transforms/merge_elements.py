@@ -693,7 +693,6 @@ class HeaderAugmenterMerger(ElementMerger):
         if element1.data["token_count"] + 1 + element2.data["token_count"] > self.max_tokens and element2.type not in [
             "Section-header",
             "Title",
-            "table",
         ]:
             # Add header to next element
             element2["_header"] = element1.get("_header")
@@ -721,7 +720,7 @@ class HeaderAugmenterMerger(ElementMerger):
             return True
 
         # Add header to next element (images, tables)
-        if element2.type not in ["Section-header", "Title", "table"]:
+        if element2.type not in ["Section-header", "Title"]:
             element2.data["_header"] = element1.get("_header")
             if element2.text_representation:
                 if element2.data["_header"]:

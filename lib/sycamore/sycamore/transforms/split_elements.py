@@ -1,3 +1,4 @@
+from math import log2, ceil
 from typing import Optional
 import logging
 from sycamore.data import Document, Element, TableElement
@@ -7,6 +8,11 @@ from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 
 logger = logging.getLogger(__name__)
+
+
+class MaxDepthExceededException(Exception):
+    def __init__(self):
+        super().__init__("Max depth exceeded")
 
 
 class SplitElements(SingleThreadUser, NonGPUUser, Map):
@@ -32,7 +38,28 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
 
     @staticmethod
     @timetrace("splitElem")
-    def split_doc(parent: Document, tokenizer: Tokenizer, max: int) -> Document:
+    def split_doc(
+        parent: Document,
+        tokenizer: Tokenizer,
+        max: int,
+        max_depth: Optional[int] = 20,
+        add_binary: bool = True,
+        raise_on_max_depth: bool = False,
+    ) -> Document:
+        """
+
+        Args:
+            parent: the document that holds all the elements.
+            tokenizer: tokenizer for computing the number of tokens in a chunk.
+            max: maximum number of tokens allowed in a chunk as computed by the above tokenizer.
+            max_depth: maximum depth of the binary tree that forms as we split each element into two recursively.
+            add_binary: legacy feature to add text_representation as binary_representation as well.
+            raise_on_max_depth: if True, we give up splitting an element and move on to the next element.
+
+        Returns: the same parent document with split elements.
+
+        """
+
         result = []
         for elem in parent.elements:
             # Ensure the _header does not take up more than a third of the tokens
@@ -40,35 +67,55 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
             if elem.get("_header") and len(tokenizer.tokenize(elem["_header"])) / max > 0.33:
                 logger.warning(f"Token limit exceeded, dropping _header: {elem['_header']}")
                 del elem["_header"]
-            result.extend(SplitElements.split_one(elem, tokenizer, max))
+            if not max_depth:
+                txt = elem.text_representation
+                num = len(tokenizer.tokenize(txt))
+                max_depth = ceil(log2(num)) + 1
+            logger.debug(f"Splitting element using max_depth of {max_depth}")
+            try:
+                split_elements = SplitElements.split_one(
+                    elem,
+                    tokenizer,
+                    max,
+                    0,
+                    max_depth=max_depth,
+                    add_binary=add_binary,
+                    raise_on_max_depth=raise_on_max_depth,
+                )
+
+                if elem.type == "table" and isinstance(elem, TableElement) and elem.table is not None:
+                    for ment in split_elements[1:]:
+                        if (two := ment.text_representation) is not None:
+                            if elem.table.column_headers:
+                                two = ", ".join(elem.table.column_headers) + "\n" + two
+                            if elem.data["properties"].get("title"):
+                                two = elem.data["properties"].get("title") + "\n" + two
+                            if elem.get("_header"):
+                                ment.text_representation = ment["_header"] + "\n" + two
+                result.extend(split_elements)
+            except MaxDepthExceededException:
+                result.extend([elem])
+
         parent.elements = result
         return parent
 
     @staticmethod
-    def split_one(elem: Element, tokenizer: Tokenizer, max: int, depth: int = 0) -> list[Element]:
-        if depth > 20:
+    def split_one(
+        elem: Element,
+        tokenizer: Tokenizer,
+        max: int,
+        depth: int = 0,
+        max_depth: int = 20,
+        add_binary: bool = True,
+        raise_on_max_depth: bool = False,
+    ) -> list[Element]:
+        if depth > max_depth:
             logger.warning("Max split depth exceeded, truncating the splitting")
+            if raise_on_max_depth:
+                raise MaxDepthExceededException()
             return [elem]
 
-        if elem.get("_header") and len(tokenizer.tokenize(elem["_header"])) > max:
-            logger.warning("Header exceeds max tokens, stopping split")
-            return [elem]
-
-        if elem.type == "table" and isinstance(elem, TableElement) and elem.table is not None:
-            header_str = "".join(elem.table.column_headers)
-            if len(tokenizer.tokenize(header_str)) > max:
-                logger.warning("Column header exceeds max tokens, stopping split")
-                return [elem]
-
-        txt: Optional[str]
-        if (
-            elem.get("_header")
-            and elem.text_representation is not None
-            and elem.text_representation.startswith(elem["_header"])
-        ):
-            txt = elem.text_representation[len(elem["_header"]) + 1 :]
-        else:
-            txt = elem.text_representation
+        txt = elem.text_representation
 
         if not txt:
             return [elem]
@@ -142,18 +189,28 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
 
         ment = elem.copy()
         elem.text_representation = one
-        elem.binary_representation = bytes(one, "utf-8")
-        if elem.type == "table" and isinstance(elem, TableElement) and elem.table is not None:
-            if elem.table.column_headers:
-                two = ", ".join(elem.table.column_headers) + "\n" + two
-            if elem.data["properties"].get("title"):
-                two = elem.data["properties"].get("title") + "\n" + two
-        if elem.get("_header"):
-            ment.text_representation = ment["_header"] + "\n" + two
-        else:
-            ment.text_representation = two
-        ment.binary_representation = bytes(two, "utf-8")
-        aa = SplitElements.split_one(elem, tokenizer, max, depth + 1)
-        bb = SplitElements.split_one(ment, tokenizer, max, depth + 1)
+        ment.text_representation = two
+        if add_binary:
+            elem.binary_representation = bytes(one, "utf-8")
+            ment.binary_representation = bytes(two, "utf-8")
+
+        aa = SplitElements.split_one(
+            elem,
+            tokenizer,
+            max,
+            depth + 1,
+            max_depth=max_depth,
+            add_binary=add_binary,
+            raise_on_max_depth=raise_on_max_depth,
+        )
+        bb = SplitElements.split_one(
+            ment,
+            tokenizer,
+            max,
+            depth + 1,
+            max_depth=max_depth,
+            add_binary=add_binary,
+            raise_on_max_depth=raise_on_max_depth,
+        )
         aa.extend(bb)
         return aa

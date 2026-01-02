@@ -1,4 +1,3 @@
-from math import log2, ceil
 from typing import Optional
 import logging
 from sycamore.data import Document, Element, TableElement
@@ -61,9 +60,6 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
                 logger.warning(f"Token limit exceeded, dropping _header: {elem['_header']}")
                 del elem["_header"]
 
-            if (txt := elem.text_representation) is not None:
-                num = len(tokenizer.tokenize(txt))
-                max_depth = min(ceil(log2(num)) + 1, max_depth)
             logger.debug(f"Splitting element using max_depth of {max_depth}")
             try:
                 split_elements = SplitElements.split_one(

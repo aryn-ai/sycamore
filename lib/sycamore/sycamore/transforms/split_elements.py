@@ -74,12 +74,18 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
                 if elem.type == "table" and isinstance(elem, TableElement) and elem.table is not None:
                     for ment in split_elements[1:]:
                         if (two := ment.text_representation) is not None:
-                            if elem.table.column_headers:
-                                two = ", ".join(elem.table.column_headers) + "\n" + two
-                            if elem.data["properties"].get("title"):
-                                two = elem.data["properties"].get("title") + "\n" + two
-                            if elem.get("_header"):
-                                ment.text_representation = ment["_header"] + "\n" + two
+                            txt_len = len(tokenizer.tokenize(two))
+                            if (col_headers := elem.table.column_headers) is not None:
+                                col_header_str = ", ".join(col_headers)
+                                if txt_len + len(tokenizer.tokenize(col_header_str)) < max:
+                                    two = col_header_str + "\n" + two
+                            if (title_str := elem.data["properties"].get("title")) is not None:
+                                if txt_len + len(tokenizer.tokenize(title_str)) < max:
+                                    two = title_str + "\n" + two
+                            if (header_str := elem.get("_header")) is not None:
+                                if txt_len + len(tokenizer.tokenize(header_str)) < max:
+                                    two = header_str + "\n" + two
+                            ment.text_representation = two
                 result.extend(split_elements)
             except RecursionError:
                 result.extend([elem])

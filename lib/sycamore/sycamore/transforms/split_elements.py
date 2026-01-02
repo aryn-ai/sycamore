@@ -10,11 +10,6 @@ from sycamore.utils.time_trace import timetrace
 logger = logging.getLogger(__name__)
 
 
-class MaxDepthExceededException(Exception):
-    def __init__(self):
-        super().__init__("Max depth exceeded")
-
-
 class SplitElements(SingleThreadUser, NonGPUUser, Map):
     """
     The SplitElements transform recursively divides elements such that no
@@ -42,9 +37,8 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
         parent: Document,
         tokenizer: Tokenizer,
         max: int,
-        max_depth: Optional[int] = 20,
+        max_depth: int = 20,
         add_binary: bool = True,
-        raise_on_max_depth: bool = False,
     ) -> Document:
         """
 
@@ -54,7 +48,6 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
             max: maximum number of tokens allowed in a chunk as computed by the above tokenizer.
             max_depth: maximum depth of the binary tree that forms as we split each element into two recursively.
             add_binary: legacy feature to add text_representation as binary_representation as well.
-            raise_on_max_depth: if True, we give up splitting an element and move on to the next element.
 
         Returns: the same parent document with split elements.
 
@@ -67,10 +60,10 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
             if elem.get("_header") and len(tokenizer.tokenize(elem["_header"])) / max > 0.33:
                 logger.warning(f"Token limit exceeded, dropping _header: {elem['_header']}")
                 del elem["_header"]
-            if not max_depth:
-                txt = elem.text_representation
+
+            if (txt := elem.text_representation) is not None:
                 num = len(tokenizer.tokenize(txt))
-                max_depth = ceil(log2(num)) + 1
+                max_depth = min(ceil(log2(num)) + 1, max_depth)
             logger.debug(f"Splitting element using max_depth of {max_depth}")
             try:
                 split_elements = SplitElements.split_one(
@@ -80,7 +73,6 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
                     0,
                     max_depth=max_depth,
                     add_binary=add_binary,
-                    raise_on_max_depth=raise_on_max_depth,
                 )
 
                 if elem.type == "table" and isinstance(elem, TableElement) and elem.table is not None:
@@ -93,7 +85,7 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
                             if elem.get("_header"):
                                 ment.text_representation = ment["_header"] + "\n" + two
                 result.extend(split_elements)
-            except MaxDepthExceededException:
+            except RecursionError:
                 result.extend([elem])
 
         parent.elements = result
@@ -104,16 +96,13 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
         elem: Element,
         tokenizer: Tokenizer,
         max: int,
-        depth: int = 0,
-        max_depth: int = 20,
+        depth: int,
+        max_depth: int,
         add_binary: bool = True,
-        raise_on_max_depth: bool = False,
     ) -> list[Element]:
         if depth > max_depth:
             logger.warning("Max split depth exceeded, truncating the splitting")
-            if raise_on_max_depth:
-                raise MaxDepthExceededException()
-            return [elem]
+            raise RecursionError()
 
         txt = elem.text_representation
 
@@ -201,7 +190,6 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
             depth + 1,
             max_depth=max_depth,
             add_binary=add_binary,
-            raise_on_max_depth=raise_on_max_depth,
         )
         bb = SplitElements.split_one(
             ment,
@@ -210,7 +198,6 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
             depth + 1,
             max_depth=max_depth,
             add_binary=add_binary,
-            raise_on_max_depth=raise_on_max_depth,
         )
         aa.extend(bb)
         return aa

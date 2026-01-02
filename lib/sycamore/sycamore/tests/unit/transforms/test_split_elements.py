@@ -69,7 +69,7 @@ class TestSplitElements:
         element = TableElement()
         element.table = Table(cells=[TableCell(content="one\ntwo\nthree", rows=[0], cols=[0])])
         element.table.column_headers = [" ".join(["header "] * 100)]
-        result = SplitElements.split_one(element, CharacterTokenizer(), 10)
+        result = SplitElements.split_one(element, CharacterTokenizer(), 10, depth=0, max_depth=20)
 
         # one two three -> one two | three
         assert len(result) == 2
@@ -80,7 +80,7 @@ class TestSplitElements:
         element.table.column_headers = [" ".join(["header "] * 100)]
 
         doc = Document({"elements": [element]})
-        result = SplitElements.split_doc(doc, tokenizer=CharacterTokenizer(), max=10, max_depth=None)
+        result = SplitElements.split_doc(doc, tokenizer=CharacterTokenizer(), max=10, max_depth=20)
 
         # one two three -> one two | three
         assert len(result.elements) == 2
@@ -93,7 +93,7 @@ class TestSplitElements:
         element = TableElement()
         element.table = Table(cells=[TableCell(content=table_content, rows=[0], cols=[0])])
         element.data["_header"] = "foo"  # Prepending 'foo\n' to the table content can cause an infinite loop.
-        result = SplitElements.split_one(element, CharacterTokenizer(), max_chunks_size)
+        result = SplitElements.split_one(element, CharacterTokenizer(), max_chunks_size, depth=0, max_depth=20)
         assert len(result) < 21, "Max depth exceeded"
 
     def test_unsplittable_table(self):
@@ -125,7 +125,7 @@ class TestSplitElements:
         assert merged_element_count < orig_element_count
         assert merged_table_element_count <= orig_table_element_count
 
-        SplitElements.split_doc(doc, tokenizer=tokenizer, max=512, max_depth=None, add_binary=False)
+        SplitElements.split_doc(doc, tokenizer=tokenizer, max=512, max_depth=100, add_binary=False)
         split_element_count = len(doc["elements"])
         split_table_element_count = 0
         for elem in doc["elements"]:
@@ -151,7 +151,7 @@ class TestSplitElements:
             def tokenize(self, text: str, as_ints: bool = False) -> Union[list[int], list[str]]:
                 return ["x" for _ in range(max_tokens + 1)]
 
-        result = SplitElements.split_doc(doc, tokenizer=DummyTokenizer(), max=max_tokens, raise_on_max_depth=True)
+        result = SplitElements.split_doc(doc, tokenizer=DummyTokenizer(), max=max_tokens)
 
         # Exception raised, no splitting happened
         assert len(result.elements) == 1

@@ -7268,14 +7268,14 @@ pillow = "*"
 
 [[package]]
 name = "pdfminer-six"
-version = "20251107"
+version = "20251230"
 description = "PDF parser and analyzer"
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["dev", "legacy-partitioners", "local-inference"]
 files = [
-    {file = "pdfminer_six-20251107-py3-none-any.whl", hash = "sha256:c09df33e4cbe6b26b2a79248a4ffcccafaa5c5d39c9fff0e6e81567f165b5401"},
-    {file = "pdfminer_six-20251107.tar.gz", hash = "sha256:5fb0c553799c591777f22c0c72b77fc2522d7d10c70654e25f4c5f1fd996e008"},
+    {file = "pdfminer_six-20251230-py3-none-any.whl", hash = "sha256:9ff2e3466a7dfc6de6fd779478850b6b7c2d9e9405aa2a5869376a822771f485"},
+    {file = "pdfminer_six-20251230.tar.gz", hash = "sha256:e8f68a14c57e00c2d7276d26519ea64be1b48f91db1cdc776faa80528ca06c1e"},
 ]
 
 [package.dependencies]
@@ -7283,8 +7283,6 @@ charset-normalizer = ">=2.0.0"
 cryptography = ">=36.0.0"
 
 [package.extras]
-dev = ["atheris ; python_version < \"3.12\"", "black", "mypy (==0.931)", "nox", "pytest"]
-docs = ["sphinx", "sphinx-argparse"]
 image = ["Pillow"]
 
 [[package]]
@@ -11111,7 +11109,7 @@ overrides = "^7.7.0"
 paddleocr = {version = "3.1.0", optional = true}
 pandas = "^2.3.0"
 pdf2image = "^1.16.3"
-pdfminer-six = {version = ">=20251107", optional = true}
+pdfminer-six = {version = ">=20251230", optional = true}
 pillow = "^11.3.0"
 pinecone = {version = "^7.3.0", extras = ["grpc"], optional = true}
 pinecone-text = {version = "^0.11.0", optional = true}
@@ -11152,7 +11150,7 @@ eval = ["apted (>=1.0.3,<2.0.0)", "datasets (>=2.16.1,<3.0.0)", "rouge (>=1.0.1,
 google-genai = ["google-genai (>=1.52.0,<2.0.0)"]
 iceberg = ["pyiceberg[sql-sqlite] (>=0.10.0,<0.11.0)"]
 legacy-partitioners = ["nltk (>=3.9.0,<4.0.0)", "python-pptx (>=0.6.22,<0.7.0)", "unstructured[pdf] (>=0.18.4,<0.19.0)"]
-local-inference = ["easyocr (>=1.7.1,<2.0.0)", "langchain-community (>=0.3.31,<0.4.0)", "paddleocr (==3.1.0)", "pdfminer-six (>=20251107)", "pypdfium2 (>=5.0.0,<6.0.0)", "pytesseract (>=0.3.10,<0.4.0)", "sentence-transformers (>=3.0.1,<4.0.0)", "timm (>=0.9.12,<0.10.0)", "torch (>=2.8.0,<3.0.0)", "torchvision (>=0.23.0,<0.24.0)", "transformers (>=4.53.1,<5.0.0)"]
+local-inference = ["easyocr (>=1.7.1,<2.0.0)", "langchain-community (>=0.3.31,<0.4.0)", "paddleocr (==3.1.0)", "pdfminer-six (>=20251230)", "pypdfium2 (>=5.0.0,<6.0.0)", "pytesseract (>=0.3.10,<0.4.0)", "sentence-transformers (>=3.0.1,<4.0.0)", "timm (>=0.9.12,<0.10.0)", "torch (>=2.8.0,<3.0.0)", "torchvision (>=0.23.0,<0.24.0)", "transformers (>=4.53.1,<5.0.0)"]
 neo4j = ["neo4j (>=5.21.0,<6.0.0)"]
 opensearch = ["opensearch-py (>=2.3.1,<3.0.0)"]
 pinecone = ["pinecone-text (>=0.11.0,<0.12.0)", "pinecone[grpc] (>=7.3.0,<8.0.0)"]
@@ -11198,6 +11196,7 @@ scipy = "^1.15.0"
 scrapy = ">=2.13.4"
 setuptools = ">=78.1.1"
 tornado = ">=6.5.0"
+urllib3 = "^2.6.1"
 weaviate-client = "^4.16.10"
 
 [package.source]

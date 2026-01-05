@@ -45,6 +45,7 @@ tornado = ">=6.5.0"
 pillow = "^11.3.0"
 # black = ">=24.3.0"
 fonttools = "^4.60.2"
+filelock = "^3.20.1"
 
 httpcore = ">=1.0.9"
 setuptools = ">=78.1.1"

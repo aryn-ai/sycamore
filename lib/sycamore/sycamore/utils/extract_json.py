@@ -46,3 +46,12 @@ def extract_json(payload: str, verbose=False) -> Any:
             return extract_json(payload, verbose=verbose)
         else:
             raise ValueError("JSON block not found in LLM response: " + str(orig_payload)) from exc
+
+
+def is_valid_json(payload: str) -> bool:
+    """Returns whether the payload can be parsed into json by extract_json"""
+    try:
+        extract_json(payload)
+        return True
+    except ValueError:
+        return False

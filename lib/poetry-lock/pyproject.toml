@@ -34,7 +34,7 @@ matplotlib = "3.10.3"
 
 
 # Package versions specified because of github vulnerability reports
-aiohttp = "^3.12.14"
+aiohttp = "^3.13.3"
 authlib = "^1.6.5"
 nltk = ">3.9.0"
 requests = "^2.32.4"

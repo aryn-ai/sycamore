@@ -34,6 +34,10 @@ from pathlib import Path
 
 from PIL import Image
 
+import typing
+if typing.TYPE_CHECKING:
+    from sycamore.data import TableElement
+
 # Add the sycamore package to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -139,7 +143,6 @@ def generate_table_ground_truth(
     Returns:
         List of paths to generated files
     """
-    from sycamore.data import TableElement
     from sycamore.transforms.table_structure.extract import TableTransformerStructureExtractor
 
     if not dry_run:

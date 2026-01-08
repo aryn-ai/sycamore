@@ -1,6 +1,5 @@
 from unittest.mock import Mock
 
-import pytest
 from PIL import Image
 
 from sycamore.data import Element, BoundingBox

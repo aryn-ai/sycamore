@@ -158,7 +158,7 @@ class Gemini(LLM):
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }
-        self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens, model=model)
+        self.add_llm_metadata(kwargs, output, wall_latency.total_seconds(), in_tokens, out_tokens, model=model)
         return ret
 
     def generate_metadata(

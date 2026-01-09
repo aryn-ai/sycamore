@@ -1,24 +1,22 @@
-from typing import Any
+from typing import Any, Optional
 
-from sycamore.schema import DataType
+from sycamore.datatype import DataType
 
 allowed_operators = {
     DataType.STRING: ["like", "=="],
     DataType.FLOAT: [">", ">=", "<=", "<", "!=", "=="],
     DataType.INT: [">", ">=", "<=", "<", "!=", "=="],
-    DataType.BOOL: ["is", "is not", "==", "!="]
+    DataType.BOOL: ["is", "is not", "==", "!="],
 }
 
 
 class Expression:
 
-    def __init__(self, property_type: DataType = DataType.STRING, extracted: str = "", value: str = "", op: str = ""):
-        self.property_type = property_type
+    def __init__(self, extracted: Any, op: str, value: Any):
         self.extracted = extracted
         self.value = value
         self.op = op
-
-        assert self.property_type in allowed_operators, f"Unsupported property_type: {self.property_type}"
+        self.property_type: DataType = DataType.from_python(extracted)
         self._convert_value()
 
     def validate_op(self, op: str):
@@ -76,15 +74,16 @@ class PredicateExpressionParser:
     This parser accepts a limited set of expressions for a limited set of operations and data types.
     Valid expressions that this parser can evaluate are in the following format:
     valid_expression = expression
-                       | expression AND expression
-                       | expression OR expression
+                        | (expression)
+                       | (expression) AND (expression)
+                       | (expression) OR (expression)
 
-    expression = ( x op value )
+    expression = x op value
 
     Valid operations depend on the data type of the property ('x').  See the Expression class for more details.
     """
 
-    def parse_expr(self, expr: str, property_type: DataType, extracted_value) -> Expression:
+    def parse_expr(self, expr: str, extracted_value: Any) -> Optional[Expression]:
         tokens = expr.split()
 
         if len(tokens) != 3:
@@ -96,22 +95,36 @@ class PredicateExpressionParser:
         op = tokens[1]
         value = tokens[2]
 
-        e = Expression(property_type=property_type, extracted=extracted_value, value=value, op=op)
+        if extracted_value is None:  # parse only
+            return None
+
+        e = Expression(extracted=extracted_value, op=op, value=value)
         e.validate_op(op)
         return e
 
-    def evaluate(self, expr: str, property_type: DataType, extracted_value: Any) -> bool:
+    def evaluate(self, expr: str, extracted_value: Any) -> bool:
+        """
+
+        Args:
+            expr: the expression string to be evaluated to true or false
+            extracted_value: if None, we perform parsing only and throw SyntaxError if expr is invalid.
+
+        Returns: True if expression evaluates to true; False otherwise
+
+        """
         expr = expr.strip()
+        result: bool = False
         if expr.startswith("("):
             if not expr.endswith(")"):
                 raise SyntaxError("Invalid syntax: missing a closing parenthesis")
             idx = expr.find(")", 1)
-            e = self.parse_expr(expr[1:idx], property_type, extracted_value)
+            e = self.parse_expr(expr[1:idx], extracted_value)
 
-            result = e.evaluate()
+            if e and extracted_value is not None:
+                result = e.evaluate()
             if (idx2 := expr.find("(", idx + 1)) != -1:
-                is_and = "and" in expr[idx + 1:idx2].lower()
-                is_or = "or" in expr[idx + 1:idx2].lower()
+                is_and = "and" in expr[idx + 1 : idx2].lower()
+                is_or = "or" in expr[idx + 1 : idx2].lower()
 
                 if not (is_and or is_or):
                     raise SyntaxError("Invalid syntax: two expressions must be joined by an AND or OR")
@@ -123,14 +136,18 @@ class PredicateExpressionParser:
                 if idx3 == -1:
                     raise SyntaxError("Invalid syntax: missing a closing parenthesis for the second expression")
 
-                e2 = self.parse_expr(expr[idx2 + 1:idx3], property_type, extracted_value)
+                e2 = self.parse_expr(expr[idx2 + 1 : idx3], extracted_value)
 
-                if is_and:
-                    result = result and e2.evaluate()
-                elif is_or:
-                    result = result or e2.evaluate()
+                if e2 and extracted_value is not None:
+                    if is_and:
+                        result = result and e2.evaluate()
+                    elif is_or:
+                        result = result or e2.evaluate()
 
                 return result
             return result
-        return self.parse_expr(expr, property_type, extracted_value).evaluate()
 
+        e = self.parse_expr(expr, extracted_value)
+        if e and extracted_value is not None:
+            return e.evaluate()
+        return result

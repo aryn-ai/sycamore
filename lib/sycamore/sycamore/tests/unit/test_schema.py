@@ -393,3 +393,72 @@ def test_exception_fallback_message():
     else:
         # The old schema deserialization error is for missing 'field_type'.
         assert False, "Expected exception was not raised for invalid schema"
+
+
+def test_schema_invalid_type_regex_validator():
+    invalid_schema = {
+        "properties": [
+            {
+                "name": "count",
+                "type": {
+                    "type": "int",  # not valid for a regex validator
+                    "description": "A single digit number",
+                    "examples": [1],
+                    "validators": [{"type": "regex", "regex": "[0-9]"}],
+                },
+            }
+        ]
+    }
+
+    try:
+        _ = SchemaV2.model_validate(invalid_schema)
+    except Exception as e:
+        assert "regex is not a valid validator for" in str(e), "Exception should mention the invalid type"
+    else:
+        # The old schema deserialization error is for missing 'field_type'.
+        assert False, "Expected exception was not raised for invalid schema"
+
+
+def test_schema_valid_expression_boolean_validator():
+    valid_schema = {
+        "properties": [
+            {
+                "name": "count",
+                "type": {
+                    "type": "string",  # not valid for a regex validator
+                    "description": "Two-letter state code",
+                    "examples": ["WA"],
+                    "validators": [{"type": "boolean_exp", "expression": "x like A"}],
+                },
+            }
+        ]
+    }
+
+    try:
+        _ = SchemaV2.model_validate(valid_schema)
+    except Exception:
+        assert False
+
+
+def test_schema_invalid_expression_boolean_validator():
+    invalid_schema = {
+        "properties": [
+            {
+                "name": "count",
+                "type": {
+                    "type": "string",  # not valid for a regex validator
+                    "description": "Two-letter state code",
+                    "examples": ["WA"],
+                    "validators": [{"type": "boolean_exp", "expression": "y like A"}],  # We only accept 'x'
+                },
+            }
+        ]
+    }
+
+    try:
+        _ = SchemaV2.model_validate(invalid_schema)
+    except SyntaxError as e:
+        assert "property reference must always be 'x'" in str(e)
+        return
+
+    assert False

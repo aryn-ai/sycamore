@@ -18,7 +18,37 @@ from sycamore.schema import (
     StringProperty,
     DataType,
     ObjectProperty,
+    BooleanExpValidator,
 )
+
+docs = [
+    Document(
+        doc_id="0",
+        elements=[
+            Element(text_representation="d0e0", properties={"_element_index": 4}),
+            Element(text_representation="d0e1", properties={"_element_index": 9}),
+            Element(text_representation="d0e2", properties={"_element_index": 19}),
+        ],
+        properties={
+            "entity": {"doc_id": "flarglhavn"},
+            "entity_metadata": {
+                "doc_id": {
+                    "name": "doc_id",
+                    "type": DataType.STRING,
+                    "value": "flarglhavn",
+                    "attribution": {"element_indices": [0], "page": 0, "bbox": [0, 0, 1, 1]},
+                }
+            },
+        },
+    ),
+    Document(
+        doc_id="1",
+        elements=[
+            Element(text_representation="d1e0", properties={"_element_index": 40}),
+            Element(text_representation="d1e1", properties={"_element_index": 41}),
+        ],
+    ),
+]
 
 
 class FakeExtractionPrompt(SycamorePrompt):
@@ -386,36 +416,7 @@ class TestExtract:
             output_pydantic_models=False,
         )
 
-    def test_extract_validators(self):
-        docs = [
-            Document(
-                doc_id="0",
-                elements=[
-                    Element(text_representation="d0e0", properties={"_element_index": 4}),
-                    Element(text_representation="d0e1", properties={"_element_index": 9}),
-                    Element(text_representation="d0e2", properties={"_element_index": 19}),
-                ],
-                properties={
-                    "entity": {"doc_id": "flarglhavn"},
-                    "entity_metadata": {
-                        "doc_id": {
-                            "name": "doc_id",
-                            "type": DataType.STRING,
-                            "value": "flarglhavn",
-                            "attribution": {"element_indices": [0], "page": 0, "bbox": [0, 0, 1, 1]},
-                        }
-                    },
-                },
-            ),
-            Document(
-                doc_id="1",
-                elements=[
-                    Element(text_representation="d1e0", properties={"_element_index": 40}),
-                    Element(text_representation="d1e1", properties={"_element_index": 41}),
-                ],
-            ),
-        ]
-
+    def test_extract_with_regex_validators(self):
         schema = SchemaV2(
             properties=[
                 NamedProperty(
@@ -441,6 +442,60 @@ class TestExtract:
         assert extracted[0].field_to_value("properties.entity_metadata.doc_id").is_valid
         assert not extracted[1].field_to_value("properties.entity_metadata.doc_id").is_valid
         assert llm.ncalls == 1 + 3 + 3
+
+    def test_extract_with_boolean_validators(self):
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(
+                    name="doc_id",
+                    type=StringProperty(validators=[BooleanExpValidator(expression="x like 'abc'", n_retries=3)]),
+                ),
+                NamedProperty(name="telts", type=IntProperty()),
+            ]
+        )
+
+        llm = LocalFakeLLM()
+        extract = Extract(
+            None,
+            schema=schema,
+            step_through_strategy=OneElementAtATime(),
+            schema_partition_strategy=NoSchemaSplitting(),
+            llm=llm,
+            prompt=FakeExtractionPrompt(),
+        )
+
+        extracted = extract.run(docs)
+        # Incoming properties are assumed to be valid unless they say otherwise
+        assert extracted[0].field_to_value("properties.entity_metadata.doc_id").is_valid
+        assert not extracted[1].field_to_value("properties.entity_metadata.doc_id").is_valid
+        assert llm.ncalls == 1 + 3 + 3
+
+    def test_extract_with_boolean_validators2(self):
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(
+                    name="doc_id",
+                    type=StringProperty(validators=[BooleanExpValidator(expression="x like '1'", n_retries=3)]),
+                ),
+                NamedProperty(name="telts", type=IntProperty()),
+            ]
+        )
+
+        llm = LocalFakeLLM()
+        extract = Extract(
+            None,
+            schema=schema,
+            step_through_strategy=OneElementAtATime(),
+            schema_partition_strategy=NoSchemaSplitting(),
+            llm=llm,
+            prompt=FakeExtractionPrompt(),
+        )
+
+        extracted = extract.run(docs)
+        # Incoming properties are assumed to be valid unless they say otherwise
+        assert extracted[0].field_to_value("properties.entity_metadata.doc_id").is_valid
+        assert extracted[1].field_to_value("properties.entity_metadata.doc_id").is_valid
+        assert llm.ncalls == 2
 
     def test_extract_parallel_validators(self):
         docs = [

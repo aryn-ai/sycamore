@@ -1,6 +1,7 @@
+from sycamore.datatype import DataType
 from sycamore.transforms.property_extraction.strategy import RichProperty, TakeFirstTrimSchema
 from sycamore.schema import NamedProperty
-from sycamore.schema import SchemaV2, StringProperty, ObjectProperty, ArrayProperty, DataType, RegexValidator
+from sycamore.schema import SchemaV2, StringProperty, ObjectProperty, ArrayProperty, RegexValidator
 
 
 class TestSchemaUpdateStrategy:

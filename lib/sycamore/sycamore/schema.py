@@ -1,6 +1,4 @@
 from abc import ABC, abstractmethod
-import datetime
-from enum import Enum
 import re
 import json
 import logging
@@ -20,6 +18,8 @@ from pydantic import (
     SerializerFunctionWrapHandler,
 )
 
+from sycamore.datatype import DataType
+from sycamore.utils.predicates import PredicateExpressionParser
 
 logger = logging.getLogger(__name__)
 
@@ -48,78 +48,6 @@ class Schema(BaseModel):
 
     fields: list[SchemaField]
     """A list of fields belong to this schema."""
-
-
-class DataType(str, Enum):
-    BOOL = "bool"
-    INT = "int"
-    FLOAT = "float"
-    STRING = "string"
-    DATE = "date"
-    DATETIME = "datetime"
-    ARRAY = "array"
-    CUSTOM = "custom"
-    CHOICE = "choice"
-    OBJECT = "object"
-
-    @classmethod
-    def values(cls):
-        return set(map(lambda c: c.value, cls))
-
-    @classmethod
-    def from_python(cls, python_val: Any) -> "DataType":
-        return cls.from_python_type(type(python_val))
-
-    @classmethod
-    def from_python_type(cls, python_type: type) -> "DataType":
-        """Convert a Python type to a DataType."""
-        if python_type is bool:
-            return cls.BOOL
-        elif python_type is int:
-            return cls.INT
-        elif python_type is float:
-            return cls.FLOAT
-        elif python_type is str:
-            return cls.STRING
-        elif python_type is datetime.date:
-            return cls.DATE
-        elif python_type is datetime.datetime:
-            return cls.DATETIME
-        elif issubclass(python_type, list):
-            return cls.ARRAY
-        elif issubclass(python_type, dict):
-            return cls.OBJECT
-        else:
-            logger.warning(f"Unsupported Python type: {python_type}. Defaulting to string.")
-            return cls.STRING
-
-    @classmethod
-    def _missing_(cls, value: object) -> "DataType":
-        """Handle missing values by returning a default DataType."""
-
-        if isinstance(value, cls):
-            return value
-        elif not isinstance(value, str):
-            raise ValueError(f"Invalid DataType value: {value}. Expected a string.")
-        v = value.lower()
-
-        # Handle common type names that are not in the enum
-        if v in {"str", "text"}:
-            return cls.STRING
-        elif v in {"boolean"}:
-            return cls.BOOL
-        elif v in {"integer"}:
-            return cls.INT
-        elif v in {"list"}:
-            return cls.ARRAY
-        elif v in {"struct"}:
-            return cls.OBJECT
-        else:
-            for member in cls:
-                if member.value == v:
-                    return member
-
-        raise ValueError(f"Invalid DataType value: {value}. Valid values are: {', '.join(cls.values())}")
 
 
 class PropertyValidator(BaseModel, ABC):
@@ -176,17 +104,27 @@ class RegexValidator(PropertyValidator):
 class BooleanExpValidator(PropertyValidator):
     """Validates a field in a DocSet schema by comparing against a boolean expression"""
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     type: Literal["boolean_exp"] = "boolean_exp"
     allowable_types: set[DataType] = {DataType.STRING, DataType.FLOAT, DataType.INT, DataType.BOOL}
 
     expression: str
 
+    # parser: PredicateExpressionParser = PredicateExpressionParser()
+
+    @model_validator(mode="after")
+    def parse_expression(self) -> "BooleanExpValidator":
+        PredicateExpressionParser.evaluate(self.expression, None)  # if invalid, throws SyntaxError
+        return self
+
     def constraint_string(self) -> str:
         return f"must satisfy the boolean expression: `{self.expression}`"
 
     def validate_property(self, propval: Any) -> tuple[bool, Any]:
-        # TODO: Implement boolean expression validation
-        return True, propval
+
+        evaluated = PredicateExpressionParser.evaluate(self.expression, propval)
+        return evaluated, propval
 
 
 ValidatorType: TypeAlias = Annotated[

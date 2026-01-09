@@ -1,9 +1,10 @@
+import ast
 from typing import Any, Optional
 
 from sycamore.datatype import DataType
 
 allowed_operators = {
-    DataType.STRING: ["like", "=="],
+    DataType.STRING: ["like", "==", "!="],
     DataType.FLOAT: [">", ">=", "<=", "<", "!=", "=="],
     DataType.INT: [">", ">=", "<=", "<", "!=", "=="],
     DataType.BOOL: ["is", "is not", "==", "!="],
@@ -26,13 +27,15 @@ class Expression:
     def _convert_value(self):
         match self.property_type:
             case DataType.STRING:
-                self.value = str(self.value)
+                self.value = ast.literal_eval(self.value)
             case DataType.FLOAT:
                 self.value = float(self.value)
             case DataType.INT:
                 self.value = int(self.value)
             case DataType.BOOL:
-                self.value = bool(self.value)
+                if self.value.lower() not in ("true", "false"):
+                    raise SyntaxError("Boolean data type can only be compared to 'True' or 'False'")
+                self.value = True if self.value.lower() == "true" else False
             case _:
                 raise ValueError(f"Unsupported property_type for value conversion: {self.property_type}")
 
@@ -44,6 +47,8 @@ class Expression:
                         return self.extracted in self.value
                     case "==":
                         return self.extracted == self.value
+                    case "!=":
+                        return self.extracted != self.value
             case DataType.FLOAT | DataType.INT:
                 match self.op:
                     case "<":
@@ -60,9 +65,9 @@ class Expression:
                         return self.extracted == self.value
             case DataType.BOOL:
                 match self.op:
-                    case ("is", "=="):
+                    case "==":
                         return self.extracted == self.value
-                    case ("is not", "!="):
+                    case "!=":
                         return self.extracted != self.value
             case _:
                 raise ValueError(f"Unable to evaluate expression: {self}")
@@ -83,7 +88,8 @@ class PredicateExpressionParser:
     Valid operations depend on the data type of the property ('x').  See the Expression class for more details.
     """
 
-    def parse_expr(self, expr: str, extracted_value: Any) -> Optional[Expression]:
+    @staticmethod
+    def parse_expr(expr: str, extracted_value: Any) -> Optional[Expression]:
         tokens = expr.split()
 
         if len(tokens) != 3:
@@ -102,7 +108,8 @@ class PredicateExpressionParser:
         e.validate_op(op)
         return e
 
-    def evaluate(self, expr: str, extracted_value: Any) -> bool:
+    @staticmethod
+    def evaluate(expr: str, extracted_value: Any) -> bool:
         """
 
         Args:
@@ -118,11 +125,13 @@ class PredicateExpressionParser:
             if not expr.endswith(")"):
                 raise SyntaxError("Invalid syntax: missing a closing parenthesis")
             idx = expr.find(")", 1)
-            e = self.parse_expr(expr[1:idx], extracted_value)
+            e = PredicateExpressionParser.parse_expr(expr[1:idx], extracted_value)
 
             if e and extracted_value is not None:
                 result = e.evaluate()
             if (idx2 := expr.find("(", idx + 1)) != -1:
+                if expr[idx + 1 : idx2].lower().strip() not in ["and", "or"]:
+                    raise SyntaxError("Invalid syntax: only one of AND or OR is allowed between expressions")
                 is_and = "and" in expr[idx + 1 : idx2].lower()
                 is_or = "or" in expr[idx + 1 : idx2].lower()
 
@@ -136,7 +145,7 @@ class PredicateExpressionParser:
                 if idx3 == -1:
                     raise SyntaxError("Invalid syntax: missing a closing parenthesis for the second expression")
 
-                e2 = self.parse_expr(expr[idx2 + 1 : idx3], extracted_value)
+                e2 = PredicateExpressionParser.parse_expr(expr[idx2 + 1 : idx3], extracted_value)
 
                 if e2 and extracted_value is not None:
                     if is_and:
@@ -147,7 +156,7 @@ class PredicateExpressionParser:
                 return result
             return result
 
-        e = self.parse_expr(expr, extracted_value)
+        e = PredicateExpressionParser.parse_expr(expr, extracted_value)
         if e and extracted_value is not None:
             return e.evaluate()
         return result

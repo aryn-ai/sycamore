@@ -4,7 +4,8 @@ from pydantic import BaseModel
 
 from sycamore.data.document import Document
 from sycamore.data.element import Element
-from sycamore.schema import ObjectProperty, NamedProperty, SchemaV2, DataType
+from sycamore.datatype import DataType
+from sycamore.schema import ObjectProperty, NamedProperty, SchemaV2
 from sycamore.transforms.property_extraction.types import RichProperty
 from sycamore.utils.zip_traverse import ZTLeaf, zip_traverse
 

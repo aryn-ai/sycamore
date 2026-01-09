@@ -111,11 +111,11 @@ class BooleanExpValidator(PropertyValidator):
 
     expression: str
 
-    parser: PredicateExpressionParser = PredicateExpressionParser()
+    # parser: PredicateExpressionParser = PredicateExpressionParser()
 
     @model_validator(mode="after")
     def parse_expression(self) -> "BooleanExpValidator":
-        self.parser.evaluate(self.expression, None)  # if invalid, throws SyntaxError
+        PredicateExpressionParser.evaluate(self.expression, None)  # if invalid, throws SyntaxError
         return self
 
     def constraint_string(self) -> str:
@@ -123,7 +123,7 @@ class BooleanExpValidator(PropertyValidator):
 
     def validate_property(self, propval: Any) -> tuple[bool, Any]:
 
-        evaluated = self.parser.evaluate(self.expression, propval)
+        evaluated = PredicateExpressionParser.evaluate(self.expression, propval)
         return evaluated, propval
 
 

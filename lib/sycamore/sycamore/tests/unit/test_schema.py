@@ -1,5 +1,12 @@
 import json
-from sycamore.schema import SchemaV2, make_property, make_named_property, NamedProperty, RegexValidator
+from sycamore.schema import (
+    SchemaV2,
+    make_property,
+    make_named_property,
+    NamedProperty,
+    RegexValidator,
+    BooleanExpValidator,
+)
 
 single_property_dict_old = {
     "name": "state",
@@ -363,6 +370,16 @@ def test_validator_json_serialize():
 
     assert r.regex == r2.regex
     assert r.allowable_types == r2.allowable_types
+
+    b = BooleanExpValidator(expression="x > 1")
+    res, _ = b.validate_property(2)
+    assert res
+
+    js = json.dumps(b.model_dump())
+    b2 = BooleanExpValidator.model_validate_json(js)
+
+    assert b.expression == b2.expression
+    assert b.allowable_types == b2.allowable_types
 
 
 # In order to facilitate compatibility, if deserialization fails, we fallback

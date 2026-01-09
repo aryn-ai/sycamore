@@ -6,8 +6,9 @@ import json
 from pydantic import ValidationError
 
 from sycamore.data.document import Document, Element
+from sycamore.datatype import DataType
 from sycamore.plan_nodes import Node
-from sycamore.schema import NamedProperty, ObjectProperty, SchemaV2 as Schema, DataType
+from sycamore.schema import NamedProperty, ObjectProperty, SchemaV2 as Schema
 from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,

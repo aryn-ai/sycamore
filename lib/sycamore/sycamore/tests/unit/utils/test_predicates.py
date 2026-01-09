@@ -56,6 +56,10 @@ def test_parse_datatype_string():
     predicate4 = "x like 'xyz'"
     assert not PredicateExpressionParser.evaluate(predicate4, extracted_value)
 
+    extracted_value = "abc"
+    predicate5 = "x != ''"
+    assert PredicateExpressionParser.evaluate(predicate5, extracted_value)
+
 
 def test_invalid_syntax():
     extracted_value = 5

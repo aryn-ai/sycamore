@@ -5889,7 +5889,7 @@ tenacity = "^8.4.1"
 tiktoken = "^0.8.0"
 tornado = ">=6.5.0"
 typing-extensions = "^4.12.2"
-urllib3 = "^2.6.1"
+urllib3 = "^2.6.3"
 
 [package.extras]
 anthropic = ["anthropic (>=0.42.0,<0.43.0)"]
@@ -5900,7 +5900,7 @@ eval = ["apted (>=1.0.3,<2.0.0)", "datasets (>=2.16.1,<3.0.0)", "rouge (>=1.0.1,
 google-genai = ["google-genai (>=1.52.0,<2.0.0)"]
 iceberg = ["pyiceberg[sql-sqlite] (>=0.10.0,<0.11.0)"]
 legacy-partitioners = ["nltk (>=3.9.0,<4.0.0)", "python-pptx (>=0.6.22,<0.7.0)", "unstructured[pdf] (>=0.18.4,<0.19.0)"]
-local-inference = ["easyocr (>=1.7.1,<2.0.0)", "langchain-community (>=0.3.31,<0.4.0)", "paddleocr (==3.1.0)", "pdfminer-six (>=20251230)", "pypdfium2 (>=5.0.0,<6.0.0)", "pytesseract (>=0.3.10,<0.4.0)", "sentence-transformers (>=3.0.1,<4.0.0)", "timm (>=0.9.12,<0.10.0)", "torch (>=2.8.0,<3.0.0)", "torchvision (>=0.23.0,<0.24.0)", "transformers (>=4.53.1,<5.0.0)"]
+local-inference = ["easyocr (>=1.7.1,<2.0.0)", "langchain-community (>=0.3.31,<0.4.0)", "paddleocr (==3.1.0)", "pdfminer-six (>=20260107)", "pypdfium2 (>=5.0.0,<6.0.0)", "pytesseract (>=0.3.10,<0.4.0)", "sentence-transformers (>=3.0.1,<4.0.0)", "timm (>=0.9.12,<0.10.0)", "torch (>=2.8.0,<3.0.0)", "torchvision (>=0.23.0,<0.24.0)", "transformers (>=4.53.1,<5.0.0)"]
 neo4j = ["neo4j (>=5.21.0,<6.0.0)"]
 opensearch = ["opensearch-py (>=2.3.1,<3.0.0)"]
 pinecone = ["pinecone-text (>=0.11.0,<0.12.0)", "pinecone[grpc] (>=7.3.0,<8.0.0)"]
@@ -6280,14 +6280,14 @@ devenv = ["check-manifest", "pytest (>=4.3)", "pytest-cov", "pytest-mock (>=3.3)
 
 [[package]]
 name = "urllib3"
-version = "2.6.1"
+version = "2.6.3"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev", "test"]
 files = [
-    {file = "urllib3-2.6.1-py3-none-any.whl", hash = "sha256:e67d06fe947c36a7ca39f4994b08d73922d40e6cca949907be05efa6fd75110b"},
-    {file = "urllib3-2.6.1.tar.gz", hash = "sha256:5379eb6e1aba4088bae84f8242960017ec8d8e3decf30480b3a1abdaa9671a3f"},
+    {file = "urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4"},
+    {file = "urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed"},
 ]
 
 [package.extras]

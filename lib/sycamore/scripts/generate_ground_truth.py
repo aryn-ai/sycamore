@@ -44,10 +44,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sycamore.tests.config import TEST_DIR
 from sycamore.tests.unit.transforms import partitioner_fakes
-
-# Ground truth output directory
-GROUND_TRUTH_DIR = TEST_DIR / "resources" / "ground_truth"
-GROUND_TRUTH_VERSION = "v1"
+from sycamore.tests.unit.transforms.partitioner_fakes import GROUND_TRUTH_DIR, GROUND_TRUTH_VERSION
 
 # Default test resource locations
 PDF_DIR = TEST_DIR / "resources" / "data" / "pdfs"

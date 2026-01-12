@@ -35,6 +35,7 @@ from pathlib import Path
 from PIL import Image
 
 import typing
+
 if typing.TYPE_CHECKING:
     from sycamore.data import TableElement
 

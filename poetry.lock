@@ -660,14 +660,14 @@ tests-mypy = ["mypy (>=1.11.1) ; platform_python_implementation == \"CPython\" a
 
 [[package]]
 name = "authlib"
-version = "1.6.5"
+version = "1.6.6"
 description = "The ultimate Python library in building OAuth and OpenID Connect servers and clients."
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev", "docs", "duckdb", "elasticsearch", "eval", "legacy-partitioners", "local-inference", "neo4j", "opensearch", "pinecone", "qdrant", "weaviate"]
 files = [
-    {file = "authlib-1.6.5-py2.py3-none-any.whl", hash = "sha256:3e0e0507807f842b02175507bdee8957a1d5707fd4afb17c32fb43fee90b6e3a"},
-    {file = "authlib-1.6.5.tar.gz", hash = "sha256:6aaf9c79b7cc96c900f0b284061691c5d4e61221640a948fe690b556a6d6d10b"},
+    {file = "authlib-1.6.6-py2.py3-none-any.whl", hash = "sha256:7d9e9bc535c13974313a87f53e8430eb6ea3d1cf6ae4f6efcd793f2e949143fd"},
+    {file = "authlib-1.6.6.tar.gz", hash = "sha256:45770e8e056d0f283451d9996fbb59b70d45722b45d854d58f32878d0a40c38e"},
 ]
 
 [package.dependencies]
@@ -2655,14 +2655,14 @@ devel = ["colorama", "json-spec", "jsonschema", "pylint", "pytest", "pytest-benc
 
 [[package]]
 name = "filelock"
-version = "3.20.2"
+version = "3.20.3"
 description = "A platform independent file lock."
 optional = false
 python-versions = ">=3.10"
 groups = ["main", "dev", "docs", "duckdb", "elasticsearch", "eval", "legacy-partitioners", "local-inference", "neo4j", "opensearch", "pinecone", "qdrant", "weaviate"]
 files = [
-    {file = "filelock-3.20.2-py3-none-any.whl", hash = "sha256:fbba7237d6ea277175a32c54bb71ef814a8546d8601269e1bfc388de333974e8"},
-    {file = "filelock-3.20.2.tar.gz", hash = "sha256:a2241ff4ddde2a7cebddf78e39832509cb045d18ec1a09d7248d6bfc6bfbbe64"},
+    {file = "filelock-3.20.3-py3-none-any.whl", hash = "sha256:4b0dda527ee31078689fc205ec4f1c1bf7d56cf88b6dc9426c4f230e46c2dce1"},
+    {file = "filelock-3.20.3.tar.gz", hash = "sha256:18c57ee915c7ec61cff0ecf7f0f869936c7c30191bb0cf406f1341778d0834e1"},
 ]
 
 [[package]]
@@ -3918,7 +3918,7 @@ opensearch-py = "^2.5.0"
 pytest = "7.4.0"
 sycamore-poetry-lock = {path = "../../lib/poetry-lock", develop = true}
 testcontainers = "^4.3.1"
-urllib3 = "^2.6.1"
+urllib3 = "^2.6.3"
 
 [package.source]
 type = "directory"
@@ -11108,7 +11108,7 @@ anthropic = {version = "^0.42.0", optional = true}
 apted = {version = "^1.0.3", optional = true}
 aryn-sdk = ">=0.2.14"
 async-timeout = ">4.0.0"
-authlib = "^1.6.4"
+authlib = "^1.6.6"
 beautifulsoup4 = "^4.13.1"
 boto3 = "^1.28.70"
 boto3-stubs = {version = "^1.35.12", extras = ["essential"]}
@@ -11120,7 +11120,7 @@ duckdb = {version = "^1.1.1", optional = true}
 easyocr = {version = "^1.7.1", optional = true}
 elasticsearch = {version = "8.14.0", optional = true}
 fasteners = "^0.19"
-filelock = "^3.20.1"
+filelock = "^3.20.3"
 fsspec = "2024.2.0"
 furo = {version = "^2023.9.10", optional = true}
 google-genai = {version = "^1.52.0", optional = true}
@@ -11170,7 +11170,7 @@ tornado = ">=6.5.0"
 transformers = {version = "^4.53.1", optional = true}
 typing-extensions = "^4.12.2"
 unstructured = {version = "^0.18.4", extras = ["pdf"], optional = true}
-urllib3 = "^2.6.1"
+urllib3 = "^2.6.3"
 weaviate-client = {version = "^4.16.10", optional = true}
 
 [package.extras]
@@ -11205,9 +11205,9 @@ develop = true
 
 [package.dependencies]
 aiohttp = "^3.13.3"
-authlib = "^1.6.5"
+authlib = "^1.6.6"
 cryptography = ">=44.0.1"
-filelock = "^3.20.1"
+filelock = "^3.20.3"
 fonttools = "^4.60.2"
 fsspec = "2024.2.0"
 guidance = "0.1.14"
@@ -11229,7 +11229,7 @@ scipy = "^1.15.0"
 scrapy = ">=2.13.4"
 setuptools = ">=78.1.1"
 tornado = ">=6.5.0"
-urllib3 = "^2.6.1"
+urllib3 = "^2.6.3"
 weaviate-client = "^4.16.10"
 
 [package.source]
@@ -12246,14 +12246,14 @@ dev = ["flake8", "flake8-annotations", "flake8-bandit", "flake8-bugbear", "flake
 
 [[package]]
 name = "urllib3"
-version = "2.6.1"
+version = "2.6.3"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev", "docs", "duckdb", "elasticsearch", "eval", "legacy-partitioners", "local-inference", "neo4j", "notebook", "opensearch", "pinecone", "qdrant", "weaviate"]
 files = [
-    {file = "urllib3-2.6.1-py3-none-any.whl", hash = "sha256:e67d06fe947c36a7ca39f4994b08d73922d40e6cca949907be05efa6fd75110b"},
-    {file = "urllib3-2.6.1.tar.gz", hash = "sha256:5379eb6e1aba4088bae84f8242960017ec8d8e3decf30480b3a1abdaa9671a3f"},
+    {file = "urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4"},
+    {file = "urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed"},
 ]
 
 [package.extras]

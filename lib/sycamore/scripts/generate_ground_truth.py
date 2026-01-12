@@ -97,6 +97,8 @@ def generate_detr_ground_truth(
 
         # Run inference with threshold=0 to get all detections
         # Threshold filtering happens in infer() when consuming the ground truth
+        assert model is not None
+
         results = model._get_uncached_inference([image], threshold=0.0)
         result = results[0]
 
@@ -172,6 +174,8 @@ def generate_table_ground_truth(
 
         print(f"Processing table: {source_name}")
         print(f"  Element hash: {element_hash}")
+
+        assert extractor is not None
 
         # Run extraction
         extracted = extractor.extract(element, doc_image)

@@ -83,7 +83,7 @@ pyiceberg = { version = "^0.10.0", extras = ["sql-sqlite"], optional = true}
 
 # Local inference dependencies
 easyocr = { version = "^1.7.1", optional = true }
-paddleocr = { version = "3.1.0", optional = true }
+paddleocr = { version = "^3.3.0", optional = true }
 langchain-community = { version = "^0.3.31", optional = true}
 langchain-core = { version = "^0.3.81", optional = true} # pinned due to security issues, is transitive dependency of langchain-community
 

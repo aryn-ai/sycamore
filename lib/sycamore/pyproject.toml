@@ -58,7 +58,7 @@ authlib = "^1.6.6"
 
 filelock = "^3.20.3"
 marshmallow = "^3.26.2"
-
+virtualenv = "^20.36.1"
 
 #Evaluation dependencies
 apted = { version = "^1.0.3", optional = true }

@@ -218,8 +218,9 @@ class Extract(MapBatch):
             rp: Optional[RichProperty] = None
             while retries < MAX_LLM_RETRIES:
                 try:
-                    result = await self._llm.generate_async(prompt=rendered)
-                    rd = extract_json(result)
+                    rd_with_md = await self._llm.generate_metadata_async(prompt=rendered, extract_fn=extract_json)
+                    # rd = extract_json(result)
+                    rd = rd_with_md["output"]
                     rp = self._attribution.prediction_to_rich_property(rd)
                     break
                 except (ValueError, ValidationError) as e:

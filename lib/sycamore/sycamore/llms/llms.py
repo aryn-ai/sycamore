@@ -58,7 +58,20 @@ class LLM(ABC):
         pass
 
     def generate_metadata(
-        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None,
+            extract_fn: Optional[Callable[[str], Any]] = None
+    ) -> dict:
+        """Generates a response from the LLM for the given prompt and LLM parameters and returns metadata.
+
+        TODO: Implement generic_generate(model: LLMModel, ...) and generic_generate_args(model_class, kwargs)
+           to specify default arguments during model construction.  The former should cache the client if possible.
+           Then we can call generate on any model rather than only ones in the same family.  Potentially get rid of the
+           model argument to generate* at the same time to simplify the implementations."""
+        raise NotImplementedError("This LLM does not support metadata generation")
+
+    async def generate_metadata_async(
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None,
+            extract_fn: Optional[Callable[[str], Any]] = None
     ) -> dict:
         """Generates a response from the LLM for the given prompt and LLM parameters and returns metadata.
 

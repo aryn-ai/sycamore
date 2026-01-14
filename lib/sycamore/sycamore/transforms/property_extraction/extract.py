@@ -6,8 +6,9 @@ import json
 from pydantic import ValidationError
 
 from sycamore.data.document import Document, Element
+from sycamore.datatype import DataType
 from sycamore.plan_nodes import Node
-from sycamore.schema import NamedProperty, ObjectProperty, SchemaV2 as Schema, DataType
+from sycamore.schema import NamedProperty, ObjectProperty, SchemaV2 as Schema
 from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,
@@ -281,7 +282,10 @@ class Extract(MapBatch):
                 continue
             prop = prop.type if isinstance(prop, NamedProperty) else prop
             for validator in prop.validators:
-                valid, propval = validator.validate_property(val.to_python())
+                if (propval := val.to_python()) is not None:
+                    valid, propval = validator.validate_property(propval)
+                else:
+                    valid = True
                 val.is_valid = valid
                 if val.type not in (DataType.ARRAY, DataType.OBJECT):
                     val.value = propval

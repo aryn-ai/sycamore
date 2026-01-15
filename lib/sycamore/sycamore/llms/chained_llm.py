@@ -52,13 +52,23 @@ class ChainedLLM(LLM):
 
     # TODO implement this method for ChainedLLM
     def generate_metadata(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        llm_kwargs: Optional[dict] = None,
+        model: Optional[LLMModel] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> dict[str, Any]:
         output = self.generate(prompt=prompt, llm_kwargs=llm_kwargs, model=model)
         return {"output": output}
 
     def generate(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        llm_kwargs: Optional[dict] = None,
+        model: Optional[LLMModel] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> str:
         """
         Generates a response by chaining multiple LLMs together.
@@ -104,7 +114,12 @@ class ChainedLLM(LLM):
         raise last_exception
 
     async def generate_async(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        llm_kwargs: Optional[dict] = None,
+        model: Optional[LLMModel] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters asynchronously."""
         assert self._chain is not None and len(self._chain) > 0, "ChainedLLM must have at least one LLM in the chain."

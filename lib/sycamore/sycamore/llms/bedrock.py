@@ -1,7 +1,7 @@
 import datetime
 import json
 import logging
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Callable
 
 from PIL import Image
 
@@ -67,7 +67,12 @@ class Bedrock(LLM):
         raise NotImplementedError("Images not supported for non-Anthropic Bedrock models.")
 
     def generate_metadata(
-        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        model: Optional[LLMModel] = None,
+        llm_kwargs: Optional[dict] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> dict:
         assert model is None or isinstance(
             model, BedrockModel
@@ -116,10 +121,17 @@ class Bedrock(LLM):
         }
         self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens, model=model_name)
         self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
+        if extract_fn is not None:
+            ret["output"] = extract_fn(ret["output"])
         return ret
 
     def generate(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        llm_kwargs: Optional[dict] = None,
+        model: Optional[LLMModel] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> str:
-        d = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs)
+        d = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs, extract_fn=extract_fn)
         return d["output"]

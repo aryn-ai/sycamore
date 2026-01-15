@@ -1,6 +1,6 @@
 import datetime
 import logging
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Callable
 import os
 import io
 
@@ -162,7 +162,12 @@ class Gemini(LLM):
         return ret
 
     def generate_metadata(
-        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        model: Optional[LLMModel] = None,
+        llm_kwargs: Optional[dict] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> dict:
         assert model is None or isinstance(
             model, GeminiModel
@@ -183,17 +188,42 @@ class Gemini(LLM):
         response = self.generate_content(model=model_name, contents=kwargs["content"], config=kwargs["config"])
         ret = self._metadata_from_response(model_name, kwargs, response, start)
         self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
+        if extract_fn is not None:
+            ret["output"] = extract_fn(ret["output"])
         return ret
 
     def generate(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        llm_kwargs: Optional[dict] = None,
+        model: Optional[LLMModel] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> str:
-        d = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs)
+        d = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs, extract_fn=extract_fn)
         return d["output"]
 
     async def generate_async(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        llm_kwargs: Optional[dict] = None,
+        model: Optional[LLMModel] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> str:
+        res = await self.generate_metadata_async(
+            prompt=prompt, model=model, llm_kwargs=llm_kwargs, extract_fn=extract_fn
+        )
+        return res["output"]
+
+    async def generate_metadata_async(
+        self,
+        *,
+        prompt: RenderedPrompt,
+        llm_kwargs: Optional[dict] = None,
+        model: Optional[LLMModel] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
+    ) -> dict:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         model_name = model.name if model else self.model.name
         if self.model.name != model_name:
@@ -212,7 +242,9 @@ class Gemini(LLM):
         )
         ret = self._metadata_from_response(model_name, kwargs, response, start)
         self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
-        return ret["output"]
+        if extract_fn is not None:
+            ret["output"] = extract_fn(ret["output"])
+        return ret
 
     @retry.Retry(
         predicate=retry.if_transient_error,

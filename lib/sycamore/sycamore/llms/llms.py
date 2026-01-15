@@ -6,7 +6,7 @@ import logging
 import pickle
 import base64
 from PIL import Image
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 
 from sycamore.llms.config import LLMMode, LLMModel
 from sycamore.utils.cache import Cache
@@ -52,14 +52,23 @@ class LLM(ABC):
 
     @abstractmethod
     def generate(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        llm_kwargs: Optional[dict] = None,
+        model: Optional[LLMModel] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters."""
         pass
 
     def generate_metadata(
-        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None,
-            extract_fn: Optional[Callable[[str], Any]] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        model: Optional[LLMModel] = None,
+        llm_kwargs: Optional[dict] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> dict:
         """Generates a response from the LLM for the given prompt and LLM parameters and returns metadata.
 
@@ -70,8 +79,12 @@ class LLM(ABC):
         raise NotImplementedError("This LLM does not support metadata generation")
 
     async def generate_metadata_async(
-        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None,
-            extract_fn: Optional[Callable[[str], Any]] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        model: Optional[LLMModel] = None,
+        llm_kwargs: Optional[dict] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> dict:
         """Generates a response from the LLM for the given prompt and LLM parameters and returns metadata.
 
@@ -115,7 +128,12 @@ class LLM(ABC):
         raise NotImplementedError("This LLM does not support images.")
 
     async def generate_async(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        llm_kwargs: Optional[dict] = None,
+        model: Optional[LLMModel] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters asynchronously."""
         raise NotImplementedError("This LLM does not support asynchronous generation.")
@@ -287,12 +305,14 @@ class FakeLLM(LLM):
         self._return_value = return_value
 
     def generate(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None,
+            extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> str:
         return self._return_value
 
     def generate_metadata(
-        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None,
+            extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> dict:
         model_name = model.name if model else self._model_name
         return {
@@ -304,7 +324,8 @@ class FakeLLM(LLM):
         }
 
     async def generate_async(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None,
+            extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> str:
         return self.generate(prompt=prompt, llm_kwargs=llm_kwargs)
 

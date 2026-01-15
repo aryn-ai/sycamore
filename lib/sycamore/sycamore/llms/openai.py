@@ -4,7 +4,7 @@ import logging
 import os
 from enum import Enum
 from PIL import Image
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union, Callable
 from datetime import datetime
 import asyncio
 import random
@@ -359,7 +359,12 @@ class OpenAI(LLM):
         return kwargs
 
     def generate(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        llm_kwargs: Optional[dict] = None,
+        model: Optional[LLMModel] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         llm_kwargs = self._convert_response_format(llm_kwargs)
@@ -367,13 +372,20 @@ class OpenAI(LLM):
         if prompt.response_format is not None:
             model_name = model.name if model else self.model.name
             ret = self._generate_using_openai_structured(model_name, prompt, llm_kwargs)
+            if extract_fn is not None:
+                ret["output"] = extract_fn(ret["output"])
         else:
-            ret = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs)
+            ret = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs, extract_fn=extract_fn)
 
         return ret["output"]
 
     def generate_metadata(
-        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        model: Optional[LLMModel] = None,
+        llm_kwargs: Optional[dict] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> dict:
         assert model is None or isinstance(
             model, OpenAIModel
@@ -416,6 +428,8 @@ class OpenAI(LLM):
             "out_tokens": completion_tokens,
         }
         self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
+        if extract_fn is not None:
+            ret["output"] = extract_fn(ret["output"])
         return ret
 
     def _generate_using_openai_structured(self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> dict:
@@ -449,15 +463,34 @@ class OpenAI(LLM):
         return ret
 
     async def generate_async(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self,
+        *,
+        prompt: RenderedPrompt,
+        llm_kwargs: Optional[dict] = None,
+        model: Optional[LLMModel] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
     ) -> str:
+        res = await self.generate_metadata_async(
+            prompt=prompt, llm_kwargs=llm_kwargs, model=model, extract_fn=extract_fn
+        )
+        return res["output"]
+
+    async def generate_metadata_async(
+        self,
+        *,
+        prompt: RenderedPrompt,
+        llm_kwargs: Optional[dict] = None,
+        model: Optional[LLMModel] = None,
+        extract_fn: Optional[Callable[[str], Any]] = None,
+    ) -> dict:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
         model_name: str = model.name if model else self._model_name
         if model_name != self._model_name:
             logger.info(f"Overriding OpenAI model from {self._model_name} to {model_name}")
         ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
-        if ret is not None:
+        if isinstance(ret, dict):
             return ret
+        assert ret is None, f"Expected no cache entry, got {ret}"
 
         if llm_kwargs is None:
             raise ValueError("Must include llm_kwargs to generate future call")
@@ -478,11 +511,14 @@ class OpenAI(LLM):
                 retries += 1
 
         self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
+
+        if extract_fn is not None:
+            ret["output"] = extract_fn(ret["output"])
         return ret
 
     async def _generate_awaitable_using_openai(
         self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]
-    ) -> str:
+    ) -> dict:
         kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
         starttime = datetime.now()
         if self.is_chat_mode():
@@ -503,11 +539,16 @@ class OpenAI(LLM):
             prompt_tokens = 0
 
         self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens, model=model)
-        return response_text
+        return {
+            "output": response_text,
+            "in_tokens": prompt_tokens,
+            "out_tokens": completion_tokens,
+            "wall_latency": wall_latency,
+        }
 
     async def _generate_awaitable_using_openai_structured(
         self, model: str, prompt: RenderedPrompt, llm_kwargs: Optional[dict]
-    ) -> str:
+    ) -> dict:
         try:
             kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
             if self.is_chat_mode():
@@ -522,7 +563,12 @@ class OpenAI(LLM):
             assert response_text is not None, "OpenAI refused to respond to the query"
             completion_tokens, prompt_tokens = self.validate_tokens(completion)
             self.add_llm_metadata(kwargs, response_text, wall_latency, prompt_tokens, completion_tokens, model=model)
-            return response_text
+            return {
+                "output": response_text,
+                "in_tokens": prompt_tokens,
+                "out_tokens": completion_tokens,
+                "wall_latency": wall_latency,
+            }
         except Exception as e:
             # OpenAI will not respond in two scenarios:
             # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)

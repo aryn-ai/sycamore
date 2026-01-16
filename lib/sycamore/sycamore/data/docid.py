@@ -1,6 +1,6 @@
 from typing import Optional
 
-import nanoid
+import fastnanoid
 
 # Alphabets for encodings...
 alpha36 = "0123456789abcdefghijklmnopqrstuvwxyz"
@@ -14,7 +14,7 @@ def nanoid36() -> str:
     """
     Free of punctuation and uppercase; still as good as UUID4.
     """
-    return nanoid.generate(alpha36, docid_nanoid_chars)
+    return fastnanoid.generate(alpha36, docid_nanoid_chars)
 
 
 def mkdocid(code: str = "d") -> str:

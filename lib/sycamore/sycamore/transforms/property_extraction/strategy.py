@@ -41,6 +41,27 @@ class NPagesAtATime(StepThroughStrategy):
             yield batch
 
 
+class NPagesAtATimeWithOverlap(StepThroughStrategy):
+    def __init__(self, n: int = 2, overlap: int = 1):
+        assert n > overlap, f"NPages ({n}) must be larger than overlap ({overlap})"
+        self._n = n
+        self._overlap = overlap
+
+    def step_through(self, document: Document) -> Iterable[list[Element]]:
+        batch: list[Element] = []
+        cutoff = document.elements[0].properties["page_number"] + self._n
+        for elt in document.elements:
+            pn = elt.properties["page_number"]
+            if pn >= cutoff:
+                yield batch
+                batch = [e for e in batch if e.properties["page_number"] >= cutoff - self._overlap]
+                cutoff = pn + self._n - self._overlap
+                batch.append(elt)
+            else:
+                batch.append(elt)
+        yield batch
+
+
 class BatchElements(StepThroughStrategy):
     def __init__(self, batch_size: int = 10):
         self._batch_size = batch_size

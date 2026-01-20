@@ -119,12 +119,19 @@ class TextMatchAttributionStrategy(AttributionStrategy):
 class LLMAttributionStrategy(AttributionStrategy):
     """Attribution strategy that asks the LLM to provide element indices directly."""
 
+    def __init__(self, page_level_attribution: bool = False):
+        self.page_level_attribution = page_level_attribution
+
     def prediction_to_rich_property(self, prediction: dict[str, Any]) -> RichProperty:
         def _recurse(parent: RichProperty, name: Optional[str], prediction: Any) -> None:
 
             if isinstance(prediction, list) and len(prediction) == 2 and isinstance(prediction[1], (int, type(None))):
                 actual_pred = prediction[0]
-                attribution = AttributionValue(element_indices=[prediction[1]]) if prediction[1] is not None else None
+                predicted_attribution = prediction[1] if prediction[1] is not None else None
+                if self.page_level_attribution:
+                    attribution = AttributionValue(element_indices=[], page=predicted_attribution) if predicted_attribution is not None else None
+                else:
+                    attribution = AttributionValue(element_indices=[prediction[1]]) if prediction[1] is not None else None
             else:
                 actual_pred = prediction
                 attribution = None

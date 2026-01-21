@@ -64,7 +64,7 @@ def elements_to_markdown(elems: list[Element], opts: Optional[dict[str, Any]] = 
             last = bbox
         if type == "table":
             if isinstance(elem, TableElement):
-                render_table(elem, sio)
+                render_table(elem, sio, opts)
             continue
         text = elem_text(elem).strip()
         if not text:
@@ -95,15 +95,23 @@ def elements_to_markdown(elems: list[Element], opts: Optional[dict[str, Any]] = 
     return sio.getvalue()
 
 
-def render_table(elem: TableElement, sio: StringIO) -> None:
+def render_table(elem: TableElement, sio: StringIO, opts: Optional[dict[str, Any]] = None) -> None:
     """
-    Emit Markdown representation of TableElement.  The tricky parts here are:
+    Emit Markdown or HTML representation of TableElement.
+
+    If opts["render_html_tables"] is True, renders as HTML using Table.to_html().
+    Otherwise renders as Markdown. The tricky parts for Markdown are:
     (1) Markdown doesn't support spans.
     (2) Markdown requires one and only one header line (it seems).
     """
     table = elem.table
     if not table:
         return
+
+    if opts and opts.get("render_html_tables"):
+        sio.write(f"\n{table.to_html(pretty=True)}\n")
+        return
+
     nrow = table.num_rows
     ncol = table.num_cols
     cells = table.cells

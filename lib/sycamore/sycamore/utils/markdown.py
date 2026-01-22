@@ -99,7 +99,7 @@ def render_table(elem: TableElement, sio: StringIO, opts: Optional[dict[str, Any
     """
     Emit Markdown or HTML representation of TableElement.
 
-    If opts["render_html_tables"] is True, renders as HTML using Table.to_html().
+    If opts["tables_as_html"] is True, renders as HTML using Table.to_html().
     Otherwise renders as Markdown. The tricky parts for Markdown are:
     (1) Markdown doesn't support spans.
     (2) Markdown requires one and only one header line (it seems).
@@ -108,7 +108,7 @@ def render_table(elem: TableElement, sio: StringIO, opts: Optional[dict[str, Any
     if not table:
         return
 
-    if opts and opts.get("render_html_tables"):
+    if opts and opts.get("tables_as_html"):
         sio.write(f"\n{table.to_html(pretty=True)}\n")
         return
 

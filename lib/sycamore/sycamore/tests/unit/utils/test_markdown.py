@@ -229,7 +229,7 @@ def test_render_html_tables() -> None:
         ]
     )
     te = elemFromTable(table, 1, 0.1, 0.1)
-    s = elements_to_markdown([te], opts={"render_html_tables": True})
+    s = elements_to_markdown([te], opts={"tables_as_html": True})
     assert "<table>" in s
     assert "<thead>" in s
     assert "<tbody>" in s
@@ -249,6 +249,6 @@ def test_render_html_tables_with_spans() -> None:
         ]
     )
     te = elemFromTable(table, 1, 0.1, 0.1)
-    s = elements_to_markdown([te], opts={"render_html_tables": True})
+    s = elements_to_markdown([te], opts={"tables_as_html": True})
     assert 'colspan="2"' in s
     assert "<th " in s and "Merged</th>" in s

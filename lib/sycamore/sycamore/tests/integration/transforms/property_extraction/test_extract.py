@@ -28,7 +28,7 @@ def test_take_first_boolean():
     aryn_api_key = os.getenv("ARYN_API_KEY")
     ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
     files = ["NVDA_10k_2025.pdf"]
-    pick = files[1]
+    pick = files[0]
     pdf_path = TEST_DATA_DIR / f"pdfs/{pick}"
     ds = ctx.read.binary([str(pdf_path)], binary_format="pdf")
     ds = ds.partition(ArynPartitioner(aryn_api_key=aryn_api_key, text_mode="auto", table_mode="standard"))
@@ -83,7 +83,7 @@ def test_take_first_array():
     aryn_api_key = os.getenv("ARYN_API_KEY")
     ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
     files = ["NVDA_10k_2025.pdf"]
-    pick = files[1]
+    pick = files[0]
     pdf_path = TEST_DATA_DIR / f"pdfs/{pick}"
     ds = ctx.read.binary([str(pdf_path)], binary_format="pdf")
     ds = ds.partition(ArynPartitioner(aryn_api_key=aryn_api_key, text_mode="auto", table_mode="standard"))

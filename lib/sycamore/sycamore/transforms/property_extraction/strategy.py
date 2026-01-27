@@ -205,7 +205,7 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                     rp_map[rp.value].attribution.page.extend(pp)
                 else:
                     rp_map[rp.value].attribution.page.extend([pp])
-        return [rp for rp in rp_map.values()]
+        return sorted([rp for rp in rp_map.values()], key=lambda rp: rp.value)
 
 
 default_stepthrough = OneElementAtATime()

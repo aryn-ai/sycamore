@@ -9,7 +9,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
 pyyaml = "^6.0.1"
-grpcio = "^1.60.0"
+grpcio = "^1.71.0"
 cbor2 = "^5.8.0"
 sycamore-ai = "^0.1.13"
 
@@ -24,7 +24,7 @@ sycamore-ai = { path = "../sycamore", develop = true }
 sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
 
 [tool.poetry.group.build.dependencies]
-grpcio-tools = "^1.60.1"
+grpcio-tools = "^1.71.0"
 protoletariat = "^3.2.19"
 
 [build-system]

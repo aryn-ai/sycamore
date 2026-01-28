@@ -111,7 +111,7 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
             if ef is not None:
                 if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT, DataType.BOOL):
                     trim = True
-                if nf is not None:
+                if nf is not None and prop.get_type() in (DataType.ARRAY, DataType.BOOL):
                     if prop.get_type() is DataType.ARRAY:
                         ef.value = [] if ef.value is None else ef.value
                         nf.value = [] if nf.value is None else nf.value

@@ -115,9 +115,11 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                     if prop.get_type() is DataType.ARRAY:
                         ef.value = [] if ef.value is None else ef.value
                         nf.value = [] if nf.value is None else nf.value
-                        out_p.value[k] = RichProperty(
-                            value=self.dedup_rp_array(ef.value + nf.value), type=DataType.ARRAY, name=ef.name
-                        )
+                        if prop.type.item_type.type in (DataType.ARRAY, DataType.OBJECT):
+                            combined = ef.value + nf.value
+                        else:
+                            combined = self.dedup_rp_array(ef.value + nf.value)
+                        out_p.value[k] = RichProperty(value=combined, type=DataType.ARRAY, name=ef.name)
                         nf.value = []
                         ef.value = []
                     elif prop.get_type() is DataType.BOOL:

@@ -4,7 +4,7 @@ from pydantic.functional_serializers import field_serializer
 from pydantic.functional_validators import field_validator
 
 from sycamore.data.bbox import BoundingBox
-from sycamore.schema import DataType
+from sycamore.datatype import DataType
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.zip_traverse import ZTDict, ZTLeaf, ZipTraversable, zip_traverse
 

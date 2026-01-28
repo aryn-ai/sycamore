@@ -121,7 +121,7 @@ def test_take_first_array():
     ds = DocSet(ctx, extract)
     # ds = ds.materialize(TEST_DATA_DIR / "materialize/extracted", source_mode=MaterializeSourceMode.RECOMPUTE)
 
-    expected = ["NORTH_AMERICA", "EUROPE", "ASIA"]
+    expected = ["NORTH_AMERICA", "EUROPE", "ASIA", "SOUTH_AMERICA"]
 
     def check_props(document: Document) -> Document:
         print(f"Path: {document.properties['path']}")

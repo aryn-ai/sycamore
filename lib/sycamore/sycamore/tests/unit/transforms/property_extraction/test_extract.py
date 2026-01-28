@@ -25,7 +25,7 @@ from sycamore.schema import (
     ArrayProperty,
 )
 
-docs = [
+g_test_docs = [
     Document(
         doc_id="0",
         elements=[
@@ -586,7 +586,7 @@ class TestExtract:
             prompt=FakeExtractionPrompt(),
         )
 
-        extracted = extract.run(docs)
+        extracted = extract.run(g_test_docs)
         # Incoming properties are assumed to be valid unless they say otherwise
         assert extracted[0].field_to_value("properties.entity_metadata.doc_id").is_valid
         assert not extracted[1].field_to_value("properties.entity_metadata.doc_id").is_valid
@@ -613,7 +613,7 @@ class TestExtract:
             prompt=FakeExtractionPrompt(),
         )
 
-        extracted = extract.run(docs)
+        extracted = extract.run(g_test_docs)
         # Incoming properties are assumed to be valid unless they say otherwise
         assert extracted[0].field_to_value("properties.entity_metadata.doc_id").is_valid
         assert not extracted[1].field_to_value("properties.entity_metadata.doc_id").is_valid
@@ -640,7 +640,7 @@ class TestExtract:
             prompt=FakeExtractionPrompt(),
         )
 
-        extracted = extract.run(docs)
+        extracted = extract.run(g_test_docs)
         # Incoming properties are assumed to be valid unless they say otherwise
         assert extracted[0].field_to_value("properties.entity_metadata.doc_id").is_valid
         assert extracted[1].field_to_value("properties.entity_metadata.doc_id").is_valid

@@ -20,7 +20,9 @@ from sycamore.schema import (
     StringProperty,
     DataType,
     ObjectProperty,
-    BooleanExpValidator, BoolProperty, ArrayProperty,
+    BooleanExpValidator,
+    BoolProperty,
+    ArrayProperty,
 )
 
 docs = [
@@ -63,11 +65,15 @@ class FakeExtractionPrompt(SycamorePrompt):
             ]
         )
 
+
 class FakeExtractionPrompt2(SycamorePrompt):
     def render_multiple_elements(self, elts: list[Element], doc: Document) -> RenderedPrompt:
         return RenderedPrompt(
             messages=[
-                RenderedMessage(role="user", content=" ".join([e.text_representation for e in elts])),
+                RenderedMessage(
+                    role="user",
+                    content=" ".join([e.text_representation if e.text_representation else "" for e in elts]),
+                ),
             ]
         )
 
@@ -189,15 +195,9 @@ class TestExtract:
             ]
         )
 
-        foo_none = {
-            "foo": None
-        }
-        foo_true = {
-            "foo": True
-        }
-        foo_false = {
-            "foo": False
-        }
+        foo_none = {"foo": None}
+        foo_true = {"foo": True}
+        foo_false = {"foo": False}
         foo_none_str = json.dumps(foo_none)
         foo_true_str = json.dumps(foo_true)
         foo_false_str = json.dumps(foo_false)
@@ -210,7 +210,7 @@ class TestExtract:
                     Element(text_representation=foo_none_str, properties={"_element_index": 1}),
                     Element(text_representation=foo_true_str, properties={"_element_index": 2}),
                     Element(text_representation=foo_false_str, properties={"_element_index": 3}),
-                ]
+                ],
             ),
             Document(
                 doc_id="1",
@@ -218,16 +218,15 @@ class TestExtract:
                     Element(text_representation=foo_false_str, properties={"_element_index": 0}),
                     Element(text_representation=foo_none_str, properties={"_element_index": 1}),
                     Element(text_representation=foo_false_str, properties={"_element_index": 3}),
-                ]
+                ],
             ),
             Document(
                 doc_id="2",
                 elements=[
                     Element(text_representation=foo_false_str, properties={"_element_index": 0}),
                     Element(text_representation=foo_none_str, properties={"_element_index": 1}),
-                ]
-            )
-
+                ],
+            ),
         ]
         extract = Extract(
             None,
@@ -263,15 +262,9 @@ class TestExtract:
             ]
         )
 
-        foo_a_e1 = {
-            "foo": [["a", 1]]
-        }
-        foo_a_e2 = {
-            "foo": [["a", 2]]
-        }
-        foo_b_e3 = {
-            "foo": [["b", 3]]
-        }
+        foo_a_e1 = {"foo": [["a", 1]]}
+        foo_a_e2 = {"foo": [["a", 2]]}
+        foo_b_e3 = {"foo": [["b", 3]]}
         foo_a_e1_str = json.dumps(foo_a_e1)
         foo_a_e2_str = json.dumps(foo_a_e2)
         foo_b_e3_str = json.dumps(foo_b_e3)
@@ -283,9 +276,8 @@ class TestExtract:
                     Element(text_representation=foo_a_e1_str, properties={"_element_index": 1, "page_number": 4}),
                     Element(text_representation=foo_a_e2_str, properties={"_element_index": 2, "page_number": 4}),
                     Element(text_representation=foo_b_e3_str, properties={"_element_index": 3, "page_number": 6}),
-                ]
+                ],
             )
-
         ]
         extract = Extract(
             None,
@@ -308,9 +300,8 @@ class TestExtract:
         a = rp.value[0]
         b = rp.value[1]
         assert a.attribution is not None and b.attribution is not None
-        assert a.value == 'a' and b.value == 'b'
+        assert a.value == "a" and b.value == "b"
         assert a.attribution.page == [4] and b.attribution.page == 6
-
 
     def test_extract_serial(self):
         docs = [

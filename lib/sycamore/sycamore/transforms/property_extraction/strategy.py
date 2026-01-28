@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable
+from typing import Iterable, Any
 from pydantic import BaseModel
 
 from sycamore.data.document import Document
@@ -109,19 +109,36 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
             # If field is a leaf and exists in either, trim it out
             trim = False
             if ef is not None:
-                if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT):
+                if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT, DataType.BOOL):
                     trim = True
-                if nf is not None and prop.get_type() is DataType.ARRAY:
-                    out_p.value[k] = RichProperty(value=ef.value + nf.value, type=DataType.ARRAY, name=ef.name)
-                    nf.value = []
-                    ef.value = []
+                if nf is not None and prop.get_type() in (DataType.ARRAY, DataType.BOOL):
+                    if prop.get_type() is DataType.ARRAY:
+                        ef.value = [] if ef.value is None else ef.value
+                        nf.value = [] if nf.value is None else nf.value
+                        if prop.type.item_type.type in (DataType.ARRAY, DataType.OBJECT):
+                            combined = ef.value + nf.value
+                        else:
+                            combined = self.dedup_rp_array(ef.value + nf.value)
+                        out_p.value[k] = RichProperty(value=combined, type=DataType.ARRAY, name=ef.name)
+                        nf.value = []
+                        ef.value = []
+                    elif prop.get_type() is DataType.BOOL:
+                        if ef.value is not None:
+                            if ef.value is True:
+                                out_p.value[k] = ef  # Already true so keep it and trim.
+                                trim = True
+                            elif ef.value is False and nf.value is True:  # Flip to true from false, take the new value.
+                                out_p.value[k] = nf
+                                trim = True
+                            else:
+                                out_p.value[k] = ef  # Keep the old value until we flip.
                 elif not ef.is_valid and nf is not None and nf.is_valid:
                     out_p.value[k] = nf
                 else:
                     out_p.value[k] = ef
                     trim = trim and ef.is_valid
             elif nf is not None:
-                if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT):
+                if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT, DataType.BOOL):
                     trim = True
                 out_p.value[k] = nf
                 trim = trim and nf.is_valid
@@ -167,6 +184,35 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
             out_fields=out_rp.value,
             completed=len(out_sch.properties) == 0,
         )
+
+    def dedup_rp_array(self, rp_list: list[RichProperty]) -> list[RichProperty]:
+        rp_map: dict[Any, RichProperty] = {}
+        for rp in rp_list:
+            if rp.value not in rp_map:
+                rp_map[rp.value] = rp
+            else:
+                attribution = rp_map[rp.value].attribution
+                if attribution is None or rp.attribution is None:
+                    continue
+                if attribution.element_indices is None:
+                    attribution.element_indices = []
+                if rp.attribution.element_indices is None:
+                    rp.attribution.element_indices = []
+                attribution.element_indices.extend(rp.attribution.element_indices)
+                p = attribution.page
+                if p is None:
+                    p = []
+                elif not isinstance(p, list):
+                    p = [p]
+                pp = rp.attribution.page
+                if pp is None:
+                    pp = []
+                elif not isinstance(pp, list):
+                    pp = [pp]
+                p.extend(pp)
+                pages = set(p)
+                attribution.page = sorted(list(pages))
+        return sorted([rp for rp in rp_map.values()], key=lambda rp: rp.value)
 
 
 default_stepthrough = OneElementAtATime()

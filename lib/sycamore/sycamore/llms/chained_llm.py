@@ -119,7 +119,15 @@ class ChainedLLM(LLM):
         for model, llm in zip(model_list, self._chain):
             try:
                 response = await llm.generate_async(model=model, prompt=prompt, llm_kwargs=llm_kwargs)
-                return response
+                if self.response_checker:
+                    if self.response_checker(response):
+                        return response
+                    else:
+                        logger.info(
+                            f"Response {response} from LLM did not pass the response checker, trying next LLM in the chain."
+                        )
+                else:
+                    return response
             except Exception as e:
                 logger.exception(e)
                 last_exception = e

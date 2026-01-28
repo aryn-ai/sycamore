@@ -2,7 +2,7 @@ from abc import abstractmethod, ABC
 from typing import Any, Optional
 import cydifflib
 
-from sycamore.schema import DataType
+from sycamore.datatype import DataType
 from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.transforms.property_extraction.types import AttributionValue, RichProperty

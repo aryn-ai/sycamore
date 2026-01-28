@@ -20,7 +20,7 @@ pandas = "2.3.0" # Bumped to a version that supports 3.13.
 scipy = "^1.15.0"
 weaviate-client = "^4.16.10"
 protobuf = "^5.29.5"
-urllib3 = "^2.6.1"
+urllib3 = "^2.6.3"
 
 # Required to continue supporting python 3.9; it may be possible to make these a bit more
 # current, but latest version no longer supports 3.9
@@ -34,10 +34,10 @@ matplotlib = "3.10.3"
 
 
 # Package versions specified because of github vulnerability reports
-aiohttp = "^3.12.14"
-authlib = "^1.6.5"
+aiohttp = "^3.13.3"
+authlib = "^1.6.6"
 nltk = ">3.9.0"
-requests = "^2.32.4"
+requests = "^2.32.5"
 scrapy = ">=2.13.4"
 jinja2 = ">=3.1.6" # pinned for security reasons
 cryptography = ">=44.0.1"
@@ -45,9 +45,12 @@ tornado = ">=6.5.0"
 pillow = "^11.3.0"
 # black = ">=24.3.0"
 fonttools = "^4.60.2"
+filelock = "^3.20.3"
 
 httpcore = ">=1.0.9"
-setuptools = ">=78.1.1"
+setuptools = ">=80.10.2"
+pyasn1 = "^0.6.2"
+
 
 [build-system]
 requires = ["poetry-core"]

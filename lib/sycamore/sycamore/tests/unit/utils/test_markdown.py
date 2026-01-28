@@ -217,3 +217,38 @@ def test_smithsonian() -> None:
 Specification values: Steel, Castings, Ann. A.S.T.M. A27-16, Class B;* P max. 0.06; S max. 0.05.
 """  # noqa
     assert s == answer
+
+
+def test_render_html_tables() -> None:
+    table = Table(
+        [
+            TableCell(content="A", rows=[0], cols=[0], is_header=True),
+            TableCell(content="B", rows=[0], cols=[1], is_header=True),
+            TableCell(content="1", rows=[1], cols=[0], is_header=False),
+            TableCell(content="2", rows=[1], cols=[1], is_header=False),
+        ]
+    )
+    te = elemFromTable(table, 1, 0.1, 0.1)
+    s = elements_to_markdown([te], opts={"tables_as_html": True})
+    assert "<table>" in s
+    assert "<thead>" in s
+    assert "<tbody>" in s
+    assert "<th>A</th>" in s
+    assert "<th>B</th>" in s
+    assert "<td>1</td>" in s
+    assert "<td>2</td>" in s
+    assert "</table>" in s
+
+
+def test_render_html_tables_with_spans() -> None:
+    table = Table(
+        [
+            TableCell(content="Merged", rows=[0], cols=[0, 1], is_header=True),
+            TableCell(content="1", rows=[1], cols=[0], is_header=False),
+            TableCell(content="2", rows=[1], cols=[1], is_header=False),
+        ]
+    )
+    te = elemFromTable(table, 1, 0.1, 0.1)
+    s = elements_to_markdown([te], opts={"tables_as_html": True})
+    assert 'colspan="2"' in s
+    assert "<th " in s and "Merged</th>" in s

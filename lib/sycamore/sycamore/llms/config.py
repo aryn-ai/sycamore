@@ -85,6 +85,7 @@ class GeminiModels(Enum):
     """Represents available Gemini models. More info: https://googleapis.github.io/python-genai/"""
 
     GEMINI_3_PRO_PREVIEW = GeminiModel(name="gemini-3-pro-preview", is_chat=True)
+    GEMINI_3_FLASH_PREVIEW = GeminiModel(name="gemini-3-flash-preview", is_chat=True)
 
     # Note that the models available on a given Gemini account may vary.
     GEMINI_FLASH_LATEST = GeminiModel(name="gemini-flash-latest", is_chat=True)  # latest including preview
@@ -142,6 +143,7 @@ class OpenAIModels(Enum):
     GPT_5_NANO = OpenAIModel(name="gpt-5-nano", is_chat=True)
 
     GPT_5_1 = OpenAIModel(name="gpt-5.1", is_chat=True)
+    GPT_5_2 = OpenAIModel(name="gpt-5.2", is_chat=True)
 
     @classmethod
     def from_name(cls, name: str):

@@ -241,7 +241,7 @@ class Extract(MapBatch):
 
                 if v_new is not None and v_new.type is not DataType.OBJECT:
                     if prop.type.type != v_new.type and prop.type.type == DataType.BOOL:
-                        v_new.value = True if v_new.value == 'true' else False
+                        v_new.value = True if v_new.value == "true" else False
                         v_new.type = DataType.BOOL
                     p_work.value[k] = v_new
                 # If this is an object prop which does not exist yet, add it to the parent

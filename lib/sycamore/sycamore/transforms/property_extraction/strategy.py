@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable
+from typing import Iterable, Any
 from pydantic import BaseModel
 
 from sycamore.data.document import Document
@@ -115,7 +115,9 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                     if prop.get_type() is DataType.ARRAY:
                         ef.value = [] if ef.value is None else ef.value
                         nf.value = [] if nf.value is None else nf.value
-                        out_p.value[k] = RichProperty(value=self.dedup_rp_array(ef.value + nf.value), type=DataType.ARRAY, name=ef.name)
+                        out_p.value[k] = RichProperty(
+                            value=self.dedup_rp_array(ef.value + nf.value), type=DataType.ARRAY, name=ef.name
+                        )
                         nf.value = []
                         ef.value = []
                     elif prop.get_type() is DataType.BOOL:
@@ -123,7 +125,7 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                             if ef.value is True:
                                 out_p.value[k] = ef  # Already true so keep it and trim.
                                 trim = True
-                            elif ef.value is False and nf.value is True: # Flip to true from false, take the new value.
+                            elif ef.value is False and nf.value is True:  # Flip to true from false, take the new value.
                                 out_p.value[k] = nf
                                 trim = True
                             else:
@@ -182,29 +184,32 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
         )
 
     def dedup_rp_array(self, rp_list: list[RichProperty]) -> list[RichProperty]:
-        rp_map = {}
+        rp_map: dict[Any, RichProperty] = {}
         for rp in rp_list:
             if rp.value not in rp_map:
                 rp_map[rp.value] = rp
             else:
                 attribution = rp_map[rp.value].attribution
+                if attribution is None or rp.attribution is None:
+                    continue
                 if attribution.element_indices is None:
                     attribution.element_indices = []
                 if rp.attribution.element_indices is None:
                     rp.attribution.element_indices = []
-                rp_map[rp.value].attribution.element_indices.extend(rp.attribution.element_indices)
-                p = rp_map[rp.value].attribution.page
+                attribution.element_indices.extend(rp.attribution.element_indices)
+                p = attribution.page
                 if p is None:
-                    rp_map[rp.value].attribution.page = []
-                if rp.attribution.page is None:
-                    rp.attribution.page = []
-                if not isinstance(p, list):
-                    rp_map[rp.value].attribution.page = [p]
+                    p = []
+                elif not isinstance(p, list):
+                    p = [p]
                 pp = rp.attribution.page
-                if isinstance(pp, list):
-                    rp_map[rp.value].attribution.page.extend(pp)
-                else:
-                    rp_map[rp.value].attribution.page.extend([pp])
+                if pp is None:
+                    pp = []
+                elif not isinstance(pp, list):
+                    pp = [pp]
+                p.extend(pp)
+                pages = set(p)
+                attribution.page = sorted(list(pages))
         return sorted([rp for rp in rp_map.values()], key=lambda rp: rp.value)
 
 

@@ -8,7 +8,7 @@ from sycamore.data import Document
 from sycamore.datatype import DataType
 from sycamore.llms import OpenAIModels
 from sycamore.llms.anthropic import Anthropic
-from sycamore.llms.config import OpenAIModel, AnthropicModels, GeminiModels
+from sycamore.llms.config import AnthropicModels, GeminiModels
 from sycamore.llms.gemini import Gemini
 from sycamore.llms.openai import OpenAI
 from sycamore.schema import SchemaV2
@@ -19,7 +19,8 @@ from sycamore.transforms.property_extraction.extract import Extract
 from sycamore.transforms.property_extraction.prompts import default_attribution_prompt
 from sycamore.transforms.property_extraction.strategy import NPagesAtATime, NoSchemaSplitting
 from sycamore.transforms.property_extraction.types import RichProperty
-from sycamore.utils.cache import DiskCache
+
+# from sycamore.utils.cache import DiskCache
 from sycamore.utils.zip_traverse import zip_traverse
 
 
@@ -61,9 +62,10 @@ def test_take_first_boolean():
     )
 
     ds = DocSet(ctx, extract)
-    #ds = ds.materialize(TEST_DATA_DIR / "materialize/extracted", source_mode=MaterializeSourceMode.RECOMPUTE)
+    # ds = ds.materialize(TEST_DATA_DIR / "materialize/extracted", source_mode=MaterializeSourceMode.RECOMPUTE)
 
     expected = True
+
     def check_props(document: Document) -> Document:
         print(f"Path: {document.properties['path']}")
         em = document.properties.get("entity_metadata")
@@ -77,6 +79,7 @@ def test_take_first_boolean():
 
     ds = ds.map(functools.partial(check_props))
     ds.execute()
+
 
 def test_take_first_array():
     TEST_DATA_DIR = TEST_DIR / "resources/data"
@@ -116,9 +119,10 @@ def test_take_first_array():
     )
 
     ds = DocSet(ctx, extract)
-    #ds = ds.materialize(TEST_DATA_DIR / "materialize/extracted", source_mode=MaterializeSourceMode.RECOMPUTE)
+    # ds = ds.materialize(TEST_DATA_DIR / "materialize/extracted", source_mode=MaterializeSourceMode.RECOMPUTE)
 
     expected = ["NORTH_AMERICA", "EUROPE", "ASIA"]
+
     def check_props(document: Document) -> Document:
         print(f"Path: {document.properties['path']}")
         em = document.properties.get("entity_metadata")

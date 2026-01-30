@@ -1,4 +1,3 @@
-import base64
 from datetime import datetime
 import logging
 from typing import Any, Optional, Union
@@ -80,20 +79,6 @@ def get_generate_kwargs(prompt: RenderedPrompt, llm_kwargs: Optional[dict] = Non
                             "type": "base64",
                             "media_type": "image/png",
                             "data": base64_data(im),
-                        },
-                    }
-                )
-        if any(m.files is not None for m in group):
-            files = [f for m in group for f in m.files or []]
-            contents = [{"type": "text", "text": content}]
-            for f in files:
-                contents.append(
-                    {  # type: ignore
-                        "type": "document",
-                        "source": {  # type: ignore
-                            "type": "base64",
-                            "media_type": "application/pdf",
-                            "data": base64.b64encode(f.read_bytes()).decode(),
                         },
                     }
                 )

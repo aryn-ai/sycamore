@@ -70,7 +70,7 @@ def get_generate_kwargs(prompt: RenderedPrompt, llm_kwargs: Optional[dict] = Non
             role = "user"
         content = "\n".join(m.content for m in group)
         if any(m.images is not None for m in group):
-            images = [im for m in group for im in m.images]
+            images = [im for m in group if m.images is not None for im in m.images]
             contents = [{"type": "text", "text": content}]
             for im in images:
                 contents.append(

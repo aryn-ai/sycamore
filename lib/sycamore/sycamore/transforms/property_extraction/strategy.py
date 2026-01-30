@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, Optional
+from typing import Iterable, Any
 from pydantic import BaseModel
 
 from sycamore.data.document import Document
@@ -23,24 +23,14 @@ class OneElementAtATime(StepThroughStrategy):
 
 
 class NPagesAtATime(StepThroughStrategy):
-    def __init__(self, n: int = 1, page_range: Optional[tuple[int, int]]=None):
+    def __init__(self, n: int = 1):
         self._n = n
-        self.page_range = page_range
 
     def step_through(self, document: Document) -> Iterable[list[Element]]:
         batch: list[Element] = []
-        idx = 0
-        if self.page_range:
-            pn = document.elements[idx].properties["page_number"]
-            while pn < self.page_range[0]:
-                idx += 1
-                pn = document.elements[idx].properties["page_number"]
-
-        cutoff = document.elements[idx].properties["page_number"] + self._n
+        cutoff = document.elements[0].properties["page_number"] + self._n
         for elt in document.elements:
             pn = elt.properties["page_number"]
-            if self.page_range and pn > self.page_range[1]:
-                break
             if pn >= cutoff:
                 yield batch
                 cutoff = pn + self._n
@@ -106,13 +96,6 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
         for k, (prop, nf, ef, out, out_prop), (prop_p, nf_p, ef_p, out_p, out_prop_p) in zip_traverse(
             sch_obj, nf_rp, ef_rp, out_rp, out_sch, order="before", intersect_keys=False
         ):
-            if k == "major_customers_disclosed":
-                print(f"Found: {k}")
-                # print(f"Existing: {ef}")
-                if ef and ef.value is not None: # and ef.value:
-                    print(f"Existing: {ef}")
-                if nf and nf.value is not None: # and nf.value:
-                    print(f"New: {nf}")
             # Schema might have been trimmed, so keep existing fields (that may have
             # come from a previous extraction step)
             if prop is None:
@@ -128,24 +111,27 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
             if ef is not None:
                 if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT, DataType.BOOL):
                     trim = True
-                if nf is not None:
+                if nf is not None and prop.get_type() in (DataType.ARRAY, DataType.BOOL):
                     if prop.get_type() is DataType.ARRAY:
                         ef.value = [] if ef.value is None else ef.value
                         nf.value = [] if nf.value is None else nf.value
-                        out_p.value[k] = RichProperty(value=ef.value + nf.value, type=DataType.ARRAY, name=ef.name)
+                        if prop.type.item_type.type in (DataType.ARRAY, DataType.OBJECT):
+                            combined = ef.value + nf.value
+                        else:
+                            combined = self.dedup_rp_array(ef.value + nf.value)
+                        out_p.value[k] = RichProperty(value=combined, type=DataType.ARRAY, name=ef.name)
                         nf.value = []
                         ef.value = []
                     elif prop.get_type() is DataType.BOOL:
-                        # Hard code logic - continue until flip to True
                         if ef.value is not None:
                             if ef.value is True:
-                                out_p.value[k] = ef
+                                out_p.value[k] = ef  # Already true so keep it and trim.
                                 trim = True
-                            elif ef.value is False and nf.value is True:
+                            elif ef.value is False and nf.value is True:  # Flip to true from false, take the new value.
                                 out_p.value[k] = nf
                                 trim = True
                             else:
-                                out_p.value[k] = ef
+                                out_p.value[k] = ef  # Keep the old value until we flip.
                 elif not ef.is_valid and nf is not None and nf.is_valid:
                     out_p.value[k] = nf
                 else:
@@ -191,15 +177,42 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
             ):
                 obj_p = prop_p.type if isinstance(prop_p, NamedProperty) else prop_p
                 assert isinstance(obj_p, ObjectProperty)
-                #print(f"Removing {prop} from {obj_p}")
                 obj_p.properties.remove(prop)
 
-        #print(f"{in_schema} -> {out_sch}")
         return SchemaUpdateResult(
             out_schema=SchemaV2(properties=out_sch.properties),
             out_fields=out_rp.value,
             completed=len(out_sch.properties) == 0,
         )
+
+    def dedup_rp_array(self, rp_list: list[RichProperty]) -> list[RichProperty]:
+        rp_map: dict[Any, RichProperty] = {}
+        for rp in rp_list:
+            if rp.value not in rp_map:
+                rp_map[rp.value] = rp
+            else:
+                attribution = rp_map[rp.value].attribution
+                if attribution is None or rp.attribution is None:
+                    continue
+                if attribution.element_indices is None:
+                    attribution.element_indices = []
+                if rp.attribution.element_indices is None:
+                    rp.attribution.element_indices = []
+                attribution.element_indices.extend(rp.attribution.element_indices)
+                p = attribution.page
+                if p is None:
+                    p = []
+                elif not isinstance(p, list):
+                    p = [p]
+                pp = rp.attribution.page
+                if pp is None:
+                    pp = []
+                elif not isinstance(pp, list):
+                    pp = [pp]
+                p.extend(pp)
+                pages = set(p)
+                attribution.page = sorted(list(pages))
+        return sorted([rp for rp in rp_map.values()], key=lambda rp: rp.value)
 
 
 default_stepthrough = OneElementAtATime()

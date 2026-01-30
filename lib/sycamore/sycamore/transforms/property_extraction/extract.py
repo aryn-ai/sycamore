@@ -291,7 +291,7 @@ class Extract(MapBatch):
                     try:
                         valid, propval = validator.validate_property(propval)
                     except Exception as e:
-                        logging.error(f"Failed to validate property: {prediction}")
+                        logging.error(f"Failed to validate property: {prediction}\n{e}")
                         valid = False
                         propval = None
                 else:

@@ -37,7 +37,9 @@ class Expression:
                     raise SyntaxError("Boolean data type can only be compared to 'True' or 'False'")
                 self.value = True if self.value.lower() == "true" else False
             case _:
-                raise ValueError(f"Unsupported property_type for value conversion: {self.property_type} for extracted value {self.extracted}")
+                raise ValueError(
+                    f"Unsupported property_type for value conversion: {self.property_type} for extracted value {self.extracted}"
+                )
 
     def evaluate(self) -> bool:
         match self.property_type:

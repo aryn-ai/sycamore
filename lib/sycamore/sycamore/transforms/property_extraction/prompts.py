@@ -237,8 +237,7 @@ schema as JSON. If a field is not present in the element, output `null` in the o
 )
 
 
-#attribution_rule = "All extracted fields should be in the form [value, element_index]. The element_index can be null."
-attribution_rule = "All extracted fields should be in the form [value, page_number]. The page_number can be null."
+attribution_rule = "All extracted fields should be in the form [value, element_index]. The element_index can be null."
 
 
 extract_system_attribution = """\

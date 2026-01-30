@@ -217,16 +217,17 @@ class Extract(MapBatch):
             rendered = prompt.render_multiple_elements(elements, document)
             retries = 0
             rp: Optional[RichProperty] = None
+            rd = {}
             while retries < MAX_LLM_RETRIES:
                 try:
                     result = await self._llm.generate_async(prompt=rendered)
                     rd = extract_json(result)
-                    rp = self._attribution.prediction_to_rich_property(rd)
                     break
                 except (ValueError, ValidationError) as e:
                     _logger.exception(f"Failed to get a valid JSON response: {e}")
                     retries += 1
 
+            rp = self._attribution.prediction_to_rich_property(rd)
             assert rp is not None, f"Failed to get a valid JSON response after {retries} calls."
 
             for k, (v_new, v_work, prop), (p_new, p_work, prop_p) in zip_traverse(
@@ -283,7 +284,12 @@ class Extract(MapBatch):
             prop = prop.type if isinstance(prop, NamedProperty) else prop
             for validator in prop.validators:
                 if (propval := val.to_python()) is not None:
-                    valid, propval = validator.validate_property(propval)
+                    try:
+                        valid, propval = validator.validate_property(propval)
+                    except Exception as e:
+                        logging.error(f"Failed to validate property: {prediction}")
+                        valid = False
+                        propval = None
                 else:
                     valid = True
                 val.is_valid = valid

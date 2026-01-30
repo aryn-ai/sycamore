@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable
+from typing import Iterable, Optional
 from pydantic import BaseModel
 
 from sycamore.data.document import Document
@@ -23,14 +23,24 @@ class OneElementAtATime(StepThroughStrategy):
 
 
 class NPagesAtATime(StepThroughStrategy):
-    def __init__(self, n: int = 1):
+    def __init__(self, n: int = 1, page_range: Optional[tuple[int, int]]=None):
         self._n = n
+        self.page_range = page_range
 
     def step_through(self, document: Document) -> Iterable[list[Element]]:
         batch: list[Element] = []
-        cutoff = document.elements[0].properties["page_number"] + self._n
+        idx = 0
+        if self.page_range:
+            pn = document.elements[idx].properties["page_number"]
+            while pn < self.page_range[0]:
+                idx += 1
+                pn = document.elements[idx].properties["page_number"]
+
+        cutoff = document.elements[idx].properties["page_number"] + self._n
         for elt in document.elements:
             pn = elt.properties["page_number"]
+            if self.page_range and pn > self.page_range[1]:
+                break
             if pn >= cutoff:
                 yield batch
                 cutoff = pn + self._n
@@ -96,6 +106,13 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
         for k, (prop, nf, ef, out, out_prop), (prop_p, nf_p, ef_p, out_p, out_prop_p) in zip_traverse(
             sch_obj, nf_rp, ef_rp, out_rp, out_sch, order="before", intersect_keys=False
         ):
+            if k == "major_customers_disclosed":
+                print(f"Found: {k}")
+                # print(f"Existing: {ef}")
+                if ef and ef.value is not None: # and ef.value:
+                    print(f"Existing: {ef}")
+                if nf and nf.value is not None: # and nf.value:
+                    print(f"New: {nf}")
             # Schema might have been trimmed, so keep existing fields (that may have
             # come from a previous extraction step)
             if prop is None:
@@ -109,19 +126,33 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
             # If field is a leaf and exists in either, trim it out
             trim = False
             if ef is not None:
-                if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT):
+                if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT, DataType.BOOL):
                     trim = True
-                if nf is not None and prop.get_type() is DataType.ARRAY:
-                    out_p.value[k] = RichProperty(value=ef.value + nf.value, type=DataType.ARRAY, name=ef.name)
-                    nf.value = []
-                    ef.value = []
+                if nf is not None:
+                    if prop.get_type() is DataType.ARRAY:
+                        ef.value = [] if ef.value is None else ef.value
+                        nf.value = [] if nf.value is None else nf.value
+                        out_p.value[k] = RichProperty(value=ef.value + nf.value, type=DataType.ARRAY, name=ef.name)
+                        nf.value = []
+                        ef.value = []
+                    elif prop.get_type() is DataType.BOOL:
+                        # Hard code logic - continue until flip to True
+                        if ef.value is not None:
+                            if ef.value is True:
+                                out_p.value[k] = ef
+                                trim = True
+                            elif ef.value is False and nf.value is True:
+                                out_p.value[k] = nf
+                                trim = True
+                            else:
+                                out_p.value[k] = ef
                 elif not ef.is_valid and nf is not None and nf.is_valid:
                     out_p.value[k] = nf
                 else:
                     out_p.value[k] = ef
                     trim = trim and ef.is_valid
             elif nf is not None:
-                if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT):
+                if prop.get_type() not in (DataType.ARRAY, DataType.OBJECT, DataType.BOOL):
                     trim = True
                 out_p.value[k] = nf
                 trim = trim and nf.is_valid
@@ -160,8 +191,10 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
             ):
                 obj_p = prop_p.type if isinstance(prop_p, NamedProperty) else prop_p
                 assert isinstance(obj_p, ObjectProperty)
+                #print(f"Removing {prop} from {obj_p}")
                 obj_p.properties.remove(prop)
 
+        #print(f"{in_schema} -> {out_sch}")
         return SchemaUpdateResult(
             out_schema=SchemaV2(properties=out_sch.properties),
             out_fields=out_rp.value,

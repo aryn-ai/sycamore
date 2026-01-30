@@ -1,4 +1,3 @@
-import pathlib
 from dataclasses import dataclass
 from typing import Any, Union, Optional, Callable, TYPE_CHECKING
 from typing_extensions import Self
@@ -31,7 +30,6 @@ class RenderedMessage:
     role: str
     content: str
     images: Optional[list[Image.Image]] = None
-    files: Optional[list[pathlib.Path]] = None
 
 
 @dataclass

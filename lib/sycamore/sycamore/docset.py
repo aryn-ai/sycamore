@@ -462,7 +462,7 @@ class DocSet:
     def extract(
         self, schema: "SchemaV2", llm: "LLM", batch_processing_mode: Optional["ProcessingMode"] = None
     ) -> "DocSet":
-        from sycamore.transforms.property_extraction.extract import Extract, SerialBatches, BasicPredictionMode
+        from sycamore.transforms.property_extraction.extract import Extract, SerialBatches
         from sycamore.transforms.property_extraction.strategy import default_stepthrough, default_schema_partition
         from sycamore.transforms.property_extraction.prompts import default_prompt
 
@@ -472,11 +472,11 @@ class DocSet:
         ext = Extract(
             self.plan,
             schema=schema,
+            llm=llm,
             step_through_strategy=default_stepthrough,
             schema_partition_strategy=default_schema_partition,
             prompt=default_prompt,
             batch_processing_mode=batch_processing_mode,
-            prediction_mode=BasicPredictionMode(llm=llm),
         )
         return DocSet(self.context, ext)
 

@@ -139,25 +139,28 @@ class Extract(MapBatch):
         schema: Schema,
         step_through_strategy: StepThroughStrategy,
         schema_partition_strategy: SchemaPartitionStrategy,
-        # llm: LLM,
+        llm: LLM | PredictionMode,
         prompt: SycamorePrompt,
         schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchema(),
         output_pydantic_models: bool = True,
         attribution_strategy: AttributionStrategy = TextMatchAttributionStrategy(),
         batch_processing_mode: ProcessingMode = SerialBatches(),
-        prediction_mode: PredictionMode,
     ):
         super().__init__(node, f=self.extract)
         self._schema = schema
         self._step_through = step_through_strategy
         self._schema_partition = schema_partition_strategy
         self._schema_update = schema_update_strategy
-        # self._llm = llm
         self._prompt = prompt
         self._output_pydantic = output_pydantic_models
         self._attribution = attribution_strategy
         self._batches = batch_processing_mode
-        self._prediction_mode = prediction_mode
+
+        self._prediction_mode: PredictionMode
+        if isinstance(llm, LLM):
+            self._prediction_mode = BasicPredictionMode(llm=llm)
+        else:
+            self._prediction_mode = llm
 
         # Try calling the render method I need at constructor to make sure it's implemented
         try:

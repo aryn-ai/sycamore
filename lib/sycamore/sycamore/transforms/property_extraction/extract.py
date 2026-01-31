@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import Optional, Any, Protocol
 import asyncio
 import logging
@@ -40,7 +39,12 @@ MAX_CONCURRENT_CALLS = 20
 
 class ProcessingMode(Protocol):
     async def extract_schema_partition_from_document(
-        self, document: Document, schema_part: Schema, result_dict: dict[str, RichProperty], llm: LLM, extract_node: "Extract"
+        self,
+        document: Document,
+        schema_part: Schema,
+        result_dict: dict[str, RichProperty],
+        llm: LLM,
+        extract_node: "Extract",
     ) -> dict[str, RichProperty]:
         """Extract a dict of property key to RichProperty on a document against a schema part."""
         ...
@@ -48,7 +52,12 @@ class ProcessingMode(Protocol):
 
 class SerialBatches(ProcessingMode):
     async def extract_schema_partition_from_document(
-        self, document: Document, schema_part: Schema, result_dict: dict[str, RichProperty], llm: LLM, extract_node: "Extract"
+        self,
+        document: Document,
+        schema_part: Schema,
+        result_dict: dict[str, RichProperty],
+        llm: LLM,
+        extract_node: "Extract",
     ) -> dict[str, RichProperty]:
 
         for elements in extract_node._step_through.step_through(document):
@@ -67,7 +76,12 @@ class ParallelBatches(ProcessingMode):
         self.semaphore = asyncio.Semaphore(max_concurrency)
 
     async def extract_schema_partition_from_document(
-        self, document: Document, schema_part: Schema, result_dict: dict[str, RichProperty], llm: LLM, extract_node: "Extract"
+        self,
+        document: Document,
+        schema_part: Schema,
+        result_dict: dict[str, RichProperty],
+        llm: LLM,
+        extract_node: "Extract",
     ) -> dict[str, RichProperty]:
 
         _logger.info("Running in parallel batch mode")
@@ -90,15 +104,19 @@ class ParallelBatches(ProcessingMode):
 
 class PredictionMode(Protocol):
     """"""
-    async def make_prediction(self, extract: "Extract", schema_part: Schema, document: Document) -> dict[str, RichProperty]:
-        ...
+
+    async def make_prediction(
+        self, extract: "Extract", schema_part: Schema, document: Document
+    ) -> dict[str, RichProperty]: ...
 
 
 class BasicPredictionMode(PredictionMode):
     def __init__(self, llm: LLM):
         self._llm = llm
 
-    async def make_prediction(self, extract: "Extract", schema_part: Schema, document: Document) -> dict[str, RichProperty]:
+    async def make_prediction(
+        self, extract: "Extract", schema_part: Schema, document: Document
+    ) -> dict[str, RichProperty]:
         em = document.properties.get("entity_metadata", {})
         result_dict = {k: RichProperty.validate_recursive(v) for k, v in em.items()}
         update = extract._schema_update.update_schema(in_schema=schema_part, new_fields={}, existing_fields=result_dict)
@@ -107,40 +125,9 @@ class BasicPredictionMode(PredictionMode):
         if update.completed:
             return result_dict
 
-        return await extract._batches.extract_schema_partition_from_document(document, schema_part, result_dict, self._llm, extract)
-
-
-class Voting(ABC):
-    @abstractmethod
-    def vote(self, results: list[Any]) -> Any:
-        pass
-
-
-class VotingPredictionMode(PredictionMode):
-    def __init__(self, llms: list[LLM], voter: Voting):
-        self._llms = llms
-        self._voter = voter
-
-    async def make_prediction(self, extract: "Extract", schema_part: Schema, document: Document) -> dict[str, RichProperty]:
-        em = document.properties.get("entity_metadata", {})
-        result_dict = {k: RichProperty.validate_recursive(v) for k, v in em.items()}
-        update = extract._schema_update.update_schema(in_schema=schema_part, new_fields={}, existing_fields=result_dict)
-        result_dict = update.out_fields
-        schema_part = update.out_schema
-        if update.completed:
-            return result_dict
-
-        coros = [extract._batches.extract_schema_partition_from_document(document, schema_part, result_dict, llm, extract) for llm in self._llms]
-        results = await asyncio.gather(*coros)
-        voted = {}
-
-        # Only vote on the intersection of the keys across the results?
-        for k, v in results[0].items():
-            values = [r[k] for r in results]
-            # values = ...   Pull out actual values from RP.
-            voted[k] = self._voter.vote(values)
-
-        return voted
+        return await extract._batches.extract_schema_partition_from_document(
+            document, schema_part, result_dict, self._llm, extract
+        )
 
 
 class Extract(MapBatch):

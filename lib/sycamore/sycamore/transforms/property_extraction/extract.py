@@ -215,7 +215,7 @@ class Extract(MapBatch):
         self, documents: list[Document], schema_part: Schema
     ) -> list[dict[str, RichProperty]]:
 
-        coros = [self._make_prediction.make_prediction(self, schema_part, d) for d in documents]
+        coros = [self._prediction_mode.make_prediction(self, schema_part, d) for d in documents]
         return await asyncio.gather(*coros)
 
     async def extract_schema_partition_from_element_batch(

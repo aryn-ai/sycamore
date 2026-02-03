@@ -50,6 +50,7 @@ class RichProperty(BaseModel):
     attribution: AttributionValue | None = None
     # TODO: Any -> Union[DataType.types]
     invalid_guesses: list[Any] = []
+    additional_guesses: list[Any] = []
 
     llm_prompt: Optional[RenderedPrompt] = None
 

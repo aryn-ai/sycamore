@@ -10,7 +10,7 @@ from sycamore.llms.config import LLMModel
 from sycamore.llms.llms import LLM, LLMMode, FakeLLM
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt, RenderedMessage
 from sycamore.transforms.property_extraction.attribution import LLMAttributionStrategy
-from sycamore.transforms.property_extraction.extract import Extract, ParallelBatches
+from sycamore.transforms.property_extraction.extract import Extract, ParallelBatches, BasicPredictionMode
 from sycamore.transforms.property_extraction.strategy import NoSchemaSplitting, OneElementAtATime, NPagesAtATime
 from sycamore.schema import (
     IntProperty,
@@ -348,6 +348,60 @@ class TestExtract:
             step_through_strategy=OneElementAtATime(),
             schema_partition_strategy=NoSchemaSplitting(),
             llm=LocalFakeLLM(thinking_time=time_per_batch),
+            prompt=FakeExtractionPrompt(),
+        )
+
+        t0 = time.time()
+        extract.run(docs)
+        elapsed = time.time() - t0
+        assert elapsed >= time_per_batch * 3  # 3 elements is the larger of the two documents.
+
+    def test_extract_prediction_mode(self):
+        docs = [
+            Document(
+                doc_id="0",
+                elements=[
+                    Element(text_representation="d0e0", properties={"_element_index": 4}),
+                    Element(text_representation="d0e1", properties={"_element_index": 9}),
+                    Element(text_representation="d0e2", properties={"_element_index": 19}),
+                ],
+                properties={
+                    "entity": {"doc_id": "flarglhavn"},
+                    "entity_metadata": {
+                        "doc_id": {
+                            "name": "doc_id",
+                            "type": DataType.STRING,
+                            "value": "flarglhavn",
+                            "attribution": {"element_indices": [0], "page": 0, "bbox": [0, 0, 1, 1]},
+                        }
+                    },
+                },
+            ),
+            Document(
+                doc_id="1",
+                elements=[
+                    Element(text_representation="d1e0", properties={"_element_index": 40}),
+                    Element(text_representation="d1e1", properties={"_element_index": 41}),
+                ],
+            ),
+        ]
+
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(name="doc_id", type=StringProperty()),
+                NamedProperty(name="missing", type=StringProperty()),
+                NamedProperty(name="telts", type=IntProperty()),
+            ]
+        )
+
+        time_per_batch = 1
+        prediction_mode = BasicPredictionMode(llm=LocalFakeLLM(thinking_time=time_per_batch))
+        extract = Extract(
+            None,
+            schema=schema,
+            step_through_strategy=OneElementAtATime(),
+            schema_partition_strategy=NoSchemaSplitting(),
+            llm=prediction_mode,
             prompt=FakeExtractionPrompt(),
         )
 

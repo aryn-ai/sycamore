@@ -472,9 +472,9 @@ class DocSet:
         ext = Extract(
             self.plan,
             schema=schema,
+            llm=llm,
             step_through_strategy=default_stepthrough,
             schema_partition_strategy=default_schema_partition,
-            llm=llm,
             prompt=default_prompt,
             batch_processing_mode=batch_processing_mode,
         )

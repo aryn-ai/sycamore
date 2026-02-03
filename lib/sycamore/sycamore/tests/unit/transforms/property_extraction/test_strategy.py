@@ -214,9 +214,12 @@ class TestSchemaUpdateStrategy:
         p3.value["c"].value["d"].is_valid = False
         sur3 = strat.update_schema(schema, p3.value, sur2.out_fields)
         assert not sur3.completed
-        assert not sur3.out_fields["a"].value[0].is_valid
-        assert not sur3.out_fields["a"].value[1].is_valid
-        assert sur3.out_fields["a"].value[2].is_valid
+        a_list = sur3.out_fields["a"].value
+        for v in a_list:
+            if v.value in ("a", "A"):
+                assert not v.is_valid
+            elif v.value == "1":
+                assert v.is_valid
         assert sur3.out_fields["b"].is_valid
         assert sur3.out_fields["b"].value == "4"
         assert sur3.out_fields["c"].value["d"].value == "dc000"

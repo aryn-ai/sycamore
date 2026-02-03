@@ -1,0 +1,26 @@
+{
+    "type": "object",
+    "properties": [
+      {
+        "name": "geographic_segments",
+        "type": {
+          "type": "array",
+          "description": "Geographic segments by continent",
+          "derived": true,
+          "item_type": {
+            "type": "choice",
+            "choices": [
+              "NORTH_AMERICA",
+              "SOUTH_AMERICA",
+              "EUROPE",
+              "ASIA",
+              "AFRICA",
+              "AUSTRALIA",
+              "ANTARCTICA"
+            ],
+            "examples": ["NORTH_AMERICA", "EUROPE", "ASIA", "AFRICA"]
+          }
+        }
+      }
+    ]
+  }

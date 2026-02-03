@@ -1,0 +1,13 @@
+{
+    "type": "object",
+    "properties": [
+      {
+        "name": "major_customers_disclosed",
+        "type": {
+          "type": "bool",
+          "description": "This property captures evidence of mention of business net revenue coming from a small or limited number of customers.",
+          "examples": [true, false]
+        }
+      }
+    ]
+  }

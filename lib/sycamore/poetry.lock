@@ -10789,7 +10789,6 @@ onnx = "1.18.0"
 onnxruntime = "1.22.0"
 pandas = "2.3.0"
 pillow = "^11.3.0"
-protobuf = "^5.29.5"
 pyasn1 = "^0.6.2"
 pytest = "7.4.0"
 ray = "^2.52.1"
@@ -12616,4 +12615,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "1da1cf2d9cd872f43834fe3ed82e5681bcca5060ddb1197b0766222f1185dafd"
+content-hash = "034e7bae4682bedb9cde17391b45880228443f4529fd8c0130337666197d0c71"

@@ -52,8 +52,6 @@ tornado = ">=6.5.0"  # See poetry-lock/pyproject.toml
 
 aryn-sdk = ">=0.2.14"
 
-protobuf = "^5.29.5"
-
 authlib = "^1.6.6"
 
 filelock = "^3.20.3"

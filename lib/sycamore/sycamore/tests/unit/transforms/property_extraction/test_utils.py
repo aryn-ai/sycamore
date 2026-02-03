@@ -1,4 +1,4 @@
-from sycamore.schema import DataType
+from sycamore.datatype import DataType
 from sycamore.transforms.property_extraction.types import RichProperty
 from sycamore.transforms.property_extraction.utils import stitch_together_objects, remove_keys_recursive
 

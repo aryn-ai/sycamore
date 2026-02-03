@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import pandas as pd
 
+from sycamore.connectors.aryn.ArynReader import DocFilter
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.data import Document, Element
 from sycamore.connectors.base_reader import BaseDBReader
@@ -35,6 +36,7 @@ class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
     reconstruct_document: bool = False
     doc_reconstructor: Optional[DocumentReconstructor] = None
     filter: Optional[dict[str, Any]] = None
+    doc_filter: Optional[DocFilter] = None
 
 
 class OpenSearchReaderClient(BaseDBReader.Client):
@@ -73,11 +75,11 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         if "query" in query_params.query and "knn" in query_params.query["query"]:
             knn_query = True
 
-        if query_params.filter:
+        if query_params.filter or query_params.doc_filter:
             if knn_query:
-                add_filter_to_knn_query(query_params.query, query_params.filter)
+                add_filter_to_knn_query(query_params.query, query_params.filter, query_params.doc_filter)
             else:
-                add_filter_to_query(query_params.query, query_params.filter)
+                add_filter_to_query(query_params.query, query_params.filter, query_params.doc_filter)
 
         # No pagination needed for knn queries
         if knn_query:
@@ -275,28 +277,65 @@ def get_doc_count_for_slice(os_client, slice_query: dict[str, Any]) -> int:
     return res["hits"]["total"]["value"]
 
 
-def add_filter_to_query(query: dict[str, Any], filter: dict[str, Any]):
+def add_filter_to_query(
+    query: dict[str, Any], filter: Optional[dict[str, Any]], doc_filter: Optional[DocFilter] = None
+):
 
-    actual_query = query["query"]
+    actual_query = [query["query"]]
+
     query["query"] = {
         "bool": {
-            "must": [actual_query],
-            "filter": [{"terms": filter}],
+            "must": actual_query,
         }
     }
 
+    if filter is not None:
+        query["query"]["bool"]["filter"] = [{"terms": filter}]
 
-def add_filter_to_knn_query(query: dict[str, Any], filter: dict[str, Any]):
+    if doc_filter is not None and doc_filter.doc_ids:
+        terms = [
+            {"terms": {"doc_id.keyword": doc_filter.doc_ids}},
+            {"terms": {"parent_id.keyword": doc_filter.doc_ids}},
+        ]
+        if not doc_filter.exclude:
+            query["query"]["bool"]["should"] = terms
+            query["query"]["bool"]["minimum_should_match"] = 1
+        else:
+            query["query"]["bool"]["must_not"] = terms
+
+
+def add_filter_to_knn_query(
+    query: dict[str, Any], filter: Optional[dict[str, Any]], doc_filter: Optional[DocFilter] = None
+):
     assert len(query["query"]["knn"]) == 1 and "embedding" in query["query"]["knn"]
     # We are doing a knn search on the embedding field, so the filter goes in there.
     # see https://docs.opensearch.org/docs/latest/vector-search/filter-search-knn/efficient-knn-filtering/
 
     inner_query = query["query"]["knn"]["embedding"]
-    inner_query["filter"] = {
-        "bool": {
-            "must": [{"terms": filter}],
+
+    if filter is not None:
+        inner_query["filter"] = {
+            "bool": {
+                "must": [{"terms": filter}],
+            }
         }
-    }
+
+    if doc_filter is not None and doc_filter.doc_ids:
+        terms = [
+            {"terms": {"doc_id.keyword": doc_filter.doc_ids}},
+            {"terms": {"parent_id.keyword": doc_filter.doc_ids}},
+        ]
+        if not doc_filter.exclude:
+            if "filter" not in inner_query:
+                inner_query["filter"] = {"bool": {}}
+            inner_query["filter"].setdefault("bool", {})
+            inner_query["filter"]["bool"]["should"] = terms
+            inner_query["filter"]["bool"]["minimum_should_match"] = 1
+        else:
+            if "filter" not in inner_query:
+                inner_query["filter"] = {"bool": {}}
+            inner_query["filter"].setdefault("bool", {})
+            inner_query["filter"]["bool"]["must_not"] = terms
 
 
 class OpenSearchReader(BaseDBReader):
@@ -351,9 +390,8 @@ class OpenSearchReader(BaseDBReader):
             os_client = client._client
             slice_query = json.loads(doc["doc"])
 
-            if self.filter:
-                print(f"Adding filter to slice query {slice_query}")
-                add_filter_to_query(slice_query, self.filter)
+            if self.filter or self._query_params.doc_filter:
+                add_filter_to_query(slice_query, self.filter, self._query_params.doc_filter)
 
             assert (
                 get_doc_count_for_slice(os_client, slice_query) < 10000
@@ -405,6 +443,8 @@ class OpenSearchReader(BaseDBReader):
             if client is not None:
                 client.close()
 
+        if not results:
+            results = [{"_source": {"parent_id": None}}]
         ret = [doc["_source"] for doc in results]
         return ret
 
@@ -463,6 +503,8 @@ class OpenSearchReader(BaseDBReader):
     def map_reduce_parent_id(self, group: pd.DataFrame) -> pd.DataFrame:
         parent_ids = set()
         for row in group["parent_id"]:
+            if row is None:
+                continue
             if row not in parent_ids:
                 parent_ids.add(row)
 

@@ -4,7 +4,7 @@ from pydantic.functional_serializers import field_serializer
 from pydantic.functional_validators import field_validator
 
 from sycamore.data.bbox import BoundingBox
-from sycamore.schema import DataType
+from sycamore.datatype import DataType
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.zip_traverse import ZTDict, ZTLeaf, ZipTraversable, zip_traverse
 
@@ -29,6 +29,8 @@ class AttributionValue(BaseModel):
     @classmethod
     def validate_bb(cls, value: Any) -> Any:
         if isinstance(value, (list, tuple)):
+            if not value:
+                return None
             assert len(value) == 4
             return BoundingBox(*value)
         return value
@@ -48,6 +50,7 @@ class RichProperty(BaseModel):
     attribution: AttributionValue | None = None
     # TODO: Any -> Union[DataType.types]
     invalid_guesses: list[Any] = []
+    additional_guesses: list[Any] = []
 
     llm_prompt: Optional[RenderedPrompt] = None
 
@@ -90,6 +93,16 @@ class RichProperty(BaseModel):
             self.value[other.name] = other
 
     @staticmethod
+    def from_single_property(name: Optional[str], value: Any) -> "RichProperty":
+        dt = DataType.from_python(value)
+        rp = RichProperty(name=name, type=dt, value=value)
+        if dt is DataType.OBJECT:
+            rp.value = {}
+        if dt is DataType.ARRAY:
+            rp.value = []
+        return rp
+
+    @staticmethod
     def from_prediction(prediction: dict[str, Any]) -> "RichProperty":
         res = RichProperty(name=None, value={}, type=DataType.OBJECT)
         ztp = ZTDict(prediction)
@@ -100,12 +113,8 @@ class RichProperty(BaseModel):
                 # but would need a reference to the schema to determine
                 # the type
                 continue
-            dt = DataType.from_python(pred_v)
-            new_rp = RichProperty(name=name, type=dt, value=pred_v)
-            if dt is DataType.OBJECT:
-                new_rp.value = {}
-            if dt is DataType.ARRAY:
-                new_rp.value = []
+
+            new_rp = RichProperty.from_single_property(name, pred_v)
             res_p._add_subprop(new_rp)
         return res
 

@@ -231,6 +231,7 @@ class DocSetReader:
         reconstruct_document: bool = False,
         doc_reconstructor: Optional[DocumentReconstructor] = None,
         result_filter: Optional[Dict] = None,
+        doc_filter: Optional[DocFilter] = None,
         query_kwargs=None,
         **kwargs,
     ) -> DocSet:
@@ -330,6 +331,7 @@ class DocSetReader:
             reconstruct_document=reconstruct_document,
             doc_reconstructor=doc_reconstructor,
             filter=result_filter,
+            doc_filter=doc_filter,
             kwargs=query_kwargs,
         )
 
@@ -704,6 +706,7 @@ class DocSetReader:
         aryn_api_key: Optional[str] = None,
         aryn_url: Optional[str] = None,
         doc_filter: Optional[DocFilter] = None,
+        use_original_elements: bool = False,
         **kwargs,
     ) -> DocSet:
         """
@@ -729,7 +732,7 @@ class DocSetReader:
 
         dr = ArynReader(
             client_params=ArynClientParams(aryn_url, aryn_api_key),
-            query_params=ArynQueryParams(docset_id, doc_filter),
+            query_params=ArynQueryParams(docset_id, doc_filter, use_original_elements),
             **kwargs,
         )
         return DocSet(self._context, dr)

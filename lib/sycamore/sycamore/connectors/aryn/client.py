@@ -23,9 +23,11 @@ class ArynClient:
         except Exception as e:
             raise ValueError(f"Error listing docs: {e}")
 
-    def get_doc(self, docset_id: str, doc_id: str) -> dict[str, Any]:
+    def get_doc(self, docset_id: str, doc_id: str, include_original_elements: bool = False) -> dict[str, Any]:
         try:
-            res = self.client.get_doc(docset_id=docset_id, doc_id=doc_id)
+            res = self.client.get_doc(
+                docset_id=docset_id, doc_id=doc_id, include_original_elements=include_original_elements
+            )
             doc = res.value.model_dump()
             logger.debug(f"Got doc {doc}")
             return doc

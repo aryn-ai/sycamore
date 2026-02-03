@@ -3,41 +3,69 @@ from enum import Enum
 from typing import Optional
 
 
+class LLMMode(Enum):
+    SYNC = 1
+    ASYNC = 2
+    BATCH = 3
+
+
+class LLMModel:
+    name: str
+    is_chat: bool
+
+
+@dataclass
+class AnthropicModel(LLMModel):
+    name: str
+    is_chat: bool = False
+
+
 class AnthropicModels(Enum):
     """Represents available Claude models."""
 
-    CLAUDE_4_OPUS = "claude-opus-4-20250514"
-    CLAUDE_4_SONNET = "claude-sonnet-4-20250514"
-    CLAUDE_3_7_SONNET = "claude-3-7-sonnet-latest"
-    CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest"
-    CLAUDE_3_5_HAIKU = "claude-3-5-haiku-latest"
-    CLAUDE_3_OPUS = "claude-3-opus-latest"
-    CLAUDE_3_SONNET = "claude-3-sonnet-20240229"
-    CLAUDE_3_HAIKU = "claude-3-haiku-20240307"
+    CLAUDE_4_5_SONNET = AnthropicModel(name="claude-sonnet-4-5-20250929", is_chat=True)
+    CLAUDE_4_5_HAIKU = AnthropicModel(name="claude-haiku-4-5-20251001", is_chat=True)
+    CLAUDE_4_1_OPUS = AnthropicModel(name="claude-opus-4-1-20250805", is_chat=True)
+    CLAUDE_4_OPUS = AnthropicModel(name="claude-opus-4-20250514", is_chat=True)
+    CLAUDE_4_SONNET = AnthropicModel(name="claude-sonnet-4-20250514", is_chat=True)
+    CLAUDE_3_7_SONNET = AnthropicModel(name="claude-3-7-sonnet-latest", is_chat=True)
+    CLAUDE_3_5_HAIKU = AnthropicModel(name="claude-3-5-haiku-latest", is_chat=True)
+    CLAUDE_3_HAIKU = AnthropicModel(name="claude-3-haiku-20240307", is_chat=True)
 
     @classmethod
     def from_name(cls, name: str) -> Optional["AnthropicModels"]:
         for m in iter(cls):
-            if m.value == name:
+            if m.value.name == name:
                 return m
         return None
 
 
 @dataclass
-class BedrockModel:
+class BedrockModel(LLMModel):
     name: str
     is_chat: bool = False
+
+
+def bedrock_derived(model: AnthropicModels) -> BedrockModel:
+    return BedrockModel(name=f"us.anthropic.{model.value.name}-v1:0", is_chat=model.value.is_chat)
+
+
+def old_bedrock_derived(model: AnthropicModels) -> BedrockModel:
+    return BedrockModel(name=f"anthropic.{model.value.name}-v1:0", is_chat=model.value.is_chat)
 
 
 class BedrockModels(Enum):
     """Represents available Bedrock models."""
 
     # Note that the models available on a given Bedrock account may vary.
-    CLAUDE_3_HAIKU = BedrockModel(name="anthropic.claude-3-haiku-20240307-v1:0", is_chat=True)
-    CLAUDE_3_SONNET = BedrockModel(name="anthropic.claude-3-sonnet-20240229-v1:0", is_chat=True)
-    CLAUDE_3_OPUS = BedrockModel(name="anthropic.claude-3-opus-20240229-v1:0", is_chat=True)
-    CLAUDE_3_5_SONNET = BedrockModel(name="anthropic.claude-3-5-sonnet-20241022-v2:0", is_chat=True)
-    CLAUDE_3_7_SONNET = BedrockModel(name="anthropic.claude-3-7-sonnet-20250219-v1:0", is_chat=True)
+    CLAUDE_4_5_SONNET = bedrock_derived(AnthropicModels.CLAUDE_4_5_SONNET)
+    CLAUDE_4_5_HAIKU = bedrock_derived(AnthropicModels.CLAUDE_4_5_HAIKU)
+    CLAUDE_4_1_OPUS = bedrock_derived(AnthropicModels.CLAUDE_4_1_OPUS)
+    CLAUDE_4_OPUS = bedrock_derived(AnthropicModels.CLAUDE_4_OPUS)
+    CLAUDE_4_SONNET = bedrock_derived(AnthropicModels.CLAUDE_4_SONNET)
+    CLAUDE_3_7_SONNET = bedrock_derived(AnthropicModels.CLAUDE_3_7_SONNET)
+    CLAUDE_3_5_HAIKU = bedrock_derived(AnthropicModels.CLAUDE_3_5_HAIKU)
+    CLAUDE_3_HAIKU = old_bedrock_derived(AnthropicModels.CLAUDE_3_HAIKU)
 
     @classmethod
     def from_name(cls, name: str):
@@ -48,7 +76,7 @@ class BedrockModels(Enum):
 
 
 @dataclass
-class GeminiModel:
+class GeminiModel(LLMModel):
     name: str
     is_chat: bool = False
 
@@ -56,14 +84,21 @@ class GeminiModel:
 class GeminiModels(Enum):
     """Represents available Gemini models. More info: https://googleapis.github.io/python-genai/"""
 
+    GEMINI_3_PRO_PREVIEW = GeminiModel(name="gemini-3-pro-preview", is_chat=True)
+    GEMINI_3_FLASH_PREVIEW = GeminiModel(name="gemini-3-flash-preview", is_chat=True)
+
     # Note that the models available on a given Gemini account may vary.
-    GEMINI_2_5_FLASH = GeminiModel(name="gemini-2.5-flash", is_chat=True)
+    GEMINI_FLASH_LATEST = GeminiModel(name="gemini-flash-latest", is_chat=True)  # latest including preview
+    GEMINI_2_5_FLASH = GeminiModel(name="gemini-2.5-flash", is_chat=True)  # stable
+    # This should be deprecated in favor of LATEST
     GEMINI_2_5_FLASH_PREVIEW = GEMINI_2_5_FLASH  # Alias for the preview model
 
     GEMINI_2_5_PRO = GeminiModel(name="gemini-2.5-pro", is_chat=True)
     GEMINI_2_5_PRO_PREVIEW = GEMINI_2_5_PRO  # Alias for the preview model
 
-    GEMINI_2_5_FLASH_LITE = GeminiModel(name="gemini-2.5-flash-lite", is_chat=True)
+    GEMINI_FLASH_LITE_LATEST = GeminiModel(name="gemini-flash-lite-latest", is_chat=True)  # latest including preview
+    GEMINI_2_5_FLASH_LITE = GeminiModel(name="gemini-2.5-flash-lite", is_chat=True)  # stable
+    # This should be deprecated in favor of LATEST
     GEMINI_2_5_FLASH_LITE_PREVIEW = GEMINI_2_5_FLASH_LITE  # Alias for the preview model
 
     GEMINI_2_FLASH = GeminiModel(name="gemini-2.0-flash", is_chat=True)
@@ -81,7 +116,7 @@ class GeminiModels(Enum):
 
 
 @dataclass
-class OpenAIModel:
+class OpenAIModel(LLMModel):
     name: str
     is_chat: bool = False
 
@@ -107,9 +142,19 @@ class OpenAIModels(Enum):
     GPT_5_MINI = OpenAIModel(name="gpt-5-mini", is_chat=True)
     GPT_5_NANO = OpenAIModel(name="gpt-5-nano", is_chat=True)
 
+    GPT_5_1 = OpenAIModel(name="gpt-5.1", is_chat=True)
+    GPT_5_2 = OpenAIModel(name="gpt-5.2", is_chat=True)
+
     @classmethod
     def from_name(cls, name: str):
         for m in iter(cls):
             if m.value.name == name:
                 return m
         return None
+
+
+class ChainedModel(LLMModel):
+
+    def __init__(self, chain: list[LLMModel]):
+        self.chain = chain
+        self.is_chat = True  # This is not used anywhere.

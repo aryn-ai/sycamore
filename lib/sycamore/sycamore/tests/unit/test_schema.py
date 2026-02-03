@@ -1,4 +1,12 @@
-from sycamore.schema import SchemaV2, make_property, make_named_property, NamedProperty
+import json
+from sycamore.schema import (
+    SchemaV2,
+    make_property,
+    make_named_property,
+    NamedProperty,
+    RegexValidator,
+    BooleanExpValidator,
+)
 
 single_property_dict_old = {
     "name": "state",
@@ -286,6 +294,9 @@ def test_type_alias():
     str_prop = make_property(type="str")
     assert str_prop.type == "string", "Type alias 'str' should be converted to 'string'"
 
+    bool_prop = make_property(type="boolean")
+    assert bool_prop.type == "bool", "Type alias 'boolean' should be converted to 'bool'"
+
     obj_prop = make_property(type="struct", properties=[make_named_property(name="field", type="str")])
     assert obj_prop.type == "object", "Type alias 'struct' should be converted to 'object'"
     assert len(obj_prop.properties) == 1
@@ -347,3 +358,124 @@ def test_ziptraverse():
         if v.name in ("start", "end"):
             assert p.name == "years_resident"
             continue
+
+
+def test_validator_json_serialize():
+    r = RegexValidator(regex=r"[0-9]{3}")
+    res, _ = r.validate_property("123")
+    assert res
+
+    js = json.dumps(r.model_dump())
+    r2 = RegexValidator.model_validate_json(js)
+
+    assert r.regex == r2.regex
+    assert r.allowable_types == r2.allowable_types
+
+    b = BooleanExpValidator(expression="x > 1")
+    res, _ = b.validate_property(2)
+    assert res
+
+    js = json.dumps(b.model_dump())
+    b2 = BooleanExpValidator.model_validate_json(js)
+
+    assert b.expression == b2.expression
+    assert b.allowable_types == b2.allowable_types
+
+
+# In order to facilitate compatibility, if deserialization fails, we fallback
+# to the old schema format. In the past, this could cause weird error messages
+# if you passed in a malformed schema, as you would always get an exception
+# message from the old schema. This test verifies that we now raise the
+# exception from the new schema. This could still be confusing if you have a
+# malformed old schema, but given that we eventually expect people to use the
+# new schema, this changes seems directionally correct.
+def test_exception_fallback_message():
+    bad_schema = {
+        "properties": [
+            {
+                "name": "state",
+                "type": {
+                    "type": "strng",  # misspelled string
+                    "description": "Two-letter state code",
+                    "examples": ["NC"],
+                },
+            }
+        ]
+    }
+
+    try:
+        _ = SchemaV2.model_validate(bad_schema)
+    except Exception as e:
+        assert "strng" in str(e), "Exception should mention the invalid type 'strng'"
+    else:
+        # The old schema deserialization error is for missing 'field_type'.
+        assert False, "Expected exception was not raised for invalid schema"
+
+
+def test_schema_invalid_type_regex_validator():
+    invalid_schema = {
+        "properties": [
+            {
+                "name": "count",
+                "type": {
+                    "type": "int",  # not valid for a regex validator
+                    "description": "A single digit number",
+                    "examples": [1],
+                    "validators": [{"type": "regex", "regex": "[0-9]"}],
+                },
+            }
+        ]
+    }
+
+    try:
+        _ = SchemaV2.model_validate(invalid_schema)
+    except Exception as e:
+        assert "regex is not a valid validator for" in str(e), "Exception should mention the invalid type"
+    else:
+        # The old schema deserialization error is for missing 'field_type'.
+        assert False, "Expected exception was not raised for invalid schema"
+
+
+def test_schema_valid_expression_boolean_validator():
+    valid_schema = {
+        "properties": [
+            {
+                "name": "count",
+                "type": {
+                    "type": "string",  # not valid for a regex validator
+                    "description": "Two-letter state code",
+                    "examples": ["WA"],
+                    "validators": [{"type": "boolean_exp", "expression": "x like A"}],
+                },
+            }
+        ]
+    }
+
+    try:
+        _ = SchemaV2.model_validate(valid_schema)
+    except Exception:
+        assert False
+
+
+def test_schema_invalid_expression_boolean_validator():
+    invalid_schema = {
+        "properties": [
+            {
+                "name": "count",
+                "type": {
+                    "type": "string",  # not valid for a regex validator
+                    "description": "Two-letter state code",
+                    "examples": ["WA"],
+                    "validators": [{"type": "boolean_exp", "expression": "y like A"}],  # We only accept 'x'
+                },
+            }
+        ]
+    }
+
+    try:
+        _ = SchemaV2.model_validate(invalid_schema)
+    except SyntaxError as e:
+        assert "property reference must always be 'x'" in str(e)
+        return
+
+    assert False

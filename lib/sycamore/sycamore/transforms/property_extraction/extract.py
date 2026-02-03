@@ -1,11 +1,14 @@
-from typing import Optional, Any
+from typing import Optional, Any, Protocol
 import asyncio
 import logging
 import json
 
+from pydantic import ValidationError
+
 from sycamore.data.document import Document, Element
+from sycamore.datatype import DataType
 from sycamore.plan_nodes import Node
-from sycamore.schema import NamedProperty, ObjectProperty, SchemaV2 as Schema, DataType
+from sycamore.schema import NamedProperty, ObjectProperty, SchemaV2 as Schema
 from sycamore.transforms.map import MapBatch
 from sycamore.transforms.property_extraction.strategy import (
     SchemaPartitionStrategy,
@@ -14,21 +17,117 @@ from sycamore.transforms.property_extraction.strategy import (
     StepThroughStrategy,
     TakeFirstTrimSchema,
 )
-from sycamore.transforms.property_extraction.types import AttributionValue, RichProperty
+from sycamore.transforms.property_extraction.types import RichProperty
 from sycamore.transforms.property_extraction.prompts import schema_extract_pre_elements_helper, ExtractionJinjaPrompt
 from sycamore.transforms.property_extraction.utils import remove_keys_recursive
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import SycamorePrompt
 from sycamore.utils.extract_json import extract_json
-from sycamore.utils.threading import run_coros_threadsafe
+from sycamore.utils.threading import run_coros_threadsafe, sem_task
 from sycamore.transforms.property_extraction.utils import stitch_together_objects, dedup_examples
-from sycamore.transforms.property_extraction.attribution import refine_attribution
+from sycamore.transforms.property_extraction.attribution import AttributionStrategy, TextMatchAttributionStrategy
 from sycamore.transforms.property_extraction.prompts import format_schema_v2
 from sycamore.utils.zip_traverse import zip_traverse
 
 _logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
+MAX_LLM_RETRIES = 3
+
+MAX_CONCURRENT_CALLS = 20
+
+
+class ProcessingMode(Protocol):
+    async def extract_schema_partition_from_document(
+        self,
+        document: Document,
+        schema_part: Schema,
+        result_dict: dict[str, RichProperty],
+        llm: LLM,
+        extract_node: "Extract",
+    ) -> dict[str, RichProperty]:
+        """Extract a dict of property key to RichProperty on a document against a schema part."""
+        ...
+
+
+class SerialBatches(ProcessingMode):
+    async def extract_schema_partition_from_document(
+        self,
+        document: Document,
+        schema_part: Schema,
+        result_dict: dict[str, RichProperty],
+        llm: LLM,
+        extract_node: "Extract",
+    ) -> dict[str, RichProperty]:
+
+        for elements in extract_node._step_through.step_through(document):
+            update = await extract_node.extract_schema_partition_from_element_batch(
+                document, elements, schema_part, result_dict, llm
+            )
+            result_dict = update.out_fields
+            schema_part = update.out_schema
+            if update.completed:
+                return result_dict
+        return result_dict
+
+
+class ParallelBatches(ProcessingMode):
+    def __init__(self, max_concurrency: int = MAX_CONCURRENT_CALLS):
+        self.semaphore = asyncio.Semaphore(max_concurrency)
+
+    async def extract_schema_partition_from_document(
+        self,
+        document: Document,
+        schema_part: Schema,
+        result_dict: dict[str, RichProperty],
+        llm: LLM,
+        extract_node: "Extract",
+    ) -> dict[str, RichProperty]:
+
+        _logger.info("Running in parallel batch mode")
+
+        coros = [
+            sem_task(extract_node.get_working_results(document, elements, schema_part, llm), self.semaphore)
+            for elements in extract_node._step_through.step_through(document)
+        ]
+        all_results = await asyncio.gather(*coros)
+
+        for r in all_results:
+            assert isinstance(r, RichProperty)
+            update = extract_node._schema_update.update_schema(
+                in_schema=schema_part, new_fields=r.value, existing_fields=result_dict
+            )
+            result_dict = update.out_fields
+
+        return update.out_fields
+
+
+class PredictionMode(Protocol):
+    """"""
+
+    async def make_prediction(
+        self, extract: "Extract", schema_part: Schema, document: Document
+    ) -> dict[str, RichProperty]: ...
+
+
+class BasicPredictionMode(PredictionMode):
+    def __init__(self, llm: LLM):
+        self._llm = llm
+
+    async def make_prediction(
+        self, extract: "Extract", schema_part: Schema, document: Document
+    ) -> dict[str, RichProperty]:
+        em = document.properties.get("entity_metadata", {})
+        result_dict = {k: RichProperty.validate_recursive(v) for k, v in em.items()}
+        update = extract._schema_update.update_schema(in_schema=schema_part, new_fields={}, existing_fields=result_dict)
+        result_dict = update.out_fields
+        schema_part = update.out_schema
+        if update.completed:
+            return result_dict
+
+        return await extract._batches.extract_schema_partition_from_document(
+            document, schema_part, result_dict, self._llm, extract
+        )
 
 
 class Extract(MapBatch):
@@ -40,19 +139,29 @@ class Extract(MapBatch):
         schema: Schema,
         step_through_strategy: StepThroughStrategy,
         schema_partition_strategy: SchemaPartitionStrategy,
-        llm: LLM,
+        llm: LLM | PredictionMode,
         prompt: SycamorePrompt,
         schema_update_strategy: SchemaUpdateStrategy = TakeFirstTrimSchema(),
         output_pydantic_models: bool = True,
+        attribution_strategy: AttributionStrategy = TextMatchAttributionStrategy(),
+        batch_processing_mode: ProcessingMode = SerialBatches(),
     ):
         super().__init__(node, f=self.extract)
         self._schema = schema
         self._step_through = step_through_strategy
         self._schema_partition = schema_partition_strategy
         self._schema_update = schema_update_strategy
-        self._llm = llm
         self._prompt = prompt
         self._output_pydantic = output_pydantic_models
+        self._attribution = attribution_strategy
+        self._batches = batch_processing_mode
+
+        self._prediction_mode: PredictionMode
+        if isinstance(llm, LLM):
+            self._prediction_mode = BasicPredictionMode(llm=llm)
+        else:
+            self._prediction_mode = llm
+
         # Try calling the render method I need at constructor to make sure it's implemented
         try:
             self._prompt.render_multiple_elements(elts=[], doc=Document())
@@ -108,33 +217,32 @@ class Extract(MapBatch):
     async def extract_schema_partition(
         self, documents: list[Document], schema_part: Schema
     ) -> list[dict[str, RichProperty]]:
-        coros = [self.extract_schema_partition_from_document(d, schema_part) for d in documents]
+
+        coros = [self._prediction_mode.make_prediction(self, schema_part, d) for d in documents]
         return await asyncio.gather(*coros)
 
-    async def extract_schema_partition_from_document(
-        self, document: Document, schema_part: Schema
-    ) -> dict[str, RichProperty]:
-        em = document.properties.get("entity_metadata", {})
-        result_dict = {k: RichProperty.validate_recursive(v) for k, v in em.items()}
-        update = self._schema_update.update_schema(in_schema=schema_part, new_fields={}, existing_fields=result_dict)
-        result_dict = update.out_fields
-        schema_part = update.out_schema
-        if update.completed:
-            return result_dict
-
-        for elements in self._step_through.step_through(document):
-            update = await self.extract_schema_partition_from_element_batch(
-                document, elements, schema_part, result_dict
-            )
-            result_dict = update.out_fields
-            schema_part = update.out_schema
-            if update.completed:
-                return result_dict
-        return result_dict
-
     async def extract_schema_partition_from_element_batch(
-        self, document: Document, elements: list[Element], schema_part: Schema, result_dict: dict[str, RichProperty]
+        self,
+        document: Document,
+        elements: list[Element],
+        schema_part: Schema,
+        result_dict: dict[str, RichProperty],
+        llm: LLM,
     ) -> SchemaUpdateResult:
+
+        working_results = await self.get_working_results(document, elements, schema_part, llm)
+        update = self._schema_update.update_schema(
+            in_schema=schema_part, new_fields=working_results.value, existing_fields=result_dict
+        )
+        return update
+
+    async def get_working_results(
+        self,
+        document: Document,
+        elements: list[Element],
+        schema_part: Schema,
+        llm: LLM,
+    ) -> RichProperty:
         sch: Optional[Schema] = schema_part
         retries = 0
 
@@ -144,9 +252,19 @@ class Extract(MapBatch):
             prompt = self._prompt.fork(schema=sch_str)
 
             rendered = prompt.render_multiple_elements(elements, document)
-            result = await self._llm.generate_async(prompt=rendered)
-            rd = extract_json(result)
-            rp = RichProperty.from_prediction(rd)
+            retries = 0
+            rp: Optional[RichProperty] = None
+            while retries < MAX_LLM_RETRIES:
+                try:
+                    result = await llm.generate_async(prompt=rendered)
+                    rd = extract_json(result)
+                    rp = self._attribution.prediction_to_rich_property(rd)
+                    break
+                except (ValueError, ValidationError) as e:
+                    _logger.exception(f"Failed to get a valid JSON response: {e}")
+                    retries += 1
+
+            assert rp is not None, f"Failed to get a valid JSON response after {retries} calls."
 
             for k, (v_new, v_work, prop), (p_new, p_work, prop_p) in zip_traverse(
                 rp, working_results, sch.as_object_property(), order="before"
@@ -157,21 +275,28 @@ class Extract(MapBatch):
                 if v_new is v_work:
                     # When I replace a list sub-items are the same, so skip
                     continue
+
                 if v_new is not None and v_new.type is not DataType.OBJECT:
+                    if prop.type.type != v_new.type and prop.type.type == DataType.BOOL:
+                        v_new.value = True if v_new.value == "true" else False
+                        v_new.type = DataType.BOOL
                     p_work.value[k] = v_new
+                # If this is an object prop which does not exist yet, add it to the parent
+                if v_new is not None and v_new.type is DataType.OBJECT and v_work is None:
+                    p_work.value[k] = RichProperty(
+                        name=k if isinstance(k, str) else None,
+                        type=DataType.OBJECT,
+                        value={},
+                        attribution=v_new.attribution,
+                    )
 
             sch = self.validate_prediction(sch, working_results)
             retries += 1
 
         for k, (v,), (p,) in zip_traverse(working_results):
-            v.attribution = AttributionValue(
-                element_indices=[e.element_index if e.element_index is not None else -1 for e in elements]
-            )
-        working_results = refine_attribution(working_results, document)
-        update = self._schema_update.update_schema(
-            in_schema=schema_part, new_fields=working_results.value, existing_fields=result_dict
-        )
-        return update
+            if v.attribution is None:
+                v.attribution = self._attribution.default_attribution(v, document, elements)
+        return self._attribution.refine_attribution(working_results, document)
 
     def validate_prediction(self, schema_part: Schema, prediction: RichProperty) -> Optional[Schema]:
         out_sch_obj = schema_part.model_copy(deep=True).as_object_property()
@@ -198,7 +323,10 @@ class Extract(MapBatch):
                 continue
             prop = prop.type if isinstance(prop, NamedProperty) else prop
             for validator in prop.validators:
-                valid, propval = validator.validate_property(val.to_python())
+                if (propval := val.to_python()) is not None:
+                    valid, propval = validator.validate_property(propval)
+                else:
+                    valid = True
                 val.is_valid = valid
                 if val.type not in (DataType.ARRAY, DataType.OBJECT):
                     val.value = propval
@@ -264,7 +392,13 @@ class SchemaExtract(MapBatch):
         else:
             self._prompt = prompt
         # Try calling the render method I need at constructor to make sure it's implemented
-        self._prompt.render_multiple_elements(elts=[], doc=Document())
+        try:
+            self._prompt.render_multiple_elements(elts=[], doc=Document())
+        except NotImplementedError as e:
+            raise e
+        except Exception:
+            # Other errors are ok, probably dummy document is malformed for the prompt
+            pass
 
     @staticmethod
     def _cast_to_type(val: Any, val_type: str) -> Any:
@@ -308,12 +442,31 @@ class SchemaExtract(MapBatch):
 
         result_dict = dict()
 
-        for elements in self._step_through.step_through(document):
+        async def do_one_step(elements, document):
+            max_retries = 2  # Up to 3 calls
+            retries = 0
+            while retries <= max_retries:
+                try:
+                    rendered = self._prompt.render_multiple_elements(elements, document)
+                    result = await self._llm.generate_async(prompt=rendered)
+                    extracted = extract_json(result)
+                    for p in extracted:
+                        NamedProperty.model_validate(p)
+                    candidate = {ii["name"]: ii for ii in extracted}
+                    return candidate
+                except (ValueError, ValidationError) as exc:
+                    _logger.exception(exc)
+                    if retries >= max_retries:
+                        _logger.warning("All retries failed, returning empty schema.")
+                        break
+                    retries += 1
+            return {}
 
-            rendered = self._prompt.render_multiple_elements(elements, document)
-            result = await self._llm.generate_async(prompt=rendered)
-            rd = {ii["name"]: ii for ii in extract_json(result)}
+        results = await asyncio.gather(
+            *(do_one_step(elements, document) for elements in self._step_through.step_through(document))
+        )
 
+        for rd in results:
             for k, v in rd.items():
 
                 v_type = v.get("type", {}).get("type", "string")  # Default to string if type is not specified

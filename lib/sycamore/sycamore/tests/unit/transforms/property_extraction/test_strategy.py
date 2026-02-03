@@ -1,10 +1,11 @@
+from sycamore.datatype import DataType
 from sycamore.transforms.property_extraction.strategy import RichProperty, TakeFirstTrimSchema
 from sycamore.schema import NamedProperty
-from sycamore.schema import SchemaV2, StringProperty, ObjectProperty, ArrayProperty, DataType, RegexValidator
+from sycamore.schema import SchemaV2, StringProperty, ObjectProperty, ArrayProperty, RegexValidator
 
 
 class TestSchemaUpdateStrategy:
-    def test_takefirst_trimschema(self):
+    def test_takefirst_trimschema(self) -> None:
         start_schema = SchemaV2(
             properties=[
                 NamedProperty(name="a", type=StringProperty()),
@@ -56,7 +57,7 @@ class TestSchemaUpdateStrategy:
         assert sur3.out_fields["b"].value["b2"].value == "b23"
         assert sur3.out_fields["c"].value == "c3"
 
-    def test_takefirst_trimschema_with_array(self):
+    def test_takefirst_trimschema_with_array(self) -> None:
         start_schema = SchemaV2(
             properties=[
                 NamedProperty(name="a", type=ArrayProperty(item_type=StringProperty())),
@@ -101,7 +102,7 @@ class TestSchemaUpdateStrategy:
         assert sur3.out_fields["b"].value == "b2"
         assert sur3.out_fields["c"].value == "c3"
 
-    def test_takefirst_trimschema_with_array_of_array(self):
+    def test_takefirst_trimschema_with_array_of_array(self) -> None:
         start_schema = SchemaV2(
             properties=[
                 NamedProperty(
@@ -158,7 +159,7 @@ class TestSchemaUpdateStrategy:
         assert sur3.out_fields["b"].value == "b2"
         assert sur3.out_fields["c"].value == "c3"
 
-    def test_takefirst_trimschema_validated(self):
+    def test_takefirst_trimschema_validated(self) -> None:
         schema = SchemaV2(
             properties=[
                 NamedProperty(
@@ -213,9 +214,35 @@ class TestSchemaUpdateStrategy:
         p3.value["c"].value["d"].is_valid = False
         sur3 = strat.update_schema(schema, p3.value, sur2.out_fields)
         assert not sur3.completed
-        assert not sur3.out_fields["a"].value[0].is_valid
-        assert not sur3.out_fields["a"].value[1].is_valid
-        assert sur3.out_fields["a"].value[2].is_valid
+        a_list = sur3.out_fields["a"].value
+        for v in a_list:
+            if v.value in ("a", "A"):
+                assert not v.is_valid
+            elif v.value == "1":
+                assert v.is_valid
         assert sur3.out_fields["b"].is_valid
         assert sur3.out_fields["b"].value == "4"
         assert sur3.out_fields["c"].value["d"].value == "dc000"
+
+    def test_takefirst_trimschema_keep_property_descriptions(self) -> None:
+        schema = SchemaV2(
+            properties=[
+                NamedProperty(
+                    name="a",
+                    type=ObjectProperty(
+                        description="Hi",
+                        properties=[
+                            NamedProperty(name="b", type=StringProperty()),
+                            NamedProperty(name="c", type=StringProperty()),
+                        ],
+                    ),
+                )
+            ]
+        )
+
+        strat = TakeFirstTrimSchema()
+
+        props: dict[str, RichProperty] = dict()
+        p1 = RichProperty.from_prediction({})
+        sur = strat.update_schema(schema, p1.value, props)
+        assert sur.out_schema.properties[0].type.description == "Hi"

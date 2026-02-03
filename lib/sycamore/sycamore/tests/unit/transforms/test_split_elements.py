@@ -1,6 +1,8 @@
 import ray.data
 
 from sycamore.data import Document, TableElement, Table, TableCell
+from sycamore.tests.config import TEST_DIR
+from sycamore.transforms.merge_elements import HeaderAugmenterMerger
 from sycamore.transforms.split_elements import SplitElements
 from sycamore.functions.tokenizer import HuggingFaceTokenizer, CharacterTokenizer
 from sycamore.plan_nodes import Node
@@ -67,7 +69,89 @@ class TestSplitElements:
         element = TableElement()
         element.table = Table(cells=[TableCell(content="one\ntwo\nthree", rows=[0], cols=[0])])
         element.table.column_headers = [" ".join(["header "] * 100)]
-        result = SplitElements.split_one(element, CharacterTokenizer(), max=10)
+        result = SplitElements.split_one(element, CharacterTokenizer(), 10, depth=0, max_depth=20)
 
-        # Without early stopping, we get 1,013,259 elements.
-        assert len(result) == 1
+        # one two three -> one two | three
+        assert len(result) == 2
+
+    def test_unsplittable_large_table_headers2(self):
+        element = TableElement()
+        element.table = Table(cells=[TableCell(content="one\ntwo\nthree", rows=[0], cols=[0])])
+        element.table.column_headers = [" ".join(["header "] * 100)]
+
+        doc = Document({"elements": [element]})
+        result = SplitElements.split_doc(doc, tokenizer=CharacterTokenizer(), max=10, max_depth=20)
+
+        # one two three -> one two | three
+        assert len(result.elements) == 2
+
+    def test_unsplittable_table_with_header(self):
+        table_content = "one two three four five"
+        max_chunks_size = 10
+        assert len(table_content) > max_chunks_size, "Split precondition not met"
+
+        element = TableElement()
+        element.table = Table(cells=[TableCell(content=table_content, rows=[0], cols=[0])])
+        element.data["_header"] = "foo"  # Prepending 'foo\n' to the table content can cause an infinite loop.
+        result = SplitElements.split_one(element, CharacterTokenizer(), max_chunks_size, depth=0, max_depth=20)
+        assert len(result) < 21, "Max depth exceeded"
+
+    def test_unsplittable_table(self):
+        import json
+        from sycamore.functions.tokenizer import OpenAITokenizer
+
+        large_table_json = TEST_DIR / "resources" / "data" / "json" / "large_table.json"
+        with open(large_table_json, "r") as f:
+            res = json.load(f)
+
+        tokenizer = OpenAITokenizer(model_name="text-embedding-3-small")
+        doc = Document({"elements": res["elements"]})
+
+        orig_element_count = len(doc["elements"])
+        orig_table_element_count = 0
+        for elem in doc["elements"]:
+            if isinstance(elem, TableElement):
+                orig_table_element_count += 1
+
+        merger = HeaderAugmenterMerger(tokenizer=tokenizer, max_tokens=512, merge_across_pages=True)
+        merger.merge_elements(doc)
+
+        merged_element_count = len(doc["elements"])
+        merged_table_element_count = 0
+        for elem in doc["elements"]:
+            if isinstance(elem, TableElement):
+                merged_table_element_count += 1
+
+        assert merged_element_count < orig_element_count
+        assert merged_table_element_count <= orig_table_element_count
+
+        SplitElements.split_doc(doc, tokenizer=tokenizer, max=512, max_depth=100, add_binary=False)
+        split_element_count = len(doc["elements"])
+        split_table_element_count = 0
+        for elem in doc["elements"]:
+            if isinstance(elem, TableElement):
+                split_table_element_count += 1
+
+        assert split_element_count > merged_element_count
+        assert split_table_element_count > merged_table_element_count
+
+    def test_max_depth_hit_and_raised(self):
+        element = TableElement()
+        element.table = Table(cells=[TableCell(content="one\ntwo\nthree", rows=[0], cols=[0])])
+        element.table.column_headers = [" ".join(["header "] * 100)]
+
+        doc = Document({"elements": [element]})
+        max_tokens = 10
+        from sycamore.functions.tokenizer import Tokenizer
+        from typing import Union
+        from functools import cache
+
+        class DummyTokenizer(Tokenizer):
+            @cache
+            def tokenize(self, text: str, as_ints: bool = False) -> Union[list[int], list[str]]:
+                return ["x" for _ in range(max_tokens + 1)]
+
+        result = SplitElements.split_doc(doc, tokenizer=DummyTokenizer(), max=max_tokens)
+
+        # Exception raised, no splitting happened
+        assert len(result.elements) == 1

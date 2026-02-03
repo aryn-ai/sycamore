@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch, ANY, Mock
 
 import sycamore
+from sycamore.connectors.aryn.ArynReader import DocFilter
 from sycamore.llms import LLM
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
@@ -118,6 +119,71 @@ def test_query_database_with_query(mock_sycamore_docsetreader, mock_opensearch_n
         assert result.plan.children[0]._query_params.query == {"query": os_query_plan}  # OpensearchReader->Map
 
 
+def test_query_with_doc_filter(mock_sycamore_docsetreader, mock_opensearch_num_docs):
+    embedder = Mock(spec=Embedder)
+    embedding = [0.1, 0.2]
+    embedder.generate_text_embedding.return_value = embedding
+    context = sycamore.init(
+        params={
+            "opensearch": {
+                "os_client_args": {
+                    "hosts": [{"host": "localhost", "port": 9200}],
+                    "http_compress": True,
+                    "http_auth": ("admin", "admin"),
+                    "use_ssl": True,
+                    "verify_certs": False,
+                    "ssl_assert_hostname": False,
+                    "ssl_show_warn": False,
+                    "timeout": 120,
+                },
+                "index_name": "test_index",
+                "text_embedder": embedder,
+            }
+        }
+    )
+    mock_reader = mock_sycamore_docsetreader(context)
+    with patch("sycamore.reader.DocSetReader", return_value=mock_reader):
+
+        os_query_plan = {"bool": {"must": [{"match": {"properties.location": "Washington"}}]}}
+
+        logical_node = QueryDatabase(
+            node_id=0,
+            description="Load data",
+            index="test_index",
+            query=os_query_plan,
+            doc_filter=DocFilter(doc_ids=["doc1"]),
+        )
+        sycamore_operator = SycamoreQueryDatabase(context=context, logical_node=logical_node, query_id="test")
+        result = sycamore_operator.execute()
+        # Validate result type
+        assert isinstance(result, DocSet)
+
+        # Validate result
+        assert result.count() == mock_opensearch_num_docs
+
+        # Validate that the correct query would be passed to OpenSearch.
+        assert result.plan.children[0]._query_params.query == {"query": os_query_plan}
+        assert "doc_filter" in mock_reader.kwargs
+        assert "doc1" == mock_reader.kwargs["doc_filter"].doc_ids[0]
+
+        logical_node = QueryVectorDatabase(
+            node_id=0,
+            description="Load data",
+            index=context.params["opensearch"]["index_name"],
+            query_phrase="question",
+            doc_filter=DocFilter(doc_ids=["doc2"]),
+        )
+        sycamore_operator = SycamoreQueryVectorDatabase(
+            context=context,
+            logical_node=logical_node,
+            query_id="test",
+        )
+        sycamore_operator.execute()
+
+        assert "doc_filter" in mock_reader.kwargs
+        assert "doc2" == mock_reader.kwargs["doc_filter"].doc_ids[0]
+
+
 def test_vector_query_database_with_rerank():
     with patch("sycamore.reader.DocSetReader") as mock_docset_reader_class:
         embedder = Mock(spec=Embedder)
@@ -182,6 +248,7 @@ def test_vector_query_database_with_rerank():
             doc_reconstructor=None,
             result_filter=None,
             query_kwargs={"size": 500},
+            doc_filter=None,
         )
         mock_docset.rerank.assert_called_once()
 
@@ -247,6 +314,7 @@ def test_vector_query_database():
             doc_reconstructor=None,
             result_filter=None,
             query_kwargs={"size": 500},
+            doc_filter=None,
         )
         mock_docset.rerank.assert_not_called()
 

@@ -74,7 +74,7 @@ def test_gemini_table_structure_extractor(basic_table_element, basic_table_image
 
 @pytest.mark.skip(reason="Not getting great results from Anthropic for this table")
 def test_anthropic_table_structure_extractor(basic_table_element, basic_table_image):
-    anthropic = Anthropic(AnthropicModels.CLAUDE_3_5_SONNET)
+    anthropic = Anthropic(AnthropicModels.CLAUDE_4_5_HAIKU)
     _check_llm(anthropic, basic_table_element, basic_table_image)
 
 

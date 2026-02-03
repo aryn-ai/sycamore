@@ -1,12 +1,14 @@
 import inspect
 from abc import ABC, abstractmethod
 import copy
-from enum import Enum
+import datetime
 import logging
 import pickle
 import base64
 from PIL import Image
 from typing import Any, Optional
+
+from sycamore.llms.config import LLMMode, LLMModel
 from sycamore.utils.cache import Cache
 from sycamore.utils.thread_local import ThreadLocalAccess, ADD_METADATA_TO_OUTPUT
 from sycamore.data.metadata import add_metadata
@@ -14,24 +16,22 @@ from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 
 from sycamore.utils.deprecate import deprecated
 
-
-class LLMMode(Enum):
-    SYNC = 1
-    ASYNC = 2
-    BATCH = 3
+logger = logging.getLogger(__name__)
 
 
 class LLM(ABC):
     """Abstract representation of an LLM instance. and should be subclassed to implement specific LLM providers."""
 
+    model: LLMModel
+
     def __init__(
         self,
-        model_name,
+        model_name: str,
         default_mode: LLMMode,
         cache: Optional[Cache] = None,
         default_llm_kwargs: Optional[dict[str, Any]] = None,
     ):
-        self._model_name = model_name
+        self._model_name: str = model_name
         self._cache = cache
         self._default_mode = default_mode
         self._default_llm_kwargs = default_llm_kwargs or {}
@@ -51,9 +51,22 @@ class LLM(ABC):
         return new_kwargs
 
     @abstractmethod
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters."""
         pass
+
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
+        """Generates a response from the LLM for the given prompt and LLM parameters and returns metadata.
+
+        TODO: Implement generic_generate(model: LLMModel, ...) and generic_generate_args(model_class, kwargs)
+           to specify default arguments during model construction.  The former should cache the client if possible.
+           Then we can call generate on any model rather than only ones in the same family.  Potentially get rid of the
+           model argument to generate* at the same time to simplify the implementations."""
+        raise NotImplementedError("This LLM does not support metadata generation")
 
     @deprecated(version="0.1.31", reason="Use generate, with a RenderedPrompt, instead")
     def generate_old(self, *, prompt_kwargs: dict[str, Any], llm_kwargs: Optional[dict] = None) -> str:
@@ -88,7 +101,9 @@ class LLM(ABC):
         """Returns a dictionary containing the specified image suitable for use in an LLM message."""
         raise NotImplementedError("This LLM does not support images.")
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters asynchronously."""
         raise NotImplementedError("This LLM does not support asynchronous generation.")
 
@@ -115,7 +130,9 @@ class LLM(ABC):
             raise ValueError("Either 'prompt' or 'messages' must be specified in prompt_kwargs")
         return await self.generate_async(prompt=rendered, llm_kwargs=llm_kwargs)
 
-    def generate_batch(self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None) -> list[str]:
+    def generate_batch(
+        self, *, prompts: list[RenderedPrompt], llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> list[str]:
         """Generates a series of responses from the LLM for the given series of prompts. Order is preserved."""
         raise NotImplementedError("This LLM does not support batched generation")
 
@@ -131,16 +148,21 @@ class LLM(ABC):
         else:
             return prompt.response_format
 
-    def _llm_cache_key(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    def _llm_cache_key(
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[str] = None
+    ) -> str:
         """Return a cache key for the given prompt and LLM parameters."""
         assert self._cache
+        # We now default this to an empty dict if None is passed in.
+        llm_kwargs = llm_kwargs or {}
+        model = model or self._model_name
         rf = self._pickleable_response_format(prompt)
         ms = prompt.messages
         combined = {
             "prompt": RenderedPrompt(messages=ms),
             "prompt.response_format": rf,
             "llm_kwargs": llm_kwargs,
-            "model_name": self._model_name,
+            "model_name": model,
         }
         data = pickle.dumps(combined)
         return self._cache.get_hash_context(data).hexdigest()
@@ -148,19 +170,21 @@ class LLM(ABC):
     def _use_caching(self, llm_kwargs: Optional[dict]):
         if not self._cache:
             return False
-        if llm_kwargs is None:
+        if not llm_kwargs:
             return True
         # Only cache when temperature setting is zero.
         return llm_kwargs.get("temperature", 0) == 0
 
-    def _llm_cache_get(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> Any:
+    def _llm_cache_get(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict], model: Optional[str] = None) -> Any:
         """Get a cached result for the given prompt and LLM parameters. Returns the cached
         result if found, or otherwise None."""
         if not self._use_caching(llm_kwargs):
             return None
         assert self._cache is not None, "make mypy happy"
 
-        key = self._llm_cache_key(prompt, llm_kwargs)
+        model = model or self._model_name
+        llm_kwargs = llm_kwargs or {}
+        key = self._llm_cache_key(prompt, llm_kwargs, model=model)
         hit = self._cache.get(key)
         if hit:
             hit = base64.b64decode(hit)
@@ -170,7 +194,7 @@ class LLM(ABC):
                 and hit.get("prompt") == RenderedPrompt(messages=prompt.messages)
                 and hit.get("prompt.response_format") == self._pickleable_response_format(prompt)
                 and hit.get("llm_kwargs") == llm_kwargs
-                and hit.get("model_name") == self._model_name
+                and hit.get("model_name") == model
                 and "result" in hit
             ), f"""
             Found LLM cache content mismatch:
@@ -178,37 +202,42 @@ class LLM(ABC):
             prompt={prompt}, cached={hit.get("prompt")}
                              cached_response_format={hit.get("prompt.response_format")}
             llm_kwargs={llm_kwargs}, cached={hit.get("llm_kwargs")}
-            model_name={self._model_name}, cached={hit.get("model_name")}
+            model_name={model}, cached={hit.get("model_name")}
             Complete hit: {hit}"""
             return hit.get("result")
         return None
 
-    def _llm_cache_set(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict], result: Any) -> None:
+    def _llm_cache_set(
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict], result: Any, model: Optional[str] = None
+    ) -> None:
         """Set a cached result for the given key."""
         if not self._use_caching(llm_kwargs):
             return
         assert self._cache is not None, "make mypy happy"
 
-        key = self._llm_cache_key(prompt, llm_kwargs)
+        model = model or self._model_name
+        llm_kwargs = llm_kwargs or {}
+        key = self._llm_cache_key(prompt, llm_kwargs, model=model)
         databytes = pickle.dumps(
             {
                 "prompt": RenderedPrompt(messages=prompt.messages),
                 "prompt.response_format": self._pickleable_response_format(prompt),
                 "llm_kwargs": llm_kwargs,
-                "model_name": self._model_name,
+                "model_name": model or self._model_name,
                 "result": result,
             }
         )
         datastr = base64.b64encode(databytes).decode("utf-8")
+        print(f"Cache set using {model=}")
         self._cache.set(
             key,
             datastr,
         )
 
-    def get_metadata(self, kwargs, response_text, wall_latency, in_tokens, out_tokens) -> dict:
+    def get_metadata(self, model, kwargs, response_text, wall_latency, in_tokens, out_tokens) -> dict:
         """Generate metadata for the LLM response."""
         return {
-            "model": self._model_name,
+            "model": model,
             "temperature": kwargs.get("temperature", None),
             "usage": {
                 "completion_tokens": out_tokens,
@@ -220,10 +249,13 @@ class LLM(ABC):
             "output": response_text,
         }
 
-    def add_llm_metadata(self, kwargs, output, wall_latency, in_tokens, out_tokens):
+    def add_llm_metadata(
+        self, kwargs, output, wall_latency, in_tokens, out_tokens, model: Optional[str] = None
+    ) -> None:
         tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
         if tls.present():
-            metadata = self.get_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
+            model = model or self._model_name
+            metadata = self.get_metadata(model, kwargs, output, wall_latency, in_tokens, out_tokens)
             add_metadata(**metadata)
 
 
@@ -241,8 +273,27 @@ class FakeLLM(LLM):
         super().__init__("trivial", cache=cache, default_mode=default_mode, default_llm_kwargs=default_llm_kwargs)
         self._return_value = return_value
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         return self._return_value
+
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
+        model_name = model.name if model else self._model_name
+        return {
+            "model": model_name,
+            "output": self._return_value,
+            "wall_latency": datetime.timedelta(seconds=0),
+            "in_tokens": 0,
+            "out_tokens": 0,
+        }
+
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
+        return self.generate(prompt=prompt, llm_kwargs=llm_kwargs)
 
     def is_chat_mode(self) -> bool:
         return False

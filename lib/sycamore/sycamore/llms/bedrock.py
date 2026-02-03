@@ -1,10 +1,11 @@
 import datetime
 import json
+import logging
 from typing import Any, Optional, Union
 
 from PIL import Image
 
-from sycamore.llms.config import BedrockModel, BedrockModels
+from sycamore.llms.config import BedrockModel, BedrockModels, LLMModel
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.anthropic import format_image, get_generate_kwargs
 from sycamore.llms.prompts.prompts import RenderedPrompt
@@ -12,6 +13,9 @@ from sycamore.utils.cache import Cache
 
 DEFAULT_MAX_TOKENS = 1000
 DEFAULT_ANTHROPIC_VERSION = "bedrock-2023-05-31"
+
+
+logger = logging.getLogger(__name__)
 
 
 class Bedrock(LLM):
@@ -24,7 +28,7 @@ class Bedrock(LLM):
 
     def __init__(
         self,
-        model_name: Union[BedrockModels, str],
+        model_name: Union[BedrockModels, BedrockModel, str],
         cache: Optional[Cache] = None,
         default_llm_kwargs: Optional[dict[str, Any]] = None,
     ):
@@ -34,8 +38,14 @@ class Bedrock(LLM):
 
         if isinstance(model_name, BedrockModels):
             self.model = model_name.value
+        elif isinstance(model_name, BedrockModel):
+            self.model = model_name
         elif isinstance(model_name, str):
-            self.model = BedrockModel(name=model_name)
+            self.model = BedrockModels.from_name(model_name).value
+            if self.model is None:
+                raise ValueError(f"Invalid model name: {model_name}")
+        else:
+            raise TypeError("model_name must be an instance of str, BedrockModel, or BedrockModels")
 
         self._client = boto3.client(service_name="bedrock-runtime")
         super().__init__(self.model.name, default_mode=LLMMode.SYNC, cache=cache, default_llm_kwargs=default_llm_kwargs)
@@ -56,17 +66,25 @@ class Bedrock(LLM):
             return format_image(image)
         raise NotImplementedError("Images not supported for non-Anthropic Bedrock models.")
 
-    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
+        assert model is None or isinstance(
+            model, BedrockModel
+        ), f"model must be a BedrockModel, got {type(model)} from {model=}"
+
+        if model is not None and model != self.model:
+            logger.info(f"Generating response using {model=} instead of {self.model=}")
+        model_name = model.name if model else self.model.name
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if isinstance(ret, dict):
-            print(f"cache return {ret}")
             return ret
         assert ret is None
 
         kwargs = get_generate_kwargs(prompt, llm_kwargs)
-        if self._model_name.startswith("anthropic."):
+        if "anthropic." in model_name:
             anthropic_version = (
                 DEFAULT_ANTHROPIC_VERSION
                 if llm_kwargs is None
@@ -77,7 +95,7 @@ class Bedrock(LLM):
         body = json.dumps(kwargs)
         start = datetime.datetime.now()
         response = self._client.invoke_model(
-            body=body, modelId=self.model.name, accept="application/json", contentType="application/json"
+            body=body, modelId=model_name, accept="application/json", contentType="application/json"
         )
         wall_latency = datetime.datetime.now() - start
         md = response["ResponseMetadata"]
@@ -89,16 +107,19 @@ class Bedrock(LLM):
         response_body = json.loads(response.get("body").read())
         output = response_body.get("content", {})[0].get("text", "")
         ret = {
+            "model": model_name,
             "output": output,
             "wall_latency": wall_latency,
             "server_latency": server_latency,
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }
-        self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
-        self._llm_cache_set(prompt, llm_kwargs, ret)
+        self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens, model=model_name)
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
+        d = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs)
         return d["output"]

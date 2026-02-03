@@ -17,9 +17,26 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def dict_to_document(doc: dict[str, Any]) -> Document:
+    doc_id = doc.get("doc_id")
+    assert doc_id is not None
+
+    elements = doc.get("elements", [])
+    document = Document(**doc)
+    document.doc_id = doc_id
+    document.data["elements"] = []
+    for i, json_element in enumerate(elements):
+        element = create_element(element_index=i, **json_element)
+        if (id := json_element.get("id")) is not None:
+            element.data["doc_id"] = id
+        document.data["elements"].append(element)
+    return document
+
+
 @dataclass
 class DocFilter:
     doc_ids: Optional[list[str]] = None
+    exclude: bool = False
     sample_ratio: Optional[float] = None
     seed: Optional[int] = None
 
@@ -31,7 +48,10 @@ class DocFilter:
 
     def select(self, doc_list: list[str]) -> list[str]:
         if self.doc_ids is not None:
-            return [doc_id for doc_id in doc_list if doc_id in self.doc_ids]
+            if not self.exclude:
+                return [doc_id for doc_id in doc_list if doc_id in self.doc_ids]
+            else:
+                return [doc_id for doc_id in doc_list if doc_id not in self.doc_ids]
         elif self.sample_ratio is not None:
             if self.seed is not None:
                 random.seed(self.seed)
@@ -53,9 +73,10 @@ class ArynClientParams(BaseDBReader.ClientParams):
 
 @dataclass
 class ArynQueryParams(BaseDBReader.QueryParams):
-    def __init__(self, docset_id: str, doc_filter: Optional[DocFilter] = None):
+    def __init__(self, docset_id: str, doc_filter: Optional[DocFilter] = None, use_original_elements: bool = False):
         self.docset_id = docset_id
         self.doc_filter = doc_filter
+        self.use_original_elements = use_original_elements
 
 
 class ArynQueryResponse(BaseDBReader.QueryResponse):
@@ -65,9 +86,7 @@ class ArynQueryResponse(BaseDBReader.QueryResponse):
     def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
         docs = []
         for doc in self.docs:
-            elements = doc.get("elements", [])
-            _doc = Document(**doc)
-            _doc.data["elements"] = [create_element(**element) for element in elements]
+            _doc = dict_to_document(doc)
             docs.append(_doc)
 
         return docs
@@ -88,11 +107,20 @@ class ArynReaderClient(BaseDBReader.Client):
         doc_list = self._client.list_docs(query_params.docset_id)
         if query_params.doc_filter is not None:
             doc_list = query_params.doc_filter.select(doc_list)
-        logger.debug(f"Found {doc_list} docs in docset: {query_params.docset_id}")
+
         for doc_id in doc_list:
-            docs.append(self._client.get_doc(query_params.docset_id, doc_id))
+            doc = self._client.get_doc(
+                query_params.docset_id, doc_id, include_original_elements=query_params.use_original_elements
+            )
+            doc["doc_id"] = doc_id
+            if query_params.use_original_elements:
+                if oe := doc["properties"]["_original_elements"]:
+                    doc["elements"] = oe
+                else:
+                    logger.warning(f"No original elements found for doc_id: {doc_id}")
+            docs.append(doc)
         t1 = time()
-        print(f"Reading took: {t1 - t0} seconds")
+        logger.info(f"Reading took: {t1 - t0} seconds")
         return ArynQueryResponse(docs)
 
     def check_target_presence(self, query_params: "BaseDBReader.QueryParams") -> bool:
@@ -128,15 +156,16 @@ class ArynReader(BaseDBReader):
         aryn_client = client._client
 
         doc_id = doc["doc_id"]
-        doc = aryn_client.get_doc(self._query_params.docset_id, doc["doc_id"])
-        elements = doc.get("elements", [])
-        document = Document(**doc)
-        document.doc_id = doc_id
-        document.data["elements"] = []
-        for json_element in elements:
-            element = create_element(**json_element)
-            element.data["doc_id"] = json_element["id"]
-            document.data["elements"].append(element)
+        doc = aryn_client.get_doc(
+            self._query_params.docset_id, doc_id, include_original_elements=self._query_params.use_original_elements
+        )
+        doc["doc_id"] = doc_id
+        if self._query_params.use_original_elements:
+            if oe := doc["properties"]["_original_elements"]:
+                doc["elements"] = oe
+            else:
+                logger.warning(f"No original elements found for doc_id: {doc_id}")
+        document = dict_to_document(doc)
         return {"doc": Document.serialize(document)}
 
     def execute(self, **kwargs) -> "Dataset":

@@ -1,6 +1,6 @@
 from typing import Any
 import json
-from sycamore.schema import DataType
+from sycamore.datatype import DataType
 from sycamore.transforms.property_extraction.types import RichProperty
 
 

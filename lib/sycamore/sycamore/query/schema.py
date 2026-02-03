@@ -2,7 +2,9 @@ import logging
 import typing
 from typing import Dict, Optional
 from pydantic import BaseModel
-from sycamore.schema import DataType, make_named_property, Schema, SchemaField, SchemaV2
+
+from sycamore.datatype import DataType
+from sycamore.schema import make_named_property, Schema, SchemaField, SchemaV2
 
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.data import OpenSearchQuery

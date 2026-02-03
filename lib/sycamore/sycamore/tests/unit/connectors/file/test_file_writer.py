@@ -1,8 +1,10 @@
 import glob
 import json
 import tempfile
+from datetime import datetime
 
 import sycamore
+from sycamore.data import Document
 from sycamore.tests.config import TEST_DIR
 
 # To re-generate the input file, change the False to True, and in the root directory, run
@@ -41,3 +43,14 @@ def impl_test_json_bytes_with_bbox_image(exec_mode):
 
 def test_json_bytes_with_bbox_image():
     impl_test_json_bytes_with_bbox_image(sycamore.EXEC_LOCAL)
+
+
+def test_doc_with_dates(exec_mode):
+    with tempfile.TemporaryDirectory() as tempdir:
+        doc = Document()
+        doc.properties["d"] = datetime.now()
+        try:
+            sycamore.init(exec_mode=exec_mode).read.document([doc]).write.json(path=tempdir)
+            assert True
+        except TypeError:
+            assert False

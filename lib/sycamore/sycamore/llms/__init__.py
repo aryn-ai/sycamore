@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Callable, Dict
 
 from sycamore.llms.llms import LLM
@@ -30,27 +31,13 @@ def OpenAITrampoline(name, **kwargs):
 
 # Register the model constructors.
 MODELS: Dict[str, Callable[..., LLM]] = {}
+MODELS.update({f"openai.{model.value.name}": partial(OpenAITrampoline, model.value.name) for model in OpenAIModels})
+
+MODELS.update({f"bedrock.{model.value.name}": partial(BedrockTrampoline, model.value.name) for model in BedrockModels})
 MODELS.update(
-    {
-        f"openai.{model.value.name}": lambda **kwargs: OpenAITrampoline(model.value.name, **kwargs)
-        for model in OpenAIModels
-    }
+    {f"anthropic.{model.value.name}": partial(AnthropicTrampoline, model.value.name) for model in AnthropicModels}
 )
-MODELS.update(
-    {
-        f"bedrock.{model.value.name}": lambda **kwargs: BedrockTrampoline(model.value.name, **kwargs)
-        for model in BedrockModels
-    }
-)
-MODELS.update(
-    {
-        f"anthropic.{model.value}": lambda **kwargs: AnthropicTrampoline(model.value, **kwargs)
-        for model in AnthropicModels
-    }
-)
-MODELS.update(
-    {f"gemini.{model.value}": lambda **kwargs: GeminiTrampoline(model.value.name, **kwargs) for model in GeminiModels}
-)
+MODELS.update({f"gemini.{model.value.name}": partial(GeminiTrampoline, model.value.name) for model in GeminiModels})
 
 
 def get_llm(model_name: str) -> Callable[..., LLM]:

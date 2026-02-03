@@ -6,13 +6,16 @@ import io
 
 from google.api_core import retry, retry_async
 
-from sycamore.llms.config import GeminiModel, GeminiModels
+from sycamore.llms.config import GeminiModel, GeminiModels, LLMModel
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.import_utils import requires_modules
 
 logger = logging.getLogger(__name__)
+
+# Base URL for Helicone API, if configured using the SYCAMORE_HELICONE_API_KEY environment variable.
+HELICONE_BASE_URL = "https://gateway.helicone.ai"
 
 
 def gemini_deserializer(kwargs):
@@ -30,22 +33,45 @@ class Gemini(LLM):
     @requires_modules("google.genai", extra="google-genai")
     def __init__(
         self,
-        model_name: Union[GeminiModels, str],
+        model_name: Union[GeminiModels, GeminiModel, str],
         default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
         api_key: Optional[str] = None,
         default_llm_kwargs: Optional[dict[str, Any]] = None,
+        disable_helicone: bool = True,
     ):
         from google.genai import Client
+        from google.genai.types import HttpOptionsDict
 
-        self.model_name = model_name
+        self.model_name = model_name  # Is this supposed to a string?
 
         if isinstance(model_name, GeminiModels):
             self.model = model_name.value
+        elif isinstance(model_name, GeminiModel):
+            self.model = model_name
         elif isinstance(model_name, str):
-            self.model = GeminiModel(name=model_name)
+            self.model = GeminiModels.from_name(model_name).value
+            if self.model is None:
+                raise ValueError(f"Invalid model name: {model_name}")
+        else:
+            raise TypeError("model_name must be an instance of str, GeminiAIModel, or GeminiAIModels")
+
         api_key = api_key if api_key else os.getenv("GEMINI_API_KEY")
-        self._client = Client(api_key=api_key)
+        # Helicone implementation from https://docs.helicone.ai/integrations/gemini/api/python
+        http_options: Optional[HttpOptionsDict] = None
+        if not disable_helicone and "SYCAMORE_HELICONE_API_KEY" in os.environ:
+            http_options = {
+                "base_url": HELICONE_BASE_URL,
+                "headers": {
+                    "helicone-auth": f"Bearer {os.environ['SYCAMORE_HELICONE_API_KEY']}",
+                    "helicone-target-url": "https://generativelanguage.googleapis.com",
+                },
+            }
+            if "SYCAMORE_HELICONE_TAG" in os.environ:
+                assert http_options["headers"] is not None, "type checking, unreachable"
+                http_options["headers"].update({"Helicone-Property-Tag": os.environ["SYCAMORE_HELICONE_TAG"]})
+
+        self._client = Client(api_key=api_key, http_options=http_options)
         super().__init__(self.model.name, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
     def __reduce__(self):
@@ -69,7 +95,6 @@ class Gemini(LLM):
     def get_generate_kwargs(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
         from google.genai import types
 
-        kwargs: dict[str, Any] = {}
         config = {
             "temperature": 0,
             "candidate_count": 1,
@@ -93,38 +118,61 @@ class Gemini(LLM):
                     assert content.parts is not None  # mypy
                     content.parts.append(types.Part.from_bytes(data=image_bytes, mime_type="image/png"))
             content_list.append(content)
-        kwargs["config"] = None
+
         if thinking_budget := config.pop("thinking_budget", None):
             config["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
-        if config:
-            kwargs["config"] = types.GenerateContentConfig(**config)
-        kwargs["content"] = content_list
-        return kwargs
+        if thinking_level := config.pop("thinking_level", None):
+            if "thinking_config" in config:
+                logger.warning(f"Thinking level {thinking_level} overrides thinking budget {thinking_budget}")
+            config["thinking_config"] = types.ThinkingConfig(thinking_level=types.ThinkingLevel(thinking_level))
 
-    def _metadata_from_response(self, kwargs, response, starttime) -> dict:
+        return {
+            "config": types.GenerateContentConfig(**config),
+            "content": content_list,
+        }
+
+    def _metadata_from_response(self, model: str, kwargs, response, starttime) -> dict:
         wall_latency = datetime.datetime.now() - starttime
         md = response.usage_metadata
         in_tokens = int(md.prompt_token_count) if md and md.prompt_token_count else 0
         out_tokens = int(md.candidates_token_count) if md and md.candidates_token_count else 0
-        output = " ".join(part.text if part else "" for part in response.candidates[0].content.parts)
+        reason = response.candidates[0].finish_reason
         from google.genai.types import FinishReason
 
-        reason = response.candidates[0].finish_reason
         if reason != FinishReason.STOP:
-            logger.warning(f"Gemini model stopped for unexpected reason {reason}. Full response:\n{response}")
+            logger.warning(
+                f"Gemini model stopped for unexpected reason {reason}. Kwargs: {kwargs}. Full response:\n{response}"
+            )
+        if response.candidates[0].content is None or response.candidates[0].content.parts is None:
+            import json
+
+            logger.debug(f"Gemini model returned no content: {json.dumps(response.model_dump(), indent=4)}")
+            output = ""
+        else:
+            output = " ".join(part.text if part else "" for part in response.candidates[0].content.parts)
+
         ret = {
+            "model": model,
             "output": output,
             "wall_latency": wall_latency,
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }
-        self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
+        self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens, model=model)
         return ret
 
-    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+    def generate_metadata(
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+    ) -> dict:
+        assert model is None or isinstance(
+            model, GeminiModel
+        ), f"model must be a GeminiModel, got {type(model)} from {model=}"
+        if model is not None and model != self.model:
+            logger.warning(f"Generating response using {model=} instead of {self.model=}")
+        model_name = model.name if model else self.model.name
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
 
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if isinstance(ret, dict):
             return ret
         assert ret is None
@@ -132,19 +180,26 @@ class Gemini(LLM):
         kwargs = self.get_generate_kwargs(prompt, llm_kwargs)
 
         start = datetime.datetime.now()
-        response = self.generate_content(model=self.model.name, contents=kwargs["content"], config=kwargs["config"])
-        ret = self._metadata_from_response(kwargs, response, start)
-        self._llm_cache_set(prompt, llm_kwargs, ret)
+        response = self.generate_content(model=model_name, contents=kwargs["content"], config=kwargs["config"])
+        ret = self._metadata_from_response(model_name, kwargs, response, start)
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret
 
-    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
-        d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
+    def generate(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
+        d = self.generate_metadata(prompt=prompt, model=model, llm_kwargs=llm_kwargs)
         return d["output"]
 
-    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+    async def generate_async(
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+    ) -> str:
         llm_kwargs = self._merge_llm_kwargs(llm_kwargs)
+        model_name = model.name if model else self.model.name
+        if self.model.name != model_name:
+            logger.info(f"Overriding Gemini model from {self.model.name} to {model_name}")
 
-        ret = self._llm_cache_get(prompt, llm_kwargs)
+        ret = self._llm_cache_get(prompt, llm_kwargs, model=model_name)
         if isinstance(ret, dict):
             return ret["output"]
         assert ret is None
@@ -153,10 +208,10 @@ class Gemini(LLM):
 
         start = datetime.datetime.now()
         response = await self.generate_content_async(
-            model=self.model.name, contents=kwargs["content"], config=kwargs["config"]
+            model=model_name, contents=kwargs["content"], config=kwargs["config"]
         )
-        ret = self._metadata_from_response(kwargs, response, start)
-        self._llm_cache_set(prompt, llm_kwargs, ret)
+        ret = self._metadata_from_response(model_name, kwargs, response, start)
+        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret["output"]
 
     @retry.Retry(
@@ -176,5 +231,5 @@ class Gemini(LLM):
         multiplier=2.0,
         timeout=120.0,
     )
-    async def generate_content_async(self, model, contents, config):
+    async def generate_content_async(self, model: str, contents, config):
         return await self._client.aio.models.generate_content(model=model, contents=contents, config=config)

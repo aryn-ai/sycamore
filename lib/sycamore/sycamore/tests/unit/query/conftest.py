@@ -53,6 +53,7 @@ class MockDocSetReader(DocSetReader):
 
     @context_params
     def opensearch(self, os_client_args: dict, index_name: str, query: Optional[Dict] = None, **kwargs) -> DocSet:
+        self.kwargs = kwargs
         client_params = OpenSearchReaderClientParams(os_client_args=os_client_args)
         query_params = (
             OpenSearchReaderQueryParams(index_name=index_name, query=query)

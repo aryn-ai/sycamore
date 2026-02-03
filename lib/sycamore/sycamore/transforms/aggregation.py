@@ -46,6 +46,11 @@ class AggregationNode(UnaryNode):
 
         dataset = self.child().execute()
 
+        # TODO: the typing on AggregateFnV2.finalize is weird. It returns AccumulatorType, but
+        # calls the return type Optional[AggOutputType] which implies that
+        # AccumulatorType = Optional[AggOutputType] in which case we would only
+        # need a single generic type.  eric@ was unable to get type annotations to
+        # work for RayAggregation:finalize
         class RayAggregation(AggregateFnV2):
             def __init__(
                 self,
@@ -80,7 +85,7 @@ class AggregationNode(UnaryNode):
                 meta.extend(extra_metadata)
                 return {"doc": partial_result.serialize(), "key": key, "meta": pickle.dumps(meta)}
 
-            def combine(self, current_accumulator, new):
+            def combine(self, current_accumulator, new) -> dict:
                 assert current_accumulator["key"] == new["key"]
                 row1 = {"doc": current_accumulator["doc"]}
                 row2 = {"doc": new["doc"]}

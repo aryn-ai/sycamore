@@ -8,7 +8,7 @@ from io import StringIO
 from typing import Generator, Optional
 
 from sycamore.data import Element
-from sycamore.utils.bbox_sort import bbox_sort_page  # for fallback
+from sycamore.utils.bbox_sort import SortOptions, bbox_sort_page  # for fallback
 
 ElemList = list[Element]
 BeginEndList = list[tuple[float, int, Element]]
@@ -216,7 +216,7 @@ def choose_axis(elems: ElemList) -> Optional[tuple[int, BeginEndList, Element]]:
         return (XAXIS, xorder, xe)
 
 
-def cleave_elems(elems: ElemList, left_to_right: bool) -> NodeLeaf:
+def cleave_elems(elems: ElemList, sort_options: SortOptions) -> NodeLeaf:
     """Binary split across widest gap."""
     node = NodeLeaf()
     split_axis: Optional[int] = None
@@ -232,28 +232,30 @@ def cleave_elems(elems: ElemList, left_to_right: bool) -> NodeLeaf:
                 if elem == cut_after:
                     node.advance()
     node = node.finalize()
-    if (split_axis == XAXIS) and (not left_to_right) and (len(node.elists) > 1):
+    if (split_axis == XAXIS) and (not sort_options.left_to_right) and (len(node.elists) > 1):
         node.elists.reverse()
     return node
 
 
-def divide_node(node: NodeLeaf, left_to_right: bool) -> NodeInner:
+def divide_node(node: NodeLeaf, sort_options: SortOptions) -> NodeInner:
     """Return replacement Node.  Assume input is leaf."""
     inner = NodeInner()
     for elist in node.elists:
-        subnode = cleave_elems(elist, left_to_right)
+        subnode = cleave_elems(elist, sort_options)
         if DEBUG:
             print("....................")
             print(subnode)
             print("^^^^^^^^^^^^^^^^^^^^")
         if subnode.cansplit():
-            inner.append(divide_node(subnode, left_to_right))  # recursive step
+            inner.append(divide_node(subnode, sort_options))  # recursive step
         else:
             inner.append(subnode)
     return inner
 
 
-def xycut_sort_page(elems: ElemList, *, left_to_right: bool = True) -> None:
+def xycut_sort_page(elems: ElemList, *, sort_options: Optional[SortOptions] = None) -> None:
+    if sort_options is None:
+        sort_options = SortOptions()
     if len(elems) < 2:
         return
     flat = NodeLeaf()
@@ -262,11 +264,11 @@ def xycut_sort_page(elems: ElemList, *, left_to_right: bool = True) -> None:
         print("VVVVVVVVVVVVVVVVVVVV")
         print(flat)
         print("AAAAAAAAAAAAAAAAAAAA")
-    tree = divide_node(flat, left_to_right)
+    tree = divide_node(flat, sort_options)
     if (len(tree.nodes) == 1) and isinstance(tree.nodes[0], NodeLeaf) and (len(tree.nodes[0].elists) == 1):
         # If we didn't make any cuts, fall back to old algorithm
         if DEBUG:
             print("Falling back to bbox_sort")
-        bbox_sort_page(elems, left_to_right=left_to_right)
+        bbox_sort_page(elems, sort_options=sort_options)
         return
     elems[:] = tree.to_elems()  # replace contents of list

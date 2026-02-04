@@ -47,11 +47,11 @@ def test_page_basic() -> None:
     e3 = mkElem(0.60, 0.65, 0.90, 0.85)
     e4 = mkElem(0.15, 0.10, 0.85, 0.15)
     elems = [e0, e1, e2, e3, e4]
-    xycut_sort_page(elems, reading_direction="ltr")
+    xycut_sort_page(elems, left_to_right=True)
     answer = [e4, e1, e2, e0, e3]
     assert elems == answer
 
-    xycut_sort_page(elems, reading_direction="rtl")
+    xycut_sort_page(elems, left_to_right=False)
     rtl_answer = [e4, e0, e3, e1, e2]
     assert elems == rtl_answer
 
@@ -82,7 +82,7 @@ def test_elements_basic() -> None:
     assert elems == answer
     assert_element_index_sorted(elems)
 
-    sort_elements(elems, mode="xycut", reading_direction="rtl")
+    sort_elements(elems, mode="xycut", left_to_right=False)
     answer_rtl = [e3, e6, e4, e5, e7, e8, e9, e1, e2, e0]
 
     assert elems == answer_rtl
@@ -103,7 +103,7 @@ def test_document_basic() -> None:
     assert doc.elements == answer
     assert_element_index_sorted(doc.elements)
 
-    sort_document(doc, mode=xycut_sort_page, reading_direction="rtl")
+    sort_document(doc, mode=xycut_sort_page, left_to_right=False)
     answer_rtl = [e3, e2, e5, e4, e1, e0]
     assert doc.elements == answer_rtl
     assert_element_index_sorted(doc.elements)
@@ -126,7 +126,7 @@ def test_page_footer() -> None:
     answer = [e4, e1, e2, e0, e3, e5]
     assert elems == answer
 
-    xycut_sort_page(elems, reading_direction="rtl")
+    xycut_sort_page(elems, left_to_right=False)
     answer_rtl = [e4, e0, e3, e1, e2, e5]
     assert elems == answer_rtl
 
@@ -142,7 +142,7 @@ def test_no_cut() -> None:
     answer = [e3, e1, e0, e2]  # what bbox_sort gives
     assert elems == answer
 
-    xycut_sort_page(elems, reading_direction="rtl")
+    xycut_sort_page(elems, left_to_right=False)
     answer = [e2, e0, e3, e1]  # what bbox_sort gives
     assert elems == answer
 
@@ -154,7 +154,7 @@ def test_page_basic_rtl() -> None:
     e3 = mkElem(0.60, 0.65, 0.90, 0.85)
     e4 = mkElem(0.15, 0.10, 0.85, 0.15)
     elems = [e0, e1, e2, e3, e4]
-    xycut_sort_page(elems, reading_direction="rtl")
+    xycut_sort_page(elems, left_to_right=False)
     answer = [e4, e0, e3, e1, e2]
     assert elems == answer
 
@@ -165,7 +165,7 @@ def test_no_cut_rtl() -> None:
     e2 = mkElem(0.70, 0.10, 0.90, 0.60)
     e3 = mkElem(0.10, 0.10, 0.60, 0.30)
     elems = [e0, e1, e2, e3]
-    xycut_sort_page(elems, reading_direction="rtl")
+    xycut_sort_page(elems, left_to_right=False)
     answer = [e2, e0, e3, e1]
     assert elems == answer
 
@@ -180,7 +180,7 @@ def test_sort_elements_rtl() -> None:
     e6 = mkElem(0.10, 0.20, 0.35, 0.40, 2)
 
     elems = [e3, e6, e1, e2, e5, e4, e0]
-    sort_elements(elems, mode="xycut", reading_direction="rtl")
+    sort_elements(elems, mode="xycut", left_to_right=False)
     answer = [e0, e2, e1, e3, e4, e5, e6]
     assert elems == answer
     assert_element_index_sorted(elems)

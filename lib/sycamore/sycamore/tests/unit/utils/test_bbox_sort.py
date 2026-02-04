@@ -81,7 +81,7 @@ def test_page_basic_rtl() -> None:
     e3 = mkElem(0.58, 0.51, 0.90, 0.85)
     e4 = mkElem(0.15, 0.10, 0.85, 0.15)
     elems = [e0, e1, e2, e3, e4]
-    bbox_sort_page(elems, reading_direction="rtl")
+    bbox_sort_page(elems, left_to_right=False)
     answer = [e4, e0, e3, e1, e2]
     assert elems == answer
 
@@ -117,7 +117,7 @@ def test_sort_elements_rtl_bbox() -> None:
     e2 = mkElem(0.70, 0.35, 0.90, 0.55, 1)
     e3 = mkElem(0.10, 0.35, 0.30, 0.55, 1)
     elems = [e1, e2, e3, e0]
-    sort_elements(elems, mode="bbox", reading_direction="rtl")
+    sort_elements(elems, mode="bbox", left_to_right=False)
     answer = [e0, e2, e1, e3]
     assert elems == answer
     assert_element_index_sorted(elems)
@@ -145,7 +145,7 @@ def test_document_rtl_bbox() -> None:
     e2 = mkElem(0.65, 0.55, 0.90, 0.70, 2)
     e3 = mkElem(0.15, 0.55, 0.35, 0.70, 2)
     doc.elements = [e1, e3, e0, e2]
-    sort_document(doc, mode="bbox", reading_direction="rtl")
+    sort_document(doc, mode="bbox", left_to_right=False)
     answer = [e0, e1, e2, e3]
     assert doc.elements == answer
     assert_element_index_sorted(doc.elements)

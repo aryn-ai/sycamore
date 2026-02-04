@@ -2,15 +2,15 @@ from typing import Optional, Union, Protocol
 
 from sycamore.data import Document, Element
 from sycamore.data.document import DocumentPropertyTypes
-from sycamore.utils.bbox_sort import bbox_sort_page, ReadingDirection
+from sycamore.utils.bbox_sort import bbox_sort_page
 from sycamore.utils.xycut import xycut_sort_page
 
 
 class PageSorter(Protocol):
-    def __call__(self, elems: list[Element], *, reading_direction: ReadingDirection = "ltr") -> None: ...
+    def __call__(self, elems: list[Element], *, left_to_right: bool = True) -> None: ...
 
 
-def nop_page(elems: list[Element], *, reading_direction: ReadingDirection = "ltr") -> None:  # noqa: ARG001
+def nop_page(elems: list[Element], *, left_to_right: bool = True) -> None:  # noqa: ARG001
     pass
 
 
@@ -49,25 +49,23 @@ def collect_pages(elems: list[Element]) -> list[list[Element]]:
 SortSpec = Union[Optional[str], PageSorter]
 
 
-def sort_page(elems: list[Element], *, mode: SortSpec = None, reading_direction: ReadingDirection = "ltr") -> None:
+def sort_page(elems: list[Element], *, mode: SortSpec = None, left_to_right: bool = True) -> None:
     if callable(mode):
-        mode(elems, reading_direction=reading_direction)
+        mode(elems, left_to_right=left_to_right)
     else:
         func = PAGE_SORT[mode]
-        func(elems, reading_direction=reading_direction)
+        func(elems, left_to_right=left_to_right)
 
 
-def sort_elements(
-    elements: list[Element], *, mode: SortSpec = None, reading_direction: ReadingDirection = "ltr"
-) -> None:
+def sort_elements(elements: list[Element], *, mode: SortSpec = None, left_to_right: bool = True) -> None:
     pages = collect_pages(elements)
     for page in pages:
-        sort_page(page, mode=mode, reading_direction=reading_direction)
+        sort_page(page, mode=mode, left_to_right=left_to_right)
     ordered = [elem for elems in pages for elem in elems]  # flatten
     for idx, elem in enumerate(ordered):
         elem.element_index = idx
     elements[:] = ordered  # replace contents
 
 
-def sort_document(doc: Document, *, mode: SortSpec = None, reading_direction: ReadingDirection = "ltr") -> None:
-    sort_elements(doc.elements, mode=mode, reading_direction=reading_direction)
+def sort_document(doc: Document, *, mode: SortSpec = None, left_to_right: bool = True) -> None:
+    sort_elements(doc.elements, mode=mode, left_to_right=left_to_right)

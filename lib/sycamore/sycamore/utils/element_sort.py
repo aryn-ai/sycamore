@@ -1,19 +1,16 @@
-from typing import Optional, Union, Literal, Protocol
+from typing import Optional, Union, Protocol
 
 from sycamore.data import Document, Element
 from sycamore.data.document import DocumentPropertyTypes
-from sycamore.utils.bbox_sort import bbox_sort_page
+from sycamore.utils.bbox_sort import bbox_sort_page, ReadingDirection
 from sycamore.utils.xycut import xycut_sort_page
-
-
-ReadingDirection = Literal["ltr", "rtl"]
 
 
 class PageSorter(Protocol):
     def __call__(self, elems: list[Element], *, reading_direction: ReadingDirection = "ltr") -> None: ...
 
 
-def nop_page(p: list[Element], *, reading_direction: ReadingDirection = "ltr") -> None:  # noqa: ARG001
+def nop_page(elems: list[Element], *, reading_direction: ReadingDirection = "ltr") -> None:  # noqa: ARG001
     pass
 
 

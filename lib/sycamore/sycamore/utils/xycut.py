@@ -5,14 +5,13 @@ Best to access this through element_sort.py
 """
 
 from io import StringIO
-from typing import Generator, Literal, Optional
+from typing import Generator, Optional
 
 from sycamore.data import Element
-from sycamore.utils.bbox_sort import bbox_sort_page  # for fallback
+from sycamore.utils.bbox_sort import bbox_sort_page, ReadingDirection  # for fallback
 
 ElemList = list[Element]
 BeginEndList = list[tuple[float, int, Element]]
-ReadingDirection = Literal["ltr", "rtl"]
 
 XAXIS = 0  # bbox[0] and bbox[2] are x
 YAXIS = 1  # bbox[1] and bbox[3] are y

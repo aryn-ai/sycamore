@@ -1,8 +1,12 @@
 from typing import Any, Optional
 
 from sycamore.data import Document, Element
+from sycamore.utils.bbox_sort import SortOptions
 from sycamore.utils.xycut import xycut_sort_page
 from sycamore.utils.element_sort import sort_elements, sort_document
+
+from sycamore.utils.image_utils import try_draw_boxes
+from PIL import Image
 
 
 def mkElem(
@@ -12,6 +16,26 @@ def mkElem(
     if page is not None:
         d["properties"] = {"page_number": page}
     return Element(d)
+
+
+def text_fn_offset(offset: int):
+    def text_fn(box, index) -> str:
+        return str(index + offset)
+
+    return text_fn
+
+
+def show_res(sorted):
+    from itertools import groupby
+
+    offset = 0
+
+    for k, g in groupby(sorted, key=lambda e: e.data.get("properties", {}).get("page_number", 0)):
+        lst = list(g)
+        img = Image.new("RGB", (1000, 1000), "white")
+        try_draw_boxes(img, lst)
+        offset += len(lst)
+        img.show()
 
 
 def test_page_basic() -> None:
@@ -24,9 +48,13 @@ def test_page_basic() -> None:
     e3 = mkElem(0.60, 0.65, 0.90, 0.85)
     e4 = mkElem(0.15, 0.10, 0.85, 0.15)
     elems = [e0, e1, e2, e3, e4]
-    xycut_sort_page(elems)
+    xycut_sort_page(elems, sort_options=SortOptions(left_to_right=True))
     answer = [e4, e1, e2, e0, e3]
     assert elems == answer
+
+    xycut_sort_page(elems, sort_options=SortOptions(left_to_right=False))
+    rtl_answer = [e4, e0, e3, e1, e2]
+    assert elems == rtl_answer
 
 
 def test_elements_basic() -> None:
@@ -48,9 +76,17 @@ def test_elements_basic() -> None:
     e9 = mkElem(0.20, 0.21, 0.90, 0.41, 2)
 
     elems = [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9]
+
     sort_elements(elems, mode="xycut")
     answer = [e4, e5, e3, e6, e7, e8, e9, e1, e0, e2]
+
     assert elems == answer
+    assert_element_index_sorted(elems)
+
+    sort_elements(elems, mode="xycut", sort_options=SortOptions(left_to_right=False))
+    answer_rtl = [e3, e6, e4, e5, e7, e8, e9, e1, e2, e0]
+
+    assert elems == answer_rtl
     assert_element_index_sorted(elems)
 
 
@@ -68,6 +104,11 @@ def test_document_basic() -> None:
     assert doc.elements == answer
     assert_element_index_sorted(doc.elements)
 
+    sort_document(doc, mode=xycut_sort_page, sort_options=SortOptions(left_to_right=False))
+    answer_rtl = [e3, e2, e5, e4, e1, e0]
+    assert doc.elements == answer_rtl
+    assert_element_index_sorted(doc.elements)
+
 
 def test_page_footer() -> None:
     # e1, e2 in left  column, e1.top < e2.top
@@ -81,9 +122,14 @@ def test_page_footer() -> None:
     e4 = mkElem(0.15, 0.10, 0.85, 0.15)
     e5 = mkElem(0.25, 0.95, 0.75, 1.0, type="Page-footer")
     elems = [e0, e1, e2, e3, e4, e5]
+
     xycut_sort_page(elems)
     answer = [e4, e1, e2, e0, e3, e5]
     assert elems == answer
+
+    xycut_sort_page(elems, sort_options=SortOptions(left_to_right=False))
+    answer_rtl = [e4, e0, e3, e1, e2, e5]
+    assert elems == answer_rtl
 
 
 def test_no_cut() -> None:
@@ -92,9 +138,53 @@ def test_no_cut() -> None:
     e2 = mkElem(0.70, 0.10, 0.90, 0.60)
     e3 = mkElem(0.10, 0.10, 0.60, 0.30)
     elems = [e0, e1, e2, e3]
+
     xycut_sort_page(elems)
     answer = [e3, e1, e0, e2]  # what bbox_sort gives
     assert elems == answer
+
+    xycut_sort_page(elems, sort_options=SortOptions(left_to_right=False))
+    answer = [e2, e0, e3, e1]  # what bbox_sort gives
+    assert elems == answer
+
+
+def test_page_basic_rtl() -> None:
+    e0 = mkElem(0.59, 0.25, 0.90, 0.60)
+    e1 = mkElem(0.10, 0.26, 0.40, 0.51)
+    e2 = mkElem(0.10, 0.58, 0.40, 0.90)
+    e3 = mkElem(0.60, 0.65, 0.90, 0.85)
+    e4 = mkElem(0.15, 0.10, 0.85, 0.15)
+    elems = [e0, e1, e2, e3, e4]
+    xycut_sort_page(elems, sort_options=SortOptions(left_to_right=False))
+    answer = [e4, e0, e3, e1, e2]
+    assert elems == answer
+
+
+def test_no_cut_rtl() -> None:
+    e0 = mkElem(0.40, 0.70, 0.90, 0.90)
+    e1 = mkElem(0.10, 0.40, 0.30, 0.90)
+    e2 = mkElem(0.70, 0.10, 0.90, 0.60)
+    e3 = mkElem(0.10, 0.10, 0.60, 0.30)
+    elems = [e0, e1, e2, e3]
+    xycut_sort_page(elems, sort_options=SortOptions(left_to_right=False))
+    answer = [e2, e0, e3, e1]
+    assert elems == answer
+
+
+def test_sort_elements_rtl() -> None:
+    e0 = mkElem(0.70, 0.15, 0.90, 0.35, 1)
+    e1 = mkElem(0.10, 0.15, 0.30, 0.35, 1)
+    e2 = mkElem(0.70, 0.40, 0.90, 0.60, 1)
+    e3 = mkElem(0.10, 0.40, 0.30, 0.60, 1)
+    e4 = mkElem(0.10, 0.05, 0.90, 0.10, 2)
+    e5 = mkElem(0.65, 0.20, 0.90, 0.40, 2)
+    e6 = mkElem(0.10, 0.20, 0.35, 0.40, 2)
+
+    elems = [e3, e6, e1, e2, e5, e4, e0]
+    sort_elements(elems, mode="xycut", sort_options=SortOptions(left_to_right=False))
+    answer = [e0, e2, e1, e3, e4, e5, e6]
+    assert elems == answer
+    assert_element_index_sorted(elems)
 
 
 # bbox coordinates and reading order from page 9 of

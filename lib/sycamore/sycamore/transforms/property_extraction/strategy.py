@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Iterable, Any
 from pydantic import BaseModel
@@ -118,7 +119,11 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
                         if prop.type.item_type.type in (DataType.ARRAY, DataType.OBJECT):
                             combined = ef.value + nf.value
                         else:
-                            combined = self.dedup_rp_array(ef.value + nf.value)
+                            if isinstance(ef.value, list) and isinstance(nf.value, list) and ef.value is not None and nf.value is not None:
+                                combined = self.dedup_rp_array(ef.value + nf.value)
+                            else:
+                                logging.warning(f"Unexpected values: {ef.value}, {nf.value}.  Can't combine these.")
+                                combined = ef.value
                         out_p.value[k] = RichProperty(value=combined, type=DataType.ARRAY, name=ef.name)
                         nf.value = []
                         ef.value = []
@@ -188,6 +193,8 @@ class TakeFirstTrimSchema(SchemaUpdateStrategy):
     def dedup_rp_array(self, rp_list: list[RichProperty]) -> list[RichProperty]:
         rp_map: dict[Any, RichProperty] = {}
         for rp in rp_list:
+            if rp.value is None:
+                continue
             if rp.value not in rp_map:
                 rp_map[rp.value] = rp
             else:

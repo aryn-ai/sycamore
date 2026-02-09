@@ -1,4 +1,5 @@
-from typing import Optional, Any, Protocol
+from datetime import timedelta
+from typing import Optional, Any, Protocol, Callable
 import asyncio
 import logging
 import json
@@ -61,9 +62,13 @@ class SerialBatches(ProcessingMode):
     ) -> dict[str, RichProperty]:
 
         for elements in extract_node._step_through.step_through(document):
-            update = await extract_node.extract_schema_partition_from_element_batch(
-                document, elements, schema_part, result_dict, llm
-            )
+            try:
+                update = await extract_node.extract_schema_partition_from_element_batch(
+                    document, elements, schema_part, result_dict, llm
+                )
+            except Exception as e:
+                logging.error(f"Failed to extract schema on {elements}.  Skipping to next batch.")
+                continue
             result_dict = update.out_fields
             schema_part = update.out_schema
             if update.completed:
@@ -155,7 +160,6 @@ class Extract(MapBatch):
         self._output_pydantic = output_pydantic_models
         self._attribution = attribution_strategy
         self._batches = batch_processing_mode
-
         self._prediction_mode: PredictionMode
         if isinstance(llm, LLM):
             self._prediction_mode = BasicPredictionMode(llm=llm)
@@ -264,7 +268,9 @@ class Extract(MapBatch):
                     _logger.exception(f"Failed to get a valid JSON response: {e}")
                     retries += 1
 
-            assert rp is not None, f"Failed to get a valid JSON response after {retries} calls."
+            if rp is None:
+                rd = {}
+                rp = self._attribution.prediction_to_rich_property(rd)
 
             for k, (v_new, v_work, prop), (p_new, p_work, prop_p) in zip_traverse(
                 rp, working_results, sch.as_object_property(), order="before"

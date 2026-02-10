@@ -460,7 +460,6 @@ class JsonDocumentScan(FileScan):
             import pyarrow
 
             buffer: pyarrow.lib.Buffer = file.read_buffer()
-            max_block_size = 100 * 1024 * 1024
             table = pyjson.read_json(BytesIO(buffer), read_options=self.read_options)
             rows = table.to_pylist()
             docs = [Document(row) for row in rows]

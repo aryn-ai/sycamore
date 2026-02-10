@@ -116,7 +116,7 @@ class Anthropic(LLM):
         default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
         default_llm_kwargs: Optional[dict[str, Any]] = None,
-        client_args: Optional[dict[str, Any]] = {},
+        client_args: dict[str, Any] = {},
     ):
 
         # We import this here so we can share utility code with the Bedrock

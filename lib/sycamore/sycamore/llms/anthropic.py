@@ -116,6 +116,7 @@ class Anthropic(LLM):
         default_mode: LLMMode = LLMMode.ASYNC,
         cache: Optional[Cache] = None,
         default_llm_kwargs: Optional[dict[str, Any]] = None,
+        client_args: dict[str, Any] = {},
     ):
 
         # We import this here so we can share utility code with the Bedrock
@@ -135,8 +136,8 @@ class Anthropic(LLM):
                 raise ValueError(f"Invalid model name: {model_name}")
             self.model = model.value
 
-        self._client = AnthropicClient()
-        self._async_client = AsyncAnthropicClient()
+        self._client = AnthropicClient(**client_args)
+        self._async_client = AsyncAnthropicClient(**client_args)
         super().__init__(self.model.name, default_mode, cache, default_llm_kwargs=default_llm_kwargs)
 
     def __reduce__(self):

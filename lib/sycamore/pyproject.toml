@@ -85,7 +85,6 @@ weaviate-client = { version = "^4.16.10", optional = true }
 qdrant-client = { version = "^1.11.2", optional = true }
 pyiceberg = { version = "^0.10.0", extras = ["sql-sqlite"], optional = true}
 
-
 # Local inference dependencies
 easyocr = { version = "^1.7.1", optional = true }
 paddleocr = { version = "~3.4.0", optional = true }
@@ -136,6 +135,7 @@ jupyter-core = "^5.8.1"
 ipywidgets = "^8.1.0"
 matplotlib = "^3.10.0"
 fonttools = "^4.60.2"
+nbconvert = "^7.17.0"
 
 [tool.poetry.group.docker.dependencies]
 requests = "^2.32.4"

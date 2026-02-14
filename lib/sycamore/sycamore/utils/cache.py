@@ -1,6 +1,8 @@
 from __future__ import annotations
 import hashlib
 import json
+import logging
+import os
 from pathlib import Path
 import time
 from tempfile import SpooledTemporaryFile
@@ -11,6 +13,11 @@ import diskcache
 from botocore.exceptions import ClientError
 
 BLOCK_SIZE = 1048576  # 1 MiB
+DDB_CACHE_TTL: int = 10 * 24 * 60 * 60  # 10 days in seconds
+
+
+detected_region_lock = Lock()
+detected_region: Optional[str] = None
 
 
 class HashContext:
@@ -220,6 +227,71 @@ class S3Cache(Cache):
         return s3_cache_deserializer, (kwargs,)
 
 
+class DynamoDbCache(Cache):
+    """
+    A DynamoDB cache items are specified as follows:
+
+    ddb://<table_name>[/[region_name]/<cache_key>]
+
+    where 'cache_key' defaults to 'cache_key' if left unspecified.
+
+    The region for the table (or the DynamoDB service endpoint), if not provided in the path, will be determined by 'get_region_name'.
+
+    This cache uses an attribute called 'expire_at' to use DynamoDB's TTL feature for cache expiration.
+    The DynamoDB table backing this cache must have TTL enabled on this attribute for this to work properly.
+    """
+
+    def __init__(self, path: str, ttl: int = DDB_CACHE_TTL):
+        import boto3
+
+        super().__init__()
+        table_name, region_name, cache_key = self.parse_path(path)
+        self.cache_key = cache_key if cache_key else "cache_key"
+        if not region_name:
+            region_name = get_region_name()
+        self.client = boto3.client("dynamodb", region_name=region_name)
+        self.table_name = table_name
+        self.ttl = ttl
+
+    @staticmethod
+    def parse_path(path: str):
+        assert path.startswith("ddb://"), "DynamoDB cache paths must start with ddb://"
+
+        parts = path[6:].split("/", 2)
+        if len(parts) < 1:
+            raise ValueError("DynamoDB cache paths must have 'table_name' at a minimum.")
+
+        return tuple(parts)
+
+    def get(self, key: str) -> Optional[bytes]:
+        from botocore.exceptions import ClientError
+
+        cache_key: dict[str, dict[str, str]] = {self.cache_key: {"S": key}}
+        res: Optional[dict[str, Any]] = None
+        try:
+            # get_item return type is 'GetItemOutputTypeDef' which resolves to 'dict' at runtime.
+            res = self.client.get_item(TableName=self.table_name, Key=cache_key)  # type: ignore[assignment]
+        except ClientError as error:
+            logging.error(f"Error calling get_item({cache_key}) on {self.table_name} : {error}")
+
+        if res is not None:
+            if item := res.get("Item"):
+                if payload := item.get("payload"):
+                    self.inc_hits()
+                    return payload.value
+        self.inc_misses()
+        return None
+
+    def set(self, key: str, value: bytes):
+        expiration = int(time.time()) + self.ttl
+        item: dict[str, Any] = {
+            self.cache_key: {"S": key},
+            "payload": {"B": value},
+            "expire_at": {"N": f"{expiration}"},
+        }
+        self.client.put_item(TableName=self.table_name, Item=item)
+
+
 def cache_from_path(path: Optional[str]) -> Optional[Cache]:
     if path is None:
         return None
@@ -253,3 +325,25 @@ class NullCache(Cache):
 
 def safediv(n: int | float, d: int | float) -> float:
     return n / d if d else 0.0
+
+
+def get_region_name() -> str:
+    # Manual Override
+    if region := os.getenv("REGION"):
+        return region
+
+    # Fargate
+    if region := os.getenv("AWS_REGION"):
+        return region
+
+    from botocore.utils import InstanceMetadataRegionFetcher
+
+    # EC2
+    with detected_region_lock:
+        global detected_region
+        detected_region = detected_region or InstanceMetadataRegionFetcher().retrieve_region()
+        if detected_region is not None:
+            return detected_region
+
+    # Failure
+    raise RuntimeError("Unable to determine region")

@@ -691,7 +691,9 @@ class DeformableDetr(SycamoreObjectDetection):
             assert self.cache is not None
             cached_layout = self.cache.get(key)
             if cached_layout:
-                logger.info(f"Cache Hit for ImageToJson. Cache hit-rate is {self.cache.get_hit_rate()}")
+                hits, misses = self.cache.get_hit_info()
+                hit_rate = hits / (hits + misses)
+                logger.info(f"Cache Hit for ImageToJson. Cache hit-rate is {hit_rate}")
                 results.append(cached_layout)
             else:
                 uncached_images.append(image)

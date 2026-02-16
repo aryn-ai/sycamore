@@ -130,7 +130,7 @@ class DiskCache(Cache):
         elif cache_loc.startswith("file:///"):
             cache_loc = cache_loc[7:]
         self._cache_loc = cache_loc
-        self._cache = diskcache.Cache(directory=cache_loc)
+
 
     def get(self, hash_key: str):
         fn = Path(self._cache_loc) / hash_key

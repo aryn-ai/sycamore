@@ -7,7 +7,6 @@ from tempfile import SpooledTemporaryFile
 from threading import Lock
 from typing import Any, Optional, Union, BinaryIO
 
-import diskcache
 from botocore.exceptions import ClientError
 
 BLOCK_SIZE = 1048576  # 1 MiB
@@ -134,15 +133,23 @@ class DiskCache(Cache):
         self._cache = diskcache.Cache(directory=cache_loc)
 
     def get(self, hash_key: str):
-        v = self._cache.get(hash_key)
-        if v is not None:
-            self.inc_hits()
-        else:
-            self.inc_misses()
-        return v
+        fn = Path(self._cache_loc) / hash_key
+        with self.mutex:
+            try:
+                with open(fn) as fp:
+                    val = json.load(fp)
+                self.hits += 1
+                return val
+            except FileNotFoundError:
+                self.misses += 1
+                return None
 
     def set(self, hash_key: str, hash_value):
-        self._cache.set(hash_key, hash_value)
+        # FIXME: implement LRU replacement
+        fn = Path(self._cache_loc) / hash_key
+        with self.mutex:
+            with open(fn, "w") as fp:
+                json.dump(hash_value, fp)
 
     def __reduce__(self):
         # Return a function and args to recreate this object

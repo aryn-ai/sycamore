@@ -1,4 +1,5 @@
-from __future__ import annotations
+import os
+import heapq
 import hashlib
 import json
 from pathlib import Path
@@ -23,7 +24,7 @@ class HashContext:
         else:
             self.hash_obj = hashlib.new(algorithm, usedforsecurity=False)
 
-    def copy(self) -> HashContext:
+    def copy(self) -> "HashContext":
         return HashContext(copy_from=self)
 
     def update(self, data: bytes) -> None:
@@ -35,16 +36,16 @@ class HashContext:
 
 class Cache:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.mutex = Lock()
         self.hits = 0
         self.misses = 0
 
     def get(self, hash_key: str):
-        pass
+        raise NotImplementedError()
 
-    def set(self, hash_key: str, hash_value):
-        pass
+    def set(self, hash_key: str, hash_value) -> None:
+        raise NotImplementedError()
 
     def inc_hits(self) -> None:
         with self.mutex:
@@ -84,7 +85,7 @@ class Cache:
                 return Cache._update_ctx(file, hash_ctx)
 
     @staticmethod
-    def _update_ctx(file_obj: Union[BinaryIO, SpooledTemporaryFile], hash_ctx: HashContext):
+    def _update_ctx(file_obj: Union[BinaryIO, SpooledTemporaryFile], hash_ctx: HashContext) -> HashContext:
         while True:
             file_buffer = file_obj.read(BLOCK_SIZE)
             if not file_buffer:
@@ -123,13 +124,18 @@ class Cache:
 
 
 class DiskCache(Cache):
-    def __init__(self, cache_loc: str):
+    def __init__(self, cache_loc: str, max_ents: int = 1000):
         super().__init__()
         if cache_loc.startswith("file://localhost/"):
             cache_loc = cache_loc[16:]  # leave leading slash
         elif cache_loc.startswith("file:///"):
             cache_loc = cache_loc[7:]
         self._cache_loc = cache_loc
+        self._max_ents = max_ents
+        self._every = max(1, max_ents // 100)
+        self._sets = 0
+        os.makedirs(self._cache_loc, exist_ok=True)
+        self.lru()
 
     def get(self, hash_key: str):
         fn = Path(self._cache_loc) / hash_key
@@ -137,23 +143,51 @@ class DiskCache(Cache):
             try:
                 with open(fn) as fp:
                     val = json.load(fp)
+                os.utime(fn)  # set mtime to now; atime is unreliable
                 self.hits += 1
                 return val
             except FileNotFoundError:
                 self.misses += 1
                 return None
 
-    def set(self, hash_key: str, hash_value):
-        # FIXME: implement LRU replacement
+    def set(self, hash_key: str, hash_value) -> None:
         fn = Path(self._cache_loc) / hash_key
         with self.mutex:
             with open(fn, "w") as fp:
                 json.dump(hash_value, fp)
+            self._sets += 1
+            if (self._sets % self._every) == 0:
+                self.lru()
+
+    def lru(self) -> None:
+        "Delete all but newest max_ents files."
+        heap: list[tuple[float, str]] = []  # min heap by mtime; root is oldest
+        heapified = False
+        for rec in self._gen_entries():
+            if len(heap) < self._max_ents:
+                heap.append(rec)  # not a heap yet; lazy is fast
+            else:
+                if not heapified:
+                    heapq.heapify(heap)  # linear time
+                    heapified = True
+                if rec[0] <= heap[0][0]:  # rec is old as whole heap; discard
+                    remove_file(self._cache_loc + os.sep + rec[1])
+                else:  # rec is newer and will displace oldest/root
+                    old = heapq.heappushpop(heap, rec)
+                    remove_file(self._cache_loc + os.sep + old[1])
+
+    def _gen_entries(self):
+        "Generate (mtime, name) for entire contents of cache."
+        with os.scandir(self._cache_loc) as scan:
+            for ent in scan:
+                if ent.is_file(follow_symlinks=False):
+                    st = ent.stat(follow_symlinks=False)
+                    yield (st.st_mtime, ent.name)
 
     def __reduce__(self):
         # Return a function and args to recreate this object
-        # We only need the cache location, the Lock will be recreated in __init__
-        return (disk_cache_deserializer, ({"cache_loc": self._cache_loc},))
+        kwargs = {"cache_loc": self._cache_loc, "max_ents": self._max_ents}
+        return disk_cache_deserializer, (kwargs,)
 
 
 def disk_cache_deserializer(kwargs):
@@ -165,7 +199,7 @@ def s3_cache_deserializer(kwargs):
 
 
 class S3Cache(Cache):
-    def __init__(self, s3_path: str, freshness_in_seconds: int = -1):
+    def __init__(self, s3_path: str, freshness_in_seconds: int = -1) -> None:
         from mypy_boto3_s3.client import S3Client
 
         super().__init__()
@@ -205,7 +239,7 @@ class S3Cache(Cache):
             else:
                 raise
 
-    def set(self, key: str, value: Any):
+    def set(self, key: str, value: Any) -> None:
         if not self._s3_client:
             import boto3
 
@@ -259,3 +293,10 @@ class NullCache(Cache):
 
 def safediv(n: int | float, d: int | float) -> float:
     return n / d if d else 0.0
+
+
+def remove_file(p: str) -> None:
+    try:
+        os.unlink(p)
+    except (FileNotFoundError, PermissionError):
+        pass

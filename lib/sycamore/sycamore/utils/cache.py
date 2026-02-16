@@ -131,7 +131,6 @@ class DiskCache(Cache):
             cache_loc = cache_loc[7:]
         self._cache_loc = cache_loc
 
-
     def get(self, hash_key: str):
         fn = Path(self._cache_loc) / hash_key
         with self.mutex:

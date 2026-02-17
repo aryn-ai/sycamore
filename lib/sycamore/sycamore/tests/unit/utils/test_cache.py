@@ -1,4 +1,5 @@
 import io
+import time
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -34,6 +35,22 @@ class TestDiskCache:
         # update record
         cm.set(get_hash(data1), data2)
         assert cm.get(get_hash(data1)) == data2
+
+    def test_disk_cache_lru(self, tmp_path: Path):
+        max_ents = 5
+        over_ents = 7
+        tot_ents = max_ents + over_ents
+        cm = DiskCache(str(tmp_path), max_ents)
+        for i in range(tot_ents):
+            cm.set(str(i), {"val": i})
+            time.sleep(0.01)
+        cm.lru()
+        for i in range(over_ents):
+            assert cm.get(str(i)) is None
+        for i in range(over_ents, tot_ents):
+            assert cm.get(str(i))["val"] == i
+        assert cm.hits == max_ents
+        assert cm.misses == (over_ents)
 
 
 class TestS3Cache:

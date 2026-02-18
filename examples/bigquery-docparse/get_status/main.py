@@ -55,25 +55,22 @@ def get_status_tup(async_id):  # -> old_async_id, new_async_id, result, error
 
     key = config["key"]
     # print(f"Getting result with key={key}")
-    with partition_file_async_result(id_part, aryn_api_key=key, extra_headers=config["headers"]) as response:
-        headers = {}
-        for name, value in response.headers.items():
-            # print(f"  {name}: {value}")
-            headers[name] = value
-
-        if response.status_code == 202:  # still in progress
+    with PartitionFileAsyncResultStream(id_part, aryn_api_key=key, extra_headers=config["headers"]) as response:
+        if response.in_progress():
             print(f"{async_id} still in progress")
             return (async_id, async_id, None, None)
-        if response.status_code == 404 and headers.get("x-aryn-asyncifier-msg") == "missing":
+        if response.not_found():
             return (async_id, None, None, f"Retrying {async_id} is not present")
-        if response.status_code != 200 and headers.get("x-aryn-asyncifier-version") is not None:
-            err = get_body(response, 8192)
+        if response.permanent_error():
+            err = response.get_body(8192)
             # permanent error; force a submit retry
             return (async_id, None, None, f"For {async_id} got permanent error: {err}")
-        if response.status_code != 200:
-            err = get_body(response, 8192)
+        if response.transient_error():
+            err = response.get_body(8192)
             # transient error; don't retry submit
             return (async_id, async_id, None, f"For {async_id} got transient error: {err}")
+
+        assert response.success()
 
         already_exists = False
         gcs_file = None
@@ -119,15 +116,6 @@ def get_status_tup(async_id):  # -> old_async_id, new_async_id, result, error
         assert uri is None and large_len == 0
         return (async_id, async_id, data, None)
 
-
-def get_body(response, max_bytes):
-    ret = b""
-    for chunk in response.iter_bytes(chunk_size=max_bytes):
-        if len(ret) < max_bytes:
-            ret = ret + chunk
-    return ret
-
-
 def upload_large(data, uri):
     bucket, object = uri.removeprefix("gs://").split("/", 1)
     blob = storage.Client().bucket(bucket).blob(object)
@@ -136,47 +124,6 @@ def upload_large(data, uri):
         return
     blob.upload_from_string(data, content_type="application/json", if_generation_match=0)
     print(f"Uploaded blob {uri}")
-
-
-# from aryn_sdk.client.partition import partition_file_async_result
-# local copy to rewrite to fully incremental
-
-
-def partition_file_async_result(
-    task_id: str,
-    *,
-    aryn_api_key: Optional[str] = None,
-    aryn_config: Optional[ArynConfig] = None,
-    ssl_verify: bool = True,
-    async_result_url: Optional[str] = None,
-    extra_headers={},
-) -> AbstractContextManager[httpx.Response]:
-    """
-    Get the results of an asynchronous partitioning task by task_id. Meant to be used with
-    `partition_file_async_submit`.
-
-    For examples of usage see README.md
-
-    Raises a `PartitionTaskNotFoundError` if the not task with the task_id can be found.
-
-    Returns:
-        A stream with the results. If the response status code is 200, results will be
-        streamed as json, and may be large. For other status codes, the task is still in
-        progress (202) or errored (not 2xx) and no results are coming.
-
-        Unlike `partition_file`, this function does not raise an Exception if the partitioning failed.
-    """
-    if not async_result_url:
-        async_result_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/result", truncate=True)
-
-    aryn_config = _process_config(aryn_api_key, aryn_config)
-
-    assert async_result_url is not None
-    specific_task_url = f"{async_result_url.rstrip('/')}/{task_id}"
-    headers = _generate_headers(aryn_config.api_key())
-    headers.update(extra_headers)
-    return httpx.stream("GET", specific_task_url, params=g_parameters, headers=headers, verify=ssl_verify)
-
 
 @functions_framework.http
 def get_status_entrypoint(request):

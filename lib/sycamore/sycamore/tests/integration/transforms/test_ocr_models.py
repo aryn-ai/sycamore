@@ -23,6 +23,15 @@ class TestPaddleOcr:
 
             texts = " ".join([o["text"] for o in output])
 
-            # Doesn't work in Paddle 2.0
-            assert "the Transformer, based" in texts
-            assert "modeling and transduction problems" in texts
+            fragments = [
+                "Attention Is All You Need",
+                "Ashish Vaswani",
+                "lukaszkaiser@google.com",
+                "The dominant sequence transduction",
+                "the Transformer, based",
+                "modeling and transduction problems",
+                "accelerating our research",
+                "Long Beach, CA, USA.",
+            ]
+            for frag in fragments:
+                assert frag in texts, f"MISSING [{frag}]"

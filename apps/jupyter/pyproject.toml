@@ -15,7 +15,7 @@ jupyter-core = "^5.8.1"
 jupyter-lsp = "^2.2.2"
 ipywidgets = "^8.1.0"
 notebook = "^7.1.2"
-
+nbconvert = "^7.17.0"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-ai = { path = "../../lib/sycamore", extras = ["opensearch"], develop = true }

@@ -70,6 +70,8 @@ jupyter-core = "^5.8.1"
 ipywidgets = "^8.1.0"
 notebook = "^7.1.2"
 s3contents = "^0.11"
+nbconvert = "^7.17.0"
+
 
 [tool.poetry.extras]
 docs = ["furo", "myst-parser", "sphinx", "enum-tools", "sphinx-toolbox"]

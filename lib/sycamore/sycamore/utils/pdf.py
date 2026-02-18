@@ -183,7 +183,9 @@ def pdf_to_image_files(pdf_path: str, file_dir: Path, resolution: int = 200) -> 
             out_path = file_dir / f"image.{image_num}.ppm"
             with open(out_path, "wb") as file:
                 file.write(data[0:need_bytes])
+                file.flush()
             q.put(out_path)
+            logging.info(f"Write file into {out_path}")
 
             image_num = image_num + 1
 

@@ -22,8 +22,8 @@ try:
     from sycamore.datatype import DataType
     from sycamore.utils.predicates import PredicateExpressionParser
 except ImportError:
-    from ._datatype import DataType
-    from ._predicates import PredicateExpressionParser
+    from ._datatype import DataType  # type: ignore
+    from ._predicates import PredicateExpressionParser  # type: ignore
 
 
 logger = logging.getLogger(__name__)

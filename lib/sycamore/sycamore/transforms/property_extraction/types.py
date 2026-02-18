@@ -52,6 +52,8 @@ class RichProperty(BaseModel):
     invalid_guesses: list[Any] = []
     additional_guesses: list[Any] = []
 
+    additional_guesses: list[Any] = []
+
     llm_prompt: Optional[RenderedPrompt] = None
 
     def keys_zt(self) -> Iterable[Hashable] | None:
@@ -69,7 +71,7 @@ class RichProperty(BaseModel):
         if self.type is DataType.OBJECT:
             assert isinstance(self.value, dict)
             v = self.value.get(key, ZTLeaf(None))
-            assert isinstance(v, (RichProperty, ZTLeaf))
+            assert isinstance(v, (RichProperty, ZTLeaf)), f"Unexpected type {type(v)} for v {v}"
             return v
         if self.type is DataType.ARRAY:
             assert isinstance(self.value, list)

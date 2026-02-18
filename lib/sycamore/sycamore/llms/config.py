@@ -24,6 +24,7 @@ class AnthropicModels(Enum):
     """Represents available Claude models."""
 
     CLAUDE_4_5_SONNET = AnthropicModel(name="claude-sonnet-4-5-20250929", is_chat=True)
+    CLAUDE_4_5_OPUS = AnthropicModel(name="claude-opus-4-5-20251101", is_chat=True)
     CLAUDE_4_5_HAIKU = AnthropicModel(name="claude-haiku-4-5-20251001", is_chat=True)
     CLAUDE_4_1_OPUS = AnthropicModel(name="claude-opus-4-1-20250805", is_chat=True)
     CLAUDE_4_OPUS = AnthropicModel(name="claude-opus-4-20250514", is_chat=True)

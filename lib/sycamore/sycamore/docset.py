@@ -1466,10 +1466,9 @@ class DocSet:
             element_type: (Optional) Parameter to only execute the LLM query on a particular element type. If not
                 specified, the query will be executed on all elements.
         """
-        from sycamore.transforms import LLMQuery
+        query = query_agent.as_llm_map(self.plan, **kwargs)
 
-        queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
-        return DocSet(self.context, queries)
+        return DocSet(self.context, query)
 
     def groupby(self, grouped_key: Union[str, list[str]], entity: Optional[str] = None) -> "GroupedData":
         """

@@ -28,6 +28,16 @@ def test_anthropic_defaults():
     assert len(res) > 0
 
 
+def test_anthropic_stream():
+    llm = Anthropic(AnthropicModels.CLAUDE_4_5_SONNET)
+    prompt = RenderedPrompt(
+        messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
+    )
+
+    res = llm.generate(prompt=prompt, llm_kwargs={"stream": True})
+    assert len(res) > 0
+
+
 def test_anthropic_messages_defaults():
     llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU)
     messages = [

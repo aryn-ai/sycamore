@@ -14,7 +14,6 @@ fsspec = "2024.2.0"   # sycamore (via datasets)
 # the following will fail which prevents upgrading pytest to 8.1.1
 # poetry run pytest lib/sycamore/sycamore/tests/unit/scans/test_materialized_scan.py lib/sycamore/sycamore/tests/unit/test_docset.py
 pytest = "7.4.0"
-guidance = "0.1.14" # They removed AzureOpenAIChat in https://github.com/guidance-ai/guidance/commit/a75896a851edf8b3cf15534af4fed8d15f277af1
 ray = "^2.52.1" 
 pandas = "2.3.0" # Bumped to a version that supports 3.13.
 scipy = "^1.15.0"

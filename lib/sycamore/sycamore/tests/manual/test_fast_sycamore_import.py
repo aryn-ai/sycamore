@@ -13,7 +13,6 @@ def test_00_sycamore_not_yet_imported():
 
 
 optional_modules = [
-    "guidance",
     "neo4j",
     "ray",
     "torch",

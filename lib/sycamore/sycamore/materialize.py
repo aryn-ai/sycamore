@@ -427,8 +427,10 @@ class Materialize(UnaryNode):
                 shuffle: Optional[Literal["files"]] = None if partition_filter is None else "files"
 
                 try:
+                    assert self._root is not None
+
                     files = read_binary_files(
-                        self._root,
+                        str(self._root),
                         filesystem=self._fs,
                         file_extensions=["pickle"],
                         partition_filter=partition_filter,

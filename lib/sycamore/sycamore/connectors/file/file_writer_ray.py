@@ -33,7 +33,7 @@ class _FileDataSink(Datasink):
         self._makedirs = makedirs
         self._include_metadata = include_metadata
 
-    def on_write_start(self) -> None:
+    def on_write_start(self, pyarrow_schema: Any) -> None:
         if not self._makedirs:
             return
 

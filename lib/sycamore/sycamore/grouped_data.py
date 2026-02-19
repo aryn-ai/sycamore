@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Callable
+from typing import Any, Callable, cast, TYPE_CHECKING
 
 from sycamore import DocSet
 from sycamore.data import Document, MetadataDocument
@@ -9,9 +9,12 @@ if TYPE_CHECKING:
     from ray.data import Dataset
 
 
-def filter_meta(row):
+def filter_meta(row: dict[str, bytes]) -> bool:
     doc = Document.from_row(row)
     return not isinstance(doc, MetadataDocument)
+
+
+_cast_from_row = cast(Callable[[dict[str, Any]], dict[str, Any]], Document.from_row)
 
 
 class AggregateCount(NonCPUUser, NonGPUUser, Transform):
@@ -40,7 +43,7 @@ class AggregateCount(NonCPUUser, NonGPUUser, Transform):
 
     def execute(self, **kwargs) -> "Dataset":
         dataset = self.child().execute()
-        grouped = dataset.filter(filter_meta).map(Document.from_row).groupby(self._grouped_key)
+        grouped = dataset.filter(filter_meta).map(_cast_from_row).groupby(self._grouped_key)
         aggregated = grouped.map_groups(self.group_udf)
         serialized = aggregated.map(self.to_doc)
         return serialized
@@ -82,7 +85,7 @@ class AggregateCollect(NonCPUUser, NonGPUUser, Transform):
 
     def execute(self, **kwargs) -> "Dataset":
         dataset = self.child().execute()
-        grouped = dataset.filter(filter_meta).map(Document.from_row).groupby(self._grouped_key)
+        grouped = dataset.filter(filter_meta).map(_cast_from_row).groupby(self._grouped_key)
         aggregated = grouped.map_groups(self.group_udf)
         serialized = aggregated.map(self.to_doc)
         return serialized

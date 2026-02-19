@@ -4,7 +4,7 @@ from io import BytesIO
 
 import boto3
 import mimetypes
-from typing import Any, Optional, Union, Tuple, Callable, TYPE_CHECKING, cast
+from typing import Any, Literal, Optional, Union, Tuple, Callable, TYPE_CHECKING, cast
 import logging
 
 from functools import partial
@@ -228,12 +228,12 @@ class BinaryScan(FileScan):
 
         # TODO: Consider refactoring to use kwargs = self._get_read_args() for better extensibility
         # when adding new read arguments in the future
-        partition_filter: Optional[Callable[[dict[str, str]], bool]] = None
+        partition_filter: Optional[PathPartitionFilter] = None
         if self._path_filter is not None:
             partition_filter = PathPartitionFilter(
                 cast(PathPartitionParser, RayPathParser()), partial(self._path_filter, read_binary=True)
             )
-        shuffle = None if partition_filter is None else "files"
+        shuffle: Optional[Literal["files"]] = None if partition_filter is None else "files"
 
         try:
             files = read_binary_files(

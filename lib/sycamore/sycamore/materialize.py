@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union, TYPE_CHECKING, cast
+from typing import Any, Literal, Optional, Tuple, Union, TYPE_CHECKING, cast
 import inspect
 
 from sycamore.context import Context
@@ -424,7 +424,7 @@ class Materialize(UnaryNode):
                     partition_filter = PathPartitionFilter(
                         cast(PathPartitionParser, RayPathParser()), self._path_filter
                     )
-                shuffle = None if partition_filter is None else "files"
+                shuffle: Optional[Literal["files"]] = None if partition_filter is None else "files"
 
                 try:
                     files = read_binary_files(

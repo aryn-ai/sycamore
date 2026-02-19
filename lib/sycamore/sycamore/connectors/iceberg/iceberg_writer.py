@@ -76,7 +76,7 @@ class IcebergWriter(Write):
         # disable schema evolution, but I don't see one currently.
         batches = dataset.map_batches(self._to_property_dict(), batch_format="pyarrow", num_cpus=0.1)
         batches.write_iceberg(
-            self._table_id, catalog_kwargs=self._catalog_kwargs, **kwargs, ray_remote_args = {"num_cpus": 0.2}
+            self._table_id, catalog_kwargs=self._catalog_kwargs, **kwargs, ray_remote_args={"num_cpus": 0.2}
         )
         return dataset
 

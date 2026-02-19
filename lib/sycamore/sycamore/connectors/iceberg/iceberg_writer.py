@@ -64,8 +64,19 @@ class IcebergWriter(Write):
     def execute(self, **kwargs):
         _ = self._get_table()  # Creates the table if it does not exist.
         dataset = self.child().execute(**kwargs)
-        dataset.map_batches(self._to_property_dict(), batch_format="pyarrow").write_iceberg(
-            self._table_id, catalog_kwargs=self._catalog_kwargs, **kwargs
+
+        # There seems to be an issue with how Ray does iceberg schema
+        # evolution in recent versions. When map_batches and the write are
+        # fused, I get a combined schema that has the schema from the
+        # docs_to_pyarrow table (correct) + a docs column, which is null. This
+        # apparently comes from the schema before the map_batches and is there
+        # because of the evolution code. The "fix" here sets different
+        # resource requirements (num_cpus) so that the two operators won't be
+        # fused. Eventually it would be preferable if there were a way to
+        # disable schema evolution, but I don't see one currently.
+        batches = dataset.map_batches(self._to_property_dict(), batch_format="pyarrow", num_cpus=0.1)
+        batches.write_iceberg(
+            self._table_id, catalog_kwargs=self._catalog_kwargs, **kwargs, ray_remote_args = {"num_cpus": 0.2}
         )
         return dataset
 

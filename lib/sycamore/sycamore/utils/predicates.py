@@ -1,7 +1,10 @@
 import ast
 from typing import Any, Optional
 
-from sycamore.datatype import DataType
+try:
+    from sycamore.datatype import DataType
+except ImportError:
+    from ._datatype import DataType  # type: ignore
 
 allowed_operators = {
     DataType.STRING: ["like", "==", "!="],

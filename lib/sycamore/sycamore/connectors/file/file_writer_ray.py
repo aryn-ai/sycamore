@@ -1,4 +1,4 @@
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional, TYPE_CHECKING
 
 import posixpath
 from pyarrow.fs import FileSystem, FileType
@@ -12,6 +12,9 @@ from urllib.parse import urlparse
 from sycamore.connectors.file.file_writer import default_filename, default_doc_to_bytes, document_to_json_bytes
 from sycamore.data import Document, MetadataDocument
 from sycamore.utils.time_trace import TimeTrace
+
+if TYPE_CHECKING:
+    import pyarrow as pa
 
 
 class _FileDataSink(Datasink):
@@ -33,7 +36,7 @@ class _FileDataSink(Datasink):
         self._makedirs = makedirs
         self._include_metadata = include_metadata
 
-    def on_write_start(self) -> None:
+    def on_write_start(self, pyarrow_schema: Optional["pa.Schema"] = None) -> None:
         if not self._makedirs:
             return
 

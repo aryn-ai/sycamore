@@ -98,7 +98,7 @@ class DocSetWriter:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .partition(partitioner=ArynPartitioner())
 
                 pdf.write.opensearch(
                      os_client_args=os_client_args,
@@ -248,7 +248,7 @@ class DocSetWriter:
                 ctx = sycamore.init()
 
                 ds = ctx.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .regex_replace(COALESCE_WHITESPACE)
                     .extract_entity(entity_extractor=OpenAIEntityExtractor(
                             "title", llm=davinci_llm, prompt_template=title_template))
@@ -424,7 +424,7 @@ class DocSetWriter:
 
                 ds = (
                     ctx.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .regex_replace(COALESCE_WHITESPACE)
                     .mark_bbox_preset(tokenizer=tokenizer)
                     .merge(merger=MarkedMerger())
@@ -509,7 +509,7 @@ class DocSetWriter:
 
                 ds = (
                     ctx.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .regex_replace(COALESCE_WHITESPACE)
                     .mark_bbox_preset(tokenizer=tokenizer)
                     .merge(merger=MarkedMerger())

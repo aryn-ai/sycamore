@@ -100,7 +100,7 @@ class OpenAIEntityExtractor(EntityExtractor):
 
             context = sycamore.init()
             pdf_docset = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
+                .partition(partitioner=ArynPartitioner())
                 .extract_entity(entity_extractor=entity_extractor)
 
 

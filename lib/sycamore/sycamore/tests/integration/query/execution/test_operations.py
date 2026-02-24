@@ -10,7 +10,7 @@ from sycamore.query.execution.operations import (
     summarize_data,
 )
 from sycamore.tests.config import TEST_DIR
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import ArynPartitioner
 
 
 @pytest.fixture(scope="class")
@@ -87,7 +87,7 @@ class TestOperations:
         context = sycamore.init(exec_mode=EXEC_RAY)
         result = (
             context.read.binary(path, binary_format="pdf")
-            .partition(partitioner=UnstructuredPdfPartitioner())
+            .partition(partitioner=ArynPartitioner())
             .summarize(summarizer=doc_summarizer)
             .take_all()
         )
@@ -99,9 +99,7 @@ class TestOperations:
         # doc_summarizer = DocumentSummarizer(llm, question)
         path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
         context = sycamore.init(exec_mode=EXEC_RAY)
-        docset = (
-            context.read.binary(path, binary_format="pdf").partition(partitioner=UnstructuredPdfPartitioner()).explode()
-        )
+        docset = context.read.binary(path, binary_format="pdf").partition(partitioner=ArynPartitioner()).explode()
         final_summary = summarize_data(llm, question, data_description="Ray paper", input_data=[docset])
 
         print(final_summary)

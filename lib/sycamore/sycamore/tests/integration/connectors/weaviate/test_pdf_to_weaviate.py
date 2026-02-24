@@ -4,15 +4,6 @@ import weaviate
 from weaviate.classes.config import Property, ReferenceProperty
 from weaviate.connect.base import ConnectionParams
 from weaviate.collections.classes.config import Configure, DataType
-
-import sycamore
-from sycamore.functions.tokenizer import HuggingFaceTokenizer
-from sycamore.llms.openai import OpenAIModels, OpenAI
-from sycamore.transforms import COALESCE_WHITESPACE
-from sycamore.transforms.merge_elements import MarkedMerger
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
-from sycamore.transforms.embed import SentenceTransformerEmbedder
-from sycamore.tests.config import TEST_DIR
 import time
 
 
@@ -43,7 +34,7 @@ def wv_client_args():
         }
 
 
-def test_to_weaviate(wv_client_args):
+def test_to_weaviate(wv_client_args, embedded_transformer_paper):
     collection = "DemoCollection"
 
     collection_config_params = {
@@ -71,26 +62,6 @@ def test_to_weaviate(wv_client_args):
         "vectorizer_config": [Configure.NamedVectors.none(name="embedding")],
         "references": [ReferenceProperty(name="parent", target_collection=collection)],
     }
-    model_name = "sentence-transformers/all-MiniLM-L6-v2"
-    paths = str(TEST_DIR / "resources/data/pdfs/")
-
-    OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
-    tokenizer = HuggingFaceTokenizer(model_name)
-
-    ctx = sycamore.init()
-
-    ds = (
-        ctx.read.binary(paths, binary_format="pdf")
-        .partition(partitioner=UnstructuredPdfPartitioner())
-        .regex_replace(COALESCE_WHITESPACE)
-        .mark_bbox_preset(tokenizer=tokenizer)
-        .merge(merger=MarkedMerger())
-        .spread_properties(["path"])
-        .split_elements(tokenizer=tokenizer, max_tokens=512)
-        .explode()
-        .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
-        .sketch(window=17)
-    )
-    ds.write.weaviate(
+    embedded_transformer_paper.write.weaviate(
         wv_client_args=wv_client_args, collection_name=collection, collection_config=collection_config_params
     )

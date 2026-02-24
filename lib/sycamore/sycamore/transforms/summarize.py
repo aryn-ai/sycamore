@@ -102,7 +102,7 @@ class LLMElementTextSummarizer(Summarizer):
 
             context = sycamore.init()
             pdf_docset = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
+                .partition(partitioner=ArynPartitioner())
                 .summarize(summarizer=summarizer)
     """
 

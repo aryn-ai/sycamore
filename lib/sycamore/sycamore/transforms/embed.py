@@ -149,7 +149,7 @@ class SentenceTransformerEmbedder(Embedder):
 
             context = sycamore.init()
             pdf_docset = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
+                .partition(partitioner=ArynPartitioner())
                 .explode()
                 .embed(embedder=embedder)
 

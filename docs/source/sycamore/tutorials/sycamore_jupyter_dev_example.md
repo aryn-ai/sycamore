@@ -71,7 +71,7 @@ from sycamore.data import Document
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms.openai import OpenAIModels, OpenAI, LLM
-from sycamore.transforms.partition import UnstructuredPdfPartitioner, HtmlPartitioner
+from sycamore.transforms.partition import ArynPartitioner, HtmlPartitioner
 from sycamore.llms.prompts.default_prompts import TEXT_SUMMARIZER_GUIDANCE_PROMPT_CHAT
 from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.extract_table import TextractTableExtractor
@@ -151,7 +151,7 @@ else:
 def filter_func(doc: Document) -> bool:
     return doc.properties["page_number"] == 1
 
-partitioned_docset = pdf_docset.partition(partitioner=UnstructuredPdfPartitioner())
+partitioned_docset = pdf_docset.partition(partitioner=ArynPartitioner())
 visualized_docset = (partitioned_docset
               .flat_map(split_and_convert_to_image)
               .map_batch(DrawBoxes, f_constructor_args=[font_path])

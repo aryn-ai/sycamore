@@ -3,7 +3,7 @@ from typing import Optional
 import sycamore
 from sycamore.data import Element
 from sycamore.functions.document import split_and_convert_to_image
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import ArynPartitioner
 from sycamore.tests.config import TEST_DIR
 
 
@@ -20,7 +20,7 @@ def test_split_and_convert_to_image_empty_page():
     # Remove all elements from page 2, and make sure that page2 still shows up in the output.
     docs = (
         context.read.binary(paths=[str(path)], binary_format="pdf")
-        .partition(partitioner=UnstructuredPdfPartitioner())
+        .partition(partitioner=ArynPartitioner())
         .map_elements(_drop_page2)
         .flat_map(split_and_convert_to_image)
         .take_all()

@@ -48,7 +48,7 @@ class TextractTableExtractor(TableExtractor):
 
             context = sycamore.init()
             pdf_docset = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner(), table_extractor=table_extractor)
+                .partition(partitioner=ArynPartitioner(), table_extractor=table_extractor)
     """
 
     def __init__(

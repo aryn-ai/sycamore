@@ -84,7 +84,7 @@ class DrawBoxes:
             font_path="path/to/font.ttf"
 
             pdf_docset = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
+                .partition(partitioner=ArynPartitioner())
                 .flat_map(split_and_convert_to_image)
                 .map_batch(DrawBoxes, f_constructor_args=[font_path])
     """

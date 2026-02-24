@@ -7,7 +7,7 @@ from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 from sycamore.data.document import OpenSearchQuery
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import ArynPartitioner
 from sycamore.transforms.query import OpenSearchQueryExecutor
 
 
@@ -41,7 +41,7 @@ def setup_index():
     ds = (
         context.read.binary(paths, binary_format="pdf")
         .limit(1)
-        .partition(partitioner=UnstructuredPdfPartitioner())
+        .partition(partitioner=ArynPartitioner())
         .explode()
         .embed(
             embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")

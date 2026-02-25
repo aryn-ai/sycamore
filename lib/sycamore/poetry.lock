@@ -3642,6 +3642,7 @@ description = "Lightweight pipelining with Python functions"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
+markers = "extra == \"pinecone\" or extra == \"local-inference\""
 files = [
     {file = "joblib-1.4.2-py3-none-any.whl", hash = "sha256:06d478d5674cbc267e7496a410ee875abd68e4340feff4490bcb7afb88060ae6"},
     {file = "joblib-1.4.2.tar.gz", hash = "sha256:2382c5816b2636fbd20a09e0f4e9dad4736765fdfb7dca582943b9c1366b3f0e"},
@@ -5109,6 +5110,7 @@ description = "Natural Language Toolkit"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
+markers = "extra == \"pinecone\""
 files = [
     {file = "nltk-3.9.3-py3-none-any.whl", hash = "sha256:60b3db6e9995b3dd976b1f0fa7dec22069b2677e759c28eb69b62ddd44870522"},
     {file = "nltk-3.9.3.tar.gz", hash = "sha256:cb5945d6424a98d694c2b9a0264519fab4363711065a46aa0ae7a2195b92e71f"},
@@ -10585,11 +10587,11 @@ iceberg = ["pyiceberg"]
 local-inference = ["easyocr", "paddleocr", "pdfminer-six", "pypdfium2", "pytesseract", "sentence-transformers", "timm", "torch", "torchvision", "transformers"]
 neo4j = ["neo4j"]
 opensearch = ["opensearch-py"]
-pinecone = ["pinecone", "pinecone-text"]
+pinecone = ["nltk", "pinecone", "pinecone-text"]
 qdrant = ["qdrant-client"]
 weaviate = ["weaviate-client"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "efe6a2b21ccefc2dc5d4eb19a30fb44880e86f468748d347885d2bce3a8803ab"
+content-hash = "7a0120c6f82b46fecba51a113d084facf9ac6497757b7c7176446a14d7072718"

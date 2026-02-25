@@ -273,7 +273,7 @@ class DocSetReader:
                 context = sycamore.init()
                 original_docs = (
                     context.read.binary(path, binary_format="pdf")
-                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .explode()
                     .write.opensearch(
                         os_client_args=OS_CLIENT_ARGS, index_name=INDEX, execute=False
@@ -403,7 +403,7 @@ class DocSetReader:
 
                 docs = (
                     ctx.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .regex_replace(COALESCE_WHITESPACE)
                     .mark_bbox_preset(tokenizer=tokenizer)
                     .merge(merger=MarkedMerger())
@@ -466,7 +466,7 @@ class DocSetReader:
 
                 docs = (
                     ctx.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .regex_replace(COALESCE_WHITESPACE)
                     .mark_bbox_preset(tokenizer=tokenizer)
                     .merge(merger=MarkedMerger())
@@ -541,7 +541,7 @@ class DocSetReader:
 
                 docs = (
                     ctx.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .regex_replace(COALESCE_WHITESPACE)
                     .mark_bbox_preset(tokenizer=tokenizer)
                     .merge(merger=MarkedMerger())
@@ -639,7 +639,7 @@ class DocSetReader:
 
                 docs = (
                         ctx.read.binary(paths, binary_format="pdf")
-                        .partition(partitioner=UnstructuredPdfPartitioner())
+                        .partition(partitioner=ArynPartitioner())
                         .regex_replace(COALESCE_WHITESPACE)
                         .mark_bbox_preset(tokenizer=tokenizer)
                         .merge(merger=MarkedMerger())

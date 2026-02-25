@@ -13,7 +13,7 @@ from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.merge_elements import GreedyTextElementMerger
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import ArynPartitioner
 from sycamore.utils.cache import S3Cache
 
 OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
@@ -129,7 +129,7 @@ def test_pdf_to_opensearch_with_llm_caching():
         )
         ds = (
             context.read.binary(paths, binary_format="pdf")
-            .partition(partitioner=UnstructuredPdfPartitioner())
+            .partition(partitioner=ArynPartitioner())
             .extract_entity(entity_extractor=OpenAIEntityExtractor("title", prompt_template=title_context_template))
             .extract_entity(entity_extractor=OpenAIEntityExtractor("authors", prompt_template=author_context_template))
             .merge(GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=300))

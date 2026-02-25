@@ -8,7 +8,7 @@ from sycamore.functions import HuggingFaceTokenizer
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.merge_elements import GreedyTextElementMerger
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import ArynPartitioner
 
 QUERY_INTEGRATION_TEST_INDEX_NAME = "sycamore_query_ntsb_integration_tests"
 OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
@@ -58,7 +58,7 @@ def query_integration_test_index():
     ds = (
         context.read.binary(paths, binary_format="pdf")
         .limit(1)
-        .partition(partitioner=UnstructuredPdfPartitioner())
+        .partition(partitioner=ArynPartitioner())
         .merge(GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=1000))
         .explode()
         .embed(
@@ -113,7 +113,7 @@ def query_integration_test_index2():
 
     ds = (
         context.read.binary(paths, binary_format="pdf")
-        .partition(partitioner=UnstructuredPdfPartitioner())
+        .partition(partitioner=ArynPartitioner())
         .merge(GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=1000))
         .map(set_page_numbers)
         .spread_properties(["path"])

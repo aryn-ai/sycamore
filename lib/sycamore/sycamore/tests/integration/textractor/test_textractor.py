@@ -2,7 +2,7 @@ import boto3
 
 import sycamore
 from sycamore.data import Element
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import ArynPartitioner
 from sycamore.transforms.extract_table import TextractTableExtractor, CachedTextractTableExtractor
 
 
@@ -32,9 +32,9 @@ class TestTextExtraction:
     def test_docset_extract_tables(self):
         context = sycamore.init()
         docset = context.read.binary("s3://aryn-textract/10q-excerpt.pdf", binary_format="pdf", filesystem=get_s3_fs())
-        docset_no_tables = docset.partition(partitioner=UnstructuredPdfPartitioner())
+        docset_no_tables = docset.partition(partitioner=ArynPartitioner())
         docset_with_tables = docset.partition(
-            partitioner=UnstructuredPdfPartitioner(), table_extractor=TextractTableExtractor(region_name="us-east-1")
+            partitioner=ArynPartitioner(), table_extractor=TextractTableExtractor(region_name="us-east-1")
         )
 
         total_elements = len(docset_no_tables.take(1)[0].elements)

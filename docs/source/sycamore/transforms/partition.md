@@ -5,8 +5,6 @@ To process raw documents and bring them into DocSets, Sycamore must first segmen
 * PDF: Aryn Partitioner
 * HTML: Html Partitioner
 
-Sycamore also includes the ``UnstructuredPdfPartitioner`` for PDFs as well.
-
 ```python
  partitioned_docset = docset.partition(partitioner=ArynPartitioner())
 ```

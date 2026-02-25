@@ -2,7 +2,7 @@ import sycamore
 from sycamore.data.document import Document
 from sycamore.functions.document import split_and_convert_to_image
 from sycamore.tests.config import TEST_DIR
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import ArynPartitioner
 
 import boto3
 from PIL import Image as PImage
@@ -60,7 +60,7 @@ def one_test_convert_to_images(request, exec_mode, tempdir):
 
     image_docset = (
         context.read.binary(paths, binary_format="pdf")
-        .partition(partitioner=UnstructuredPdfPartitioner())
+        .partition(partitioner=ArynPartitioner())
         .flat_map(split_and_convert_to_image)
         .map(render_as_png)
         .materialize(path=tempdir, source_mode=sycamore.MATERIALIZE_USE_STORED)

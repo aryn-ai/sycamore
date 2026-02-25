@@ -72,6 +72,7 @@ myst-parser = { version = "^2.0.0", optional = true }
 sphinx = { version = "^7.2.5", optional = true }
 
 pypdf = "^6.7.1"
+fastnanoid = "^0.4.3"
 
 # Connector dependencies
 elasticsearch = { version = "8.14.0", optional = true}
@@ -96,12 +97,6 @@ timm = { version = "^0.9.12", optional = true }
 torch = { version = "^2.8.0", optional = true }
 torchvision = { version = ">=0.23.0", optional = true }
 transformers = { version = "^4.53.1", optional = true }
-
-# Legacy partitioner dependencies
-unstructured = { version = "^0.18.18", extras=["pdf"], optional = true }
-python-pptx = {version = "^0.6.22", optional = true }
-fastnanoid = "^0.4.3"
-nltk = { version = "^3.9.0", optional = true }
 
 # LLM Dependencies
 anthropic = { version = ">=0.42.0", optional = true }
@@ -165,7 +160,6 @@ local-inference = [
   "torchvision",
   "transformers"
  ]
-legacy-partitioners = ["unstructured", "python-pptx", "nltk"]
 
 # LLM extras
 anthropic = ["anthropic"]

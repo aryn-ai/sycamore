@@ -7,14 +7,7 @@ from weaviate.classes.query import Filter
 from weaviate.connect.base import ConnectionParams
 from weaviate.collections.classes.config import Configure, DataType
 
-import sycamore
 from sycamore.data.docid import docid_to_uuid
-from sycamore.functions.tokenizer import HuggingFaceTokenizer
-from sycamore.transforms import COALESCE_WHITESPACE
-from sycamore.transforms.merge_elements import MarkedMerger
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
-from sycamore.transforms.embed import SentenceTransformerEmbedder
-from sycamore.tests.config import TEST_DIR
 import time
 
 
@@ -45,11 +38,7 @@ def wv_client_args():
         client.collections.delete("TestCollection")
 
 
-def test_weaviate_read(wv_client_args):
-
-    paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
-    model_name = "sentence-transformers/all-MiniLM-L6-v2"
-    tokenizer = HuggingFaceTokenizer(model_name)
+def test_weaviate_read(wv_client_args, shared_ctx, embedded_transformer_paper):
     collection = "TestCollection"
     collection_config_params = {
         "name": collection,
@@ -77,29 +66,15 @@ def test_weaviate_read(wv_client_args):
         "references": [ReferenceProperty(name="parent", target_collection=collection)],
     }
 
-    ctx = sycamore.init()
-
-    docs = (
-        ctx.read.binary(paths, binary_format="pdf")
-        .partition(partitioner=UnstructuredPdfPartitioner())
-        .regex_replace(COALESCE_WHITESPACE)
-        .mark_bbox_preset(tokenizer=tokenizer)
-        .merge(merger=MarkedMerger())
-        .spread_properties(["path"])
-        .split_elements(tokenizer=tokenizer, max_tokens=512)
-        .explode()
-        .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
-        .sketch(window=17)
-        .take_all()
-    )
-    ctx.read.document(docs).write.weaviate(
+    docs = embedded_transformer_paper.take_all()
+    shared_ctx.read.document(docs).write.weaviate(
         wv_client_args=wv_client_args, collection_name=collection, collection_config=collection_config_params
     )
-    out_docs = ctx.read.weaviate(wv_client_args=wv_client_args, collection_name=collection).take_all()
+    out_docs = shared_ctx.read.weaviate(wv_client_args=wv_client_args, collection_name=collection).take_all()
     target_doc_id = docs[-1].doc_id if docs[-1].doc_id else ""
     target_doc_uuid = docid_to_uuid(target_doc_id)
     fetch_object_dict = {"filters": Filter.by_id().equal(target_doc_uuid)}
-    query_docs = ctx.read.weaviate(
+    query_docs = shared_ctx.read.weaviate(
         wv_client_args=wv_client_args, collection_name=collection, fetch_objects=fetch_object_dict
     ).take_all()
     assert len(query_docs) == 1  # exactly one doc should be returned

@@ -407,32 +407,6 @@ class TestOpenSearchRead:
         Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
         """
 
-        """
-        path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
-        context = sycamore.init(exec_mode=ExecMode.RAY)
-        original_docs = (
-            context.read.binary(path, binary_format="pdf")
-            .partition(partitioner=UnstructuredPdfPartitioner())
-            .explode()
-            .write.opensearch(
-                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
-                index_name=TestOpenSearchRead.INDEX,
-                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
-                execute=False,
-            )
-            .take_all()
-        )
-
-        os_client.indices.refresh(TestOpenSearchRead.INDEX)
-
-        expected_count = len(original_docs)
-        """
-        # actual_count = get_doc_count(os_client, setup_index_large)
-        # print(f"Expected {expected_count} documents, found {actual_count}")
-
-        # refresh should have made all ingested docs immediately available for search
-        # assert actual_count == expected_count, f"Expected {expected_count} documents, found {actual_count}"
-
         pit = os_client.create_pit(index=setup_index_large, keep_alive="100m")
         num_slices = 20
         search_body = {

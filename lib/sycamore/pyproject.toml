@@ -47,7 +47,7 @@ typing-extensions = "^4.15.0"
 
 httpcore = ">=1.0.9"
 h2 = "^4.3.0"
-tornado = ">=6.5.0"  # See poetry-lock/pyproject.toml
+tornado = ">=6.5.5"  # See poetry-lock/pyproject.toml
 
 aryn-sdk = ">=0.2.14"
 
@@ -71,7 +71,7 @@ furo = { version = "^2023.9.10", optional = true }
 myst-parser = { version = "^2.0.0", optional = true }
 sphinx = { version = "^7.2.5", optional = true }
 
-pypdf = "^6.7.4"
+pypdf = "^6.8.0"
 fastnanoid = "^0.4.3"
 
 # Connector dependencies
@@ -116,7 +116,7 @@ pytest-xdist = "^3.6.1"
 sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
 import_timer = { path = "../import_timer", develop = true }
 ruff = ">=0.11.2"
-black = ">=25.1"
+black = ">=26.3.1"
 pre-commit = ">=4.2.0"
 mypy = ">=1.15.0"
 nbmake = "^1.4.5"

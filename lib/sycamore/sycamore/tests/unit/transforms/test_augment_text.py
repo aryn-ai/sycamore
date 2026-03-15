@@ -28,10 +28,12 @@ class TestAugmentText:
         assert text2 == "not doc id"
 
     def test_jinja_augmentation(self):
-        template = textwrap.dedent("""\
+        template = textwrap.dedent(
+            """\
                     {% if doc.properties['path'] %}path: {{ pathlib.Path(doc.properties['path']).name }}.{% endif %}
                     {% if doc.properties['title'] %}Title: {{ doc.properties['title'] }}.{% endif %}
-                    {% if doc.text_representation %}{{ doc.text_representation }}{% endif %}""")
+                    {% if doc.text_representation %}{{ doc.text_representation }}{% endif %}"""
+        )
         aug = JinjaTextAugmentor(template=template, modules={"pathlib": pathlib})
         text = aug.augment_text(self.doc)
         print(text)

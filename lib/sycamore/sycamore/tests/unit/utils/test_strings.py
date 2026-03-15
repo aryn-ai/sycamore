@@ -9,10 +9,12 @@ def test_dedent():
     string
     """
 
-    exp = textwrap.dedent("""\
+    exp = textwrap.dedent(
+        """\
     Some long
     string
-    """)
+    """
+    )
 
     assert dedent(s) == exp
 

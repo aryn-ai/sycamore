@@ -323,11 +323,13 @@ class SycamoreExecutor:
         for import_str in unique_import_str:
             sio.write(f"{import_str}\n")
         # Default imports
-        sio.write("""from sycamore.query.execution.metrics import SycamoreQueryLogger
+        sio.write(
+            """from sycamore.query.execution.metrics import SycamoreQueryLogger
 from sycamore.utils.cache import S3Cache
 import sycamore
 
-""")
+"""
+        )
 
         if not self.context.params:
             sio.write("context = sycamore.init()\n\n")
@@ -335,10 +337,12 @@ import sycamore
         for node_id in sorted(self.node_id_to_node):
             description = self.node_id_to_node[node_id].description.strip("n")
             code = self.node_id_to_code[node_id].strip("\n")
-            sio.write(f"""
+            sio.write(
+                f"""
 # {description}
 {code}
-""")
+"""
+            )
 
         sio.write("print(result)")
 

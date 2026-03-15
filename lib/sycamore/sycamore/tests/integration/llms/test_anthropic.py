@@ -98,7 +98,9 @@ def test_cached_bedrock_different_prompts(tmp_path: Path):
     key_4 = llm._llm_cache_key(prompt_4, {})
     keys = [key_1, key_2, key_3, key_4]
 
-    assert len(keys) == len(set(keys)), f"""
+    assert len(keys) == len(
+        set(keys)
+    ), f"""
     Cached query keys are not unique:
     key_1: {key_1}
     key_2: {key_2}

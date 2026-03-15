@@ -7,7 +7,6 @@ from dataclasses import dataclass
 import typing
 from typing import Optional, Dict, Any
 
-
 if typing.TYPE_CHECKING:
     from weaviate import WeaviateClient
     from weaviate.auth import AuthCredentials

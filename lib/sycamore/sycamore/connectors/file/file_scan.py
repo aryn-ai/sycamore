@@ -109,7 +109,7 @@ class FileScan(Scan):
         common_fs = None
         new_paths = []
         for p in self._paths:
-            (fs, root) = infer_fs(p)
+            fs, root = infer_fs(p)
             new_paths.append(root)
             if common_fs is None:
                 common_fs = fs
@@ -140,7 +140,7 @@ class FileScan(Scan):
         for orig_path in paths:
             from sycamore.utils.pyarrow import cross_check_infer_fs
 
-            (filesystem, path) = cross_check_infer_fs(self._filesystem, orig_path)
+            filesystem, path = cross_check_infer_fs(self._filesystem, orig_path)
             if self._filesystem is None:
                 self._filesystem = filesystem
 
@@ -213,7 +213,7 @@ class BinaryScan(FileScan):
 
     def _file_mime_type(self):
         # binary_format is an extension, make it into a filename.
-        (ftype, encoding) = mimetypes.guess_type("foo." + self._binary_format)
+        ftype, encoding = mimetypes.guess_type("foo." + self._binary_format)
         if ftype is not None:
             return ftype
         ret = f"application/{self._binary_format}"

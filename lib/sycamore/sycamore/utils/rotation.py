@@ -17,7 +17,6 @@ from PIL import Image
 
 from sycamore.data import BoundingBox
 
-
 g_quad_to_method = {
     1: Image.Transpose.ROTATE_90,
     2: Image.Transpose.ROTATE_180,

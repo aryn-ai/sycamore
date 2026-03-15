@@ -122,8 +122,7 @@ MetadataExtractorJinjaPrompt = JinjaPrompt(
 )
 
 SummarizeImagesJinjaPrompt = JinjaElementPrompt(
-    user=textwrap.dedent(
-        """
+    user=textwrap.dedent("""
         You are given an image from a PDF document along with with some snippets of text preceding
         and following the image on the page. Based on this context, please decide whether the image is a
         graph or not. An image is a graph if it is a bar chart or a line graph. If the image is a graph,
@@ -170,8 +169,7 @@ SummarizeImagesJinjaPrompt = JinjaElementPrompt(
                 {%- endif -%}
             {%- endif -%}
         {%- endif -%}
-        """
-    ),
+        """),
     include_image=True,
 )
 
@@ -195,27 +193,23 @@ TextSummarizerGuidancePrompt = ElementPrompt(
 
 TextSummarizerJinjaPrompt = JinjaElementPrompt(
     system="You are a helpful text summarizer.",
-    user=textwrap.dedent(
-        """\
+    user=textwrap.dedent("""\
     Write a summary of the following. Use only the information provided.
     Include as many key details as possible. Do not make up your answer. Only return the summary as part of your answer.
 
     {{ elt.text_representation }}
-    """
-    ),
+    """),
 )
 
 
 SchemaZeroShotJinjaPrompt = JinjaPrompt(
     system="You are a helpful entity extractor. You only return JSON Schema.",
-    user=textwrap.dedent(
-        """\
+    user=textwrap.dedent("""\
         You are given a few text elements of a document. Extract JSON Schema representing
         one entity of class {{ entity }} from the document. Using this context, FIND, FORMAT, and
         RETURN the JSON-LD Schema. Return a flat schema, without nested properties. Return at most
         {{ max_num_properties }} properties. Only return JSON Schema as part of your answer.
-        {% if prompt_formatter is defined %}{{ prompt_formatter(doc.elements[:num_elements]) }}{% else %}"""
-    )
+        {% if prompt_formatter is defined %}{{ prompt_formatter(doc.elements[:num_elements]) }}{% else %}""")
     + J_ELEMENT_LIST_CAPPED
     + "{% endif %}",
 )
@@ -380,33 +374,26 @@ ExtractTablePropertiesPrompt = ElementPrompt(
 
 PropertiesZeroShotGuidancePrompt = ElementListPrompt(
     system="You are a helpful property extractor. You only return JSON.",
-    user=textwrap.dedent(
-        """\
+    user=textwrap.dedent("""\
     You are given a few text elements of a document. Extract JSON representing one entity of
     class {entity} from the document. The class only has properties {properties}. Using
     this context, FIND, FORMAT, and RETURN the JSON representing one {entity}.
     Only return JSON as part of your answer. If no entity is in the text, return "None".
     {text}
-    """
-    ),
+    """),
 )
 
 
 PropertiesZeroShotJinjaPrompt = JinjaPrompt(
     system="You are a helpful property extractor. You only return JSON.",
-    user=J_SET_SCHEMA
-    + J_SET_ENTITY
-    + textwrap.dedent(
-        """\
+    user=J_SET_SCHEMA + J_SET_ENTITY + textwrap.dedent("""\
     You are given some text of a document. Extract JSON representing one entity of
     class {{ entity }} from the document. The class only has properties {{ schema }}. Using
     this context, FIND, FORMAT, and RETURN the JSON representing one {{ entity }}.
     Only return JSON as part of your answer. If no entity is in the text, return "None".
 
     Document:
-    """
-    )
-    + J_DYNAMIC_DOC_TEXT,
+    """) + J_DYNAMIC_DOC_TEXT,
 )
 
 PropertiesFromSchemaJinjaPrompt = JinjaPrompt(
@@ -463,22 +450,18 @@ LlmFilterMessagesJinjaPrompt = JinjaPrompt(
     system="You are a helpful classifier that filters database entries based on questions.",
     user=(
         J_FIELD_VALUE_MACRO
-        + textwrap.dedent(
-            """\
+        + textwrap.dedent("""\
         Given an entry and a yes or no question, you will answer the question relating
         to the entry. You only respond with 0, 1, 2, 3, 4, or 5 based on your confidence
         level. 0 is a confident 'no' and 5 is a confident 'yes'.
         Question: {{ filter_question }}
         Entry: {% if not use_elements -%}
         Field Name: {{ field }}; Field Value: {{ field_value(doc, field, no_field_behavior) }}
-        {% else %}"""
-        )
+        {% else %}""")
         + J_ELEMENT_BATCHED_LIST
         + "{% endif %}"
-        + textwrap.dedent(
-            """\
-            The response should be a value from [0,1,2,3,4,5]. 0 is a confident 'no' and 5 is a confident 'yes'."""
-        )
+        + textwrap.dedent("""\
+            The response should be a value from [0,1,2,3,4,5]. 0 is a confident 'no' and 5 is a confident 'yes'.""")
     ),
 )
 

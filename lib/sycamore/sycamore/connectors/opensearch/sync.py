@@ -85,7 +85,6 @@ from sycamore.connectors.opensearch.opensearch_writer import (
 )
 from sycamore.connectors.opensearch.utils import OpenSearchClientWithLogging
 
-
 if TYPE_CHECKING:
     pass
 

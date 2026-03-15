@@ -6,7 +6,6 @@ from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, asdict
 from typing import Optional, Dict, Union, TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from qdrant_client import QdrantClient
 

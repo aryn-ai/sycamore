@@ -19,7 +19,6 @@ from sycamore.tests.unit.data.test_table import SmithsonianSampleTable
 from sycamore.transforms.partition import ArynPartitioner
 from sycamore.transforms.table_structure.extract import TableTransformerStructureExtractor, VLMTableStructureExtractor
 
-
 basic_table_path = TEST_DIR / "resources/data/pdfs/basic_table.pdf"
 
 
@@ -150,11 +149,8 @@ def test_tatr_extraction_vert() -> None:
         elem = te.extract(elem, img)
     assert elem.table
     csv = elem.table.to_csv()
-    assert (
-        csv
-        == """Name:,Description:,Price:
+    assert csv == """Name:,Description:,Price:
 Fa la la la la,Foo-bar,$1.00
 Antarctica,Zoom Bot,$2.00
 Osgiliath,Real estate,$9.99
 """
-    )

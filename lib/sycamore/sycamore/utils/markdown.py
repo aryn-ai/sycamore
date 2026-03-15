@@ -12,7 +12,6 @@ from typing import Any, Optional
 
 from sycamore.data import Element, TableElement
 
-
 ESCAPE_CHARS = {"\\", "!", "#", ">", "[", "|"}
 
 

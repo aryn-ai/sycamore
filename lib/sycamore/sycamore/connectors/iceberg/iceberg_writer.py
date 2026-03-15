@@ -7,7 +7,6 @@ from sycamore.plan_nodes import Node, Write
 from sycamore.schema import SchemaV2
 from sycamore.utils.pyarrow import schema_to_pyarrow, docs_to_pyarrow
 
-
 if TYPE_CHECKING:
     import pyarrow as pa
 

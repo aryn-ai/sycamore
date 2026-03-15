@@ -16,7 +16,6 @@ from sycamore.data.docid import (
     uuid_to_docid,
 )
 
-
 __all__ = [
     "BoundingBox",
     "Document",

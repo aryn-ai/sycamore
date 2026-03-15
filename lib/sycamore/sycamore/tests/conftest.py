@@ -4,7 +4,6 @@ from pyarrow.fs import LocalFileSystem
 from sycamore import ExecMode
 from sycamore.data.document import Document
 
-
 # ============================================================================
 # ML Model Fakes for Fast Unit Tests
 # ============================================================================

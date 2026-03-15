@@ -164,18 +164,15 @@ def _partition_fields(document: Document, fields: list[Union[str, Type[EtCetera]
 
 def make_max_tokens_heirarchy_prompt() -> JinjaPrompt:
     return JinjaPrompt(
-        system=textwrap.dedent(
-            """
+        system=textwrap.dedent("""
         {%- if element_testing is not defined -%}{# element_testing means only render an element, to get token count #}
         {% if question is defined %}You are a helpful research assistant. You answer questions based on
         text you are presented with.
         {% else %}You are a helpful data summarizer. You concisely summarize text you are presented with,
         including as much detail as possible.
         {% endif %}{% endif %}
-        """
-        ),
-        user=textwrap.dedent(
-            """
+        """),
+        user=textwrap.dedent("""
         {%- macro get_text_fields(element, fields) %}
             {% for f in fields %}
             {{ f }}: {{ element.field_to_value(f) }}
@@ -229,8 +226,7 @@ def make_max_tokens_heirarchy_prompt() -> JinjaPrompt:
         {%- for e in doc.elements %}
         {{ loop.index }}: {{ get_text(e) }}
         {% endfor %}
-        """
-        ),
+        """),
         question="What is the summary of this data?",
     )
 
@@ -390,8 +386,7 @@ class MultiStepDocumentSummarizer(Summarizer):
 def make_onestep_summarizer_prompt() -> JinjaPrompt:
     return JinjaPrompt(
         system="You are a helpful text summarizer",
-        user=textwrap.dedent(
-            """
+        user=textwrap.dedent("""
             You are given a series of database entries that answer the question "{{ question }}".
             Generate a concise, conversational summary of the data to answer the question.
             {%- for subdoc in doc.data.get("sub_docs", [doc]) %}
@@ -412,8 +407,7 @@ def make_onestep_summarizer_prompt() -> JinjaPrompt:
                     {% endfor %}
                 {% endif -%}
             {% endfor %}
-            """
-        ),
+            """),
     )
 
 

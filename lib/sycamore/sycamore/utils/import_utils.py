@@ -3,7 +3,6 @@ from functools import wraps
 from typing import Callable, Optional, Union, TypeVar
 from typing_extensions import ParamSpec  # Present in typing module for Python >= 3.10
 
-
 # See https://mypy.readthedocs.io/en/stable/generics.html#declaring-decorators
 # for more information about how to correctly declare types for decorators so
 # that they will work with mypy. https://stackoverflow.com/q/77211348 is also helpful.

@@ -80,7 +80,7 @@ class MaterializeReadReliability(NodeTraverse):
 
     def reinit(self, out_mat_path, max_batch, max_retries):
 
-        (fs, path) = Materialize.infer_fs(str(out_mat_path))
+        fs, path = Materialize.infer_fs(str(out_mat_path))
         logger.info(f"Fetching files from {out_mat_path}")
         self.fs = fs
         self.path = str(path)
@@ -200,9 +200,7 @@ class MaterializeReadReliability(NodeTraverse):
                     node._path_filter = mrr.filter
                     node._original_filter = lambda p: True
             else:
-                assert (
-                    len(node.children) != 0
-                ), f"""Reliability pipeline cannot have node {type(node)} as first node.\n
+                assert len(node.children) != 0, f"""Reliability pipeline cannot have node {type(node)} as first node.\n
                 Only BinaryScan and Materialize nodes are allowed."""
 
             assert len(node.children) < 2, "Reliability pipeline should only have one/zero child"
@@ -295,7 +293,7 @@ class Materialize(UnaryNode):
         if path is None:
             pass
         elif isinstance(path, str) or isinstance(path, Path):
-            (self._fs, self._root) = self.infer_fs(str(path))
+            self._fs, self._root = self.infer_fs(str(path))
             self._fshelper = _PyArrowFsHelper(self._fs)
             self._doc_to_name = self._name_group.doc_to_materialize_name
             self._doc_to_binary = Document.serialize
@@ -306,7 +304,7 @@ class Materialize(UnaryNode):
                 self._fs = path["fs"]
                 self._root = Path(path["root"])
             else:
-                (self._fs, self._root) = self.infer_fs(str(path["root"]))
+                self._fs, self._root = self.infer_fs(str(path["root"]))
             self._fshelper = _PyArrowFsHelper(self._fs)
             namer = path.get("name", None)
             if inspect.isclass(namer) and issubclass(namer, MaterializeNameGroup):
@@ -482,10 +480,8 @@ class Materialize(UnaryNode):
             if n.path.endswith(".pickle"):
                 return
 
-        raise ValueError(
-            f"""Materialize root {self._orig_path} has no .pickle files.
-            If using reliability, make sure to write doc ids using 'docid_from_path'."""
-        )
+        raise ValueError(f"""Materialize root {self._orig_path} has no .pickle files.
+            If using reliability, make sure to write doc ids using 'docid_from_path'.""")
 
     def _ray_to_document(self, dict: dict[str, Any]) -> list[dict[str, bytes]]:
         b = dict["bytes"]
@@ -589,7 +585,7 @@ class Materialize(UnaryNode):
     def infer_fs(path: str) -> Tuple["pyarrow.FileSystem", Path]:
         from sycamore.utils.pyarrow import infer_fs as util_infer_fs
 
-        (fs, path) = util_infer_fs(path)
+        fs, path = util_infer_fs(path)
         return (fs, Path(path))
 
     def save(self, doc: Document) -> None:
@@ -756,7 +752,7 @@ class AutoMaterialize(NodeTraverse):
             directory = str(dir)
             logger.info(f"Materialize directory was not specified. Used {dir}")
 
-        (self._fs, self._directory) = Materialize.infer_fs(directory)
+        self._fs, self._directory = Materialize.infer_fs(directory)
         if "fs" in self._path:
             self._fs = self._path["fs"]
         self._fshelper = _PyArrowFsHelper(self._fs)

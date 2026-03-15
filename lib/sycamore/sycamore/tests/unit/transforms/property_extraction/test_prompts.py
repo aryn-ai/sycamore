@@ -14,7 +14,6 @@ from sycamore.schema import (
 from sycamore.transforms.property_extraction.types import RichProperty
 from sycamore.tests.unit.transforms.test_summarize import occurrences
 
-
 complicated_schema = SchemaV2(
     properties=[
         NamedProperty(name="a", type=StringProperty(extraction_instructions="extract the letter a")),

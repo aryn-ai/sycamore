@@ -122,10 +122,8 @@ class DuckDBClient(BaseDBWriter.Client):
                 columns_str = ", ".join(columns)
                 self._client.sql(f"CREATE TABLE {dict_params.get('table_name')} ({columns_str})")
             else:
-                logging.warning(
-                    f"""Error creating table {dict_params.get('table_name')}
-                    in database {dict_params.get('db_url')}: no schema provided"""
-                )
+                logging.warning(f"""Error creating table {dict_params.get('table_name')}
+                    in database {dict_params.get('db_url')}: no schema provided""")
         except Exception as e:
             logging.debug(f"Table {dict_params.get('table_name')} could not be created: {e}")
 
@@ -138,10 +136,8 @@ class DuckDBClient(BaseDBWriter.Client):
                 table = self._client.sql(f"SELECT * FROM {target_params.table_name}")
                 schema = dict(zip(table.columns, [str(i) for i in table.dtypes]))
             except Exception as e:
-                logging.warning(
-                    f"""Table {dict_params.get('table_name')}
-                    does not exist in database {dict_params.get('table_name')}: {e}"""
-                )
+                logging.warning(f"""Table {dict_params.get('table_name')}
+                    does not exist in database {dict_params.get('table_name')}: {e}""")
         return DuckDBWriterTargetParams(
             dimensions=target_params.dimensions,
             table_name=target_params.table_name,

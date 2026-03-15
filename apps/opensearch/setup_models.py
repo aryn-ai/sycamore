@@ -6,6 +6,7 @@ the OpenSearch container, which has a bare-bones
 python 3.9 installation (probably just for being
 ubuntu)
 """
+
 import urllib.request
 import ssl
 import json

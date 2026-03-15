@@ -200,9 +200,7 @@ class MaterializeReadReliability(NodeTraverse):
                     node._path_filter = mrr.filter
                     node._original_filter = lambda p: True
             else:
-                assert (
-                    len(node.children) != 0
-                ), f"""Reliability pipeline cannot have node {type(node)} as first node.\n
+                assert len(node.children) != 0, f"""Reliability pipeline cannot have node {type(node)} as first node.\n
                 Only BinaryScan and Materialize nodes are allowed."""
 
             assert len(node.children) < 2, "Reliability pipeline should only have one/zero child"
@@ -482,10 +480,8 @@ class Materialize(UnaryNode):
             if n.path.endswith(".pickle"):
                 return
 
-        raise ValueError(
-            f"""Materialize root {self._orig_path} has no .pickle files.
-            If using reliability, make sure to write doc ids using 'docid_from_path'."""
-        )
+        raise ValueError(f"""Materialize root {self._orig_path} has no .pickle files.
+            If using reliability, make sure to write doc ids using 'docid_from_path'.""")
 
     def _ray_to_document(self, dict: dict[str, Any]) -> list[dict[str, bytes]]:
         b = dict["bytes"]

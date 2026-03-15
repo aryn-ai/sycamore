@@ -19,7 +19,6 @@ from sycamore.query.operators.sort import Sort
 from typing import Optional, List, Type
 from dataclasses import dataclass
 
-
 # This is the base prompt for the planner.
 PLANNER_SYSTEM_PROMPT = """You are a helpful agent that translates the user's question into a
 query plan, using a predefined set of query operators. Please adhere to the following

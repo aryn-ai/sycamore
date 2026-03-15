@@ -21,7 +21,7 @@ def infer_fs(path: str) -> Tuple[FileSystem, str]:
 
     from pyarrow import fs
 
-    (fs, root) = fs.FileSystem.from_uri(str(path))
+    fs, root = fs.FileSystem.from_uri(str(path))
 
     fs = maybe_use_anonymous_s3_fs(fs, root)
 
@@ -57,7 +57,7 @@ def cross_check_infer_fs(filesystem: Optional[FileSystem], path: str) -> Tuple[F
     if filesystem is None:
         return infer_fs(path)
 
-    (f, p) = infer_fs(path)
+    f, p = infer_fs(path)
     # ray allows you to specify a path like s3://bucket/object with the S3 Pyarrow filesystem
     # and will silently fix the path to be acceptable. Do something similar here.
     if isinstance(filesystem, f.__class__):

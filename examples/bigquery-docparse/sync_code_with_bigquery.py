@@ -25,7 +25,6 @@ import re
 import sys
 from typing import Dict, List, Optional
 
-
 PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
 if not PROJECT_ID:
     print("Error: GOOGLE_PROJECT_ID environment variable is not set")

@@ -37,9 +37,9 @@ class HttpCrawlerIndex:
         logging.error("http_crawler:__enter__")
         docker_client = docker.from_env()
         logging.error("http_crawler:__enter__:rm")
-        (code, out) = self._importer.exec_run(cmd="rm -rf /app/.scrapy/imported /app/.scrapy/downloads")
+        code, out = self._importer.exec_run(cmd="rm -rf /app/.scrapy/imported /app/.scrapy/downloads")
         logging.error(f"rm says {code} {out}")
-        (code, out) = self._importer.exec_run(cmd="find /app/.scrapy ! -name httpcache -print")
+        code, out = self._importer.exec_run(cmd="find /app/.scrapy ! -name httpcache -print")
         outstr = str(out)
         if code != 0 or "imported" in outstr or "downloads" in outstr:
             logging.error(f"Find says {code} {out}")
@@ -85,7 +85,7 @@ class HttpCrawlerIndex:
             log = log.decode()
             if "Successfully imported:" in log or log.startswith("No changes"):
                 # the log line and ray output can be intermingled. Inspect the filesystem to figure out what is imported
-                (code, out) = self._importer.exec_run(cmd="find /app/.scrapy/imported -type f")
+                code, out = self._importer.exec_run(cmd="find /app/.scrapy/imported -type f")
                 if b"No such file or directory" in out:
                     # no files from before scraper finishes
                     continue

@@ -46,7 +46,7 @@ class TestSchema:
 
         llm = TestSchema.llm(mocker)
         mocker.patch.object(llm, "generate")
-        (ok, log) = inspect_serializability(llm)
+        ok, log = inspect_serializability(llm)
         assert not ok
 
     def test_extract_schema(self, mocker):

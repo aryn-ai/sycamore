@@ -102,9 +102,7 @@ class MRRNameGroup(MaterializeNameGroup):
         if isinstance(doc, MetadataDocument):
             return RandomNameGroup.doc_to_materialize_name(doc, bin)
         assert did is not None, "MRR naming requires a sycamore doc_id, which is missing"
-        assert (
-            len(did) == 76
-        ), f"""This method expects docids to be 76 characters long and used with reliability.
+        assert len(did) == 76, f"""This method expects docids to be 76 characters long and used with reliability.
             Make sure to have docids set using docid_from_path method. Found: {did}"""
         assert did.startswith("path-sha256-"), "Docid is not in 'path-sha256-' format with MRR naming"
         return f"doc-{did}.pickle"

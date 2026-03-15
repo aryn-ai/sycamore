@@ -7,7 +7,6 @@ from sycamore import Context
 from sycamore.context import context_params
 from sycamore.transforms import Embedder
 
-
 logger = logging.getLogger("opensearch")
 
 

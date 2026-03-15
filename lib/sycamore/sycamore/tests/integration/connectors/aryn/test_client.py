@@ -4,7 +4,6 @@ import pytest
 
 from sycamore.connectors.aryn.client import ArynClient
 
-
 aryn_endpoint = os.getenv("ARYN_ENDPOINT")
 
 

@@ -27,7 +27,7 @@ class _FileDataSink(Datasink):
         makedirs: bool = True,
         include_metadata: bool = False,
     ):
-        (paths, self._filesystem) = _resolve_paths_and_filesystem(path, filesystem)
+        paths, self._filesystem = _resolve_paths_and_filesystem(path, filesystem)
         self._root = paths[0]
         if self._root == "":
             self._root = "./"

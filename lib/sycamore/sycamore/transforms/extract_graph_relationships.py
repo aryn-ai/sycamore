@@ -72,13 +72,11 @@ class RelationshipExtractor(GraphRelationshipExtractor):
                     start_exists = section["properties"]["nodes"][relation["start_label"]].get(start_hash, None)
                     end_exists = section["properties"]["nodes"][relation["end_label"]].get(end_hash, None)
                     if not (start_exists and end_exists):
-                        logger.warning(
-                            f"""
+                        logger.warning(f"""
                             Entities referenced by relationship does not exist:
                             Start: {relation["start"]}
                             End: {relation["end"]}
-                            """
-                        )
+                            """)
                         continue
 
                     start_id = section["properties"]["nodes"][relation["start_label"]][start_hash]["doc_id"]

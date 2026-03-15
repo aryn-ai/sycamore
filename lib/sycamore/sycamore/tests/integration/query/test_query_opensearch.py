@@ -10,7 +10,6 @@ from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.partition import ArynPartitioner
 from sycamore.transforms.query import OpenSearchQueryExecutor
 
-
 OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
 
 

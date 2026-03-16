@@ -3,7 +3,6 @@ from opensearchpy import OpenSearch
 
 from integration.ingests.index_info import IndexInfo
 
-
 JUPYTER_NB_INFO = {
     "default-prep-script.ipynb": IndexInfo(name="demoindex0", num_docs=2),
     "jupyter_dev_example.ipynb": IndexInfo(name="local_development_example_index_withentity", num_docs=2),

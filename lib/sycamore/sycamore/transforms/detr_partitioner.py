@@ -451,7 +451,7 @@ class ArynPDFPartitioner:
             deformable_layout.extend(parts)
         if tracemalloc.is_tracing():
             gc.collect()
-            (current, peak) = tracemalloc.get_traced_memory()
+            current, peak = tracemalloc.get_traced_memory()
             logger.info(f"Memory Usage current={current} peak={peak}")
             after = tracemalloc.take_snapshot()
             top_stats = after.compare_to(before, "lineno")
@@ -661,7 +661,7 @@ class DeformableDetr(SycamoreObjectDetection):
 
         batched_results = []
         for result, image in zip(results, images):
-            (w, h) = image.size
+            w, h = image.size
             elements = []
             for idx, (score, label, box) in enumerate(zip(result["scores"], result["labels"], result["boxes"])):
                 # Potential fix if negative bbox is causing downstream failures

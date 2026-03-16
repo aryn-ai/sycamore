@@ -195,7 +195,7 @@ class FileWriter(Write):
         from sycamore.utils.pyarrow import cross_check_infer_fs
         from sycamore.data import MetadataDocument
 
-        (filesystem, path) = cross_check_infer_fs(self.filesystem, self.path)
+        filesystem, path = cross_check_infer_fs(self.filesystem, self.path)
 
         for d in all_docs:
             if isinstance(d, MetadataDocument) and not self.include_metadata:

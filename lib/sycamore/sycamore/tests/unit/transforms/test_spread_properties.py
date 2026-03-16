@@ -42,7 +42,7 @@ class TestSpreadProperties:
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
         ds = sp.execute()
-        (docs, _) = take_separate(ds)
+        docs, _ = take_separate(ds)
         assert len(docs) == 1
         for doc in docs:
             for elem in doc.elements:

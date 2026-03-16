@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     tests.sort(key=lambda a: a[0])
     for t in tests:
-        (name, obj) = t
+        name, obj = t
         print(f"Testing {name}")
         start = datetime.now()
         obj()

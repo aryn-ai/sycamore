@@ -57,7 +57,7 @@ class TestMapping:
 
             mapping.resource_args["compute"] = ActorPoolStrategy(size=mapping.parallelism)
         output_dataset = mapping.execute()
-        (output_docs, _) = take_separate(output_dataset)
+        output_docs, _ = take_separate(output_dataset)
         dicts = [d.data for d in output_docs]
 
         # ray does not guarantee order preserving
@@ -150,7 +150,7 @@ class TestMapping:
 
             mapping.resource_args["compute"] = ActorPoolStrategy(size=mapping.parallelism)
         output_dataset = mapping.execute()
-        (data, metadata) = take_separate(output_dataset)
+        data, metadata = take_separate(output_dataset)
         assert len(data) == 4
         assert len(metadata) == 2
 
@@ -191,7 +191,7 @@ class TestMapping:
 
             mapping.resource_args["compute"] = ActorPoolStrategy(size=mapping.parallelism)
         output_dataset = mapping.execute()
-        (output_docs, _) = take_separate(output_dataset)
+        output_docs, _ = take_separate(output_dataset)
         dicts = [d.data for d in output_docs]
         assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3
 

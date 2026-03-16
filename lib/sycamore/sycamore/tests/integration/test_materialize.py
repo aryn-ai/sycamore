@@ -5,7 +5,6 @@ import unittest
 import sycamore
 from sycamore.data import Document
 
-
 # class TestMaterializeRead(test_materialize.TestMaterializeRead):
 #    def __init__(self, *args, **kwargs):
 #        super().__init__(*args, **kwargs)

@@ -6,7 +6,6 @@ from sycamore.llms.config import LLMModel, ChainedModel
 from sycamore.llms.llms import LLMMode
 from sycamore.llms.prompts import RenderedPrompt
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -11,7 +11,6 @@ from sycamore.utils.image_utils import try_draw_boxes
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import SycamorePartitioner
 
-
 path = str(TEST_DIR / "resources/data/pdfs/Ray_page11.pdf")
 
 

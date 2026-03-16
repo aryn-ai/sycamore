@@ -61,7 +61,7 @@ class TestBaseMapTransform(Common):
         return ret
 
     def test_simple(self, mocker) -> None:
-        (docs, mds) = self.outputs(
+        docs, mds = self.outputs(
             BaseMapTransform(
                 self.input_node(mocker),
                 f=self.fn_a,
@@ -87,7 +87,7 @@ class TestBaseMapTransform(Common):
         for d in docs:
             t = d.properties["trace"]
             assert len(t) == 1
-            (fn, arg, lineage) = t[0]
+            fn, arg, lineage = t[0]
             assert fn == "fnA"
             assert arg == "simple"
             assert isinstance(lineage, str)
@@ -119,7 +119,7 @@ class TestBaseMapTransform(Common):
     def test_passthrough(self, mocker) -> None:
         a = BaseMapTransform(self.input_node(mocker), f=self.fn_a, args=["simple"], enable_auto_metadata=True)
         b = BaseMapTransform(a, f=lambda x: x, enable_auto_metadata=True)
-        (docs, mds) = self.outputs(b)
+        docs, mds = self.outputs(b)
         ndocs = self.ndocs
 
         assert len(docs) == ndocs
@@ -136,7 +136,7 @@ class TestBaseMapTransform(Common):
         for d in docs:
             t = d.properties["trace"]
             assert len(t) == 1
-            (fn, arg, lineage) = t[0]
+            fn, arg, lineage = t[0]
             assert fn == "fnA"
             assert arg == "simple"
             assert isinstance(lineage, str)
@@ -189,7 +189,7 @@ class TestBaseMapTransform(Common):
 
                 return ret
 
-        (docs, mds) = self.outputs(
+        docs, mds = self.outputs(
             BaseMapTransform(
                 self.input_node(mocker),
                 f=Test,
@@ -269,7 +269,7 @@ class TestBaseMapTransform(Common):
         )
         as_object = BaseMapTransform(as_function, f=Test("as_object"), parallelism=1, enable_auto_metadata=False)
 
-        (docs, mds) = self.outputs(as_object)
+        docs, mds = self.outputs(as_object)
 
         ndocs = self.ndocs
         assert len(mds) == ndocs * 2
@@ -384,7 +384,7 @@ class TestCompositeTransform(Common):
         docs = last._local_process([Document(d) for d in Common.dicts])
         simple_check(docs)
 
-        (docs, mds) = self.outputs(last)
+        docs, mds = self.outputs(last)
         simple_check(docs)
 
 

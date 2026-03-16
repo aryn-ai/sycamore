@@ -6,7 +6,6 @@ import logging
 import subprocess
 from opensearchpy import OpenSearch
 
-
 IMPORTANT_PORTS = {
     "opensearch": 9200,
     "rps": 2796,

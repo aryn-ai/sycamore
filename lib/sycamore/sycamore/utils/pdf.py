@@ -11,7 +11,6 @@ from threading import Thread
 from typing import Generator, IO, Iterator
 from sycamore.utils.time_trace import LogTime
 
-
 HEADER_BYTES = 40
 TIMEOUT_SEC = 60
 TIMEOUT_MSEC = 1000 * TIMEOUT_SEC

@@ -44,7 +44,7 @@ class SycamoreQueryLogger(Datasink):
 
         if verbose:
             assert path is not None
-            (paths, self._filesystem) = _resolve_paths_and_filesystem(path, filesystem)
+            paths, self._filesystem = _resolve_paths_and_filesystem(path, filesystem)
             self._root = paths[0]
 
         if makedirs:

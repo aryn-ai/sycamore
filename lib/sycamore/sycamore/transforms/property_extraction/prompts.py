@@ -224,9 +224,7 @@ extract_system = """\
 You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is valid.
 
 {rules}
-""".format(
-    rules=_format_rules(base_system_extraction_rules)
-)
+""".format(rules=_format_rules(base_system_extraction_rules))
 
 _elt_at_a_time_full_schema = ExtractionJinjaPrompt(
     system=extract_system,
@@ -244,9 +242,7 @@ extract_system_attribution = """\
 You are a helpful metadata extraction agent. You output only JSON. Make sure the JSON you output is valid.
 
 {rules}
-""".format(
-    rules=_format_rules([attribution_rule] + base_system_extraction_rules)
-)
+""".format(rules=_format_rules([attribution_rule] + base_system_extraction_rules))
 
 
 _elt_at_a_time_full_schema_attribution = ExtractionJinjaPrompt(
@@ -276,16 +272,13 @@ Extracted schema:
 {existing_schema}
 """
 
-schema_extraction_system_prompt = textwrap.dedent(
-    """\
+schema_extraction_system_prompt = textwrap.dedent("""\
     You are a helpful property extractor. You only return a JSON schema which is a list of properties as defined below. Return only the relevant properties; for example, if it's a form, you might want to return several properties whereas if it's an article, you might want to return only the relevant properties. Be very careful about what properties you return.
-    """
-)
+    """)
 
 _schema_extraction_prompt = ExtractionJinjaPrompt(
     system=schema_extraction_system_prompt,
-    user_pre_elements=textwrap.dedent(
-        """\
+    user_pre_elements=textwrap.dedent("""\
         Extract a JSON schema from the {{ element_description }}.
 
         Each property must have:
@@ -389,7 +382,6 @@ _schema_extraction_prompt = ExtractionJinjaPrompt(
                     }
             }
         ]
-        """
-    ),
+        """),
     element_template="Element {{ elt.element_index }}: {{ elt.text_representation }}",
 )

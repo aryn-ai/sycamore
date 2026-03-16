@@ -43,7 +43,7 @@ class TestSketcher:
         execute = mocker.patch.object(node, "execute")
         execute.return_value = in_ds
         ds = sk.execute()
-        (docs, _) = take_separate(ds)
+        docs, _ = take_separate(ds)
         shingles = docs[0].shingles
         self.validateShingles(shingles)
 
@@ -113,7 +113,7 @@ class TestSketchUniquify:
 
             uq.resource_args["compute"] = ActorPoolStrategy(size=uq.parallelism)
         ds = uq.execute()
-        (docs, _) = take_separate(ds)
+        docs, _ = take_separate(ds)
         assert len(docs) == 1
 
         # Note: We used to assert that docs[0].doc_id == "doc0", but we

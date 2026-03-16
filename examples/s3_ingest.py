@@ -3,7 +3,6 @@ import boto3
 import pyarrow.fs
 import os
 
-
 # ruff: noqa: E402
 sys.path.append("../lib/sycamore")
 

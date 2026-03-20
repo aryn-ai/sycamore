@@ -40,10 +40,11 @@ pillow = "^12.1.1"
 # black = ">=24.3.0"
 fonttools = "^4.60.2"
 filelock = "^3.20.3"
+ujson = "^5.12.0"
 
 httpcore = ">=1.0.9"
 setuptools = ">=80.10.2"
-pyasn1 = "^0.6.2"
+pyasn1 = "^0.6.3"
 
 # Need 5.x for pinecone connector. Need at least 5.29.6 due to CVE-2026-0994
 protobuf = "^5.29.6"

@@ -218,6 +218,7 @@ class LLMMapElements(MapBatch):
         validate: Callable[[Element], bool] = lambda e: True,
         max_tries: int = 5,
         filter: Callable[[Element], bool] = lambda e: True,
+        number_of_elements: Optional[int] = None,
         **kwargs,
     ):
         self._prompt = prompt
@@ -229,6 +230,7 @@ class LLMMapElements(MapBatch):
         self._validate = validate
         self._max_tries = max_tries
         self._filter = filter
+        self._number_of_elements = number_of_elements
         super().__init__(child, f=self.llm_map_elements, **kwargs)
 
     def llm_map_elements(self, documents: list[Document]) -> list[Document]:
@@ -237,7 +239,15 @@ class LLMMapElements(MapBatch):
             for e, _ in elt_doc_pairs:
                 e.properties[self._iteration_var] = 0
 
-        skips = [not self._filter(e) for e, _ in elt_doc_pairs]
+        skips = []
+        counter = 0
+        for e, _ in elt_doc_pairs:
+            if self._filter(e) and (not self._number_of_elements or counter < self._number_of_elements):
+                counter += 1
+                skips.append(False)
+            else:
+                skips.append(True)
+
         tries = 0
         while not all(skips) and tries < self._max_tries:
             tries += 1

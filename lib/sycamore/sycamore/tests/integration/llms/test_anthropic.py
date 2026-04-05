@@ -19,7 +19,7 @@ def cacheset(cache: DiskCache, key: str, data: Any):
 
 
 def test_anthropic_defaults():
-    llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU)
+    llm = Anthropic(AnthropicModels.CLAUDE_4_5_HAIKU)
     prompt = RenderedPrompt(
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
     )
@@ -29,7 +29,7 @@ def test_anthropic_defaults():
 
 
 def test_anthropic_messages_defaults():
-    llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU)
+    llm = Anthropic(AnthropicModels.CLAUDE_4_5_HAIKU)
     messages = [
         RenderedMessage(
             role="user",
@@ -45,7 +45,7 @@ def test_anthropic_messages_defaults():
 
 def test_cached_anthropic(tmp_path: Path):
     cache = DiskCache(str(tmp_path))
-    llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU, cache=cache)
+    llm = Anthropic(AnthropicModels.CLAUDE_4_5_HAIKU, cache=cache)
     prompt = RenderedPrompt(
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
     )
@@ -55,7 +55,7 @@ def test_cached_anthropic(tmp_path: Path):
 
     res = llm.generate(prompt=prompt, llm_kwargs={})
 
-    model_name = AnthropicModels.CLAUDE_3_HAIKU.value.name
+    model_name = AnthropicModels.CLAUDE_4_5_HAIKU.value.name
     # assert result is cached
     assert cacheget(cache, key).get("result")["output"] == res
     assert cacheget(cache, key).get("prompt") == prompt
@@ -78,7 +78,7 @@ def test_cached_anthropic(tmp_path: Path):
 
 def test_cached_bedrock_different_prompts(tmp_path: Path):
     cache = DiskCache(str(tmp_path))
-    llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU, cache=cache)
+    llm = Anthropic(AnthropicModels.CLAUDE_4_5_HAIKU, cache=cache)
     prompt_1 = RenderedPrompt(
         messages=[RenderedMessage(role="user", content="Write a limerick about large language models.")]
     )
@@ -109,7 +109,7 @@ def test_cached_bedrock_different_prompts(tmp_path: Path):
 
 def test_cached_anthropic_different_models(tmp_path: Path):
     cache = DiskCache(str(tmp_path))
-    llm_HAIKU = Anthropic(AnthropicModels.CLAUDE_3_5_HAIKU, cache=cache)
+    llm_HAIKU = Anthropic(AnthropicModels.CLAUDE_4_5_HAIKU, cache=cache)
     llm_SONNET = Anthropic(AnthropicModels.CLAUDE_4_5_SONNET, cache=cache)
 
     prompt = RenderedPrompt(
@@ -126,7 +126,7 @@ def test_cached_anthropic_different_models(tmp_path: Path):
     assert cacheget(cache, key_HAIKU).get("result")["output"] == res_HAIKU
     assert cacheget(cache, key_HAIKU).get("prompt") == prompt
     assert cacheget(cache, key_HAIKU).get("llm_kwargs") == {}
-    assert cacheget(cache, key_HAIKU).get("model_name") == AnthropicModels.CLAUDE_3_5_HAIKU.value.name
+    assert cacheget(cache, key_HAIKU).get("model_name") == AnthropicModels.CLAUDE_4_5_HAIKU.value.name
     assert cacheget(cache, key_SONNET).get("result")["output"] == res_SONNET
     assert cacheget(cache, key_SONNET).get("prompt") == prompt
     assert cacheget(cache, key_SONNET).get("llm_kwargs") == {}

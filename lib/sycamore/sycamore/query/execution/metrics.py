@@ -2,7 +2,7 @@ import pickle
 import posixpath
 from typing import Optional, Iterable, Any
 
-from pyarrow.filesystem import FileSystem
+from pyarrow.fs import FileSystem
 from ray.data import Datasink
 from ray.data._internal.execution.interfaces import TaskContext
 from ray.data.block import Block, BlockAccessor

@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING
 
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.utils.import_utils import requires_modules
@@ -12,7 +12,7 @@ from sycamore.utils import choose_device
 from sycamore.utils.time_trace import timetrace
 
 if TYPE_CHECKING:
-    pass
+    from transformers import TokenizersBackend, SentencePieceBackend
 logger = logging.getLogger(__name__)
 
 
@@ -160,7 +160,7 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
         self.max_tokens = max_tokens
 
         self._model = None
-        self._tokenizer = None
+        self._tokenizer: Union[TokenizersBackend, SentencePieceBackend, None] = None
 
     @requires_modules(["transformers", "torch"], extra="local-inference")
     def __call__(self, doc_batch: list[Document], query: str, score_property_name: str) -> list[Document]:

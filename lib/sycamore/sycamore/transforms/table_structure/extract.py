@@ -160,9 +160,17 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         return ret
 
     def _init_structure_model(self):
-        from transformers import TableTransformerForObjectDetection
+        from transformers import TableTransformerConfig, TableTransformerForObjectDetection
 
-        self.structure_model = TableTransformerForObjectDetection.from_pretrained(self.model).to(self._get_device())
+        # Note we parse the config this way because we need to override the
+        # dilation setting, as the current setting in the model will call
+        # from_pretrained to crash.
+        config_dict, kwargs = TableTransformerConfig.get_config_dict(self.model)
+        config_dict["dilation"] = False
+        config = TableTransformerConfig.from_dict(config_dict, **kwargs)
+        self.structure_model = TableTransformerForObjectDetection.from_pretrained(self.model, config=config).to(
+            self._get_device()
+        )
         self.structure_model.eval()
 
     @timetrace("tblExtr")

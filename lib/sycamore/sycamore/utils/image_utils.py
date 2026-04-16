@@ -64,14 +64,14 @@ def base64_data(image: Image.Image, format="PNG") -> str:
 
 
 def base64_data_url(image: Image.Image, format="PNG") -> str:
-    """Returns the image encoded as a png data url
+    """Returns the image encoded as an image data url
 
     More info on data urls can be found at https://en.wikipedia.org/wiki/Data_URI_scheme
 
     Args:
        image: A PIL image.
     """
-    return f"data:image/png/;base64,{base64_data(image, format)}"
+    return f"data:image/{format.lower()}/;base64,{base64_data(image, format)}"
 
 
 def image_page_filename_fn(doc: Document) -> str:

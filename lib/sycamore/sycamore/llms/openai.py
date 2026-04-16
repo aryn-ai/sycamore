@@ -294,8 +294,8 @@ class OpenAI(LLM):
     def is_chat_mode(self):
         return self.model.is_chat
 
-    def format_image(self, image: Image.Image) -> dict[str, Any]:
-        return {"type": "image_url", "image_url": {"url": base64_data_url(image)}}
+    def format_image(self, image: Image.Image, format: str = "PNG") -> dict[str, Any]:
+        return {"type": "image_url", "image_url": {"url": base64_data_url(image, format)}}
 
     def validate_tokens(self, completion) -> Tuple[int, int]:
         if completion.usage is not None:
@@ -338,6 +338,7 @@ class OpenAI(LLM):
             kwargs.update({"prompt": pstring})
             return kwargs
 
+        image_format = kwargs.pop("image_format", "PNG")
         messages_list = []
         for m in prompt.messages:
             if m.role == "system":
@@ -352,7 +353,7 @@ class OpenAI(LLM):
                 content = [{"type": "text", "text": m.content}]
                 assert isinstance(content, list)  # mypy!!!
                 for im in m.images:
-                    content.append(self.format_image(im))
+                    content.append(self.format_image(im, image_format))
             messages_list.append({"role": role, "content": content})
 
         kwargs.update({"messages": messages_list})

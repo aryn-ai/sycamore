@@ -310,12 +310,12 @@ class DocSetReader:
             _, v = next(iter(result_filter.items()))
             if not isinstance(v, list):
                 raise ValueError(
-                    f"Filter values must be a list of strings. Got {type(v)} instead. Please provide a list of values."
+                    f"Filter values must be a list of primitive types. Got {type(v)} instead. Please provide a list of values."
                 )
             for elm in v:
-                if not isinstance(elm, str):
+                if isinstance(elm, (dict, list)):
                     raise ValueError(
-                        f"Filter values must be a list of strings. Got {type(elm)} instead. Please provide a list of values."
+                        f"Filter values must be a list of primitive types. Got {type(elm)} instead. Please provide a list of values."
                     )
 
         # Allow the OpenSearchReader to use the result filter if it does not conflict

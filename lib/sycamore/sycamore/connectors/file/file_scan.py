@@ -9,6 +9,7 @@ import logging
 
 from functools import partial
 from pyarrow._fs import FileInfo
+from pyarrow._json import ReadOptions
 from pyarrow.fs import FileSystem, FileSelector
 from sycamore.data import Document, mkdocid, MetadataDocument
 from sycamore.plan_nodes import Scan
@@ -300,6 +301,7 @@ class JsonScan(FileScan):
         metadata_provider: Optional[FileMetadataProvider] = None,
         document_body_field: Optional[str] = None,
         doc_extractor: Optional[Callable] = None,
+        arrow_json_args: Optional[dict] = None,
         **resource_args,
     ):
         super().__init__(
@@ -313,6 +315,7 @@ class JsonScan(FileScan):
         self._metadata_provider = metadata_provider
         self._document_body_field = document_body_field
         self._doc_extractor = doc_extractor
+        self.arrow_json_args = arrow_json_args
 
     def _to_document(self, json_dict: dict[str, Any]) -> list[dict[str, Any]]:
         document = Document()
@@ -364,6 +367,7 @@ class JsonScan(FileScan):
             filesystem=self._filesystem,
             override_num_blocks=self.override_num_blocks,
             ray_remote_args=self.resource_args,
+            **self.arrow_json_args,
         )
 
         doc_extractor = self._doc_extractor if self._doc_extractor else self._to_document
@@ -403,6 +407,7 @@ class JsonDocumentScan(FileScan):
         parallelism: Optional[str] = None,
         override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
+        arrow_json_args: Optional[dict] = None,
         **resource_args,
     ):
         super().__init__(
@@ -412,6 +417,14 @@ class JsonDocumentScan(FileScan):
             filesystem=filesystem,
             **resource_args,
         )
+
+        if arrow_json_args is None:
+            arrow_json_args = {}
+
+        self.read_options = arrow_json_args.pop(
+            "read_options", json.ReadOptions(use_threads=False)
+        )
+        self.arrow_json_args = arrow_json_args
 
     @staticmethod
     def json_as_document(json: dict[str, Any]) -> list[dict[str, Any]]:
@@ -432,6 +445,7 @@ class JsonDocumentScan(FileScan):
             filesystem=self._filesystem,
             override_num_blocks=self.override_num_blocks,
             ray_remote_args=self.resource_args,
+            **self.arrow_json_args,
         )
         return ds.flat_map(self.json_as_document, **self.resource_args)
 
@@ -446,7 +460,7 @@ class JsonDocumentScan(FileScan):
             import pyarrow
 
             buffer: pyarrow.lib.Buffer = file.read_buffer()
-            table = pyjson.read_json(BytesIO(buffer))
+            table = pyjson.read_json(BytesIO(buffer), read_options=self.read_options)
             rows = table.to_pylist()
             docs = [Document(row) for row in rows]
             documents.extend(docs)

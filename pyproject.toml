@@ -95,6 +95,7 @@ build-backend = "poetry.core.masonry.api"
 pythonpath = ["."]
 log_cli = true
 log_cli_level = "INFO"
+addopts = "--dist loadfile"
 
 [tool.poetry-autolock.dependents]
 integration = "apps/integration"

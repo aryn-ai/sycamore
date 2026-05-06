@@ -1,6 +1,5 @@
 from sycamore.utils.time_trace import LogTime, TimeTrace
 import time
-import os
 import tempfile
 
 import pytest

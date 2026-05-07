@@ -144,7 +144,7 @@ class TestEmbedding:
         self.check_sentence_transformer_embedding(mocker, use_elements=True)
         self.check_sentence_transformer_embedding(mocker, use_documents=True)
 
-    @patch("openai.OpenAI")
+    @patch("sycamore.llms.openai.OpenAIClient")
     def test_openai_embedder_pickle(self, mock_openai_client):
         # Mock the OpenAI client to prevent external API calls
         mock_openai_instance = MagicMock()
@@ -156,7 +156,7 @@ class TestEmbedding:
         pickle.dumps(obj)
         assert True
 
-    @patch("openai.OpenAI")
+    @patch("sycamore.llms.openai.OpenAIClient")
     def test_openai_embedder_no_key(self, mock_openai_client):
         # Mock the OpenAI client to prevent external API calls
         mock_openai_instance = MagicMock()
@@ -169,7 +169,7 @@ class TestEmbedding:
         assert obj
 
     @patch("sentence_transformers.SentenceTransformer")
-    @patch("openai.OpenAI")
+    @patch("sycamore.llms.openai.OpenAIClient")
     @patch("boto3.client")
     def test_sentence_transformer_batch_size(self, mock_boto3_client, mock_openai_client, mock_transformer):
         # Mock all external dependencies
@@ -188,7 +188,7 @@ class TestEmbedding:
         mock_boto3_client.return_value = mock_boto3_instance
 
         embedder = SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        assert embedder._get_model_batch_size() == 100
+        assert embedder._get_model_batch_size() == 32
 
         embedder = SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", model_batch_size=50)
         assert embedder._get_model_batch_size() == 50

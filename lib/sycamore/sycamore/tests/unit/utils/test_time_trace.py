@@ -1,6 +1,5 @@
 from sycamore.utils.time_trace import LogTime, TimeTrace
 import time
-import os
 import tempfile
 
 import pytest
@@ -10,7 +9,7 @@ class TestTimeTrace:
     @pytest.fixture(autouse=True)
     def set_env(self):
         with tempfile.TemporaryDirectory() as tmp:
-            os.environ["TIMETRACE"] = f"{tmp}/tt"
+            TimeTrace._setup_prefix(f"{tmp}/tt")
             yield
 
     def test_with(self):

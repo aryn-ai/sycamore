@@ -7,15 +7,15 @@ readme = "README.md"
 repository = "https://github.com/aryn-ai/sycamore.git"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.14"
+python = ">=3.11,<3.14"
 sycamore-ai = {extras = ["opensearch"], version = "^0.1.30"}
 
-jupyterlab = "^4.4.8"
+jupyterlab = "^4.5.7"
 jupyter-core = "^5.8.1"
 jupyter-lsp = "^2.2.2"
 ipywidgets = "^8.1.0"
 notebook = "^7.1.2"
-nbconvert = "^7.17.0"
+nbconvert = "^7.17.1"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-ai = { path = "../../lib/sycamore", extras = ["opensearch"], develop = true }

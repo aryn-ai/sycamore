@@ -162,7 +162,7 @@ class SentenceTransformerEmbedder(Embedder):
         self,
         model_name: str,
         batch_size: Optional[int] = None,
-        model_batch_size: int = 100,
+        model_batch_size: int = 32,
         pre_process_document: Optional[Callable[[Union[Document, Element]], str]] = None,
         device: Optional[str] = None,
         embed_name: Optional[tuple[str, str]] = None,

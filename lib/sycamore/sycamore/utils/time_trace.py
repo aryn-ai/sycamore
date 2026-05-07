@@ -113,7 +113,13 @@ class TimeTrace:
         if cls.fd >= 0:
             return
         pfx = os.environ.get("TIMETRACE")
+        cls._setup_prefix(pfx)
+
+    @classmethod
+    def _setup_prefix(cls, pfx: str | None):
         if not pfx:
+            return
+        if cls.fd >= 0:
             return
         ts = time.strftime("%Y%m%d%H%M%S")
         pid = os.getpid()

@@ -16,7 +16,7 @@ repository = "https://github.com/aryn-ai/sycamore.git"
 [tool.poetry.dependencies]
 # streamlit in query-ui disallows 3.9.7
 # cryptography in sycamore-ai disallows 3.9.1, 3.9.0, need >44.0.1 due to CVE-2024-12797: https://github.com/aryn-ai/sycamore/security/dependabot/327
-python = ">=3.10,<3.14"
+python = ">=3.11,<3.14"
 
 sycamore-ai = "^0.1.32"
 aryn-sdk = ">=0.2.8" # filename support added
@@ -34,7 +34,7 @@ structlog = "^24.4.0"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
-pytest = "^7.4"
+pytest = "^9.0.3"
 pytest-mock = "^3.11"
 
 [tool.poetry.group.dev.dependencies]
@@ -60,7 +60,7 @@ black = ">=26.3.1"
 pre-commit = ">=4.2.0"
 mypy = ">=1.15.0"
 nbmake = "^1.4.5"
-pip = "^26.0"
+pip = "^26.1.1"
 devtools = "^0.12"
 
 [tool.poetry.group.notebook.dependencies]
@@ -69,8 +69,8 @@ jupyter-lsp = "^2.2.2"
 jupyter-core = "^5.8.1"
 ipywidgets = "^8.1.0"
 notebook = "^7.1.2"
-s3contents = "^0.11"
-nbconvert = "^7.17.0"
+s3contents = "^0.11.2"
+nbconvert = "^7.17.1"
 
 
 [tool.poetry.extras]

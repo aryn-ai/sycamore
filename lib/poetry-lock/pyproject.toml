@@ -15,7 +15,7 @@ ray = "^2.55.1"
 pandas = "^3.0.2" # Bumped to a version that supports 3.13.
 scipy = "^1.15.0"
 weaviate-client = "^4.16.10"
-urllib3 = "^2.6.3"
+urllib3 = "^2.7.0"
 
 # Required to continue supporting python 3.9; it may be possible to make these a bit more
 # current, but latest version no longer supports 3.9

@@ -37,7 +37,7 @@ pillow = "^12.2.0"
 # black = ">=24.3.0"
 fonttools = "^4.60.2"
 filelock = "^3.20.3"
-ujson = "^5.12.0"
+ujson = "^5.12.1"
 python-dotenv = "^1.2.2"
 mistune = "^3.2.1"
 

@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - name: DF-1
@@ -75,7 +75,7 @@ jobs:
       - name: DF-5
         run: df
       - name: Run tests
-        run: poetry run pytest -n auto sycamore/tests/unit/
+        run: poetry run pytest -n auto --dist loadfile sycamore/tests/unit/
         working-directory: lib/sycamore
       - name: Run more tests
         run: poetry run python sycamore/tests/manual/test_fast_sycamore_import.py
@@ -87,7 +87,7 @@ jobs:
     runs-on: blacksmith-8vcpu-ubuntu-2204
     strategy:
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.11"]
     services:
       opensearch:
         image: opensearchproject/opensearch:2.10.0
@@ -126,7 +126,7 @@ jobs:
     runs-on: blacksmith-8vcpu-ubuntu-2204
     strategy:
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.11"]
     services:
       opensearch:
         image: opensearchproject/opensearch:2.10.0
@@ -200,7 +200,7 @@ jobs:
     runs-on: blacksmith-8vcpu-ubuntu-2204
     strategy:
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.11"]
     services:
       opensearch:
         image: opensearchproject/opensearch:2.10.0
@@ -239,7 +239,7 @@ jobs:
     runs-on: blacksmith-8vcpu-ubuntu-2204
     strategy:
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.11"]
     services:
       opensearch:
         image: opensearchproject/opensearch:2.10.0

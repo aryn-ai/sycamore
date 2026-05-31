@@ -1,11 +1,10 @@
 from pathlib import Path
 from typing import Any
-import base64
-import pickle
 
 import pytest
 
 from sycamore.llms.gemini import Gemini, GeminiModels
+from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.prompts import RenderedPrompt, RenderedMessage
 from sycamore.utils.cache import DiskCache
 
@@ -17,12 +16,11 @@ def anyio_backend():
 
 def cacheget(cache: DiskCache, key: str):
     hit = cache.get(key)
-    return pickle.loads(base64.b64decode(hit))  # type: ignore
+    return LLM._llm_cache_from_jsonable(hit)  # type: ignore
 
 
 def cacheset(cache: DiskCache, key: str, data: Any):
-    databytes = pickle.dumps(data)
-    cache.set(key, base64.b64encode(databytes).decode("utf-8"))
+    cache.set(key, LLM._llm_cache_jsonable(data))
 
 
 def test_gemini_defaults():

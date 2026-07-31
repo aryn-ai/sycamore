@@ -39,3 +39,13 @@ embedded_doc_set = docset.embed(BedrockEmbedder(boto_session_kwargs={
 Sycamore will then construct a boto3 Session object on each executor using the specified credentials. If you do not specify credentials the standard credential resolution mechanisms are used. More information on AWS credentials can be found [here](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html).
 
 The bedrock APIs do not support batching, so an API call will be made for each document in the `DocSet`.
+
+### Ollama Embeddings
+
+The `OllamaEmbedder` computes embeddings using a local [Ollama](https://ollama.com/) server, for fully local/offline pipelines with no cloud dependency. Unlike the other providers, Ollama's model catalog is whatever you have locally pulled (e.g. via `ollama pull nomic-embed-text`), so `model_name` is just the name of that local model rather than a value from a fixed enum.
+
+```python
+embedded_doc_set = docset.embed(OllamaEmbedder(model_name="nomic-embed-text", model_batch_size=100))
+```
+
+By default Sycamore connects to `http://127.0.0.1:11434`, following the `OLLAMA_HOST` environment variable if set. You can also pass a `host` explicitly, e.g. `OllamaEmbedder(model_name="nomic-embed-text", host="http://my-ollama-server:11434")`.

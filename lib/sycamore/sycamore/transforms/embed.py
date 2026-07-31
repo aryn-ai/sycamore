@@ -17,6 +17,7 @@ from sycamore.utils.time_trace import timetrace
 if TYPE_CHECKING:
     from openai import OpenAI as OpenAIClient
     from sycamore.llms.openai import OpenAIClientWrapper, OpenAIClientParameters
+    from ollama import Client as OllamaClient
 
 
 logger = logging.getLogger(__name__)
@@ -283,6 +284,80 @@ class OpenAIEmbedder(Embedder):
         assert self._client is not None
         response = self._client.embeddings.create(model=self.model_name, input=texts)
         return [data.embedding for data in response.data]
+
+
+class OllamaEmbedder(Embedder):
+    """Embedder implementation using a local Ollama server's embedding API.
+
+    Unlike the other providers, Ollama's model catalog is whatever the user has locally
+    `ollama pull`ed, so model_name is a plain string naming that model (e.g. "nomic-embed-text").
+
+    Args:
+        model_name: The name of the Ollama embedding model to use.
+        batch_size: The Ray batch size.
+        model_batch_size: The number of documents to send in a single Ollama request. Ollama's
+            /api/embed endpoint natively accepts a batch of inputs in one call.
+        host: The base URL of the Ollama server, e.g. "http://localhost:11434". If not
+            provided, falls back to the OLLAMA_HOST environment variable, and then to
+            Ollama's default of http://127.0.0.1:11434.
+        client_args: Additional keyword arguments to pass to the Ollama client constructor.
+
+    Example:
+         .. code-block:: python
+
+            embedder = OllamaEmbedder(model_name="nomic-embed-text")
+            docset_with_embeddings = docset.embed(embedder=embedder)
+    """
+
+    @requires_modules("ollama", extra="ollama")
+    def __init__(
+        self,
+        model_name: str,
+        batch_size: Optional[int] = None,
+        model_batch_size: int = 100,
+        pre_process_document: Optional[Callable[[Union[Document, Element]], str]] = None,
+        host: Optional[str] = None,
+        client_args: Optional[dict[str, Any]] = None,
+        embed_name: Optional[tuple[str, str]] = None,
+    ):
+        self.host = host
+        self._client_args = client_args or {}
+        self._client: Optional["OllamaClient"] = None
+
+        super().__init__(
+            model_name=model_name,
+            batch_size=batch_size,
+            model_batch_size=model_batch_size,
+            pre_process_document=pre_process_document,
+            device="cpu",
+            embed_name=embed_name,
+        )
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_client"] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
+    def _ensure_client(self):
+        if self._client is None:
+            from ollama import Client as OllamaClient
+
+            self._client = OllamaClient(host=self.host, **self._client_args)
+
+    def _get_model_batch_size(self) -> int:
+        return Embedder.clamp_batch_size(self.model_batch_size)
+
+    def close(self) -> None:
+        self._client = None
+
+    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+        self._ensure_client()
+        assert self._client is not None
+        response = self._client.embed(model=self.model_name, input=texts)
+        return [list(embedding) for embedding in response.embeddings]
 
 
 class BedrockEmbeddingModels(Enum):

@@ -2,7 +2,7 @@ from functools import partial
 from typing import Callable, Dict
 
 from sycamore.llms.llms import LLM
-from sycamore.llms.config import AnthropicModels, BedrockModels, GeminiModels, OpenAIModels
+from sycamore.llms.config import AnthropicModels, BedrockModels, GeminiModels, OllamaModels, OpenAIModels
 
 
 def AnthropicTrampoline(name, **kwargs):
@@ -29,6 +29,12 @@ def OpenAITrampoline(name, **kwargs):
     return OpenAI(name, **kwargs)
 
 
+def OllamaTrampoline(name, **kwargs):
+    from sycamore.llms.ollama import Ollama
+
+    return Ollama(name, **kwargs)
+
+
 # Register the model constructors.
 MODELS: Dict[str, Callable[..., LLM]] = {}
 MODELS.update({f"openai.{model.value.name}": partial(OpenAITrampoline, model.value.name) for model in OpenAIModels})
@@ -38,6 +44,7 @@ MODELS.update(
     {f"anthropic.{model.value.name}": partial(AnthropicTrampoline, model.value.name) for model in AnthropicModels}
 )
 MODELS.update({f"gemini.{model.value.name}": partial(GeminiTrampoline, model.value.name) for model in GeminiModels})
+MODELS.update({f"ollama.{model.value.name}": partial(OllamaTrampoline, model.value.name) for model in OllamaModels})
 
 
 def get_llm(model_name: str) -> Callable[..., LLM]:
@@ -64,4 +71,6 @@ __all__ = [
     "AnthropicModels",
     # "Gemini", # sycamore.llms.gemini
     "GeminiModels",
+    # "Ollama", # sycamore.llms.ollama
+    "OllamaModels",
 ]

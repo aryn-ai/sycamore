@@ -8,7 +8,7 @@ import numpy as np
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.transforms import Embed
-from sycamore.transforms.embed import OpenAIEmbedder, SentenceTransformerEmbedder, BedrockEmbedder
+from sycamore.transforms.embed import OpenAIEmbedder, SentenceTransformerEmbedder, BedrockEmbedder, OllamaEmbedder
 
 
 class TestEmbedding:
@@ -168,6 +168,30 @@ class TestEmbedding:
             os.environ.update({"OPENAI_API_KEY": oaik})
         assert obj
 
+    @patch("ollama.Client")
+    def test_ollama_embedder_pickle(self, mock_ollama_client):
+        mock_ollama_instance = MagicMock()
+        mock_ollama_client.return_value = mock_ollama_instance
+
+        obj = OllamaEmbedder(model_name="nomic-embed-text")
+        obj._ensure_client()
+
+        pickle.dumps(obj)
+        assert True
+
+    @patch("ollama.Client")
+    def test_ollama_embedder_embed_texts(self, mock_ollama_client):
+        mock_ollama_instance = MagicMock()
+        mock_ollama_instance.embed.return_value = MagicMock(embeddings=[[0.1, 0.2], [0.3, 0.4]])
+        mock_ollama_client.return_value = mock_ollama_instance
+
+        embedder = OllamaEmbedder(model_name="nomic-embed-text", host="http://my-ollama:11434")
+        embeddings = embedder.embed_texts(["hello", "world"])
+
+        assert embeddings == [[0.1, 0.2], [0.3, 0.4]]
+        mock_ollama_client.assert_called_once_with(host="http://my-ollama:11434")
+        mock_ollama_instance.embed.assert_called_once_with(model="nomic-embed-text", input=["hello", "world"])
+
     @patch("sentence_transformers.SentenceTransformer")
     @patch("sycamore.llms.openai.OpenAIClient")
     @patch("boto3.client")
@@ -202,6 +226,9 @@ class TestEmbedding:
         embedder = OpenAIEmbedder(model_batch_size=120)
         assert embedder._get_model_batch_size() == 120
 
+        embedder = OllamaEmbedder(model_name="nomic-embed-text", model_batch_size=120)
+        assert embedder._get_model_batch_size() == 120
+
         # Test batching
         texts = ["text1", "text2", "text3", "text4"]
         docs = [Document({"text_representation": t}) for t in texts]
@@ -209,6 +236,7 @@ class TestEmbedding:
         embedders = [
             SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", model_batch_size=2),
             OpenAIEmbedder(model_batch_size=2),
+            OllamaEmbedder(model_name="nomic-embed-text", model_batch_size=2),
         ]
         for embedder in embedders:
 

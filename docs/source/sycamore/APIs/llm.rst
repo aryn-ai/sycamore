@@ -20,3 +20,6 @@ LLM
 .. automodule:: sycamore.llms.bedrock
    :members:
    :show-inheritance:
+.. automodule:: sycamore.llms.ollama
+   :members:
+   :show-inheritance:

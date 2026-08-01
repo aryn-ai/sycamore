@@ -2,8 +2,9 @@ import inspect
 from abc import ABC, abstractmethod
 import copy
 import datetime
+import io
+import json
 import logging
-import pickle
 import base64
 from PIL import Image
 from typing import Any, Optional
@@ -140,13 +141,76 @@ class LLM(ABC):
         return f"{self.__class__.__name__}({self._model_name})"
 
     @staticmethod
-    def _pickleable_response_format(prompt: RenderedPrompt) -> Any:
+    def _jsonable_response_format(prompt: RenderedPrompt) -> Any:
         import pydantic
 
         if inspect.isclass(prompt.response_format) and issubclass(prompt.response_format, pydantic.BaseModel):
             return prompt.response_format.model_json_schema()
         else:
             return prompt.response_format
+
+    @staticmethod
+    def _llm_cache_json_default(obj: Any) -> Any:
+        import pydantic
+
+        if isinstance(obj, RenderedPrompt):
+            return {
+                "__type__": "RenderedPrompt",
+                "messages": obj.messages,
+                "response_format": LLM._jsonable_response_format(obj),
+            }
+        if isinstance(obj, RenderedMessage):
+            return {"__type__": "RenderedMessage", "role": obj.role, "content": obj.content, "images": obj.images}
+        if isinstance(obj, Image.Image):
+            with io.BytesIO() as buffer:
+                obj.save(buffer, format="PNG")
+                data = base64.b64encode(buffer.getvalue()).decode("ascii")
+            return {"__type__": "PIL.Image", "format": "PNG", "data": data}
+        if isinstance(obj, datetime.timedelta):
+            return {
+                "__type__": "datetime.timedelta",
+                "days": obj.days,
+                "seconds": obj.seconds,
+                "microseconds": obj.microseconds,
+            }
+        if isinstance(obj, datetime.datetime):
+            return {"__type__": "datetime.datetime", "value": obj.isoformat()}
+        if inspect.isclass(obj) and issubclass(obj, pydantic.BaseModel):
+            return obj.model_json_schema()
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    @staticmethod
+    def _llm_cache_json_object_hook(obj: dict[str, Any]) -> Any:
+        obj_type = obj.get("__type__")
+        if obj_type == "RenderedPrompt":
+            return RenderedPrompt(messages=obj["messages"], response_format=obj.get("response_format"))
+        if obj_type == "RenderedMessage":
+            return RenderedMessage(role=obj["role"], content=obj["content"], images=obj.get("images"))
+        if obj_type == "PIL.Image":
+            image_data = base64.b64decode(obj["data"])
+            with Image.open(io.BytesIO(image_data)) as image:
+                return image.copy()
+        if obj_type == "datetime.timedelta":
+            return datetime.timedelta(
+                days=obj["days"],
+                seconds=obj["seconds"],
+                microseconds=obj["microseconds"],
+            )
+        if obj_type == "datetime.datetime":
+            return datetime.datetime.fromisoformat(obj["value"])
+        return obj
+
+    @staticmethod
+    def _llm_cache_json_dumps(data: Any) -> str:
+        return json.dumps(data, default=LLM._llm_cache_json_default, sort_keys=True, separators=(",", ":"))
+
+    @staticmethod
+    def _llm_cache_jsonable(data: Any) -> Any:
+        return json.loads(LLM._llm_cache_json_dumps(data))
+
+    @staticmethod
+    def _llm_cache_from_jsonable(data: Any) -> Any:
+        return json.loads(json.dumps(data), object_hook=LLM._llm_cache_json_object_hook)
 
     def _llm_cache_key(
         self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[str] = None
@@ -156,7 +220,7 @@ class LLM(ABC):
         # We now default this to an empty dict if None is passed in.
         llm_kwargs = llm_kwargs or {}
         model = model or self._model_name
-        rf = self._pickleable_response_format(prompt)
+        rf = self._jsonable_response_format(prompt)
         ms = prompt.messages
         combined = {
             "prompt": RenderedPrompt(messages=ms),
@@ -164,7 +228,7 @@ class LLM(ABC):
             "llm_kwargs": llm_kwargs,
             "model_name": model,
         }
-        data = pickle.dumps(combined)
+        data = self._llm_cache_json_dumps(combined).encode("utf-8")
         return self._cache.get_hash_context(data).hexdigest()
 
     def _use_caching(self, llm_kwargs: Optional[dict]):
@@ -187,12 +251,11 @@ class LLM(ABC):
         key = self._llm_cache_key(prompt, llm_kwargs, model=model)
         hit = self._cache.get(key)
         if hit:
-            hit = base64.b64decode(hit)
-            hit = pickle.loads(hit)
+            hit = self._llm_cache_from_jsonable(hit)
             assert (
                 len(hit) == 5
                 and hit.get("prompt") == RenderedPrompt(messages=prompt.messages)
-                and hit.get("prompt.response_format") == self._pickleable_response_format(prompt)
+                and hit.get("prompt.response_format") == self._jsonable_response_format(prompt)
                 and hit.get("llm_kwargs") == llm_kwargs
                 and hit.get("model_name") == model
                 and "result" in hit
@@ -218,20 +281,19 @@ class LLM(ABC):
         model = model or self._model_name
         llm_kwargs = llm_kwargs or {}
         key = self._llm_cache_key(prompt, llm_kwargs, model=model)
-        databytes = pickle.dumps(
+        data = self._llm_cache_jsonable(
             {
                 "prompt": RenderedPrompt(messages=prompt.messages),
-                "prompt.response_format": self._pickleable_response_format(prompt),
+                "prompt.response_format": self._jsonable_response_format(prompt),
                 "llm_kwargs": llm_kwargs,
                 "model_name": model or self._model_name,
                 "result": result,
             }
         )
-        datastr = base64.b64encode(databytes).decode("utf-8")
         print(f"Cache set using {model=}")
         self._cache.set(
             key,
-            datastr,
+            data,
         )
 
     def get_metadata(self, model, kwargs, response_text, wall_latency, in_tokens, out_tokens) -> dict:

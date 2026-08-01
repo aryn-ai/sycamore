@@ -1,10 +1,10 @@
 from pathlib import Path
 import pickle
-import base64
 import pytest
 from typing import Any
 
 from sycamore.functions.tokenizer import OpenAITokenizer
+from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI, OpenAIModels, OpenAIClientWrapper
 from sycamore.llms.openai import OpenAIModel, OpenAIClientType
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage, StaticPrompt
@@ -15,12 +15,11 @@ from pydantic import BaseModel
 
 def cacheget(cache: DiskCache, key: str):
     hit = cache.get(key)
-    return pickle.loads(base64.b64decode(hit))  # type: ignore
+    return LLM._llm_cache_from_jsonable(hit)  # type: ignore
 
 
 def cacheset(cache: DiskCache, key: str, data: Any):
-    databytes = pickle.dumps(data)
-    cache.set(key, base64.b64encode(databytes).decode("utf-8"))
+    cache.set(key, LLM._llm_cache_jsonable(data))
 
 
 # Note: These tests expect you to have OPENAI_API_KEY set in your environment.
@@ -222,9 +221,9 @@ def test_cached_openai_pydantic_model(tmp_path: Path):
     # check cache
     assert cacheget(cache, key_GPT_4O_MINI).get("result").get("output") == res_GPT_4O_MINI
     assert cacheget(cache, key_GPT_4O_MINI).get("prompt") == RenderedPrompt(messages=prompt.messages)
-    assert cacheget(cache, key_GPT_4O_MINI).get(
-        "prompt.response_format"
-    ) == llm_GPT_4O_MINI._pickleable_response_format(prompt)
+    assert cacheget(cache, key_GPT_4O_MINI).get("prompt.response_format") == llm_GPT_4O_MINI._jsonable_response_format(
+        prompt
+    )
     assert cacheget(cache, key_GPT_4O_MINI).get("llm_kwargs") == llm_kwargs_cached
     assert cacheget(cache, key_GPT_4O_MINI).get("model_name") == "gpt-4o-mini"
 

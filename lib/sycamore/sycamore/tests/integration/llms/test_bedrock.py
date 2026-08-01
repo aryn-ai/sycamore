@@ -1,21 +1,19 @@
 from pathlib import Path
 from typing import Any
-import pickle
-import base64
 
 from sycamore.llms.bedrock import Bedrock, BedrockModels
+from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.utils.cache import DiskCache
 
 
 def cacheget(cache: DiskCache, key: str):
     hit = cache.get(key)
-    return pickle.loads(base64.b64decode(hit))  # type: ignore
+    return LLM._llm_cache_from_jsonable(hit)  # type: ignore
 
 
 def cacheset(cache: DiskCache, key: str, data: Any):
-    databytes = pickle.dumps(data)
-    cache.set(key, base64.b64encode(databytes).decode("utf-8"))
+    cache.set(key, LLM._llm_cache_jsonable(data))
 
 
 # Note: These tests assume your environment has been configured to access Amazon Bedrock.

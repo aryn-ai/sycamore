@@ -313,4 +313,26 @@ class TestCache:
         # doit(RenderedPrompt(messages=[]), {}, "def")
         doit(RenderedPrompt(messages=[RenderedMessage(role="user", content="foff")]), {}, {"ghi": "jkl"})
         doit(RenderedPrompt(messages=[]), {"magic": True}, [1, 2, 3])
+        doit(
+            RenderedPrompt(messages=[RenderedMessage(role="user", content="latency")]),
+            {},
+            {"wall_latency": datetime.timedelta(milliseconds=25)},
+        )
         doit(RenderedPrompt(messages=[]), {}, "abc2", already_set=True)
+
+    def test_cache_stores_json_payload(self, tmp_path: Path):
+        cache = DiskCache(str(tmp_path))
+        llm = FakeLLM(cache=cache)
+        prompt = RenderedPrompt(messages=[RenderedMessage(role="user", content="hello")])
+        result = {"output": "hi", "wall_latency": datetime.timedelta(milliseconds=25)}
+
+        llm._llm_cache_set(prompt, {}, result)
+        raw = cache.get(llm._llm_cache_key(prompt, {}))
+
+        assert isinstance(raw, dict)
+        assert raw["prompt"]["__type__"] == "RenderedPrompt"
+        assert raw["prompt"]["messages"] == [
+            {"__type__": "RenderedMessage", "role": "user", "content": "hello", "images": None}
+        ]
+        assert raw["result"]["wall_latency"]["__type__"] == "datetime.timedelta"
+        assert llm._llm_cache_get(prompt, {}) == result

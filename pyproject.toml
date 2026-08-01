@@ -64,14 +64,14 @@ pip = "^26.1.1"
 devtools = "^0.12"
 
 [tool.poetry.group.notebook.dependencies]
-jupyterlab = "^4.4.8"
+jupyterlab = "^4.6.2"
 jupyter-lsp = "^2.2.2"
 jupyter-core = "^5.8.1"
+jupyter-server = "^2.20.0"
 ipywidgets = "^8.1.0"
-notebook = "^7.1.2"
+notebook = "^7.5.6"
 s3contents = "^0.11.2"
 nbconvert = "^7.17.1"
-
 
 [tool.poetry.extras]
 docs = ["furo", "myst-parser", "sphinx", "enum-tools", "sphinx-toolbox"]

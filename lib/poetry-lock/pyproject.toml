@@ -15,7 +15,7 @@ ray = "^2.55.1"
 pandas = "^3.0.2" # Bumped to a version that supports 3.13.
 scipy = "^1.15.0"
 weaviate-client = "^4.16.10"
-urllib3 = "^2.6.3"
+urllib3 = "^2.7.0"
 
 # Required to continue supporting python 3.9; it may be possible to make these a bit more
 # current, but latest version no longer supports 3.9
@@ -37,7 +37,9 @@ pillow = "^12.2.0"
 # black = ">=24.3.0"
 fonttools = "^4.60.2"
 filelock = "^3.20.3"
-ujson = "^5.12.0"
+ujson = "^5.13.0"
+python-dotenv = "^1.2.2"
+mistune = "^3.3.4"
 
 httpcore = ">=1.0.9"
 setuptools = ">=80.10.2"

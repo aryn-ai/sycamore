@@ -125,7 +125,7 @@ mypy = ">=1.15.0"
 nbmake = "^1.4.5"
 
 [tool.poetry.group.notebook.dependencies]
-jupyterlab = "^4.5.7"
+jupyterlab = "^4.6.2"
 jupyter-lsp = "^2.2.2"
 jupyter-core = "^5.8.1"
 jupyter-server = "^2.20.0"

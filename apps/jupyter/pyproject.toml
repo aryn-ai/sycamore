@@ -10,7 +10,7 @@ repository = "https://github.com/aryn-ai/sycamore.git"
 python = ">=3.11,<3.14"
 sycamore-ai = {extras = ["opensearch"], version = "^0.1.30"}
 
-jupyterlab = "^4.5.7"
+jupyterlab = "^4.6.2"
 jupyter-core = "^5.8.1"
 jupyter-lsp = "^2.2.2"
 jupyter-server = "^2.20.0"

@@ -153,6 +153,34 @@ class OpenAIModels(Enum):
         return None
 
 
+@dataclass
+class OllamaModel(LLMModel):
+    name: str
+    is_chat: bool = True
+
+
+class OllamaModels(Enum):
+    """Represents commonly used Ollama models. Ollama's actual catalog is whatever the user has
+    locally `ollama pull`ed, so this enum is a convenience for common models rather than an
+    exhaustive or authoritative list. Use a plain string model name for anything else."""
+
+    LLAMA3_1 = OllamaModel(name="llama3.1")
+    LLAMA3_2 = OllamaModel(name="llama3.2")
+    MISTRAL = OllamaModel(name="mistral")
+    QWEN2_5 = OllamaModel(name="qwen2.5")
+    GEMMA2 = OllamaModel(name="gemma2")
+    PHI3 = OllamaModel(name="phi3")
+
+    @classmethod
+    def from_name(cls, name: str) -> OllamaModel:
+        for m in iter(cls):
+            if m.value.name == name:
+                return m.value
+        # Unlike the other providers, Ollama's model catalog is dynamic (whatever has been
+        # pulled locally), so an unrecognized name isn't an error - just build an ad hoc model.
+        return OllamaModel(name=name)
+
+
 class ChainedModel(LLMModel):
 
     def __init__(self, chain: list[LLMModel]):

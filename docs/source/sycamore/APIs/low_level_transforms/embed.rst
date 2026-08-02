@@ -10,6 +10,9 @@ Embed
 .. autoclass:: sycamore.transforms.embed.Embed
    :members:
    :show-inheritance:
+.. autoclass:: sycamore.transforms.embed.OllamaEmbedder
+   :members:
+   :show-inheritance:
 .. autoclass:: sycamore.transforms.embed.OpenAIEmbedder
    :members:
    :show-inheritance:

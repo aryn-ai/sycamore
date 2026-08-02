@@ -301,6 +301,8 @@ class OllamaEmbedder(Embedder):
             provided, falls back to the OLLAMA_HOST environment variable, and then to
             Ollama's default of http://127.0.0.1:11434.
         client_args: Additional keyword arguments to pass to the Ollama client constructor.
+        device: The Ray resource device to schedule this embedder on. Defaults to "cpu" since
+            the actual embedding computation happens on the remote Ollama server, not locally.
 
     Example:
          .. code-block:: python
@@ -319,6 +321,7 @@ class OllamaEmbedder(Embedder):
         host: Optional[str] = None,
         client_args: Optional[dict[str, Any]] = None,
         embed_name: Optional[tuple[str, str]] = None,
+        device: Optional[str] = "cpu",
     ):
         self.host = host
         self._client_args = client_args or {}
@@ -329,7 +332,7 @@ class OllamaEmbedder(Embedder):
             batch_size=batch_size,
             model_batch_size=model_batch_size,
             pre_process_document=pre_process_document,
-            device="cpu",
+            device=device,
             embed_name=embed_name,
         )
 

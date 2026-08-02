@@ -14,10 +14,6 @@ from sycamore.utils.import_utils import requires_modules
 logger = logging.getLogger(__name__)
 
 
-def format_image(image: Image.Image) -> str:
-    return base64_data(image)
-
-
 def get_generate_kwargs(prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
     kwargs = {
         "options": {"temperature": 0},
@@ -28,7 +24,7 @@ def get_generate_kwargs(prompt: RenderedPrompt, llm_kwargs: Optional[dict] = Non
     for m in prompt.messages:
         message: dict[str, Any] = {"role": m.role, "content": m.content}
         if m.images:
-            message["images"] = [format_image(im) for im in m.images]
+            message["images"] = [base64_data(im) for im in m.images]
         messages.append(message)
 
     kwargs["messages"] = messages
@@ -102,17 +98,12 @@ class Ollama(LLM):
         }
         return ollama_deserializer, (kwargs,)
 
-    def default_mode(self) -> LLMMode:
-        if self._default_mode is not None:
-            return self._default_mode
-        return LLMMode.ASYNC
-
     def is_chat_mode(self) -> bool:
         """Returns True if the LLM is in chat mode, False otherwise."""
         return True
 
     def format_image(self, image: Image.Image) -> dict[str, Any]:
-        return {"images": [format_image(image)]}
+        return {"images": [base64_data(image)]}
 
     def _metadata_from_response(self, model: str, kwargs, response, starttime) -> dict:
         wall_latency = datetime.now() - starttime

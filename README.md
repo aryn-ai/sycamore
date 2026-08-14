@@ -67,7 +67,7 @@ Check out our [Contributing Guide](https://github.com/aryn-ai/sycamore/blob/main
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=aryn-ai/sycamore&type=Date)](https://star-history.com/#aryn-ai/sycamore&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=aryn-ai/sycamore&type=Date)](https://star-history.dera.page/#aryn-ai/sycamore&Date)
 
 <p align="right" style="font-size: 14px; color: #555; margin-top: 20px;">
     <a href="#readme-top" style="text-decoration: none; color: #007bff; font-weight: bold;">

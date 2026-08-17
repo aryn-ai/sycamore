@@ -78,9 +78,9 @@ def test_aryn_reader(exec_mode):
 def test_aryn_reader_with_original_elements(exec_mode):
     from aryn_sdk.client import Client
 
-    aryn_url = "https://test-api.aryn.ai/v1/storage"
+    aryn_url = "https://api.aryn.ai/v1/storage"
     aryn_config = ArynConfig()
-    client = Client(aryn_url="https://test-api.aryn.ai", aryn_api_key=aryn_config.get_aryn_api_key())
+    client = Client(aryn_url="https://api.aryn.ai", aryn_api_key=aryn_config.get_aryn_api_key())
     docset_id = None
     try:
         docset_id = client.create_docset(name=f"test-{str(uuid.uuid4())}").value.docset_id

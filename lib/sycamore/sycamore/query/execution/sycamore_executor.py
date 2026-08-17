@@ -112,7 +112,7 @@ class SycamoreExecutor:
         bind_contextvars(logical_node=logical_node)
         if logical_node.node_id in self.processed:
             log.info("Already processed")
-            return self.processed[logical_node.node_id]
+            return self.processed[logical_node.node_id], False
         log.info("Executing dependencies")
         inputs: List[Any] = []
 

@@ -11,6 +11,8 @@ from sycamore.transforms.merge_elements import GreedyTextElementMerger
 from sycamore.transforms.partition import ArynPartitioner
 
 QUERY_INTEGRATION_TEST_INDEX_NAME = "sycamore_query_ntsb_integration_tests"
+QUERY_INTEGRATION_TEST_INDEX_NAME2 = "sycamore_query_ntsb_integration_tests2"
+
 OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
 
 OS_CLIENT_ARGS = {
@@ -124,10 +126,10 @@ def query_integration_test_index2():
     )
     ds.write.opensearch(
         os_client_args=OS_CLIENT_ARGS,
-        index_name=QUERY_INTEGRATION_TEST_INDEX_NAME,
+        index_name=QUERY_INTEGRATION_TEST_INDEX_NAME2,
         index_settings=index_settings,
     )
     osc = OpenSearchClientWithLogging(**OS_CLIENT_ARGS)
-    osc.indices.refresh(QUERY_INTEGRATION_TEST_INDEX_NAME)
-    yield QUERY_INTEGRATION_TEST_INDEX_NAME
-    osc.indices.delete(QUERY_INTEGRATION_TEST_INDEX_NAME)
+    osc.indices.refresh(QUERY_INTEGRATION_TEST_INDEX_NAME2)
+    yield QUERY_INTEGRATION_TEST_INDEX_NAME2
+    osc.indices.delete(QUERY_INTEGRATION_TEST_INDEX_NAME2)

@@ -178,7 +178,7 @@ class Anthropic(LLM):
         return ret
 
     def generate_metadata(
-        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None
+        self, *, prompt: RenderedPrompt, model: Optional[LLMModel] = None, llm_kwargs: Optional[dict] = None,
     ) -> dict:
         assert model is None or isinstance(
             model, AnthropicModel
@@ -197,7 +197,26 @@ class Anthropic(LLM):
         start = datetime.now()
 
         response = self._client.messages.create(model=model_name, **kwargs)
-        ret = self._metadata_from_response(model_name, kwargs, response, start)
+        if stream := llm_kwargs.get("stream", False):
+            parts = []
+            for event in response:
+                if event.type == "content_block_delta":
+                    parts.append(event.delta.text)
+                if hasattr(event, "usage"):
+                    in_tokens = event.usage.input_tokens
+                    out_tokens = event.usage.output_tokens
+            output = "".join(parts)
+            wall_latency = datetime.now() - start
+            ret = {
+                "model": model_name,
+                "output": output,
+                "wall_latency": wall_latency,
+                "in_tokens": in_tokens,
+                "out_tokens": out_tokens,
+            }
+            self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens, model=model_name)
+        else:
+            ret = self._metadata_from_response(model_name, kwargs, response, start)
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
         self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
@@ -210,7 +229,7 @@ class Anthropic(LLM):
         return d["output"]
 
     async def generate_async(
-        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None
+        self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None, model: Optional[LLMModel] = None,
     ) -> str:
         from anthropic import RateLimitError, APIConnectionError
 
@@ -230,6 +249,29 @@ class Anthropic(LLM):
         while not done:
             try:
                 response = await self._async_client.messages.create(model=model_name, **kwargs)
+                if stream := llm_kwargs.get("stream", False):
+                    parts = []
+                    for event in response:
+                        if event.type == "content_block_delta":
+                            parts.append(event.delta.text)
+                        if hasattr(event, "usage"):
+                            in_tokens = event.usage.input_tokens
+                            out_tokens = event.usage.output_tokens
+                    output = "".join(parts)
+                    wall_latency = datetime.now() - start
+                    ret = {
+                        "model": model_name,
+                        "output": output,
+                        "wall_latency": wall_latency,
+                        "in_tokens": in_tokens,
+                        "out_tokens": out_tokens,
+                    }
+                    self.add_llm_metadata(kwargs, output, wall_latency, in_tokens, out_tokens, model=model_name)
+                else:
+                    ret = self._metadata_from_response(model_name, kwargs, response, start)
+                    logging.debug(f"Generated response from Anthropic model: {ret}")
+
+                    self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
                 done = True
             except (RateLimitError, APIConnectionError):
                 backoff = INITIAL_BACKOFF * (2**retries)
@@ -237,10 +279,6 @@ class Anthropic(LLM):
                 await asyncio.sleep(backoff + jitter)
                 retries += 1
 
-        ret = self._metadata_from_response(model_name, kwargs, response, start)
-        logging.debug(f"Generated response from Anthropic model: {ret}")
-
-        self._llm_cache_set(prompt, llm_kwargs, ret, model=model_name)
         return ret["output"]
 
     def generate_batch(
